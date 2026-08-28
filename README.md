@@ -261,6 +261,39 @@ Sizing, the wordmark and the tagline all stay as they are.
 
 ---
 
+## Who can register
+
+Self-service signup links a user to a campus by **email domain**. An
+organization's `email_domain` is matched against the address being registered:
+
+```
+21bce1234@campus.edu  ->  joined to Main Campus
+someone@gmail.com     ->  refused, told which domain is accepted
+```
+
+This is what makes email verification meaningful — proving you control an
+address at the college's domain also proves you belong there. A campus platform
+should not accept an arbitrary personal address as a student.
+
+Two paths bypass domain matching:
+
+- **Institution signup** creates a new organization, and the registrant becomes
+  its administrator.
+- **Admin provisioning** (Administration > Users > Add user) creates any account
+  directly, regardless of domain. This is the only route to technician, manager
+  and admin roles, and covers students whose campus email is not working yet.
+
+If an organization has no `email_domain` configured and it is the only tenant in
+the database, signups join it — a single-campus install is unambiguous. With
+several organizations configured, an unmatched address is always refused rather
+than guessed at.
+
+To change which domain is accepted:
+
+```sql
+UPDATE organizations SET email_domain = 'vit.ac.in' WHERE name = 'Your College';
+```
+
 ## Email delivery
 
 Verification codes and password resets are sent over SMTP. Any provider works —
