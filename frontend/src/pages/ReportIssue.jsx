@@ -1,12 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  Armchair, Camera, Droplet, Fan, Lightbulb, MapPin, Monitor, Send, Sparkles,
-  Video, Wifi, Wrench, X,
+  Armchair, Droplet, Fan, Lightbulb, MapPin, Monitor, Send, Sparkles,
+  Video, Wifi, Wrench,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button, Field, PriorityPill, Select, Textarea, Widget, toast } from '@/components/ui'
+import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 
 /** Category icon name (from the DB) → lucide component. */
@@ -104,21 +105,14 @@ export default function ReportIssue() {
       asset_id: assetId || null,
       location_note: locationNote.trim() || null,
       attachments: photos.map((p) => ({
-        url: p.url, filename: p.name, mime_type: p.type, purpose: 'report',
+        url: p.url, thumb_url: p.thumb_url, filename: p.filename,
+        mime_type: p.mime_type, size_bytes: p.size_bytes,
+        // Drives duplicate detection's image signal.
+        phash: p.phash, purpose: 'report',
       })),
     })
   }
 
-  const addPhotos = (files) => {
-    const accepted = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    if (accepted.length !== files.length) toast.error('Only image files can be attached.')
-    setPhotos((prev) => [
-      ...prev,
-      // Object URLs stand in for a real upload endpoint; swap for the response
-      // of POST /uploads when object storage is wired up.
-      ...accepted.map((f) => ({ url: URL.createObjectURL(f), name: f.name, type: f.type })),
-    ].slice(0, 5))
-  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-5 max-w-6xl">
@@ -197,41 +191,11 @@ export default function ReportIssue() {
               />
             </Field>
 
-            <Field label="Evidence / Photo" className="mt-4"
-                   hint="Up to 5 images. A photo speeds up diagnosis considerably.">
-              <label
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => { e.preventDefault(); addPhotos(e.dataTransfer.files) }}
-                className="flex flex-col items-center justify-center gap-2 py-8 px-4 rounded border-2 border-dashed border-secondary/30 bg-info-bg/40 cursor-pointer hover:bg-info-bg transition-colors"
-              >
-                <div className="w-11 h-11 rounded-lg bg-secondary/10 grid place-items-center">
-                  <Camera size={20} className="text-secondary" />
-                </div>
-                <p className="text-body-md text-ink text-center">
-                  Drag and drop photos here<br />
-                  <span className="text-ink-faint">or click to browse</span>
-                </p>
-                <input type="file" accept="image/*" multiple className="hidden"
-                       onChange={(e) => addPhotos(e.target.files)} />
-              </label>
-
-              {photos.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {photos.map((p, i) => (
-                    <div key={i} className="relative w-24 h-24 rounded overflow-hidden border border-border-subtle">
-                      <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setPhotos((prev) => prev.filter((_, x) => x !== i))}
-                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary-950/70 text-white grid place-items-center"
-                        aria-label={`Remove ${p.name}`}
-                      >
-                        <X size={11} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <Field label="Evidence / Photo" className="mt-4">
+              <ImageUpload
+                value={photos} onChange={setPhotos} purpose="report" max={5}
+                hint="Up to 5 images. A photo speeds up diagnosis, and lets the AI spot duplicate reports of the same fault."
+              />
             </Field>
           </Widget>
         </div>

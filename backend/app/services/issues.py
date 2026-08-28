@@ -62,12 +62,29 @@ async def find_duplicate_candidates(
         query = query.where(Issue.building_id == issue.building_id)
 
     open_issues = (await db.scalars(query.limit(200))).all()
+    if not open_issues:
+        return []
+
+    # Perceptual hashes live on the attachments, not on the issue, so load them
+    # for the candidate set. Without this the image signal is silently absent and
+    # two photos of the same fault score no higher than two unrelated ones.
+    hash_rows = (await db.execute(
+        select(IssueAttachment.issue_id, IssueAttachment.phash)
+        .where(
+            IssueAttachment.issue_id.in_([i.id for i in open_issues]),
+            IssueAttachment.phash.isnot(None),
+        )
+    )).all()
+    phash_by_issue: dict = {}
+    for issue_id, h in hash_rows:
+        phash_by_issue.setdefault(issue_id, h)
 
     def to_dict(i: Issue) -> dict:
         return {
             "id": i.id, "reference": i.reference, "title": i.title,
             "description": i.description, "asset_id": i.asset_id, "room_id": i.room_id,
-            "floor_id": i.floor_id, "building_id": i.building_id, "created_at": i.created_at,
+            "floor_id": i.floor_id, "building_id": i.building_id,
+            "created_at": i.created_at, "phash": phash_by_issue.get(i.id),
         }
 
     new_dict = to_dict(issue)
