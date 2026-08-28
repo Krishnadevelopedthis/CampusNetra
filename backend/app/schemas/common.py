@@ -27,6 +27,9 @@ class Page(BaseModel, Generic[T]):
 
 class Message(BaseModel):
     detail: str
+    # Development only: present when SMTP is unconfigured, so the verification
+    # code is reachable without an inbox. Never populated in production.
+    dev_code: Optional[str] = None
 
 
 class IdResponse(BaseModel):

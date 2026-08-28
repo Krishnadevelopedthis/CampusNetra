@@ -72,6 +72,22 @@ class Settings(BaseSettings):
         return self
 
     @property
+    def email_delivers(self) -> bool:
+        """True when a real SMTP host is configured and mail can actually arrive."""
+        return bool(self.SMTP_HOST)
+
+    @property
+    def expose_dev_codes(self) -> bool:
+        """Whether OTPs may be returned in API responses.
+
+        Only outside production AND only when email cannot be delivered — with no
+        SMTP host the code reaches nothing but the server console, which makes
+        signup impossible to complete from a browser. Both conditions are required,
+        so configuring SMTP or setting ENVIRONMENT=production closes this off.
+        """
+        return self.ENVIRONMENT != "production" and not self.email_delivers
+
+    @property
     def ai_available(self) -> bool:
         """AI calls only go out when a key is present; otherwise heuristics run."""
         return self.AI_ENABLED and bool(self.ANTHROPIC_API_KEY)
