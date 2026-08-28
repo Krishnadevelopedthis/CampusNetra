@@ -146,7 +146,7 @@ INSERT INTO inspection_template_items (template_id, position, prompt, requires_p
  ('bbbb0000-0000-0000-0000-000000000001',4,'Projector powers on and displays a test image',TRUE,FALSE),
  ('bbbb0000-0000-0000-0000-000000000001',5,'Furniture is intact and free of sharp edges',FALSE,FALSE),
  ('bbbb0000-0000-0000-0000-000000000001',6,'Emergency exit is unobstructed and signage is lit',TRUE,TRUE)
-ON CONFLICT DO NOTHING;
+ON CONFLICT (template_id, position) DO NOTHING;
 
 -- ---------- Permissions ----------
 INSERT INTO permissions (code, module, description) VALUES

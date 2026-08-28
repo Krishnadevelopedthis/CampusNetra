@@ -132,7 +132,10 @@ CREATE TABLE inspection_template_items (
     prompt      TEXT    NOT NULL,
     help_text   TEXT,
     requires_photo BOOLEAN NOT NULL DEFAULT FALSE,
-    is_critical    BOOLEAN NOT NULL DEFAULT FALSE          -- a fail here auto-raises an issue
+    is_critical    BOOLEAN NOT NULL DEFAULT FALSE,         -- a fail here auto-raises an issue
+    -- Position is the item's identity within a template. Without this, a re-run
+    -- of the seed silently duplicates every checklist row.
+    UNIQUE (template_id, position)
 );
 
 CREATE TABLE inspections (
