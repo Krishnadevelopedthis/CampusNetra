@@ -1,0 +1,112 @@
+"""Campus Netra API — application entrypoint."""
+from __future__ import annotations
+
+import logging
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+
+from app.api.v1.router import api_router
+from app.core.config import settings
+from app.core.database import engine
+
+logging.basicConfig(
+    level=logging.DEBUG if settings.DEBUG else logging.INFO,
+    format="%(asctime)s  %(levelname)-8s %(name)s: %(message)s",
+)
+log = logging.getLogger("campusnetra")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        log.info("Database connection established")
+    except Exception as exc:
+        # Surface the problem loudly but let the process start, so /health can report it.
+        log.error("Database unreachable at startup: %s", exc)
+
+    log.info(
+        "%s starting — env=%s, AI=%s",
+        settings.APP_NAME,
+        settings.ENVIRONMENT,
+        "enabled" if settings.ai_available else "heuristic fallback (no API key)",
+    )
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(
+    title=f"{settings.APP_NAME} API",
+    description=(
+        "AI-powered campus facility management: issue reporting with automatic "
+        "department routing, work orders, inspections, AI Lost & Found matching, "
+        "and a live spatial Digital Twin."
+    ),
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_handler(request: Request, exc: RequestValidationError):
+    """Flatten pydantic errors into a shape the frontend forms can display per-field."""
+    fields: dict[str, str] = {}
+    for err in exc.errors():
+        loc = [str(p) for p in err["loc"] if p not in ("body", "query", "path")]
+        fields[".".join(loc) or "_"] = err["msg"]
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": "Please correct the highlighted fields.", "fields": fields},
+    )
+
+
+app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+# Locally-stored uploads (complaint photos, L&F images, floor plans).
+if settings.STORAGE_BACKEND == "local":
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=settings.UPLOAD_DIR), name="media")
+
+
+@app.get("/health", tags=["System"])
+async def health():
+    """Liveness + dependency probe used by the frontend's offline banner."""
+    db_ok = True
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        db_ok = False
+
+    return {
+        "status": "ok" if db_ok else "degraded",
+        "database": "up" if db_ok else "down",
+        "ai": "live" if settings.ai_available else "heuristic",
+        "environment": settings.ENVIRONMENT,
+        "version": app.version,
+    }
+
+
+@app.get("/", tags=["System"])
+async def root():
+    return {"name": settings.APP_NAME, "docs": "/docs", "health": "/health"}

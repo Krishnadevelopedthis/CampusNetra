@@ -1,5 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Node
 node_modules/
-.env
-.DS_Store
 dist/
-build/
+.vite/
+
+# Environment & secrets
+.env
+.env.local
+*.pem
+
+# Local database cluster
+database/.pgdata/
+
+# Uploads
+backend/uploads/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Scratch files
+backend/_*.py

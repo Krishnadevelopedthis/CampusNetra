@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-surface-base text-ink font-sans text-body-md antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Tabular figures keep IDs and metrics vertically aligned in dense tables. */
+  .tabular, td.tabular, .font-mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-secondary ring-offset-2 ring-offset-surface;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full border-2 border-solid border-transparent bg-clip-content; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-border-strong; }
+}
+
+@layer components {
+  /* ---- Level 1: bordered, never shadowed ---- */
+  .widget {
+    @apply bg-surface border border-border-subtle rounded;
+  }
+  .widget-header {
+    @apply flex items-center justify-between px-widget py-3 border-b border-border-subtle;
+  }
+  .widget-title {
+    @apply text-headline-md text-ink;
+  }
+  .widget-body {
+    @apply p-widget;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 h-10
+           text-body-md font-medium transition-colors duration-150
+           disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap;
+  }
+  .btn-primary   { @apply btn bg-secondary text-white hover:bg-secondary-600; }
+  .btn-dark      { @apply btn bg-primary text-white hover:bg-primary-800; }
+  .btn-secondary { @apply btn bg-surface text-ink border border-border-subtle hover:bg-surface-sunken; }
+  .btn-ghost     { @apply btn bg-transparent text-ink-muted hover:bg-surface-sunken; }
+  .btn-danger    { @apply btn bg-danger text-white hover:bg-red-600; }
+  .btn-sm        { @apply h-8 px-3 text-body-sm; }
+  .btn-lg        { @apply h-11 px-5 text-body-lg; }
+
+  /* ---- Forms ---- */
+  .label {
+    @apply block text-label-caps uppercase text-ink-muted mb-1.5;
+  }
+  .input {
+    @apply w-full h-10 px-3 bg-surface border border-border-subtle rounded
+           text-body-md text-ink placeholder:text-ink-faint
+           focus:border-secondary focus:ring-1 focus:ring-secondary
+           disabled:bg-surface-sunken disabled:text-ink-faint transition-colors;
+  }
+  .input-error { @apply border-danger focus:border-danger focus:ring-danger; }
+  .textarea    { @apply input h-auto py-2.5 min-h-[96px] resize-y; }
+  .select      { @apply input pr-9 appearance-none bg-no-repeat cursor-pointer; }
+  .field-error { @apply mt-1 text-body-sm text-danger-text flex items-center gap-1; }
+  .hint        { @apply mt-1 text-body-sm text-ink-faint; }
+
+  /* ---- Status pills: 10% tint background, solid text ---- */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1
+           text-body-sm font-medium whitespace-nowrap;
+  }
+
+  /* ---- High-density tables ---- */
+  .table-wrap { @apply w-full overflow-x-auto; }
+  .table      { @apply w-full text-body-md border-collapse; }
+  .table thead th {
+    @apply text-label-caps uppercase text-primary bg-surface-sunken
+           text-left px-3 py-2.5 border-b border-border-subtle whitespace-nowrap;
+  }
+  .table tbody td {
+    @apply px-3 py-3 border-b border-border-subtle align-middle;
+  }
+  .table tbody tr { @apply min-h-[40px] transition-colors; }
+  .table tbody tr:hover { @apply bg-surface-sunken/60; }
+  .table-compact tbody td { @apply py-2 text-body-sm; }
+
+  /* ---- AI surfaces: tinted so machine output reads as non-human ---- */
+  .ai-surface {
+    @apply bg-ai-bg border border-ai-border rounded-lg;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 h-11 px-3 rounded-lg text-body-md font-medium
+           text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors;
+  }
+  .sidebar-link-active {
+    @apply bg-secondary text-white hover:bg-secondary hover:text-white;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden bg-surface-sunken rounded;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { @apply bg-white; }
+}
