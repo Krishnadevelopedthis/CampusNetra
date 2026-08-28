@@ -3,7 +3,7 @@ import {
   Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
   PlusCircle, Search, Settings, Sparkles, User as UserIcon, X,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { Logo, LogoMark } from '@/components/Logo'
@@ -167,6 +167,17 @@ export default function AppLayout() {
   const items = navFor(user?.role)
   const accent = ROLE_ACCENT[user?.role] || '#1e1b4b'
 
+  // NavLink's own matching cannot express this: prefix mode lights up both
+  // /issues and /issues/new at once, while exact mode leaves /issues/:id with
+  // nothing highlighted. The rule that actually holds is longest match wins —
+  // the most specific nav item containing the current path is the active one.
+  const activePath = useMemo(() => {
+    const matches = items.filter(
+      (i) => location.pathname === i.to || location.pathname.startsWith(`${i.to}/`),
+    )
+    return matches.sort((a, b) => b.to.length - a.to.length)[0]?.to ?? null
+  }, [items, location.pathname])
+
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setMobileOpen(false), [location.pathname])
 
@@ -188,11 +199,13 @@ export default function AppLayout() {
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
         {items.map((item) => (
           <NavLink
-            key={item.to} to={item.to} end={item.to === '/dashboard'}
+            key={item.to} to={item.to}
             title={collapsed ? item.label : undefined}
-            className={({ isActive }) =>
-              clsx('sidebar-link', isActive && 'sidebar-link-active', collapsed && 'justify-center px-0')
-            }
+            className={clsx(
+              'sidebar-link',
+              item.to === activePath && 'sidebar-link-active',
+              collapsed && 'justify-center px-0',
+            )}
           >
             <item.icon size={18} className="shrink-0" />
             {!collapsed && <span className="truncate">{item.label}</span>}
