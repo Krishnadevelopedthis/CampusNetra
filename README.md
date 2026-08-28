@@ -263,36 +263,41 @@ Sizing, the wordmark and the tagline all stay as they are.
 
 ## Who can register
 
-Self-service signup links a user to a campus by **email domain**. An
-organization's `email_domain` is matched against the address being registered:
+By default **any email address can register**, and the user joins the single
+campus in the database. That is the right behaviour for a fresh deployment or a
+demo, where requiring institutional email would block you before you start.
 
-```
-21bce1234@campus.edu  ->  joined to Main Campus
-someone@gmail.com     ->  refused, told which domain is accepted
-```
+Resolution order:
 
-This is what makes email verification meaningful — proving you control an
-address at the college's domain also proves you belong there. A campus platform
-should not accept an arbitrary personal address as a student.
+1. **Email domain matches** an organization's `email_domain` — always accepted.
+2. **Open registration** — organizations with `settings.allow_open_registration`
+   unset or true accept any address. Unambiguous only while exactly one such
+   organization exists.
+3. **Otherwise refused**, with a message naming what would be accepted.
 
-Two paths bypass domain matching:
+### Tightening it for production
 
-- **Institution signup** creates a new organization, and the registrant becomes
-  its administrator.
-- **Admin provisioning** (Administration > Users > Add user) creates any account
-  directly, regardless of domain. This is the only route to technician, manager
-  and admin roles, and covers students whose campus email is not working yet.
-
-If an organization has no `email_domain` configured and it is the only tenant in
-the database, signups join it — a single-campus install is unambiguous. With
-several organizations configured, an unmatched address is always refused rather
-than guessed at.
-
-To change which domain is accepted:
+Once you are running a real campus, restrict signup to institutional email.
+Domain matching then means email verification proves *membership*, not merely
+that the person owns an inbox:
 
 ```sql
-UPDATE organizations SET email_domain = 'vit.ac.in' WHERE name = 'Your College';
+UPDATE organizations
+   SET email_domain = 'vit.ac.in',
+       settings = settings || '{"allow_open_registration": false}'::jsonb
+ WHERE name = 'Your College';
 ```
+
+After that, `21bce1234@vit.ac.in` joins automatically and `someone@gmail.com` is
+refused and pointed at the administrator.
+
+Two paths bypass this entirely:
+
+- **Institution signup** creates a new organization; the registrant becomes its
+  administrator.
+- **Admin provisioning** (Administration > Users > Add user) creates any account
+  regardless of domain, and is the only route to technician, manager and admin
+  roles.
 
 ## Email delivery
 

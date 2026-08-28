@@ -110,9 +110,18 @@ async def resolve_organization(db: AsyncSession, address: str) -> tuple[Optional
 
     Returns (organization_id, rejection_reason). Exactly one is non-None.
 
-    Matching on the email domain is what makes email verification meaningful:
-    proving you control 21bce1234@vit.ac.in also proves you belong to VIT. A
-    campus platform should not accept an arbitrary Gmail as a student.
+    Resolution order:
+      1. Email domain matches an organization's email_domain — always accepted,
+         and the strongest signal, since controlling an address at the college's
+         domain also demonstrates membership of the college.
+      2. Otherwise, organizations that allow open registration
+         (settings.allow_open_registration, the default). Unambiguous only when
+         exactly one such organization exists.
+      3. Otherwise refused, naming what would be accepted.
+
+    Open registration is the default so a new deployment works out of the box.
+    Set allow_open_registration to false once email_domain is configured, and
+    signup becomes proof of membership rather than merely proof of an inbox.
     """
     domain = email_domain(address)
 
@@ -122,18 +131,27 @@ async def resolve_organization(db: AsyncSession, address: str) -> tuple[Optional
     if match is not None:
         return match.id, None
 
-    # An institution that has not configured a domain cannot be matched on one.
-    # When it is the only tenant, the deployment is unambiguous — a single-campus
-    # install — so joining it is the correct behaviour rather than a guess.
-    configured = (await db.scalars(
-        select(Organization).where(Organization.email_domain.isnot(None))
-    )).all()
-    if not configured:
-        orgs = (await db.scalars(select(Organization).limit(2))).all()
-        if len(orgs) == 1:
-            return orgs[0].id, None
+    all_orgs = (await db.scalars(select(Organization))).all()
 
-    accepted = sorted({o.email_domain for o in configured if o.email_domain})
+    def open_to_anyone(org: Organization) -> bool:
+        # Absent flag means open, so an organization created before this setting
+        # existed keeps working.
+        return (org.settings or {}).get("allow_open_registration", True) is not False
+
+    open_orgs = [o for o in all_orgs if open_to_anyone(o)]
+
+    if len(open_orgs) == 1:
+        return open_orgs[0].id, None
+
+    if len(open_orgs) > 1:
+        # Several campuses accept anyone, so the address alone cannot say which.
+        return None, (
+            "Several campuses are registered on this system, so we cannot tell "
+            "which one you belong to from your email address. Ask your "
+            "administrator to create your account."
+        )
+
+    accepted = sorted({o.email_domain for o in all_orgs if o.email_domain})
     if accepted:
         return None, (
             f"Registration is limited to campus email addresses "
