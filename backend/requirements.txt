@@ -34,3 +34,6 @@ httpx>=0.28.1
 python-dotenv>=1.0.1
 tenacity>=9.0.0
 greenlet>=3.2.0
+
+# TLS certificate bundle — python.org builds ship no system CA store on macOS
+certifi>=2024.0.0
