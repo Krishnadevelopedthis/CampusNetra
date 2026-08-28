@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -100,6 +100,50 @@ async def consume_verification_code(
     record.consumed_at = _now()
 
 
+def email_domain(address: str) -> str:
+    """Domain part, lowercased. Plus-addressing does not affect it."""
+    return address.rsplit("@", 1)[-1].strip().lower()
+
+
+async def resolve_organization(db: AsyncSession, address: str) -> tuple[Optional[uuid.UUID], Optional[str]]:
+    """Decide which campus a self-registering user belongs to.
+
+    Returns (organization_id, rejection_reason). Exactly one is non-None.
+
+    Matching on the email domain is what makes email verification meaningful:
+    proving you control 21bce1234@vit.ac.in also proves you belong to VIT. A
+    campus platform should not accept an arbitrary Gmail as a student.
+    """
+    domain = email_domain(address)
+
+    match = await db.scalar(
+        select(Organization).where(func.lower(Organization.email_domain) == domain)
+    )
+    if match is not None:
+        return match.id, None
+
+    # An institution that has not configured a domain cannot be matched on one.
+    # When it is the only tenant, the deployment is unambiguous — a single-campus
+    # install — so joining it is the correct behaviour rather than a guess.
+    configured = (await db.scalars(
+        select(Organization).where(Organization.email_domain.isnot(None))
+    )).all()
+    if not configured:
+        orgs = (await db.scalars(select(Organization).limit(2))).all()
+        if len(orgs) == 1:
+            return orgs[0].id, None
+
+    accepted = sorted({o.email_domain for o in configured if o.email_domain})
+    if accepted:
+        return None, (
+            f"Registration is limited to campus email addresses "
+            f"({', '.join('@' + d for d in accepted)}). "
+            f"Ask your administrator to create an account if you do not have one."
+        )
+    return None, ("No campus is configured on this system yet. "
+                  "An administrator must register the institution first.")
+
+
 async def register_user(db: AsyncSession, payload: RegisterRequest):
     """Create the account and email the verification code.
 
@@ -113,6 +157,12 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
 
     org_id = payload.organization_id
     role = payload.role
+
+    if payload.organization_name is None and org_id is None:
+        # Self-service signup: derive the campus from the email address.
+        org_id, rejection = await resolve_organization(db, payload.email)
+        if rejection:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, rejection)
 
     if payload.organization_name:
         # Enterprise/college registration: the signer-up becomes that tenant's admin.
