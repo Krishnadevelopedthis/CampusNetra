@@ -1,9 +1,10 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Camera, PackageSearch, Send, X } from 'lucide-react'
+import { PackageSearch, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button, Field, Input, Select, Textarea, Widget, toast } from '@/components/ui'
+import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 
 export default function ReportItem() {
@@ -65,18 +66,13 @@ export default function ReportItem() {
       contact_pref: form.contact_pref || 'in_app',
       holding_location: kind === 'found' ? (form.holding_location?.trim() || null) : null,
       attachments: photos.map((p, i) => ({
-        url: p.url, filename: p.name, is_primary: i === 0,
+        url: p.url, thumb_url: p.thumb_url, filename: p.filename,
+        // The primary image's hash is what the L&F matcher compares on.
+        phash: p.phash, is_primary: i === 0,
       })),
     })
   }
 
-  const addPhotos = (files) => {
-    const imgs = Array.from(files).filter((f) => f.type.startsWith('image/'))
-    setPhotos((prev) => [
-      ...prev,
-      ...imgs.map((f) => ({ url: URL.createObjectURL(f), name: f.name })),
-    ].slice(0, 4))
-  }
 
   return (
     <form onSubmit={onSubmit} className="space-y-5 max-w-4xl">
@@ -174,41 +170,10 @@ export default function ReportItem() {
       </Widget>
 
       <Widget title="Photo" subtitle="A clear photo is the strongest matching signal">
-        <label
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); addPhotos(e.dataTransfer.files) }}
-          className="flex flex-col items-center justify-center gap-2 py-8 rounded border-2 border-dashed border-secondary/30 bg-info-bg/40 cursor-pointer hover:bg-info-bg transition-colors"
-        >
-          <div className="w-11 h-11 rounded-lg bg-secondary/10 grid place-items-center">
-            <Camera size={20} className="text-secondary" />
-          </div>
-          <p className="text-body-md text-ink text-center">
-            Drag and drop photos here<br />
-            <span className="text-ink-faint">or click to browse</span>
-          </p>
-          <input type="file" accept="image/*" multiple className="hidden"
-                 onChange={(e) => addPhotos(e.target.files)} />
-        </label>
-
-        {photos.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3">
-            {photos.map((p, i) => (
-              <div key={i} className="relative w-24 h-24 rounded overflow-hidden border border-border-subtle">
-                <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                {i === 0 && (
-                  <span className="absolute bottom-0 inset-x-0 bg-primary/80 text-white text-[10px] text-center py-0.5">
-                    Primary
-                  </span>
-                )}
-                <button type="button"
-                        onClick={() => setPhotos((prev) => prev.filter((_, x) => x !== i))}
-                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary-950/70 text-white grid place-items-center">
-                  <X size={11} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <ImageUpload
+          value={photos} onChange={setPhotos} purpose={kind} max={4}
+          hint="The first image is used as the primary. Image similarity is one of the five factors the matcher scores on."
+        />
       </Widget>
 
       <div className="flex justify-end gap-2">
