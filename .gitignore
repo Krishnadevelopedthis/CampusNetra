@@ -29,3 +29,6 @@ backend/uploads/
 
 # Scratch files
 backend/_*.py
+
+# Runtime logs
+.logs/
