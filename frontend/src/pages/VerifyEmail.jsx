@@ -61,7 +61,10 @@ export function OtpInput({ value, onChange, error, disabled }) {
 export default function VerifyEmail() {
   const [params] = useSearchParams()
   const email = params.get('email') || ''
-  const [code, setCode] = useState('')
+  // Present only when the server could not send the email (development).
+  const devCode = params.get('code') || ''
+  const [code, setCode] = useState(devCode)
+  const [notice, setNotice] = useState(devCode ? { code: devCode } : null)
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [cooldown, setCooldown] = useState(0)
@@ -99,8 +102,14 @@ export default function VerifyEmail() {
 
   const resend = async () => {
     try {
-      await api.post('/auth/resend-code', { email, purpose: 'email_verify' })
-      toast.success('A new code is on its way.')
+      const res = await api.post('/auth/resend-code', { email, purpose: 'email_verify' })
+      if (res?.dev_code) {
+        setNotice({ code: res.dev_code })
+        setCode(res.dev_code)
+        toast.info('Email is not configured on this server — your code is shown below.')
+      } else {
+        toast.success('A new code is on its way.')
+      }
       setCooldown(45)
     } catch (err) {
       toast.error(err.detail || 'Could not resend the code')
@@ -114,6 +123,21 @@ export default function VerifyEmail() {
       footer={<Link to="/login" className="text-secondary hover:underline">Back to sign in</Link>}
     >
       <form onSubmit={submit} className="space-y-5">
+        {notice && (
+          <div className="ai-surface p-4">
+            <p className="text-body-md text-ink">
+              This server has no mail delivery configured, so your code is shown here
+              instead of being emailed.
+            </p>
+            <p className="font-mono text-headline-lg tracking-[0.3em] text-primary mt-2">
+              {notice.code}
+            </p>
+            <p className="text-body-sm text-ink-faint mt-1">
+              Set <code>SMTP_HOST</code> in <code>backend/.env</code> to receive real emails.
+            </p>
+          </div>
+        )}
+
         <OtpInput value={code} onChange={setCode} error={error} disabled={submitting} />
         {error && <p className="field-error justify-center">{error}</p>}
 

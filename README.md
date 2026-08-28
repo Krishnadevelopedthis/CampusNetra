@@ -261,6 +261,60 @@ Sizing, the wordmark and the tagline all stay as they are.
 
 ---
 
+## Email delivery
+
+Verification codes and password resets are sent over SMTP. Any provider works —
+here is Gmail, which needs no signup.
+
+**1. Create a Gmail App Password.** Google blocks plain account passwords for
+SMTP, so 2-Step Verification must be on, then generate a 16-character app
+password at https://myaccount.google.com/apppasswords
+
+**2. Add it to `backend/.env`** (this file is gitignored, so the password never
+reaches the repository):
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=abcdefghijklmnop
+SMTP_FROM="Campus Netra <you@gmail.com>"
+```
+
+**3. Verify it, and send yourself a real test message:**
+
+```bash
+./scripts/check_email.py you@gmail.com
+```
+
+The script checks the connection and login separately from sending, so a wrong
+password reports "authentication failed" rather than a generic timeout.
+
+Other providers work the same way — only the host and port change:
+
+| Provider | Host | Port |
+| --- | --- | --- |
+| Gmail | `smtp.gmail.com` | 587 |
+| Outlook | `smtp-mail.outlook.com` | 587 |
+| Brevo | `smtp-relay.brevo.com` | 587 |
+| Mailtrap (testing) | `sandbox.smtp.mailtrap.io` | 2525 |
+
+### Without SMTP configured
+
+Signup still works. With no `SMTP_HOST`, the API returns the verification code in
+the response and the app displays it on the verification screen, so you are never
+stranded at a step you cannot complete.
+
+This is strictly development-only — the code is exposed **only** when the
+environment is not production **and** no mail server is configured. Setting
+either one closes it off:
+
+| Environment | SMTP | Code exposed |
+| --- | --- | --- |
+| development | not set | yes |
+| development | configured | no |
+| production | anything | no |
+
 ## Configuration
 
 `backend/.env` — see `.env.example` for the full list.
@@ -270,7 +324,8 @@ Sizing, the wordmark and the tagline all stay as they are.
 | `DATABASE_URL` | PostgreSQL connection string |
 | `SECRET_KEY` | JWT signing key — **production refuses to boot on the dev default** |
 | `ANTHROPIC_API_KEY` | Blank ⇒ deterministic heuristics; set ⇒ live model calls |
-| `SMTP_HOST` | Blank ⇒ OTP emails print to the console |
+| `SMTP_HOST` | Blank ⇒ codes are shown in-app instead of emailed (dev only) |
+| `SMTP_USER` / `SMTP_PASSWORD` | SMTP credentials — Gmail requires an App Password |
 
 ---
 

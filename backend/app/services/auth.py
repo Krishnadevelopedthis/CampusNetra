@@ -100,7 +100,12 @@ async def consume_verification_code(
     record.consumed_at = _now()
 
 
-async def register_user(db: AsyncSession, payload: RegisterRequest) -> tuple[User, str]:
+async def register_user(db: AsyncSession, payload: RegisterRequest):
+    """Create the account and email the verification code.
+
+    Returns (user, code, send_result) so the route can tell the caller whether the
+    email actually went out rather than assuming it did.
+    """
     """Creates the account (and the organization, for an enterprise signup)."""
     existing = await db.scalar(select(User).where(User.email == payload.email))
     if existing is not None:
@@ -152,8 +157,8 @@ async def register_user(db: AsyncSession, payload: RegisterRequest) -> tuple[Use
     await db.flush()
 
     code = await create_verification_code(db, user, "email_verify")
-    await send_otp(user.email, user.full_name, code, "email_verify")
-    return user, code
+    result = await send_otp(user.email, user.full_name, code, "email_verify")
+    return user, code, result
 
 
 async def authenticate(

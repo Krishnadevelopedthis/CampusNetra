@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import DB, CurrentUser, client_ip
+from app.core.config import settings
 from app.core.enums import UserStatus
 from app.core.security import hash_password, verify_password
 from app.models.identity import User
@@ -26,14 +27,26 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, db: DB, request: Request):
     """Creates the account and emails a 6-digit verification code."""
-    user, _ = await auth_service.register_user(db, payload)
+    user, code, sent = await auth_service.register_user(db, payload)
     await record_audit(
         db, action="user.register", actor_id=user.id, organization_id=user.organization_id,
         entity_type="user", entity_id=user.id, ip_address=client_ip(request),
         after={"email": user.email, "role": user.role.value},
     )
+
+    if sent.delivered:
+        detail = f"Account created. A verification code has been sent to {user.email}."
+    elif settings.expose_dev_codes:
+        # No mail server on this deployment: show the code rather than stranding
+        # the user at a verification step they can never complete.
+        detail = "Account created. Email is not configured on this server, so your code is shown below."
+    else:
+        detail = (f"Account created, but the verification email could not be sent. "
+                  f"{sent.error or ''} Use 'Resend code' once mail is working.").strip()
+
     return Message(
-        detail=f"Account created. A verification code has been sent to {user.email}."
+        detail=detail,
+        dev_code=code if (not sent.delivered and settings.expose_dev_codes) else None,
     )
 
 
@@ -71,7 +84,10 @@ async def resend_code(payload: ResendCodeRequest, db: DB):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unsupported code purpose")
 
     code = await auth_service.create_verification_code(db, user, payload.purpose)
-    await send_otp(user.email, user.full_name, code, payload.purpose)
+    sent = await send_otp(user.email, user.full_name, code, payload.purpose)
+    if not sent.delivered and settings.expose_dev_codes:
+        return Message(detail="Email is not configured on this server; your code is shown below.",
+                       dev_code=code)
     return generic
 
 
@@ -112,7 +128,10 @@ async def forgot_password(payload: ForgotPasswordRequest, db: DB):
         return generic
 
     code = await auth_service.create_verification_code(db, user, "password_reset")
-    await send_otp(user.email, user.full_name, code, "password_reset")
+    sent = await send_otp(user.email, user.full_name, code, "password_reset")
+    if not sent.delivered and settings.expose_dev_codes:
+        return Message(detail="Email is not configured on this server; your code is shown below.",
+                       dev_code=code)
     return generic
 
 

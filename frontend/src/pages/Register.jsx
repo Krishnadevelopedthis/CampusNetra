@@ -53,7 +53,7 @@ export default function Register() {
 
     setSubmitting(true)
     try {
-      await register({
+      const res = await register({
         email: form.email.trim(),
         password: form.password,
         full_name: form.full_name.trim(),
@@ -66,8 +66,12 @@ export default function Register() {
         department_code: form.department_code || null,
         organization_name: isEnterprise ? form.organization_name : null,
       })
-      toast.success('Account created. Check your email for the verification code.')
-      navigate(`/verify-email?email=${encodeURIComponent(form.email.trim())}`)
+      toast.success(res?.detail || 'Account created. Check your email for the verification code.')
+      // When the server has no mail configured it returns the code directly;
+      // pass it along so the user is not stranded at a step they cannot complete.
+      const q = new URLSearchParams({ email: form.email.trim() })
+      if (res?.dev_code) q.set('code', res.dev_code)
+      navigate(`/verify-email?${q}`)
     } catch (err) {
       if (err.fields) setErrors(err.fields)
       else setErrors({ _: err.detail || 'Registration failed. Please try again.' })
