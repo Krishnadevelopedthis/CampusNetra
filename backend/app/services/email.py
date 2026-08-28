@@ -23,6 +23,20 @@ from app.core.config import settings
 log = logging.getLogger(__name__)
 
 
+def _tls_context() -> ssl.SSLContext:
+    """TLS context for SMTP.
+
+    Python installed from python.org ships no system CA bundle on macOS, so
+    ssl.create_default_context() fails to verify any server certificate. certifi
+    provides the bundle; fall back to the platform default where it is absent.
+    """
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        return ssl.create_default_context()
+
+
 @dataclass
 class SendResult:
     delivered: bool
@@ -48,10 +62,40 @@ def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessag
     return msg
 
 
+def _auth_hint() -> str:
+    """Authentication failures look identical across providers, but the cause and
+    the fix differ, so key the guidance off the configured host."""
+    host = (settings.SMTP_HOST or "").lower()
+
+    if "brevo" in host or "sendinblue" in host:
+        # Brevo returns a bare 535 for all three of these, so list them in the
+        # order they actually catch people out.
+        return (
+            "Brevo rejected the connection (535). Brevo reports all of these as a "
+            "generic auth failure: (1) your IP is not on the authorized list — "
+            "Brevo blocks unlisted IPs by default, see SMTP & API > 'authorized IP "
+            "addresses'; (2) SMTP_USER must be the relay login from that page "
+            "(like b70ef1001@smtp-brevo.com), not your account email; (3) a new "
+            "account stays under review until activated."
+        )
+    if "gmail" in host or "google" in host:
+        return (
+            "Gmail rejected the credentials. Use a 16-character App Password, not "
+            "your account password — and 2-Step Verification must be enabled first."
+        )
+    if "outlook" in host or "office365" in host:
+        return (
+            "Outlook rejected the credentials. Modern Microsoft accounts usually "
+            "require an app password, and SMTP AUTH may be disabled on the tenant."
+        )
+    return ("SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD match "
+            "exactly what your provider's SMTP settings page shows.")
+
+
 def _send_blocking(msg: EmailMessage) -> SendResult:
     """Runs on a worker thread. Never raises — returns the failure instead."""
     host, port = settings.SMTP_HOST, settings.SMTP_PORT
-    context = ssl.create_default_context()
+    context = _tls_context()
 
     try:
         # Port 465 is implicit TLS; everything else starts plaintext and upgrades.
@@ -72,15 +116,18 @@ def _send_blocking(msg: EmailMessage) -> SendResult:
         return SendResult(delivered=True)
 
     except smtplib.SMTPAuthenticationError as exc:
-        # By far the most common misconfiguration, so name the fix.
         log.error("SMTP authentication failed for %s: %s", settings.SMTP_USER, exc)
-        return SendResult(
-            delivered=False,
-            error=("SMTP authentication failed. For Gmail you must use a 16-character "
-                   "App Password, not your account password."),
-        )
+        return SendResult(delivered=False, error=_auth_hint())
     except smtplib.SMTPRecipientsRefused:
         return SendResult(delivered=False, error="The recipient address was rejected.")
+    except ssl.SSLCertVerificationError as exc:
+        log.error("SMTP TLS verification failed for %s: %s", host, exc)
+        return SendResult(
+            delivered=False,
+            error=("Could not verify the mail server's TLS certificate. "
+                   "Install certifi in the backend virtualenv: "
+                   "backend/.venv/bin/pip install certifi"),
+        )
     except (smtplib.SMTPException, OSError) as exc:
         log.error("SMTP send failed via %s:%s — %s", host, port, exc)
         return SendResult(delivered=False, error=f"Could not reach the mail server: {exc}")
@@ -185,7 +232,7 @@ async def verify_connection() -> SendResult:
 
     def probe() -> SendResult:
         try:
-            context = ssl.create_default_context()
+            context = _tls_context()
             if settings.SMTP_PORT == 465:
                 server = smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT,
                                           timeout=15, context=context)
@@ -200,9 +247,7 @@ async def verify_connection() -> SendResult:
                     server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
             return SendResult(delivered=True)
         except smtplib.SMTPAuthenticationError:
-            return SendResult(delivered=False,
-                              error="Authentication rejected — check SMTP_USER and SMTP_PASSWORD. "
-                                    "Gmail requires a 16-character App Password.")
+            return SendResult(delivered=False, error=_auth_hint())
         except Exception as exc:
             return SendResult(delivered=False, error=str(exc))
 
