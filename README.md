@@ -92,6 +92,11 @@ without a refresh.
 > An asset only returns to green once **no other open issue** references it —
 > closing one of two faults on the same projector must not clear the marker.
 
+Inspections feed the same loop. A failed **critical** checklist item does not just
+lower a score: it raises a routed, high-priority issue and flips the asset to
+`fault` on the twin, so a safety finding cannot be filed away and forgotten.
+Items marked N/A are excluded from the score rather than counted as failures.
+
 ---
 
 ## AI features
@@ -132,7 +137,20 @@ Only matches at or above 80% notify both parties; the rest go to a staff review 
 A wrong match hands someone else's property to the wrong person, so the matcher is
 deliberately conservative.
 
-### 4. Scenario simulation
+### 4. Predictive maintenance
+Ranks every asset by near-term failure risk from signals the platform already
+records: fault history (35%), age against expected life (20%), service overdue
+(20%), mean time between failures (15%) and warranty status (10%).
+
+Deliberately an interpretable weighted model rather than a learned one — a
+facility manager has to justify spending money on a machine that currently works,
+so every score ships with the signals that produced it. An asset already in
+`fault` is damped, because that is a present problem, not a prediction.
+
+A high-risk asset can be turned into a preventive work order in one click, and
+the platform refuses to raise a second one while the first is open.
+
+### 5. Scenario simulation
 Fans *N* hypothetical complaints through classification → department routing →
 technician capacity → SLA projection, without writing anything to the live tables.
 
@@ -190,7 +208,7 @@ pair; replaying an old one fails. Password changes revoke every session.
 
 ## API
 
-58 endpoints. Interactive docs at http://localhost:8000/docs.
+83 endpoints. Interactive docs at http://localhost:8000/docs.
 
 | Area | Prefix |
 | --- | --- |
@@ -200,9 +218,11 @@ pair; replaying an old one fails. Password changes revoke every session.
 | Issues | `/api/v1/issues` |
 | Work Orders | `/api/v1/work-orders` |
 | Lost & Found | `/api/v1/lost-found` |
+| Inspections | `/api/v1/inspections` |
 | Notifications | `/api/v1/notifications` |
 | AI & Intelligence | `/api/v1/ai` |
 | Analytics & Simulation | `/api/v1/analytics` |
+| Administration | `/api/v1/admin` |
 
 Live twin socket: `ws://localhost:8000/api/v1/campus/ws/{campus_id}`
 
@@ -256,12 +276,20 @@ Sizing, the wordmark and the tagline all stay as they are.
 
 ## Status
 
-Implemented and verified end to end: authentication (all roles, OTP, reset,
-lockout, token rotation), the campus hierarchy and live Digital Twin, complaint
-intake with AI routing and duplicate detection, work orders with SLA tracking and
-the technician panel, Lost & Found with AI matching and claim verification,
-dashboards, analytics and scenario simulation.
+Implemented and verified end to end:
 
-Scaffolded with routes and schema in place, not yet surfaced in the UI:
-inspection execution screens, the full admin configuration panels, and predictive
-maintenance scheduling.
+- **Authentication** — all roles, OTP verification, password reset, account
+  lockout, single-use refresh rotation
+- **Digital Twin** — campus hierarchy, SVG floor plans, live WebSocket updates
+- **Issues** — AI routing, duplicate detection, full lifecycle, SLA tracking
+- **Work orders** — assignment, technician panel, parts requests, board view
+- **Inspections** — scheduling, checklist execution, automatic escalation of
+  critical failures into routed issues
+- **Lost & Found** — AI matching, staff review queue, claim verification
+- **Analytics** — hotspots, recurring assets, technician performance, cost
+- **Scenario simulation** — surge modelling with capacity and SLA projection
+- **Administration** — user and role management, issue configuration, SLA
+  policies, audit log, login activity, predictive maintenance forecast
+
+Schema and routes exist but are not yet surfaced in the UI: floor-plan upload and
+the room-boundary editor, notification template management, and the 3D campus view.

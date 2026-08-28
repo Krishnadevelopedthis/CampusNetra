@@ -21,11 +21,20 @@ const DigitalTwin    = lazy(() => import('@/pages/DigitalTwin'))
 const WorkOrderList  = lazy(() => import('@/pages/WorkOrderList'))
 const WorkOrderBoard = lazy(() => import('@/pages/WorkOrderBoard'))
 const WorkOrderDetail= lazy(() => import('@/pages/WorkOrderDetail'))
+const Inspections    = lazy(() => import('@/pages/Inspections'))
+const InspectionDetail = lazy(() => import('@/pages/InspectionDetail'))
 const LostFound      = lazy(() => import('@/pages/LostFound'))
 const LostFoundItem  = lazy(() => import('@/pages/LostFoundItem'))
 const ReportItem     = lazy(() => import('@/pages/ReportItem'))
 const Analytics      = lazy(() => import('@/pages/Analytics'))
 const Profile        = lazy(() => import('@/pages/Profile'))
+const AdminLayout    = lazy(() => import('@/pages/admin/AdminLayout'))
+const AdminOverview  = lazy(() => import('@/pages/admin/AdminOverview'))
+const AdminUsers     = lazy(() => import('@/pages/admin/AdminUsers'))
+const AdminPredictive= lazy(() => import('@/pages/admin/AdminPredictive'))
+const AdminIssueConfig = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminIssueConfig })))
+const AdminSLA       = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminSLA })))
+const AdminAudit     = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminAudit })))
 const NotFound       = lazy(() => import('@/pages/errors/NotFound'))
 const Forbidden      = lazy(() => import('@/pages/errors/Forbidden'))
 const ServerError    = lazy(() => import('@/pages/errors/ServerError'))
@@ -49,6 +58,7 @@ function PublicOnly({ children }) {
 
 const STAFF = ['technician', 'facility_manager', 'admin', 'super_admin']
 const MANAGER = ['facility_manager', 'admin', 'super_admin']
+const ADMIN = ['admin', 'super_admin']
 
 export default function App() {
   const init = useAuth((s) => s.init)
@@ -82,6 +92,9 @@ export default function App() {
             <Route path="/work-orders/board" element={<RequireAuth roles={STAFF}><WorkOrderBoard /></RequireAuth>} />
             <Route path="/work-orders/:id" element={<RequireAuth roles={STAFF}><WorkOrderDetail /></RequireAuth>} />
 
+            <Route path="/inspections" element={<RequireAuth roles={STAFF}><Inspections /></RequireAuth>} />
+            <Route path="/inspections/:id" element={<RequireAuth roles={STAFF}><InspectionDetail /></RequireAuth>} />
+
             <Route path="/lost-found" element={<LostFound />} />
             <Route path="/lost-found/report" element={<ReportItem />} />
             <Route path="/lost-found/items/:id" element={<LostFoundItem />} />
@@ -94,7 +107,14 @@ export default function App() {
             {/* Role landing aliases */}
             <Route path="/technician" element={<Navigate to="/work-orders" replace />} />
             <Route path="/facility" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/admin" element={<RequireAuth roles={MANAGER}><Analytics /></RequireAuth>} />
+            <Route path="/admin" element={<RequireAuth roles={MANAGER}><AdminLayout /></RequireAuth>}>
+              <Route index element={<AdminOverview />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="predictive" element={<AdminPredictive />} />
+              <Route path="issue-config" element={<AdminIssueConfig />} />
+              <Route path="sla" element={<AdminSLA />} />
+              <Route path="audit" element={<RequireAuth roles={ADMIN}><AdminAudit /></RequireAuth>} />
+            </Route>
           </Route>
 
           {/* Errors */}

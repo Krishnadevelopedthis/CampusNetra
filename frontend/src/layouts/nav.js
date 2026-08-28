@@ -1,7 +1,8 @@
 import {
   Activity, BarChart3, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
   FileSearch, Gauge, LayoutDashboard, ListChecks, MapPinned, Package,
-  PlusCircle, Search, Settings, Shield, Sparkles, Users, Wrench,
+  PlusCircle, Search, Settings, Shield, ShieldAlert, Sparkles, TrendingUp,
+  Users, Wrench,
 } from 'lucide-react'
 
 /**
@@ -43,6 +44,7 @@ const ADMIN = [
   { to: '/work-orders', label: 'Work Orders', icon: Wrench },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
   { to: '/admin', label: 'Administration', icon: Settings },
 ]
 
@@ -64,10 +66,8 @@ export function navFor(role) {
 export const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: Gauge, end: true },
   { to: '/admin/users', label: 'Users & Roles', icon: Users },
-  { to: '/admin/campus', label: 'Campus & Buildings', icon: Building2 },
-  { to: '/admin/assets', label: 'Assets', icon: Package },
+  { to: '/admin/predictive', label: 'Predictive Maintenance', icon: TrendingUp },
   { to: '/admin/issue-config', label: 'Issue Configuration', icon: FileSearch },
   { to: '/admin/sla', label: 'SLA Policies', icon: Shield },
-  { to: '/admin/ai', label: 'AI Management', icon: Sparkles },
-  { to: '/admin/audit', label: 'Audit & Security', icon: Shield },
+  { to: '/admin/audit', label: 'Audit & Security', icon: ShieldAlert },
 ]
