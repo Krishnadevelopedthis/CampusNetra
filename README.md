@@ -266,37 +266,39 @@ Sizing, the wordmark and the tagline all stay as they are.
 Verification codes and password resets are sent over SMTP. Any provider works —
 here is Gmail, which needs no signup.
 
-**1. Create a Gmail App Password.** Google blocks plain account passwords for
-SMTP, so 2-Step Verification must be on, then generate a 16-character app
-password at https://myaccount.google.com/apppasswords
-
-**2. Add it to `backend/.env`** (this file is gitignored, so the password never
-reaches the repository):
-
-```
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=you@gmail.com
-SMTP_PASSWORD=abcdefghijklmnop
-SMTP_FROM="Campus Netra <you@gmail.com>"
-```
-
-**3. Verify it, and send yourself a real test message:**
+Run the guided setup:
 
 ```bash
-./scripts/check_email.py you@gmail.com
+./scripts/setup_email.py
 ```
 
-The script checks the connection and login separately from sending, so a wrong
-password reports "authentication failed" rather than a generic timeout.
+It offers Brevo, Gmail, Outlook or Mailtrap, reads the key with a hidden prompt
+so it never reaches your shell history, writes to `backend/.env` (gitignored,
+`chmod 600`), verifies the login, and offers to send a test message.
 
-Other providers work the same way — only the host and port change:
+**Brevo** is the path of least resistance — free 300 emails/day, no 2FA
+requirement, and better deliverability than personal Gmail SMTP. Sign up at
+[brevo.com](https://www.brevo.com), then **SMTP & API → SMTP** for the login and key.
+
+**Gmail** needs 2-Step Verification enabled *first*, then an
+[App Password](https://myaccount.google.com/apppasswords). If that page says
+"the setting you are looking for is not available", 2SV is off — Google hides
+app passwords entirely until it is on.
+
+To re-check an existing configuration, or send another test:
+
+```bash
+./scripts/check_email.py you@example.com
+```
+
+Both scripts verify connection and login separately from sending, so a wrong
+password reports "authentication failed" rather than a generic timeout.
 
 | Provider | Host | Port |
 | --- | --- | --- |
+| Brevo | `smtp-relay.brevo.com` | 587 |
 | Gmail | `smtp.gmail.com` | 587 |
 | Outlook | `smtp-mail.outlook.com` | 587 |
-| Brevo | `smtp-relay.brevo.com` | 587 |
 | Mailtrap (testing) | `sandbox.smtp.mailtrap.io` | 2525 |
 
 ### Without SMTP configured
