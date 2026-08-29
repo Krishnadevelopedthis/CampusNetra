@@ -19,6 +19,7 @@ const IssueList      = lazy(() => import('@/pages/IssueList'))
 const IssueDetail    = lazy(() => import('@/pages/IssueDetail'))
 const DigitalTwin    = lazy(() => import('@/pages/DigitalTwin'))
 const CampusMap      = lazy(() => import('@/pages/CampusMap'))
+const FloorPlanEditor= lazy(() => import('@/pages/FloorPlanEditor'))
 const AssetList      = lazy(() => import('@/pages/AssetList'))
 const AssetDetail    = lazy(() => import('@/pages/AssetDetail'))
 const EventReplay    = lazy(() => import('@/pages/EventReplay'))
@@ -119,6 +120,7 @@ export default function App() {
               <Route index element={<AdminOverview />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="predictive" element={<AdminPredictive />} />
+              <Route path="floor-plans" element={<FloorPlanEditor />} />
               <Route path="issue-config" element={<AdminIssueConfig />} />
               <Route path="sla" element={<AdminSLA />} />
               <Route path="audit" element={<RequireAuth roles={ADMIN}><AdminAudit /></RequireAuth>} />
