@@ -1,6 +1,7 @@
 """Administration: users, roles, campus configuration, SLA, audit, predictive."""
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -312,6 +313,185 @@ async def update_sla(
         before=before, after=payload.model_dump(), ip_address=client_ip(request),
     )
     return Message(detail=f"{policy.name} updated.")
+
+
+# ---------------- Inspection templates ----------------
+class ChecklistItemIn(BaseModel):
+    prompt: str = Field(min_length=3, max_length=300)
+    help_text: Optional[str] = None
+    requires_photo: bool = False
+    # A failing critical item auto-raises a routed, high-priority issue.
+    is_critical: bool = False
+
+
+class TemplateUpsert(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    description: Optional[str] = None
+    frequency_days: Optional[int] = Field(None, ge=1, le=3650)
+    items: list[ChecklistItemIn] = Field(min_length=1)
+
+
+@router.post("/inspection-templates", response_model=dict, status_code=201)
+async def create_template(payload: TemplateUpsert, user: RequireManager, db: DB):
+    from app.models.work import InspectionTemplate, InspectionTemplateItem
+
+    template = InspectionTemplate(
+        organization_id=user.organization_id,
+        name=payload.name, description=payload.description,
+        frequency_days=payload.frequency_days,
+    )
+    db.add(template)
+    await db.flush()
+
+    for position, item in enumerate(payload.items, start=1):
+        db.add(InspectionTemplateItem(
+            template_id=template.id, position=position, **item.model_dump()))
+
+    await db.flush()
+    return {"id": str(template.id), "name": template.name,
+            "items": len(payload.items)}
+
+
+@router.patch("/inspection-templates/{template_id}", response_model=dict)
+async def update_template(
+    template_id: uuid.UUID, payload: TemplateUpsert, user: RequireManager, db: DB
+):
+    """Replace a template's checklist.
+
+    Items are rewritten rather than diffed. Submitted inspections snapshot the
+    prompt text they were answered against, so past results stay readable even
+    though the template they came from has changed.
+    """
+    from app.models.work import InspectionTemplate, InspectionTemplateItem
+
+    template = await db.scalar(
+        select(InspectionTemplate).where(
+            InspectionTemplate.id == template_id,
+            InspectionTemplate.organization_id == user.organization_id))
+    if template is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Template not found")
+
+    template.name = payload.name
+    template.description = payload.description
+    template.frequency_days = payload.frequency_days
+
+    await db.execute(
+        InspectionTemplateItem.__table__.delete()
+        .where(InspectionTemplateItem.template_id == template_id))
+    for position, item in enumerate(payload.items, start=1):
+        db.add(InspectionTemplateItem(
+            template_id=template_id, position=position, **item.model_dump()))
+
+    await db.flush()
+    return {"id": str(template.id), "name": template.name, "items": len(payload.items)}
+
+
+@router.delete("/inspection-templates/{template_id}", response_model=Message)
+async def deactivate_template(template_id: uuid.UUID, user: RequireManager, db: DB):
+    """Deactivate rather than delete — submitted inspections reference it."""
+    from app.models.work import Inspection, InspectionTemplate
+
+    template = await db.scalar(
+        select(InspectionTemplate).where(
+            InspectionTemplate.id == template_id,
+            InspectionTemplate.organization_id == user.organization_id))
+    if template is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Template not found")
+
+    scheduled = await db.scalar(
+        select(func.count()).select_from(Inspection).where(
+            Inspection.template_id == template_id,
+            Inspection.status.in_(["scheduled", "in_progress", "overdue"]))) or 0
+    if scheduled:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{scheduled} inspection(s) still use this template. Complete or cancel them first.")
+
+    template.is_active = False
+    return Message(detail=f"{template.name} deactivated.")
+
+
+# ---------------- Notification templates ----------------
+class NotificationTemplateUpsert(BaseModel):
+    code: str = Field(min_length=2, max_length=60)
+    channel: str = Field(pattern="^(in_app|email|push|sms)$")
+    subject: Optional[str] = None
+    body: str = Field(min_length=1, max_length=4000)
+    is_active: bool = True
+
+
+# The placeholders each notification code can substitute. Surfacing these lets
+# the editor validate a template instead of failing silently at send time.
+NOTIFICATION_CODES: dict[str, list[str]] = {
+    "issue.created":     ["reference", "title", "location", "priority", "reporter"],
+    "issue.assigned":    ["reference", "title", "technician", "department"],
+    "issue.resolved":    ["reference", "title", "resolution"],
+    "workorder.assigned": ["reference", "title", "priority", "due"],
+    "inspection.due":    ["reference", "template", "room", "due"],
+    "lf.match_found":    ["reference", "title", "score"],
+    "lf.claim_decision": ["reference", "title", "decision", "reason"],
+    "sla.breached":      ["reference", "title", "department", "overdue_by"],
+}
+
+
+@router.get("/notification-templates", response_model=dict)
+async def list_notification_templates(user: RequireManager, db: DB):
+    from app.models.platform import NotificationTemplate
+
+    rows = (await db.scalars(
+        select(NotificationTemplate)
+        .where(NotificationTemplate.organization_id == user.organization_id)
+        .order_by(NotificationTemplate.code))).all()
+
+    return {
+        "templates": [
+            {"id": str(t.id), "code": t.code, "channel": t.channel,
+             "subject": t.subject, "body": t.body, "is_active": t.is_active}
+            for t in rows
+        ],
+        "available_codes": [
+            {"code": code, "placeholders": fields} for code, fields in NOTIFICATION_CODES.items()
+        ],
+    }
+
+
+@router.put("/notification-templates", response_model=Message)
+async def upsert_notification_template(
+    payload: NotificationTemplateUpsert, user: RequireManager, db: DB
+):
+    from app.models.platform import NotificationTemplate
+
+    known = NOTIFICATION_CODES.get(payload.code)
+    if known is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Unknown notification code. Valid codes: {', '.join(sorted(NOTIFICATION_CODES))}")
+
+    # Catch typos in placeholders now, rather than shipping a message with a
+    # literal {{recipent}} in it.
+    used = set(re.findall(r"\{\{\s*(\w+)\s*\}\}", f"{payload.subject or ''} {payload.body}"))
+    unknown = sorted(used - set(known))
+    if unknown:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Unknown placeholder(s) for {payload.code}: {', '.join('{{' + u + '}}' for u in unknown)}. "
+            f"Available: {', '.join('{{' + k + '}}' for k in known)}")
+
+    existing = await db.scalar(
+        select(NotificationTemplate).where(
+            NotificationTemplate.organization_id == user.organization_id,
+            NotificationTemplate.code == payload.code,
+            NotificationTemplate.channel == payload.channel))
+
+    if existing is not None:
+        existing.subject = payload.subject
+        existing.body = payload.body
+        existing.is_active = payload.is_active
+        return Message(detail=f"{payload.code} ({payload.channel}) updated.")
+
+    db.add(NotificationTemplate(
+        organization_id=user.organization_id, **payload.model_dump()))
+    return Message(detail=f"{payload.code} ({payload.channel}) created.")
 
 
 # ---------------- Audit & security ----------------

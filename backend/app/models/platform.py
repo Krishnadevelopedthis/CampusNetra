@@ -5,7 +5,8 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
-    ARRAY, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, Numeric, Text, UniqueConstraint,
+    ARRAY, BigInteger, Boolean, Date, DateTime, Enum as SAEnum, ForeignKey, Integer,
+    Numeric, Text, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -13,6 +14,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.core.database import Base
 from app.core.enums import NotificationChannel
 from app.models.base import TimestampMixin, uuid_pk
+
+notification_channel_enum = SAEnum(
+    NotificationChannel, name="notification_channel", create_type=False,
+    values_callable=lambda e: [m.value for m in e],
+)
 
 
 class Notification(TimestampMixin, Base):
@@ -41,7 +47,11 @@ class NotificationTemplate(Base):
         PGUUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
     code: Mapped[str] = mapped_column(Text, nullable=False)
-    channel: Mapped[str] = mapped_column(Text, nullable=False)
+    # The column is the notification_channel enum in Postgres, not text. Declaring
+    # it as Text makes any comparison fail with "operator does not exist:
+    # notification_channel = character varying".
+    channel: Mapped[NotificationChannel] = mapped_column(
+        notification_channel_enum, nullable=False)
     subject: Mapped[Optional[str]] = mapped_column(Text)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
