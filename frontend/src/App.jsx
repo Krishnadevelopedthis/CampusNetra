@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Spinner, Toaster } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { ROLE_HOME, useAuth } from '@/lib/auth'
@@ -32,6 +33,7 @@ const InspectionDetail = lazy(() => import('@/pages/InspectionDetail'))
 const LostFound      = lazy(() => import('@/pages/LostFound'))
 const LostFoundItem  = lazy(() => import('@/pages/LostFoundItem'))
 const ReportItem     = lazy(() => import('@/pages/ReportItem'))
+const Help           = lazy(() => import('@/pages/Help'))
 const Analytics      = lazy(() => import('@/pages/Analytics'))
 const Profile        = lazy(() => import('@/pages/Profile'))
 const AdminLayout    = lazy(() => import('@/pages/admin/AdminLayout'))
@@ -75,11 +77,15 @@ const ADMIN = ['admin', 'super_admin']
 
 export default function App() {
   const init = useAuth((s) => s.init)
+  const location = useLocation()
 
   useEffect(() => { init() }, [init])
 
   return (
     <>
+      {/* Keyed on the path so a crash on one page clears when you navigate
+          away, instead of wedging the whole app until a reload. */}
+      <ErrorBoundary resetKey={location.pathname}>
       <Suspense fallback={<Spinner className="min-h-screen" />}>
         <Routes>
           {/* Public */}
@@ -119,6 +125,8 @@ export default function App() {
 
             <Route path="/analytics" element={<RequireAuth roles={MANAGER}><Analytics /></RequireAuth>} />
 
+            <Route path="/help" element={<Help />} />
+
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Profile />} />
 
@@ -149,6 +157,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
       <Toaster />
     </>
   )
