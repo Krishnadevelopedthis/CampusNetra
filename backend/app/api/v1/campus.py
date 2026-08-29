@@ -60,6 +60,21 @@ async def twin_legend():
     return LEGEND
 
 
+@router.get("/room-kinds", response_model=list[dict])
+async def room_kinds():
+    """The kinds a room may be, straight off the enum.
+
+    Served rather than hardcoded in the client because a hand-kept copy drifts
+    silently: the value is only validated at the point of save, so a wrong
+    entry looks like a working dropdown right up until someone picks it and
+    gets a 422 with nothing on screen to explain it.
+    """
+    return [
+        {"value": kind.value, "label": kind.value.replace("_", " ").title()}
+        for kind in RoomKind
+    ]
+
+
 @router.get("/campuses", response_model=list[CampusOut])
 async def list_campuses(user: CurrentUser, db: DB):
     rows = (await db.scalars(
