@@ -71,8 +71,12 @@ export default function AssetDetail() {
           </div>
           <h1 className="text-headline-lg text-ink mt-2">{a.name}</h1>
           {data.room && (
-            <p className="text-body-md text-ink-muted mt-1 flex items-center gap-1.5">
-              <MapPin size={14} /> {data.room.name}
+            <p className="text-body-md text-ink-muted mt-1 flex items-center gap-x-1.5 gap-y-0.5 flex-wrap">
+              <MapPin size={14} className="shrink-0" />
+              {/* Full chain: a room name alone does not tell a technician
+                  which building to walk into, let alone which floor. */}
+              {[data.room.building, data.room.floor, data.room.name]
+                .filter(Boolean).join(' · ')}
               <span className="font-mono text-mono-data text-ink-faint">
                 {data.room.zone_id || data.room.code}
               </span>
