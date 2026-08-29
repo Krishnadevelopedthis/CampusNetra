@@ -1,7 +1,8 @@
 import clsx from 'clsx'
-import { AlertCircle, Camera, Loader2, X } from 'lucide-react'
+import { Camera, ImagePlus, Loader2, Upload, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 
+import { CameraCapture, isTouchDevice } from '@/components/CameraCapture'
 import { toast } from '@/components/ui'
 import { readAuth } from '@/lib/api'
 
@@ -24,7 +25,9 @@ export function ImageUpload({
 }) {
   const [pending, setPending] = useState([])   // {id, name, preview}
   const [dragging, setDragging] = useState(false)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const inputRef = useRef(null)
+  const captureRef = useRef(null)
 
   const upload = useCallback(
     async (files) => {
@@ -87,36 +90,71 @@ export function ImageUpload({
 
   return (
     <div>
-      <label
-        onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
+      <div
+        onDragOver={(e) => { e.preventDefault(); if (!atLimit) setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files) }}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!atLimit) upload(e.dataTransfer.files) }}
         className={clsx(
-          'flex flex-col items-center justify-center gap-2 py-8 px-4 rounded border-2 border-dashed transition-colors',
+          'flex flex-col items-center justify-center gap-3 py-7 px-4 rounded-xl border-2 border-dashed transition-colors',
           atLimit
-            ? 'border-border bg-surface-sunken cursor-not-allowed opacity-60'
+            ? 'border-border bg-surface-sunken opacity-60'
             : dragging
-              ? 'border-secondary bg-info-bg cursor-pointer'
-              : 'border-secondary/30 bg-info-bg/40 hover:bg-info-bg cursor-pointer',
+              ? 'border-secondary bg-info-bg'
+              : 'border-secondary/30 bg-info-bg/40',
         )}
       >
-        <div className="w-11 h-11 rounded-lg bg-secondary/10 grid place-items-center">
-          <Camera size={20} className="text-secondary" />
+        <div className="w-11 h-11 rounded-xl bg-secondary/10 grid place-items-center">
+          <ImagePlus size={20} className="text-secondary" />
         </div>
+
         <p className="text-body-md text-ink text-center">
-          {atLimit ? (
-            `Maximum of ${max} images attached`
-          ) : (
-            <>Drag and drop photos here<br />
-              <span className="text-ink-faint">or click to browse</span></>
-          )}
+          {atLimit
+            ? `Maximum of ${max} images attached`
+            : <>Drag and drop photos here<br />
+                <span className="text-ink-faint">or pick one of the options below</span></>}
         </p>
+
+        {!atLimit && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="btn-secondary btn-sm"
+            >
+              <Upload size={14} /> Browse files
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                // A phone's own camera app beats anything we can render, and it
+                // is the one place <input capture> actually opens a camera.
+                if (isTouchDevice()) captureRef.current?.click()
+                else setCameraOpen(true)
+              }}
+              className="btn-secondary btn-sm"
+            >
+              <Camera size={14} /> Take photo
+            </button>
+          </div>
+        )}
+
         <input
           ref={inputRef} type="file" accept="image/*" multiple className="hidden"
           disabled={atLimit}
           onChange={(e) => { upload(e.target.files); e.target.value = '' }}
         />
-      </label>
+        <input
+          ref={captureRef} type="file" accept="image/*" capture="environment" className="hidden"
+          disabled={atLimit}
+          onChange={(e) => { upload(e.target.files); e.target.value = '' }}
+        />
+      </div>
+
+      <CameraCapture
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={(files) => upload(files)}
+      />
 
       {hint && <p className="hint">{hint}</p>}
 
@@ -124,7 +162,7 @@ export function ImageUpload({
         <div className="flex flex-wrap gap-2 mt-3">
           {value.map((img, i) => (
             <div key={img.url}
-                 className="relative w-24 h-24 rounded overflow-hidden border border-border-subtle group">
+                 className="relative w-24 h-24 rounded-xl overflow-hidden border border-border-subtle group">
               <img src={img.thumb_url || img.url} alt={img.filename || 'Attachment'}
                    className="w-full h-full object-cover" />
               <button
@@ -139,7 +177,7 @@ export function ImageUpload({
 
           {pending.map((p) => (
             <div key={p.id}
-                 className="relative w-24 h-24 rounded overflow-hidden border border-border-subtle">
+                 className="relative w-24 h-24 rounded-xl overflow-hidden border border-border-subtle">
               <img src={p.preview} alt="" className="w-full h-full object-cover opacity-40" />
               <div className="absolute inset-0 grid place-items-center bg-surface/40">
                 <Loader2 size={18} className="animate-spin text-secondary" />
