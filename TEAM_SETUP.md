@@ -99,8 +99,28 @@ Verification codes appear on screen without it. For real emails:
 ./scripts/setup_email.py
 ```
 
-Pick Brevo (free, 300/day). Note that Brevo blocks unlisted IP addresses, so each
-person's IP needs adding under SMTP & API in the Brevo dashboard.
+The script offers two kinds of transport:
+
+- **HTTPS APIs** (Resend, Brevo API) — one key, nothing else to configure, and
+  the only option that works on hosted deployments.
+- **SMTP** (Brevo SMTP, Gmail, ...) — fine locally. Brevo SMTP also blocks
+  unlisted IP addresses, so each person's IP needs adding under SMTP & API in
+  the Brevo dashboard, or the allowlist turned off.
+
+**Deploying?** Render, Railway, Fly and Heroku block outbound SMTP ports on their
+free tiers. SMTP settings that work on your laptop will silently deliver nothing
+there. Set an API key in the host's environment variables instead — one of:
+
+```
+RESEND_API_KEY=re_...
+BREVO_API_KEY=xkeysib-...
+```
+
+Whichever is set wins over SMTP; Resend wins over Brevo. Check the setup with:
+
+```bash
+./scripts/check_email.py you@example.com
+```
 
 ## If something goes wrong
 

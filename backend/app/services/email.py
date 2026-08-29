@@ -93,6 +93,91 @@ def _auth_hint() -> str:
             "exactly what your provider's SMTP settings page shows.")
 
 
+async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) -> SendResult:
+    """Resend's HTTPS API. Used where outbound SMTP is blocked."""
+    import httpx
+
+    name, addr = parseaddr(settings.SMTP_FROM)
+    sender = formataddr((name or settings.APP_NAME, addr)) if addr else settings.SMTP_FROM
+
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
+                json={"from": sender, "to": [to], "subject": subject,
+                      "text": text, **({"html": html} if html else {})},
+            )
+    except Exception as exc:
+        log.error("Resend request failed: %s", exc)
+        return SendResult(delivered=False, error=f"Could not reach Resend: {exc}")
+
+    if resp.status_code < 300:
+        return SendResult(delivered=True)
+
+    detail = _api_error(resp)
+    log.error("Resend rejected the message (%s): %s", resp.status_code, detail)
+    if resp.status_code in (401, 403):
+        return SendResult(delivered=False,
+                          error="Resend rejected the API key. Check RESEND_API_KEY.")
+    if resp.status_code == 403 or "domain" in detail.lower():
+        return SendResult(
+            delivered=False,
+            error=("Resend refused the sender address. Until you verify your own "
+                   "domain, the from address must be onboarding@resend.dev, and "
+                   "you can only send to the address that owns the account."))
+    return SendResult(delivered=False, error=f"Resend error: {detail}")
+
+
+async def _send_brevo_api(to: str, subject: str, text: str, html: Optional[str]) -> SendResult:
+    """Brevo's HTTPS API — same account as their SMTP relay, different transport."""
+    import httpx
+
+    name, addr = parseaddr(settings.SMTP_FROM)
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": settings.BREVO_API_KEY,
+                         "content-type": "application/json"},
+                json={
+                    "sender": {"email": addr or settings.SMTP_USER,
+                               "name": name or settings.APP_NAME},
+                    "to": [{"email": to}],
+                    "subject": subject,
+                    "textContent": text,
+                    **({"htmlContent": html} if html else {}),
+                },
+            )
+    except Exception as exc:
+        log.error("Brevo API request failed: %s", exc)
+        return SendResult(delivered=False, error=f"Could not reach Brevo: {exc}")
+
+    if resp.status_code < 300:
+        return SendResult(delivered=True)
+
+    detail = _api_error(resp)
+    log.error("Brevo API rejected the message (%s): %s", resp.status_code, detail)
+    if resp.status_code == 401:
+        return SendResult(
+            delivered=False,
+            error=("Brevo rejected the API key. Note this is the API key from "
+                   "'API keys & MCP', which starts xkeysib- — not the SMTP key."))
+    return SendResult(delivered=False, error=f"Brevo error: {detail}")
+
+
+def _api_error(resp) -> str:
+    """Pull a usable message out of a provider's error body."""
+    try:
+        body = resp.json()
+    except Exception:
+        return resp.text[:200]
+    for key in ("message", "error", "detail"):
+        if isinstance(body.get(key), str):
+            return body[key]
+    return str(body)[:200]
+
+
 def _send_blocking(msg: EmailMessage) -> SendResult:
     """Runs on a worker thread. Never raises — returns the failure instead."""
     host, port = settings.SMTP_HOST, settings.SMTP_PORT
@@ -137,14 +222,22 @@ def _send_blocking(msg: EmailMessage) -> SendResult:
 async def send_email(
     to: str, subject: str, text: str, html: Optional[str] = None
 ) -> SendResult:
-    if not settings.email_delivers:
+    provider = settings.email_provider
+
+    if provider == "none":
         log.info(
-            "\n%s\n  EMAIL NOT SENT — no SMTP_HOST configured\n  To: %s\n  Subject: %s\n\n%s\n%s",
+            "\n%s\n  EMAIL NOT SENT — no email provider configured\n  To: %s\n  Subject: %s\n\n%s\n%s",
             "=" * 70, to, subject, text, "=" * 70,
         )
         return SendResult(delivered=False, logged_only=True,
                           error="Email delivery is not configured on this server.")
 
+    if provider == "resend":
+        return await _send_resend(to, subject, text, html)
+    if provider == "brevo":
+        return await _send_brevo_api(to, subject, text, html)
+
+    # SMTP is blocking, so it runs on a worker thread.
     msg = _build(to, subject, text, html)
     return await asyncio.to_thread(_send_blocking, msg)
 
@@ -227,9 +320,33 @@ async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
 async def verify_connection() -> SendResult:
     """Check the SMTP settings without sending anything, for the /health probe
     and the check-email script."""
-    if not settings.email_delivers:
+    provider = settings.email_provider
+    if provider == "none":
         return SendResult(delivered=False, logged_only=True,
-                          error="No SMTP_HOST configured.")
+                          error="No email provider configured.")
+
+    if provider in ("resend", "brevo"):
+        # There is no cheap "connect only" for an HTTP API, so confirm the key
+        # is accepted by calling a read-only endpoint rather than sending.
+        import httpx
+        url, headers = (
+            ("https://api.resend.com/domains",
+             {"Authorization": f"Bearer {settings.RESEND_API_KEY}"})
+            if provider == "resend" else
+            ("https://api.brevo.com/v3/account", {"api-key": settings.BREVO_API_KEY})
+        )
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url, headers=headers)
+        except Exception as exc:
+            return SendResult(delivered=False, error=f"Could not reach {provider}: {exc}")
+        if resp.status_code < 300:
+            return SendResult(delivered=True)
+        if resp.status_code in (401, 403):
+            var = "RESEND_API_KEY" if provider == "resend" else "BREVO_API_KEY"
+            return SendResult(delivered=False,
+                              error=f"{provider.title()} rejected the key in {var}.")
+        return SendResult(delivered=False, error=_api_error(resp))
 
     def probe() -> SendResult:
         try:

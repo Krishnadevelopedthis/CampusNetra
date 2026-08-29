@@ -45,12 +45,21 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_MB: int = 10
 
-    # Email
+    # Email — SMTP for local development, an HTTP API for hosted environments.
+    #
+    # Most PaaS free tiers (Render, Railway, Fly, Heroku) block outbound SMTP
+    # ports to curb spam, so a correctly configured SMTP setup still sends
+    # nothing once deployed. Providing an API key switches to HTTPS, which is
+    # never blocked.
     SMTP_HOST: str = ""
     SMTP_PORT: int = 587
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = "Campus Netra <no-reply@campusnetra.app>"
+
+    RESEND_API_KEY: str = ""
+    # Brevo's HTTP API, usable with the same account as their SMTP relay.
+    BREVO_API_KEY: str = ""
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -70,9 +79,20 @@ class Settings(BaseSettings):
         return self
 
     @property
+    def email_provider(self) -> str:
+        """Which transport to use. HTTP APIs win because they work everywhere."""
+        if self.RESEND_API_KEY:
+            return "resend"
+        if self.BREVO_API_KEY:
+            return "brevo"
+        if self.SMTP_HOST:
+            return "smtp"
+        return "none"
+
+    @property
     def email_delivers(self) -> bool:
-        """True when a real SMTP host is configured and mail can actually arrive."""
-        return bool(self.SMTP_HOST)
+        """True when some transport is configured and mail can actually arrive."""
+        return self.email_provider != "none"
 
     @property
     def expose_dev_codes(self) -> bool:
