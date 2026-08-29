@@ -789,11 +789,9 @@ async def email_status(admin: RequireAdmin):
     silently fails. This verifies the credential against the provider and
     reports the sender it would send as. The key itself is never returned.
     """
-    from email.utils import parseaddr
+    from app.services.email import _sender, verify_connection
 
-    from app.services.email import verify_connection
-
-    _, sender = parseaddr(settings.SMTP_FROM)
+    _, sender = _sender()
     result = await verify_connection()
 
     return {
@@ -811,6 +809,10 @@ def _delivery_hint(provider: str, sender: str | None, result) -> str | None:
     if provider == "none":
         return ("No transport is configured. Set RESEND_API_KEY or BREVO_API_KEY "
                 "in the environment.")
+    if not sender:
+        return (f"SMTP_FROM is not a usable address (got {settings.SMTP_FROM!r}). "
+                "Set it to 'you@example.com' or 'Campus Netra <you@example.com>' "
+                "— with no surrounding quotes when setting it in a hosting dashboard.")
     if not result.delivered:
         return result.error
     if provider in ("brevo", "resend") and sender:
