@@ -108,6 +108,11 @@ async def persist_matches(
                 body=f"'{item.title}' may match a report on the other side of the ledger.",
                 link=f"/lost-found/matches/{match.id}", kind="lf_match",
                 entity_type="lf_match", entity_id=match.id,
+                code="lf.match_found",
+                context={
+                    "reference": item.reference, "title": item.title,
+                    "score": f"{round(r.score * 100)}%",
+                },
             )
 
     if stored:
@@ -259,5 +264,12 @@ async def decide_claim(
         db, [claim.claimant_id], title=title, body=body,
         link=f"/lost-found/claims/{claim.id}", kind="lf_claim",
         entity_type="lf_claim", entity_id=claim.id,
+        code="lf.claim_decision",
+        context={
+            "reference": item.reference if item else "",
+            "title": item.title if item else "",
+            "decision": decision.value if hasattr(decision, "value") else str(decision),
+            "reason": reason or "",
+        },
     )
     return claim

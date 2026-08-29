@@ -25,6 +25,7 @@ from app.schemas.auth import UserOut, validate_password
 from app.schemas.common import Message, Page, UserBrief
 from app.services import predictive
 from app.services.audit import record_audit
+from app.services.templates import NOTIFICATION_CODES, codes_payload
 from app.services.work_orders import create_work_order
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
@@ -464,16 +465,6 @@ class NotificationTemplateUpsert(BaseModel):
 
 # The placeholders each notification code can substitute. Surfacing these lets
 # the editor validate a template instead of failing silently at send time.
-NOTIFICATION_CODES: dict[str, list[str]] = {
-    "issue.created":     ["reference", "title", "location", "priority", "reporter"],
-    "issue.assigned":    ["reference", "title", "technician", "department"],
-    "issue.resolved":    ["reference", "title", "resolution"],
-    "workorder.assigned": ["reference", "title", "priority", "due"],
-    "inspection.due":    ["reference", "template", "room", "due"],
-    "lf.match_found":    ["reference", "title", "score"],
-    "lf.claim_decision": ["reference", "title", "decision", "reason"],
-    "sla.breached":      ["reference", "title", "department", "overdue_by"],
-}
 
 
 @router.get("/notification-templates", response_model=dict)
@@ -491,9 +482,7 @@ async def list_notification_templates(user: RequireManager, db: DB):
              "subject": t.subject, "body": t.body, "is_active": t.is_active}
             for t in rows
         ],
-        "available_codes": [
-            {"code": code, "placeholders": fields} for code, fields in NOTIFICATION_CODES.items()
-        ],
+        "available_codes": codes_payload(),
     }
 
 

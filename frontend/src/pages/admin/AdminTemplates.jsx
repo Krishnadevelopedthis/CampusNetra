@@ -256,9 +256,25 @@ export function AdminNotifications() {
     <div className="space-y-5">
       <Widget
         title="Notification Templates"
-        subtitle="What the platform says when it emails or notifies someone"
+        subtitle="What the platform says when it notifies someone"
         bodyClass="p-0"
       >
+        {/* The two columns do not behave the same way, and the difference is
+            not guessable from a pair of identical buttons. */}
+        <div className="px-widget py-3 border-b border-border-subtle space-y-1.5">
+          <p className="text-body-md text-ink-muted">
+            <span className="text-ink font-medium">In-app</span> — an event with
+            no template uses the platform's built-in wording, so leaving a row
+            unset is a perfectly good answer.
+          </p>
+          <p className="text-body-md text-ink-muted">
+            <span className="text-ink font-medium">Email</span> — no email is
+            sent for an event until it has an email template. Writing one turns
+            the email on; recipients who have switched that event off in their
+            own settings still will not receive it.
+          </p>
+        </div>
+
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -267,7 +283,16 @@ export function AdminNotifications() {
             <tbody>
               {data.available_codes.map((c) => (
                 <tr key={c.code}>
-                  <td className="font-mono text-mono-data text-ink">{c.code}</td>
+                  <td className="font-mono text-mono-data text-ink">
+                    {c.code}
+                    {/* Saying so here is the only way an author finds out
+                        before writing a message nobody receives. */}
+                    {c.live === false && (
+                      <span className="block font-sans text-body-sm text-warning-text mt-0.5">
+                        Not sent yet — needs scheduled breach detection
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {c.placeholders.map((ph) => (
@@ -283,6 +308,7 @@ export function AdminNotifications() {
                       <td key={channel}>
                         <Button
                           size="sm" variant={existing ? 'secondary' : 'ghost'}
+                          disabled={c.live === false}
                           onClick={() => setForm(existing
                             ? { ...existing }
                             : { code: c.code, channel, subject: '', body: '', is_active: true })}
