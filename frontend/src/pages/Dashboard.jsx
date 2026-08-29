@@ -58,7 +58,7 @@ export default function Dashboard() {
         )}
       />
 
-      {busy ? (
+      {busy || !data ? (
         <>
           <SkeletonMetrics />
           <div className="grid lg:grid-cols-3 gap-4">

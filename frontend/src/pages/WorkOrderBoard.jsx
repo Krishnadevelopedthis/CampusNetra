@@ -34,7 +34,7 @@ export default function WorkOrderBoard() {
         actions={<Link to="/work-orders" className="btn-secondary"><List size={16} /> List view</Link>}
       />
 
-      {isLoading || refreshing ? (
+      {isLoading || refreshing || !data ? (
         <div className="overflow-x-auto pb-2">
           <div className="flex gap-4 min-w-max">
             {Array.from({ length: 5 }).map((_, i) => (
