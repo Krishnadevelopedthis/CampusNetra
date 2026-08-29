@@ -184,3 +184,41 @@ async def update_me(payload: UpdateProfileRequest, user: CurrentUser, db: DB):
         setattr(user, field, value)
     await db.flush()
     return UserOut.model_validate(user)
+
+
+@router.post("/me/export", response_model=Message)
+async def export_my_data(user: CurrentUser, db: DB):
+    """Email the requester a copy of everything held about them.
+
+    Sent only to the address on the account. A self-service export that accepts
+    a destination is a way to read somebody else's data by asking politely.
+    """
+    from app.services.data_export import collect, render, summarise
+    from app.services.email import send_email
+
+    if not settings.email_delivers:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Email is not configured on this server, so the export cannot be sent. "
+            "Contact your administrator.",
+        )
+
+    data = await collect(db, user)
+    text, html = render(data)
+    result = await send_email(
+        user.email,
+        subject="Your Campus Netra data",
+        text=text,
+        html=html,
+    )
+    if not result.delivered:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The export was prepared but could not be emailed. Please try again shortly.",
+        )
+
+    records = sum(n for _, n in summarise(data))
+    return Message(
+        detail=f"Sent to {user.email} — {records} record(s) across "
+               f"{len(summarise(data))} section(s)."
+    )

@@ -81,6 +81,14 @@ export default function Settings() {
     if (!dirty) setPrefs(merge(user?.preferences))
   }, [user?.preferences]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sent to the address on the account, never one supplied here — an export
+  // that takes a destination is a way to read someone else's data.
+  const exportData = useMutation({
+    mutationFn: () => api.post('/auth/me/export'),
+    onSuccess: (d) => toast.success(d.detail),
+    onError: (err) => toast.error(err.detail || 'Could not prepare your data export.'),
+  })
+
   const save = useMutation({
     mutationFn: (next) => api.patch('/auth/me', { preferences: next }),
     onSuccess: (u) => { setUser(u); setDirty(false); toast.success('Preferences saved.') },
@@ -246,15 +254,18 @@ export default function Settings() {
           <Row
             icon={Download}
             title="Request a copy of your data"
-            desc="Everything stored against your account, by email."
+            desc={user?.email
+              ? `Everything stored against your account, emailed to ${user.email}.`
+              : 'Everything stored against your account, by email.'}
             compact
           >
-            <a
-              className="btn-secondary btn-sm"
-              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Data export request')}&body=${encodeURIComponent(`Please send a copy of the data held for ${user?.email || 'my account'}.`)}`}
+            <Button
+              size="sm" variant="secondary"
+              loading={exportData.isPending}
+              onClick={() => exportData.mutate()}
             >
-              Request
-            </a>
+              Email it to me
+            </Button>
           </Row>
           <Row
             icon={Trash2}
