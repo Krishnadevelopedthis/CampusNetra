@@ -8,6 +8,13 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOGS="$ROOT/.logs"
 mkdir -p "$LOGS"
 
+# Must match scripts/dev_db.sh.
+PG_BIN="/opt/homebrew/opt/postgresql@16/bin"
+SOCKDIR="/tmp/campusnetra-pg"
+PORT=55432
+DB_NAME=campusnetra
+DB_USER=campusnetra
+
 green() { printf "\033[32m%s\033[0m\n" "$1"; }
 red()   { printf "\033[31m%s\033[0m\n" "$1"; }
 info()  { printf "\033[36m%s\033[0m\n" "$1"; }
@@ -49,7 +56,22 @@ fi
 # ---------- 1. Database ----------
 info "[1/3] Database"
 bash "$ROOT/scripts/dev_db.sh" start >/dev/null
-green "  postgres ready on port 55432"
+
+# Starting the cluster is not the same as having a schema. On a fresh clone the
+# database is empty, and without this the app comes up against zero tables and
+# every request fails — so apply migrations and seed when the schema is absent.
+TABLES=$(
+  "$PG_BIN/psql" -h "$SOCKDIR" -p "$PORT" -U "$DB_USER" -d "$DB_NAME" -tAc \
+    "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null || echo 0
+)
+if [ "${TABLES:-0}" -eq 0 ]; then
+  info "  empty database — applying migrations and seed data"
+  bash "$ROOT/scripts/dev_db.sh" migrate >/dev/null
+  bash "$ROOT/scripts/dev_db.sh" seed >/dev/null
+  green "  schema created and seeded"
+else
+  green "  postgres ready on port 55432 ($TABLES tables)"
+fi
 
 # ---------- 2. Backend ----------
 info "[2/3] Backend"
