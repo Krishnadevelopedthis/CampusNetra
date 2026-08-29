@@ -42,6 +42,8 @@ const AdminCampus    = lazy(() => import('@/pages/admin/AdminCampus'))
 const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
 const AdminInspectionConfig = lazy(() => import('@/pages/admin/AdminTemplates').then((m) => ({ default: m.AdminInspectionConfig })))
 const AdminNotifications = lazy(() => import('@/pages/admin/AdminTemplates').then((m) => ({ default: m.AdminNotifications })))
+const AdminWorkOrderConfig = lazy(() => import('@/pages/admin/AdminSystem').then((m) => ({ default: m.AdminWorkOrderConfig })))
+const AdminTwinConfig = lazy(() => import('@/pages/admin/AdminSystem').then((m) => ({ default: m.AdminTwinConfig })))
 const AdminIssueConfig = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminIssueConfig })))
 const AdminSLA       = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminSLA })))
 const AdminAudit     = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminAudit })))
@@ -131,6 +133,8 @@ export default function App() {
               <Route path="lost-found" element={<AdminLostFound />} />
               <Route path="inspection-config" element={<AdminInspectionConfig />} />
               <Route path="notifications" element={<AdminNotifications />} />
+              <Route path="workorder-config" element={<AdminWorkOrderConfig />} />
+              <Route path="twin-config" element={<AdminTwinConfig />} />
               <Route path="issue-config" element={<AdminIssueConfig />} />
               <Route path="sla" element={<AdminSLA />} />
               <Route path="audit" element={<RequireAuth roles={ADMIN}><AdminAudit /></RequireAuth>} />
