@@ -289,7 +289,7 @@ export function AdminNotifications() {
                         before writing a message nobody receives. */}
                     {c.live === false && (
                       <span className="block font-sans text-body-sm text-warning-text mt-0.5">
-                        Not sent yet — needs scheduled breach detection
+                        Not sent yet
                       </span>
                     )}
                   </td>

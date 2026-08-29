@@ -52,11 +52,7 @@ CODE_PREFERENCE: dict[str, str] = {
 
 # Codes that ignore the per-event switches. The Settings page tells people
 # urgent notices are sent regardless, and that promise has to hold.
-#
-# sla.breached is kept although nothing emits it yet: unlike issue.assigned it
-# describes a real event the system already tracks — sla_due_at is set and
-# sla_breached exists — and only wants something running on a schedule to
-# notice the clock has passed. Removing it would mean re-adding it then.
+
 ALWAYS_DELIVER = {"sla.breached"}
 
 _PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
@@ -131,6 +127,7 @@ EMITTED = {
     "inspection.due",
     "lf.match_found",
     "lf.claim_decision",
+    "sla.breached",
 }
 
 
