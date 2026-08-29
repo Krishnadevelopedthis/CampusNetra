@@ -58,6 +58,27 @@ class Department(TimestampMixin, Base):
     members: Mapped[list["User"]] = relationship(back_populates="department")
 
 
+class AccountDeletionRequest(UpdatedMixin, Base):
+    """A person asking for their account to be removed, and the answer.
+
+    Approval anonymises rather than deletes — see migration 010 for why the row
+    has to survive the person.
+    """
+    __tablename__ = "account_deletion_requests"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    reason: Mapped[Optional[str]] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="pending", nullable=False)
+    decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[Optional[str]] = mapped_column(Text)
+
+
 class AcademicProgramme(TimestampMixin, Base):
     """A course a student is enrolled on — BSc IT, AI & DS, BCom.
 

@@ -997,3 +997,133 @@ async def run_sla_sweep(admin: RequireAdmin, db: DB):
             else "Nothing is newly past its SLA."
         ),
     }
+
+
+# ---------------- Account deletion requests ----------------
+
+class DeletionDecision(BaseModel):
+    note: Optional[str] = Field(None, max_length=500)
+
+
+@router.get("/deletion-requests", response_model=list[dict])
+async def list_deletion_requests(
+    admin: RequireAdmin, db: DB, status_filter: str = Query("pending", alias="status")
+):
+    """Accounts asking to be removed, with what approval would keep.
+
+    The retained counts are the point of the review: approving anonymises the
+    person but leaves the work they authored, and an administrator should see
+    how much that is before deciding.
+    """
+    from app.models.identity import AccountDeletionRequest
+    from app.services.account_removal import retained_counts
+
+    query = (
+        select(AccountDeletionRequest, User)
+        .join(User, User.id == AccountDeletionRequest.user_id)
+        .where(User.organization_id == admin.organization_id)
+        .order_by(AccountDeletionRequest.created_at.desc())
+    )
+    if status_filter != "all":
+        query = query.where(AccountDeletionRequest.status == status_filter)
+
+    out = []
+    for row, user in (await db.execute(query)).all():
+        out.append({
+            "id": str(row.id),
+            "status": row.status,
+            "reason": row.reason,
+            "requested_at": row.created_at.isoformat(),
+            "decided_at": row.decided_at.isoformat() if row.decided_at else None,
+            "decision_note": row.decision_note,
+            "user": {
+                "id": str(user.id), "full_name": user.full_name,
+                "email": user.email, "role": user.role.value,
+            },
+            "retained": await retained_counts(db, user.id) if row.status == "pending" else None,
+        })
+    return out
+
+
+@router.post("/deletion-requests/{request_id}/approve", response_model=Message)
+async def approve_deletion(
+    request_id: uuid.UUID, payload: DeletionDecision, admin: RequireAdmin,
+    db: DB, request: Request,
+):
+    from app.models.identity import AccountDeletionRequest
+    from app.services.account_removal import anonymise
+
+    row, target = await _load_request(db, request_id, admin)
+    if target.id == admin.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "You cannot approve the removal of your own account")
+
+    name = target.full_name
+    result = await anonymise(db, target)
+
+    row.status = "approved"
+    row.decided_by = admin.id
+    row.decided_at = datetime.now(timezone.utc)
+    row.decision_note = payload.note
+
+    await record_audit(
+        db, action="user.anonymised", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="user", entity_id=target.id,
+        ip_address=client_ip(request),
+        after={"handle": result["handle"]},
+    )
+    return Message(
+        detail=f"{name}'s account has been anonymised. "
+               f"Their reports remain on the record without their name."
+    )
+
+
+@router.post("/deletion-requests/{request_id}/reject", response_model=Message)
+async def reject_deletion(
+    request_id: uuid.UUID, payload: DeletionDecision, admin: RequireAdmin,
+    db: DB, request: Request,
+):
+    from app.services import notifications as notify_svc
+
+    row, target = await _load_request(db, request_id, admin)
+    row.status = "rejected"
+    row.decided_by = admin.id
+    row.decided_at = datetime.now(timezone.utc)
+    row.decision_note = payload.note
+
+    # The person asked; they are owed the answer, and the reason if there is one.
+    await notify_svc.notify(
+        db, [target.id],
+        title="Your account deletion request was declined",
+        body=payload.note or "Contact your campus administrator for details.",
+        link="/settings", kind="account",
+        entity_type="user", entity_id=target.id,
+    )
+    await record_audit(
+        db, action="user.deletion_rejected", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="user", entity_id=target.id,
+        ip_address=client_ip(request),
+    )
+    return Message(detail=f"Request from {target.full_name} declined.")
+
+
+async def _load_request(db, request_id, admin):
+    """The pending request and its subject, or a 404."""
+    from app.models.identity import AccountDeletionRequest
+
+    found = (await db.execute(
+        select(AccountDeletionRequest, User)
+        .join(User, User.id == AccountDeletionRequest.user_id)
+        .where(
+            AccountDeletionRequest.id == request_id,
+            User.organization_id == admin.organization_id,
+        )
+    )).first()
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found")
+
+    row, target = found
+    if row.status != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"That request was already {row.status}.")
+    return row, target

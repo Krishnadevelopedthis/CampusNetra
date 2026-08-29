@@ -2,14 +2,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import DB, CurrentUser, client_ip
 from app.core.routing import CommitRoute
 from app.core.config import settings
-from app.core.enums import UserStatus
+from app.core.enums import UserRole, UserStatus
 from app.core.security import hash_password, verify_password
 from app.models.identity import User
 from app.schemas.auth import (
@@ -19,6 +21,7 @@ from app.schemas.auth import (
 )
 from app.schemas.common import Message
 from app.services import auth as auth_service
+from app.services import notifications as notify_svc
 from app.services.audit import record_audit
 from app.services.email import send_otp
 
@@ -223,3 +226,95 @@ async def export_my_data(user: CurrentUser, db: DB):
         detail=f"Sent to {user.email} — {records} record(s) across "
                f"{len(summarise(data))} section(s)."
     )
+
+
+class DeletionRequestBody(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+@router.post("/me/delete-request", response_model=dict)
+async def request_account_deletion(
+    payload: DeletionRequestBody, user: CurrentUser, db: DB
+):
+    """Ask an administrator to remove this account.
+
+    Not self-service. Approval anonymises rather than deletes, because the
+    reports the person filed belong to the campus's maintenance record — so
+    somebody has to look at what would be kept before agreeing.
+    """
+    from app.models.identity import AccountDeletionRequest
+    from app.services.account_removal import retained_counts
+
+    existing = await db.scalar(
+        select(AccountDeletionRequest).where(
+            AccountDeletionRequest.user_id == user.id,
+            AccountDeletionRequest.status == "pending",
+        )
+    )
+    if existing is not None:
+        return {
+            "status": "pending",
+            "requested_at": existing.created_at.isoformat(),
+            "detail": "You already have a request awaiting review.",
+        }
+
+    request_row = AccountDeletionRequest(user_id=user.id, reason=payload.reason)
+    db.add(request_row)
+    await db.flush()
+
+    admins = await db.scalars(
+        select(User.id).where(
+            User.organization_id == user.organization_id,
+            User.role.in_([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+            User.status == UserStatus.ACTIVE,
+        )
+    )
+    await notify_svc.notify(
+        db, list(admins),
+        title=f"Account deletion requested by {user.full_name}",
+        body=payload.reason or "No reason given.",
+        link="/admin/users", kind="account",
+        entity_type="user", entity_id=user.id,
+    )
+
+    return {
+        "status": "pending",
+        "retained": await retained_counts(db, user.id),
+        "detail": "Your request has been sent to an administrator.",
+    }
+
+
+@router.get("/me/delete-request", response_model=dict)
+async def my_deletion_request(user: CurrentUser, db: DB):
+    """The state of this account's request, if there is one."""
+    from app.models.identity import AccountDeletionRequest
+
+    row = await db.scalar(
+        select(AccountDeletionRequest)
+        .where(AccountDeletionRequest.user_id == user.id)
+        .order_by(AccountDeletionRequest.created_at.desc())
+    )
+    if row is None or row.status in ("withdrawn", "rejected"):
+        return {"status": row.status if row else None,
+                "decision_note": row.decision_note if row else None}
+    return {
+        "status": row.status,
+        "requested_at": row.created_at.isoformat(),
+        "decision_note": row.decision_note,
+    }
+
+
+@router.delete("/me/delete-request", response_model=Message)
+async def withdraw_deletion_request(user: CurrentUser, db: DB):
+    from app.models.identity import AccountDeletionRequest
+
+    row = await db.scalar(
+        select(AccountDeletionRequest).where(
+            AccountDeletionRequest.user_id == user.id,
+            AccountDeletionRequest.status == "pending",
+        )
+    )
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No request is awaiting review")
+    row.status = "withdrawn"
+    return Message(detail="Request withdrawn. Your account stays as it is.")
