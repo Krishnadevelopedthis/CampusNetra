@@ -62,9 +62,21 @@ async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=
                Issue.created_at >= since))
 
     total_closed = sum(by_status.get(s, 0) for s in CLOSED_ISSUES)
+    # Scoped to the same population as total_closed — issues closed inside this
+    # window. Counting every breach ever recorded, open ones included, against
+    # only the tickets closed in the last month compares two different sets:
+    # once the SLA sweep started flagging breaches the ratio passed 1 and
+    # compliance was reported as -100%.
     breached = await db.scalar(
         select(func.count()).select_from(Issue)
-        .where(Issue.organization_id == org, Issue.sla_breached.is_(True))) or 0
+        .where(Issue.organization_id == org,
+               Issue.sla_breached.is_(True),
+               Issue.status.in_(CLOSED_ISSUES),
+               Issue.created_at >= since)) or 0
+
+    # Still clamped: a proportion of a set cannot leave 0..100, and a metric
+    # that can is one nobody trusts again after seeing it.
+    compliance = round(100 * (1 - breached / total_closed), 1) if total_closed else 100.0
 
     # Rooms generating the most complaints — the "recurring problem" signal.
     hotspots = (await db.execute(
@@ -107,7 +119,12 @@ async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=
         },
         "sla": {
             "breached": breached,
-            "compliance_pct": round(100 * (1 - breached / total_closed), 1) if total_closed else 100.0,
+            "breached_open": await db.scalar(
+                select(func.count()).select_from(Issue)
+                .where(Issue.organization_id == org,
+                       Issue.sla_breached.is_(True),
+                       Issue.status.in_(OPEN_ISSUES))) or 0,
+            "compliance_pct": max(0.0, min(100.0, compliance)),
             "mttr_hours": round(float(mttr), 1) if mttr else None,
         },
         "hotspots": [
