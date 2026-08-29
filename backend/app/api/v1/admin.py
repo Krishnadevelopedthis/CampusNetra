@@ -973,3 +973,26 @@ async def delete_programme(programme_id: uuid.UUID, admin: RequireAdmin, db: DB)
 
     await db.delete(programme)
     return Message(detail=f"{programme.name} removed.")
+
+
+@router.post("/sla/sweep", response_model=dict)
+async def run_sla_sweep(admin: RequireAdmin, db: DB):
+    """Run the SLA check now rather than waiting for the next scheduled sweep.
+
+    The sweep runs on its own every few minutes; this exists so a breach can be
+    demonstrated or verified without waiting for the interval, and so an
+    administrator can confirm the checker is alive.
+    """
+    from app.services.sla import SWEEP_MINUTES, sweep
+
+    result = await sweep(db)
+    return {
+        **result,
+        "interval_minutes": SWEEP_MINUTES,
+        "detail": (
+            f"{result['issues']} issue(s) and {result['work_orders']} work order(s) "
+            f"newly breached; {result['notified']} notification(s) sent."
+            if result["issues"] or result["work_orders"]
+            else "Nothing is newly past its SLA."
+        ),
+    }

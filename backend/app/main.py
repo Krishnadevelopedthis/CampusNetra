@@ -1,10 +1,11 @@
 """Campus Netra API — application entrypoint."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -17,7 +18,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import SessionLocal, engine
+from app.services import sla
 
 logging.basicConfig(
     level=logging.DEBUG if settings.DEBUG else logging.INFO,
@@ -43,7 +45,16 @@ async def lifespan(app: FastAPI):
         settings.ENVIRONMENT,
         "enabled" if settings.ai_available else "heuristic fallback (no API key)",
     )
+
+    # An SLA breach is the passage of time, so nothing in the request path can
+    # notice it. This is the only thing in the system that runs on its own.
+    sweeper = asyncio.create_task(sla.scheduler(SessionLocal))
+
     yield
+
+    sweeper.cancel()
+    with suppress(asyncio.CancelledError):
+        await sweeper
     await engine.dispose()
 
 
