@@ -116,6 +116,67 @@ async function parseError(res) {
   return new ApiError(res.status, detail, body?.fields, body?.reference)
 }
 
+function withParams(url, params) {
+  if (!params) return url
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null || v === '') continue
+    if (Array.isArray(v)) v.forEach((item) => qs.append(k, item))
+    else qs.append(k, v)
+  }
+  const s = qs.toString()
+  return s ? `${url}?${s}` : url
+}
+
+/**
+ * Multipart upload.
+ *
+ * Cannot go through request(), which JSON-encodes its body and sets a
+ * Content-Type that would break the multipart boundary — but it must not
+ * hand-roll its own URL either. The three callers that did were building
+ * `/api/v1/...` as a relative path, which the Vite proxy resolves in
+ * development and Vercel does not resolve at all in production: the request
+ * landed on the SPA's own 404, and parsing that as JSON produced
+ * "Unexpected end of JSON input" instead of anything about the upload.
+ */
+export async function upload(path, formData, { params, signal } = {}) {
+  const url = withParams(`${BASE}${path}`, params)
+
+  const send = (token) => fetch(url, {
+    method: 'POST',
+    // Content-Type is deliberately unset: the browser adds it with the
+    // multipart boundary, which we cannot generate ourselves.
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+    signal,
+  })
+
+  const stored = readAuth()
+  let res
+  try {
+    res = await send(stored?.access_token)
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err
+    throw new ApiError(0)
+  }
+
+  if (res.status === 401 && stored?.refresh_token) {
+    try {
+      res = await send(await refreshTokens())
+    } catch {
+      writeAuth(null)
+      throw new ApiError(401, 'Your session has expired. Please sign in again.')
+    }
+  }
+
+  if (!res.ok) throw await parseError(res)
+  try {
+    return await res.json()
+  } catch {
+    throw new ApiError(res.status || 0)
+  }
+}
+
 export async function request(path, { method = 'GET', body, params, signal, auth = true } = {}) {
   let url = `${BASE}${path}`
   if (params) {

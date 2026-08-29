@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 
 import { CameraCapture, isTouchDevice } from '@/components/CameraCapture'
 import { toast } from '@/components/ui'
-import { readAuth } from '@/lib/api'
+import { upload } from '@/lib/api'
 
 /**
  * Uploads images as soon as they are picked, rather than at form submit.
@@ -29,7 +29,7 @@ export function ImageUpload({
   const inputRef = useRef(null)
   const captureRef = useRef(null)
 
-  const upload = useCallback(
+  const addFiles = useCallback(
     async (files) => {
       const picked = Array.from(files)
       const images = picked.filter((f) => f.type.startsWith('image/'))
@@ -54,7 +54,6 @@ export function ImageUpload({
       }))
       setPending((p) => [...p, ...marks])
 
-      const token = readAuth()?.access_token
       const done = []
 
       await Promise.all(
@@ -63,16 +62,9 @@ export function ImageUpload({
           const body = new FormData()
           body.append('file', file)
           try {
-            const res = await fetch(`/api/v1/uploads/image?purpose=${purpose}`, {
-              method: 'POST',
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-              body,
-            })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.detail || 'Upload failed')
-            done.push(data)
+            done.push(await upload('/uploads/image', body, { params: { purpose } }))
           } catch (err) {
-            toast.error(`${file.name}: ${err.message}`)
+            toast.error(`${file.name}: ${err.detail || err.message}`)
           } finally {
             URL.revokeObjectURL(mark.preview)
             setPending((p) => p.filter((x) => x.id !== mark.id))
@@ -93,7 +85,7 @@ export function ImageUpload({
       <div
         onDragOver={(e) => { e.preventDefault(); if (!atLimit) setDragging(true) }}
         onDragLeave={() => setDragging(false)}
-        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!atLimit) upload(e.dataTransfer.files) }}
+        onDrop={(e) => { e.preventDefault(); setDragging(false); if (!atLimit) addFiles(e.dataTransfer.files) }}
         className={clsx(
           'flex flex-col items-center justify-center gap-3 py-7 px-4 rounded-xl border-2 border-dashed transition-colors',
           atLimit
@@ -141,19 +133,19 @@ export function ImageUpload({
         <input
           ref={inputRef} type="file" accept="image/*" multiple className="hidden"
           disabled={atLimit}
-          onChange={(e) => { upload(e.target.files); e.target.value = '' }}
+          onChange={(e) => { addFiles(e.target.files); e.target.value = '' }}
         />
         <input
           ref={captureRef} type="file" accept="image/*" capture="environment" className="hidden"
           disabled={atLimit}
-          onChange={(e) => { upload(e.target.files); e.target.value = '' }}
+          onChange={(e) => { addFiles(e.target.files); e.target.value = '' }}
         />
       </div>
 
       <CameraCapture
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
-        onCapture={(files) => upload(files)}
+        onCapture={(files) => addFiles(files)}
       />
 
       {hint && <p className="hint">{hint}</p>}
