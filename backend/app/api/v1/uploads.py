@@ -20,6 +20,15 @@ router = APIRouter(prefix="/uploads", tags=["Uploads"])
 MAX_FILES = 5
 
 
+def _subdir(purpose: str) -> str:
+    """Where a given kind of upload lives on disk."""
+    if purpose in ("lost", "found"):
+        return "lostfound"
+    if purpose == "avatar":
+        return "avatars"
+    return "issues"
+
+
 @router.post("/image", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def upload_image(
     user: CurrentUser,
@@ -37,7 +46,7 @@ async def upload_image(
         # Pillow work is CPU-bound; keep it off the event loop.
         stored = await asyncio.to_thread(
             store_image, data, file.filename,
-            "lostfound" if purpose in ("lost", "found") else "issues",
+            _subdir(purpose),
         )
     except UploadError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
@@ -69,7 +78,7 @@ async def upload_images(
             f"Up to {MAX_FILES} images per upload; you sent {len(files)}.")
 
     uploaded, errors = [], []
-    subdir = "lostfound" if purpose in ("lost", "found") else "issues"
+    subdir = _subdir(purpose)
 
     for f in files:
         data = await f.read()

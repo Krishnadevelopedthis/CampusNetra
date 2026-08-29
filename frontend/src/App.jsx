@@ -34,6 +34,7 @@ const LostFound      = lazy(() => import('@/pages/LostFound'))
 const LostFoundItem  = lazy(() => import('@/pages/LostFoundItem'))
 const ReportItem     = lazy(() => import('@/pages/ReportItem'))
 const Help           = lazy(() => import('@/pages/Help'))
+const Settings       = lazy(() => import('@/pages/Settings'))
 const Analytics      = lazy(() => import('@/pages/Analytics'))
 const Profile        = lazy(() => import('@/pages/Profile'))
 const AdminLayout    = lazy(() => import('@/pages/admin/AdminLayout'))
@@ -128,7 +129,7 @@ export default function App() {
             <Route path="/help" element={<Help />} />
 
             <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Profile />} />
+            <Route path="/settings" element={<Settings />} />
 
             {/* Role landing aliases */}
             <Route path="/technician" element={<Navigate to="/work-orders" replace />} />
