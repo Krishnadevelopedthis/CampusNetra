@@ -251,6 +251,163 @@ async def floor_plan(floor_id: uuid.UUID, user: CurrentUser, db: DB):
     )
 
 
+class CampusUpsert(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    code: str = Field(min_length=1, max_length=20)
+    address: Optional[str] = None
+
+
+class BuildingUpsert(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    code: str = Field(min_length=1, max_length=20)
+    floors_count: int = Field(1, ge=1, le=100)
+    map_x: Optional[float] = Field(None, ge=0, le=1)
+    map_y: Optional[float] = Field(None, ge=0, le=1)
+
+
+class FloorUpsert(BaseModel):
+    name: str = Field(min_length=1, max_length=60)
+    level: int = Field(ge=-10, le=200)
+
+
+@router.post("/campuses", response_model=CampusOut, status_code=201)
+async def create_campus(payload: CampusUpsert, user: RequireAdmin, db: DB):
+    clash = await db.scalar(
+        select(Campus.id).where(
+            Campus.organization_id == user.organization_id, Campus.code == payload.code))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Campus code {payload.code} already exists.")
+
+    campus = Campus(organization_id=user.organization_id, **payload.model_dump())
+    db.add(campus)
+    await db.flush()
+    await db.refresh(campus)
+    return CampusOut.model_validate(campus)
+
+
+@router.post("/campuses/{campus_id}/buildings", response_model=BuildingOut, status_code=201)
+async def create_building(
+    campus_id: uuid.UUID, payload: BuildingUpsert, user: RequireStaff, db: DB
+):
+    """Create a building, and its floors along with it.
+
+    A building with no floors cannot hold rooms, so creating them together
+    avoids leaving the hierarchy in a state where nothing can be added to it.
+    """
+    campus = await db.scalar(
+        select(Campus).where(Campus.id == campus_id,
+                             Campus.organization_id == user.organization_id))
+    if campus is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campus not found")
+
+    clash = await db.scalar(
+        select(Building.id).where(Building.campus_id == campus_id, Building.code == payload.code))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Building code {payload.code} already exists on this campus.")
+
+    building = Building(campus_id=campus_id, **payload.model_dump())
+    db.add(building)
+    await db.flush()
+
+    for level in range(1, payload.floors_count + 1):
+        db.add(Floor(building_id=building.id, name=f"Floor {level}", level=level))
+
+    await db.flush()
+    await db.refresh(building)
+    return BuildingOut.model_validate(building)
+
+
+@router.patch("/buildings/{building_id}", response_model=BuildingOut)
+async def update_building(
+    building_id: uuid.UUID, payload: BuildingUpsert, user: RequireStaff, db: DB
+):
+    building = await db.scalar(select(Building).where(Building.id == building_id))
+    if building is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+
+    if payload.code != building.code:
+        clash = await db.scalar(
+            select(Building.id).where(
+                Building.campus_id == building.campus_id,
+                Building.code == payload.code, Building.id != building_id))
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                f"Building code {payload.code} already exists on this campus.")
+
+    for field, value in payload.model_dump().items():
+        setattr(building, field, value)
+    await db.flush()
+    return BuildingOut.model_validate(building)
+
+
+@router.delete("/buildings/{building_id}", response_model=Message)
+async def delete_building(building_id: uuid.UUID, user: RequireAdmin, db: DB):
+    building = await db.scalar(select(Building).where(Building.id == building_id))
+    if building is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+
+    rooms = await db.scalar(
+        select(func.count(Room.id))
+        .select_from(Room).join(Floor, Floor.id == Room.floor_id)
+        .where(Floor.building_id == building_id)) or 0
+    if rooms:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{building.code} still contains {rooms} room(s). Remove them first.")
+
+    await db.delete(building)
+    return Message(detail=f"{building.name} removed.")
+
+
+@router.post("/buildings/{building_id}/floors", response_model=FloorOut, status_code=201)
+async def create_floor(
+    building_id: uuid.UUID, payload: FloorUpsert, user: RequireStaff, db: DB
+):
+    building = await db.scalar(select(Building).where(Building.id == building_id))
+    if building is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+
+    clash = await db.scalar(
+        select(Floor.id).where(Floor.building_id == building_id, Floor.level == payload.level))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Level {payload.level} already exists in this building.")
+
+    floor = Floor(building_id=building_id, **payload.model_dump())
+    db.add(floor)
+    await db.flush()
+    await db.refresh(floor)
+
+    building.floors_count = await db.scalar(
+        select(func.count()).select_from(Floor).where(Floor.building_id == building_id)) or 1
+    return FloorOut.model_validate(floor)
+
+
+@router.delete("/floors/{floor_id}", response_model=Message)
+async def delete_floor(floor_id: uuid.UUID, user: RequireAdmin, db: DB):
+    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
+    if floor is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+
+    rooms = await db.scalar(
+        select(func.count()).select_from(Room).where(Room.floor_id == floor_id)) or 0
+    if rooms:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"{floor.name} still contains {rooms} room(s). Remove them first.")
+
+    building_id = floor.building_id
+    await db.delete(floor)
+    await db.flush()
+
+    building = await db.scalar(select(Building).where(Building.id == building_id))
+    if building:
+        building.floors_count = max(1, await db.scalar(
+            select(func.count()).select_from(Floor).where(Floor.building_id == building_id)) or 1)
+    return Message(detail=f"{floor.name} removed.")
+
+
 # ---------------------------------------------------------------- editing
 class FloorPlanImage(BaseModel):
     floor_plan_url: str
