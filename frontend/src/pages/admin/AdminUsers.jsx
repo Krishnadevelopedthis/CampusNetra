@@ -6,7 +6,7 @@ import {
   Avatar, Button, EmptyState, ErrorState, Field, Input, Modal, Select,
   SkeletonRows, StatusPill, Widget, toast,
 } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, mediaUrl } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { dt } from '@/lib/format'
 
@@ -81,7 +81,7 @@ export default function AdminUsers() {
                       <tr key={u.id}>
                         <td>
                           <div className="flex items-center gap-2.5">
-                            <Avatar name={u.full_name} src={u.avatar_url} size={32} />
+                            <Avatar name={u.full_name} src={mediaUrl(u.avatar_url)} size={32} />
                             <div className="min-w-0">
                               <p className="text-ink truncate">
                                 {u.full_name}

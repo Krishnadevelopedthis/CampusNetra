@@ -7,7 +7,7 @@ import {
   Avatar, Button, ErrorState, Field, Input, Modal, PriorityPill, Select, Spinner,
   StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, mediaUrl } from '@/lib/api'
 import { ago, dt, money, slaLabel, titleCase } from '@/lib/format'
 
 export default function WorkOrderDetail() {
@@ -120,7 +120,7 @@ export default function WorkOrderDetail() {
                       {photos.map((p) => (
                         <a key={p.id} href={p.url} target="_blank" rel="noreferrer"
                            className="w-24 h-24 rounded overflow-hidden border border-border-subtle">
-                          <img src={p.thumb_url || p.url} alt={label} className="w-full h-full object-cover" />
+                          <img src={mediaUrl(p.thumb_url || p.url)} alt={label} className="w-full h-full object-cover" />
                         </a>
                       ))}
                     </div>

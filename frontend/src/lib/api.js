@@ -17,6 +17,28 @@ const BASE =
 
 const STORAGE_KEY = 'cn.auth'
 
+/**
+ * Absolute URL for an uploaded file.
+ *
+ * The API returns media paths relative to itself — "/media/lostfound/…". In
+ * development the Vite proxy forwards /media to the backend, so a bare path
+ * resolves. In production the page is served from Vercel, whose catch-all
+ * rewrite answers *every* unmatched path with index.html: an <img> pointed at
+ * one gets a 200 with `text/html` and nothing to decode, so no uploaded photo
+ * has ever rendered on the deployment.
+ *
+ * Absolute URLs, blob: previews and data: URIs are returned untouched.
+ */
+export function mediaUrl(url) {
+  if (!url) return url
+  if (/^(https?:|blob:|data:)/.test(url)) return url
+  if (BASE.startsWith('http')) {
+    // Strip the /api/v1 suffix: media is served from the server root.
+    return new URL(url, BASE.replace(/\/api\/v\d+\/?$/, '')).toString()
+  }
+  return url
+}
+
 export function readAuth() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')

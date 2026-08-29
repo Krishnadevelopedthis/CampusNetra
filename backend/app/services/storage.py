@@ -112,8 +112,16 @@ def store_image(
     else:
         image = image.convert("RGB")
 
-    full = ImageOps.contain(image, (MAX_EDGE, MAX_EDGE), Image.Resampling.LANCZOS)
-    thumb = ImageOps.contain(image, (THUMB_EDGE, THUMB_EDGE), Image.Resampling.LANCZOS)
+    # ImageOps.contain scales up as well as down, so a small photo was being
+    # enlarged to the cap — a 320px snapshot stored as a blurry 1600px file that
+    # is bigger than the original and no more detailed. Only ever shrink.
+    def _fit(img, edge):
+        if max(img.size) <= edge:
+            return img.copy()
+        return ImageOps.contain(img, (edge, edge), Image.Resampling.LANCZOS)
+
+    full = _fit(image, MAX_EDGE)
+    thumb = _fit(image, THUMB_EDGE)
 
     # Random name: the client's filename is untrusted and could traverse paths.
     stamp = datetime.now(timezone.utc).strftime("%Y/%m")

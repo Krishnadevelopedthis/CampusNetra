@@ -9,7 +9,7 @@ import {
   Button, EmptyState, ErrorState, Field, Metric, Modal, Spinner, StatusPill,
   Textarea, Widget, toast,
 } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, mediaUrl } from '@/lib/api'
 import { ago, dt } from '@/lib/format'
 
 export default function AdminLostFound() {
@@ -159,7 +159,7 @@ export default function AdminLostFound() {
                           {c.proof_urls.map((u) => (
                             <a key={u} href={u} target="_blank" rel="noreferrer"
                                className="w-16 h-16 rounded overflow-hidden border border-border-subtle">
-                              <img src={u} alt="Evidence" className="w-full h-full object-cover" />
+                              <img src={mediaUrl(u)} alt="Evidence" className="w-full h-full object-cover" />
                             </a>
                           ))}
                         </div>
@@ -208,7 +208,7 @@ export default function AdminLostFound() {
                         <Link key={label} to={`/lost-found/items/${id}`}
                               className="flex gap-3 rounded border border-border-subtle p-3 hover:bg-surface-sunken transition-colors">
                           <div className="w-14 h-14 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
-                            {p?.image ? <img src={p.image} alt="" className="w-full h-full object-cover" />
+                            {p?.image ? <img src={mediaUrl(p.image)} alt="" className="w-full h-full object-cover" />
                               : <PackageSearch size={18} className="text-ink-faint" />}
                           </div>
                           <div className="min-w-0">

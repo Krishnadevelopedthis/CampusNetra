@@ -15,7 +15,7 @@ import {
   Widget,
   toast,
 } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, mediaUrl } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ago, dt, slaLabel, titleCase } from '@/lib/format'
 
@@ -149,7 +149,7 @@ export default function IssueDetail() {
                   {issue.attachments.map((a) => (
                     <a key={a.id} href={a.url} target="_blank" rel="noreferrer"
                        className="block w-28 h-28 rounded overflow-hidden border border-border-subtle hover:opacity-90">
-                      <img src={a.thumb_url || a.url} alt={a.filename || 'Evidence'}
+                      <img src={mediaUrl(a.thumb_url || a.url)} alt={a.filename || 'Evidence'}
                            className="w-full h-full object-cover" />
                     </a>
                   ))}
