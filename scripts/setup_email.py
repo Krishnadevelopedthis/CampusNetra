@@ -29,13 +29,22 @@ BOLD, GREEN, RED, YELLOW, DIM, CYAN, RESET = (
     "\033[1m", "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[36m", "\033[0m"
 )
 
+# HTTP providers are listed first: outbound SMTP is blocked on most PaaS free
+# tiers, so an SMTP setup that works locally silently sends nothing once deployed.
+API_PROVIDERS = {
+    "1": ("Resend (HTTPS API)", "RESEND_API_KEY", "re_",
+          "resend.com — works on Render/Railway/Fly, where SMTP is blocked."),
+    "2": ("Brevo (HTTPS API)", "BREVO_API_KEY", "xkeysib-",
+          "Your existing Brevo account: API keys & MCP tab, NOT the SMTP tab."),
+}
+
 PROVIDERS = {
-    "1": ("Brevo",   "smtp-relay.brevo.com",    587,
-          "Dashboard > SMTP & API > SMTP tab. Free tier: 300 emails/day."),
-    "2": ("Gmail",   "smtp.gmail.com",          587,
+    "3": ("Brevo SMTP", "smtp-relay.brevo.com",    587,
+          "Dashboard > SMTP & API > SMTP tab. Local development only."),
+    "4": ("Gmail SMTP",   "smtp.gmail.com",     587,
           "Requires 2-Step Verification, then an App Password."),
-    "3": ("Outlook", "smtp-mail.outlook.com",   587, ""),
-    "4": ("Mailtrap (testing only)", "sandbox.smtp.mailtrap.io", 2525,
+    "5": ("Outlook SMTP", "smtp-mail.outlook.com", 587, ""),
+    "6": ("Mailtrap (testing only)", "sandbox.smtp.mailtrap.io", 2525,
           "Captures mail in a web inbox; nothing is delivered to real addresses."),
 }
 
@@ -73,6 +82,9 @@ def main() -> int:
     print(f"\n{BOLD}Campus Netra — email setup{RESET}")
     print(f"{DIM}Credentials are written to backend/.env, which is gitignored.{RESET}\n")
 
+    for key, (name, _var, _prefix, note) in API_PROVIDERS.items():
+        print(f"  {CYAN}{key}{RESET}  {name:<26} {DIM}HTTPS{RESET}")
+        print(f"     {DIM}{note}{RESET}")
     for key, (name, host, port, note) in PROVIDERS.items():
         print(f"  {CYAN}{key}{RESET}  {name:<26} {DIM}{host}:{port}{RESET}")
         if note:
@@ -80,6 +92,24 @@ def main() -> int:
     print()
 
     choice = input(f"Provider [{BOLD}1{RESET}]: ").strip() or "1"
+
+    if choice in API_PROVIDERS:
+        name, var, prefix, _ = API_PROVIDERS[choice]
+        print(f"\n{BOLD}{name}{RESET}\n")
+        print(f"{DIM}The key starts with '{prefix}'.{RESET}\n")
+        key = getpass.getpass("API key (hidden): ").strip()
+        if not key:
+            print(f"{RED}A key is required.{RESET}")
+            return 1
+        sender = input("From address: ").strip()
+        if not sender:
+            print(f"{RED}A from address is required.{RESET}")
+            return 1
+
+        write_env({var: key, "SMTP_FROM": f'"Campus Netra <{sender}>"'})
+        print(f"\n{GREEN}Saved to backend/.env{RESET} {DIM}(permissions set to 600){RESET}")
+        return _verify_and_test()
+
     if choice not in PROVIDERS:
         print(f"{RED}Unknown option.{RESET}")
         return 1
@@ -112,7 +142,10 @@ def main() -> int:
         "SMTP_FROM": f'"Campus Netra <{sender}>"',
     })
     print(f"\n{GREEN}Saved to backend/.env{RESET} {DIM}(permissions set to 600){RESET}")
+    return _verify_and_test()
 
+
+def _verify_and_test() -> int:
     # Import only now, so the freshly written .env is the one that gets read.
     os.chdir(BACKEND)
     sys.path.insert(0, str(BACKEND))

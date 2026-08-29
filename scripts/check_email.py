@@ -37,6 +37,31 @@ GREEN, RED, YELLOW, DIM, RESET = "\033[32m", "\033[31m", "\033[33m", "\033[2m", 
 
 async def main() -> int:
     print(f"\n{DIM}Reading backend/.env{RESET}")
+    print(f"  provider  : {settings.email_provider}")
+    if settings.email_provider in ("resend", "brevo"):
+        key = settings.RESEND_API_KEY or settings.BREVO_API_KEY
+        print(f"  API key   : {'*' * 8} ({len(key)} chars)")
+        print(f"  SMTP_FROM : {settings.SMTP_FROM}\n")
+        print("Verifying the API key…")
+        result = await verify_connection()
+        if not result.delivered:
+            print(f"{RED}  FAILED{RESET}  {result.error}\n")
+            return 1
+        print(f"{GREEN}  Key accepted.{RESET}\n")
+        if len(sys.argv) > 1:
+            to = sys.argv[1]
+            print(f"Sending a test code to {to}…")
+            sent = await send_otp(to, "there", "123456", "email_verify")
+            if sent.delivered:
+                print(f"{GREEN}  Sent. Check the inbox (and spam).{RESET}\n")
+            else:
+                print(f"{RED}  FAILED{RESET}  {sent.error}\n")
+                return 1
+        else:
+            print(f"{DIM}Pass an address to send a real test:{RESET}")
+            print(f"{DIM}  ./scripts/check_email.py you@example.com{RESET}\n")
+        return 0
+
     print(f"  SMTP_HOST : {settings.SMTP_HOST or '(not set)'}")
     print(f"  SMTP_PORT : {settings.SMTP_PORT}")
     print(f"  SMTP_USER : {settings.SMTP_USER or '(not set)'}")
@@ -54,6 +79,11 @@ async def main() -> int:
         print('  SMTP_FROM="Campus Netra <you@gmail.com>"\n')
         print(f"{DIM}Gmail needs an App Password (2-Step Verification must be on):{RESET}")
         print(f"{DIM}  https://myaccount.google.com/apppasswords{RESET}\n")
+        print(f"{YELLOW}Deploying to Render, Railway, Fly or Heroku free tiers?{RESET}")
+        print("Those block outbound SMTP, so a working local setup sends nothing")
+        print("once deployed. Use an HTTP API instead — set one of:\n")
+        print("  RESEND_API_KEY=re_...        (resend.com)")
+        print("  BREVO_API_KEY=xkeysib-...    (your existing Brevo account)\n")
         return 1
 
     print("Testing connection and login…")
