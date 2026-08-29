@@ -11,6 +11,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip
+from app.core.config import settings
 from app.core.enums import Priority, UserRole, UserStatus
 from app.core.security import hash_password
 from app.models.identity import Department, Organization, Permission, RolePermission, User
@@ -774,3 +775,74 @@ async def raise_preventive_work_order(
 
     return {"id": str(wo.id), "reference": wo.reference,
             "message": f"{wo.reference} scheduled for {asset.tag} (risk {round(risk * 100)}%)."}
+
+
+# ---------------- Email delivery diagnostics ----------------
+
+@router.get("/email/status", response_model=dict)
+async def email_status(admin: RequireAdmin):
+    """Whether outgoing mail is actually working, and if not, why.
+
+    Configuration alone proves nothing: a key can be present but rejected, and
+    a sender address can be set but unverified with the provider — both of
+    which look exactly like "configured" from the outside while every message
+    silently fails. This verifies the credential against the provider and
+    reports the sender it would send as. The key itself is never returned.
+    """
+    from email.utils import parseaddr
+
+    from app.services.email import verify_connection
+
+    _, sender = parseaddr(settings.SMTP_FROM)
+    result = await verify_connection()
+
+    return {
+        "provider": settings.email_provider,
+        "configured": settings.email_delivers,
+        "sender": sender or None,
+        "verified": result.delivered,
+        "error": result.error,
+        "hint": _delivery_hint(settings.email_provider, sender, result),
+    }
+
+
+def _delivery_hint(provider: str, sender: str | None, result) -> str | None:
+    """The next thing to try, in the words of whoever has to fix it."""
+    if provider == "none":
+        return ("No transport is configured. Set RESEND_API_KEY or BREVO_API_KEY "
+                "in the environment.")
+    if not result.delivered:
+        return result.error
+    if provider in ("brevo", "resend") and sender:
+        return (f"Messages are sent as {sender}. If nothing arrives, that address "
+                f"must be a verified sender with {provider} — an unverified sender "
+                "is accepted by the API and then dropped.")
+    return None
+
+
+@router.post("/email/test", response_model=dict)
+async def email_test(admin: RequireAdmin):
+    """Send a real test message to the signed-in administrator.
+
+    Deliberately only to the caller's own address: a diagnostic that can be
+    pointed at an arbitrary recipient is a way to send mail from someone else's
+    domain.
+    """
+    from app.services.email import send_email
+
+    result = await send_email(
+        admin.email,
+        subject="Campus Netra — delivery test",
+        text=(f"Hello {admin.full_name},\n\n"
+              "This is a test from Campus Netra. If you are reading it, outgoing "
+              "mail is working and verification codes will reach your users.\n"),
+        html=(f"<p>Hello {admin.full_name},</p>"
+              "<p>This is a test from Campus Netra. If you are reading it, outgoing "
+              "mail is working and verification codes will reach your users.</p>"),
+    )
+    return {
+        "sent": result.delivered,
+        "to": admin.email,
+        "provider": settings.email_provider,
+        "error": result.error,
+    }
