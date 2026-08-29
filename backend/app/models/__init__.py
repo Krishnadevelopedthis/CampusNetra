@@ -1,7 +1,7 @@
 """Importing this package registers every model on the shared Base metadata."""
 from app.models.identity import (  # noqa: F401
-    Department, Organization, Permission, RefreshToken, RolePermission, User,
-    UserPermissionOverride, VerificationCode,
+    AcademicProgramme, AccountDeletionRequest, Department, Organization, Permission,
+    RefreshToken, RolePermission, User, UserPermissionOverride, VerificationCode,
 )
 from app.models.spatial import (  # noqa: F401
     Asset, AssetCategory, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent,

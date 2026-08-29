@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
   Bell,
@@ -87,6 +87,24 @@ export default function Settings() {
     mutationFn: () => api.post('/auth/me/export'),
     onSuccess: (d) => toast.success(d.detail),
     onError: (err) => toast.error(err.detail || 'Could not prepare your data export.'),
+  })
+
+  const deletion = useQuery({
+    queryKey: ['my-deletion-request'],
+    queryFn: () => api.get('/auth/me/delete-request'),
+    retry: false,
+  })
+
+  const requestDeletion = useMutation({
+    mutationFn: (reason) => api.post('/auth/me/delete-request', { reason }),
+    onSuccess: (d) => { toast.success(d.detail); deletion.refetch() },
+    onError: (err) => toast.error(err.detail || 'Could not send your request.'),
+  })
+
+  const withdraw = useMutation({
+    mutationFn: () => api.del('/auth/me/delete-request'),
+    onSuccess: (d) => { toast.success(d.detail); deletion.refetch() },
+    onError: (err) => toast.error(err.detail || 'Could not withdraw your request.'),
   })
 
   const save = useMutation({
@@ -273,13 +291,46 @@ export default function Settings() {
             desc="Reports you filed stay on the record; your name is removed from them."
             compact
           >
-            <a
-              className="btn-secondary btn-sm text-danger-text"
-              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Account deletion request')}&body=${encodeURIComponent(`Please delete the account for ${user?.email || ''}.`)}`}
-            >
-              Request
-            </a>
+            {deletion.data?.status === 'pending' ? (
+              <Button size="sm" variant="ghost" loading={withdraw.isPending}
+                      onClick={() => withdraw.mutate()}>
+                Withdraw request
+              </Button>
+            ) : (
+              <Button
+                size="sm" variant="secondary" className="text-danger-text"
+                loading={requestDeletion.isPending}
+                onClick={() => {
+                  if (!confirm(
+                    'Ask an administrator to remove your account?\n\n'
+                    + 'It is reviewed first. If approved, your name and contact details '
+                    + 'are removed and you can no longer sign in — the reports you filed '
+                    + 'stay on the campus record without your name.',
+                  )) return
+                  const reason = prompt('Anything the administrator should know? (optional)')
+                  requestDeletion.mutate(reason || null)
+                }}
+              >
+                Request
+              </Button>
+            )}
           </Row>
+
+          {/* The answer belongs where the question was asked, not only in a
+              notification that scrolls away. */}
+          {deletion.data?.status === 'pending' && (
+            <p className="text-body-md text-warning-text bg-warning-bg border border-warning-border
+                          rounded-xl px-3.5 py-2.5 mt-1">
+              Awaiting an administrator's decision. You can withdraw it until then.
+            </p>
+          )}
+          {deletion.data?.status === 'rejected' && (
+            <p className="text-body-md text-ink-muted bg-surface-sunken border border-border-subtle
+                          rounded-xl px-3.5 py-2.5 mt-1">
+              Your last request was declined.
+              {deletion.data.decision_note ? ` ${deletion.data.decision_note}` : ''}
+            </p>
+          )}
         </div>
       </Widget>
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, UserPlus, UserX } from 'lucide-react'
+import { Search, UserMinus, UserPlus, UserX } from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -8,7 +8,7 @@ import {
 } from '@/components/ui'
 import { api, mediaUrl } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
-import { dt } from '@/lib/format'
+import { ago, dt } from '@/lib/format'
 
 const ROLES = ['student', 'teacher', 'technician', 'facility_manager', 'admin']
 
@@ -75,6 +75,8 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-5">
+      <DeletionRequests onDecided={invalidate} />
+
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">
           <div className="relative flex-1 min-w-[220px]">
@@ -397,5 +399,121 @@ function EditUserModal({ user, onClose, departments, programmes, onDone }) {
         </Field>
       </div>
     </Modal>
+  )
+}
+
+
+/* ================== Account deletion requests ================== */
+
+/**
+ * Only rendered when somebody is waiting on an answer.
+ *
+ * A queue that is empty most of the time still has to be noticed on the day it
+ * is not, so it sits above the user list rather than behind a tab — and
+ * disappears entirely when there is nothing to decide.
+ */
+function DeletionRequests({ onDecided }) {
+  const qc = useQueryClient()
+  const requests = useQuery({
+    queryKey: ['deletion-requests'],
+    queryFn: () => api.get('/admin/deletion-requests'),
+    retry: false,
+  })
+
+  const decide = useMutation({
+    mutationFn: ({ id, action, note }) =>
+      api.post(`/admin/deletion-requests/${id}/${action}`, { note }),
+    onSuccess: (d) => {
+      toast.success(d.detail)
+      qc.invalidateQueries({ queryKey: ['deletion-requests'] })
+      onDecided?.()
+    },
+    onError: (err) => toast.error(err.detail || 'Could not record that decision.'),
+  })
+
+  const pending = requests.data || []
+  if (!pending.length) return null
+
+  return (
+    <Widget
+      title={
+        <span className="flex items-center gap-2">
+          <UserMinus size={17} className="text-warning" />
+          Account deletion requests
+        </span>
+      }
+      subtitle={`${pending.length} awaiting a decision`}
+      bodyClass="p-0"
+    >
+      <div className="divide-y divide-border-subtle">
+        {pending.map((r) => (
+          <div key={r.id} className="p-widget space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-body-lg font-medium text-ink">
+                  {r.user.full_name}
+                  <span className="pill bg-brand-soft text-brand ml-2">
+                    {ROLE_LABEL[r.user.role]}
+                  </span>
+                </p>
+                <p className="text-body-sm text-ink-faint">{r.user.email}</p>
+                <p className="text-body-sm text-ink-faint mt-0.5">
+                  Requested {ago(r.requested_at)}
+                </p>
+              </div>
+
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm" variant="ghost"
+                  loading={decide.isPending && decide.variables?.id === r.id}
+                  onClick={() => {
+                    const note = prompt(`Why is ${r.user.full_name}'s request being declined?`)
+                    if (note === null) return
+                    decide.mutate({ id: r.id, action: 'reject', note })
+                  }}
+                >
+                  Decline
+                </Button>
+                <Button
+                  size="sm" variant="danger"
+                  loading={decide.isPending && decide.variables?.id === r.id}
+                  onClick={() => {
+                    if (!confirm(
+                      `Anonymise ${r.user.full_name}'s account?\n\n`
+                      + 'Their name, email and contact details are removed and they can '
+                      + 'no longer sign in. This cannot be undone. The work listed below '
+                      + 'stays on the record without their name.',
+                    )) return
+                    decide.mutate({ id: r.id, action: 'approve', note: null })
+                  }}
+                >
+                  Approve
+                </Button>
+              </div>
+            </div>
+
+            {r.reason && (
+              <p className="text-body-md text-ink-muted bg-surface-sunken rounded-xl px-3.5 py-2.5">
+                “{r.reason}”
+              </p>
+            )}
+
+            {/* What approval keeps. Shown because it is the whole reason a
+                person has to look at this rather than a button doing it. */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                ['issues_reported', 'issues reported'],
+                ['work_orders_assigned', 'work orders'],
+                ['lost_found_reports', 'lost & found reports'],
+              ].map(([key, label]) => (
+                <span key={key} className="pill bg-surface-sunken text-ink-muted">
+                  {r.retained?.[key] ?? 0} {label} kept
+                </span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </Widget>
   )
 }
