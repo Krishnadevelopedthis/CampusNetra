@@ -298,6 +298,7 @@ export default function DigitalTwin() {
             ) : (
               <FloorPlan
                 rooms={plan.data.rooms}
+                planImage={plan.data.floor?.floor_plan_url}
                 selectedRoomId={selectedRoom?.id}
                 selectedAssetId={selectedAsset?.id}
                 recentlyChanged={changed}
