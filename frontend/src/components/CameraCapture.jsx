@@ -29,35 +29,71 @@ export function CameraCapture({ open, onClose, onCapture }) {
 
   const start = useCallback(async (mode) => {
     setError(null)
+    setReady(false)
     stop()
     if (!navigator.mediaDevices?.getUserMedia) {
       setError('This browser cannot open a camera. Use "Browse files" instead.')
       return
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: mode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play().catch(() => {})
+      // getUserMedia can hang indefinitely rather than reject — a permission
+      // prompt nobody answers, or an embedded view that blocks capture without
+      // saying so. Left alone that shows "Starting the camera…" forever.
+      const stream = await withTimeout(
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: mode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        }),
+        15000,
+      )
+      if (stream === TIMED_OUT) {
+        setError(
+          'The camera did not respond. If your browser asked for permission, '
+          + 'allow it and try again — otherwise use "Browse files".',
+        )
+        return
       }
-      setReady(true)
+      streamRef.current = stream
+
+      const video = videoRef.current
+      if (video) {
+        video.srcObject = stream
+        // Deliberately not awaited: play() on a stream that never delivers a
+        // frame returns a promise that never settles, so awaiting it hangs the
+        // whole start path and the dialog sits on "Starting the camera…"
+        // forever. The frame poll below is what decides readiness.
+        video.play().catch(() => {})
+
+        // Readiness means frames are arriving, not that play() resolved. When
+        // another application already holds the camera — a video call in
+        // another tab is the usual one — the promise resolves against a track
+        // that reports itself live and never produces a frame. Enabling
+        // Capture on that gives a black rectangle and a button that does
+        // nothing when pressed, with no indication why.
+        //
+        // Polling rather than waiting on loadedmetadata/playing: those do not
+        // fire at all for a track that never delivers, which is exactly the
+        // case being detected.
+        const framing = await waitForFrames(video, 5000)
+        if (framing) {
+          setReady(true)
+        } else {
+          stop()
+          setError(
+            'The camera opened but is not sending a picture. It is usually in '
+            + 'use by another app or browser tab — close that and try again, '
+            + 'or use "Browse files".',
+          )
+          return
+        }
+      }
 
       // Only offer the flip control when there is actually something to flip to.
       const cams = (await navigator.mediaDevices.enumerateDevices())
         .filter((d) => d.kind === 'videoinput')
       setHasChoice(cams.length > 1)
     } catch (err) {
-      setError(
-        err.name === 'NotAllowedError'
-          ? 'Camera access was blocked. Allow it in your browser’s site settings, or use "Browse files".'
-          : err.name === 'NotFoundError'
-            ? 'No camera was found on this device. Use "Browse files" instead.'
-            : 'The camera could not be started. Use "Browse files" instead.',
-      )
+      setError(cameraError(err))
     }
   }, [stop])
 
@@ -191,6 +227,46 @@ export function CameraCapture({ open, onClose, onCapture }) {
       </div>
     </div>
   )
+}
+
+const TIMED_OUT = Symbol('timed out')
+
+/** The promise's value, or TIMED_OUT if it has not settled in time. */
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(TIMED_OUT), ms)),
+  ])
+}
+
+/** Resolves true once the video reports real dimensions, false on timeout. */
+async function waitForFrames(video, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (video.videoWidth > 0 && video.videoHeight > 0) return true
+    await new Promise((r) => setTimeout(r, 200))
+  }
+  return false
+}
+
+/** Plain-language cause for a getUserMedia rejection. */
+function cameraError(err) {
+  switch (err?.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'Camera access was blocked. Allow it in your browser’s site '
+        + 'settings, or use "Browse files".'
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'No camera was found on this device. Use "Browse files" instead.'
+    case 'NotReadableError':
+    case 'AbortError':
+      // The commonest real cause: a video call is already holding the device.
+      return 'The camera is already in use by another app or browser tab. '
+        + 'Close that and try again, or use "Browse files".'
+    default:
+      return 'The camera could not be started. Use "Browse files" instead.'
+  }
 }
 
 /** True when <input capture> will open a real camera rather than a file picker. */
