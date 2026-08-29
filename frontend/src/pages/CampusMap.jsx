@@ -10,10 +10,10 @@ import {
   Metric,
   RefreshButton,
   Select,
-  Spinner,
   Widget,
 } from '@/components/ui'
 import { TwinLegend } from '@/features/twin/FloorPlan'
+import { SkeletonMetrics } from '@/components/Skeletons'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { TWIN_STATE } from '@/lib/format'
@@ -68,8 +68,11 @@ export default function CampusMap() {
     overview.refetch, heat.refetch, campuses.refetch,
   )
 
-  if (campuses.isLoading || overview.isLoading) return <Spinner label="Loading campus map…" />
-  if (overview.error) return <ErrorState error={overview.error} onRetry={overview.refetch} />
+  const busy = campuses.isLoading || overview.isLoading || refreshing
+
+  if (overview.error && !overview.data) {
+    return <ErrorState error={overview.error} onRetry={overview.refetch} />
+  }
 
   const heatByBuilding = new Map((heat.data?.buildings || []).map((b) => [b.id, b]))
   const buildings = overview.data?.buildings || []
@@ -116,7 +119,7 @@ export default function CampusMap() {
         </div>
       </header>
 
-      {overview.data && (
+      {busy ? <SkeletonMetrics /> : overview.data && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Metric label="Buildings" value={overview.data.totals.buildings} accent="rgb(var(--c-brand))" />
           <Metric label="Rooms" value={overview.data.totals.rooms} accent="#3b82f6" />
@@ -150,7 +153,11 @@ export default function CampusMap() {
           )}
         </div>
 
-        {positioned.length === 0 ? (
+        {busy ? (
+          <div className="p-widget">
+            <div className="skeleton w-full rounded-xl" style={{ aspectRatio: '1000 / 620' }} />
+          </div>
+        ) : positioned.length === 0 ? (
           <EmptyState icon={MapPinned} title="No buildings positioned on the map"
                       description="Buildings need map coordinates before they can be placed. An administrator sets these in Campus Management." />
         ) : (
@@ -223,7 +230,13 @@ export default function CampusMap() {
               <thead><tr><th>Building</th><th className="text-right">Assets</th>
                          <th className="text-right">Open</th><th>Condition</th></tr></thead>
               <tbody>
-                {buildings.map((b) => (
+                {busy ? Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`sk-${i}`}>
+                    {Array.from({ length: 4 }).map((_, c) => (
+                      <td key={c}><div className="skeleton h-4" /></td>
+                    ))}
+                  </tr>
+                )) : buildings.map((b) => (
                   <tr key={b.id}>
                     <td>
                       <span className="font-mono text-mono-data text-secondary">{b.code}</span>
@@ -248,7 +261,13 @@ export default function CampusMap() {
 
         <Widget title={<span className="flex items-center gap-2"><Flame size={17} className="text-warning" /> Complaint Hotspots</span>}
                 subtitle={`Rooms generating the most complaints in ${days} days`} bodyClass="p-0">
-          {heat.isLoading ? <Spinner />
+          {heat.isLoading || refreshing ? (
+              <div className="p-widget space-y-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="skeleton h-4 rounded" />
+                ))}
+              </div>
+            )
             : !heat.data?.rooms?.length ? (
               <p className="text-body-md text-ink-faint text-center py-10">
                 No complaints recorded in this window.
