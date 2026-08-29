@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AlertCircle, Check, ChevronDown, Loader2, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 
 /* ---------------- Widget (Level 1: bordered, no shadow) ---------------- */
@@ -82,13 +82,13 @@ export function Field({ label, error, hint, required, children, className }) {
   )
 }
 
-export function Input({ error, className, ...rest }) {
-  return <input className={clsx('input', error && 'input-error', className)} {...rest} />
-}
+export const Input = forwardRef(function Input({ error, className, ...rest }, ref) {
+  return <input ref={ref} className={clsx('input', error && 'input-error', className)} {...rest} />
+})
 
-export function Textarea({ error, className, ...rest }) {
-  return <textarea className={clsx('textarea', error && 'input-error', className)} {...rest} />
-}
+export const Textarea = forwardRef(function Textarea({ error, className, ...rest }, ref) {
+  return <textarea ref={ref} className={clsx('textarea', error && 'input-error', className)} {...rest} />
+})
 
 export function Select({ error, className, children, ...rest }) {
   return (

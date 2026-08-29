@@ -121,6 +121,9 @@ class UserOut(ORMModel):
     email_verified_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     created_at: datetime
+    # Client-owned settings (theme, notification channels, locale). Returned so
+    # the settings screen can render the saved state rather than its defaults.
+    preferences: dict = Field(default_factory=dict)
 
 
 class AuthResponse(BaseModel):

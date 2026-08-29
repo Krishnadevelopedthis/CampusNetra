@@ -117,6 +117,26 @@
   }
 }
 
+/* Set from Settings, and honoured for anyone whose OS already asks for it —
+   the preference exists because motion can cause real discomfort, so the
+   system setting is respected without waiting to be told twice. */
+:root.reduce-motion *,
+:root.reduce-motion *::before,
+:root.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; }
