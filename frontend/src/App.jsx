@@ -18,6 +18,7 @@ const ReportIssue    = lazy(() => import('@/pages/ReportIssue'))
 const IssueList      = lazy(() => import('@/pages/IssueList'))
 const IssueDetail    = lazy(() => import('@/pages/IssueDetail'))
 const DigitalTwin    = lazy(() => import('@/pages/DigitalTwin'))
+const EventReplay    = lazy(() => import('@/pages/EventReplay'))
 const WorkOrderList  = lazy(() => import('@/pages/WorkOrderList'))
 const WorkOrderBoard = lazy(() => import('@/pages/WorkOrderBoard'))
 const WorkOrderDetail= lazy(() => import('@/pages/WorkOrderDetail'))
@@ -87,6 +88,7 @@ export default function App() {
 
             <Route path="/twin" element={<DigitalTwin />} />
             <Route path="/twin/:floorId" element={<DigitalTwin />} />
+            <Route path="/replay" element={<RequireAuth roles={STAFF}><EventReplay /></RequireAuth>} />
 
             <Route path="/work-orders" element={<RequireAuth roles={STAFF}><WorkOrderList /></RequireAuth>} />
             <Route path="/work-orders/board" element={<RequireAuth roles={STAFF}><WorkOrderBoard /></RequireAuth>} />

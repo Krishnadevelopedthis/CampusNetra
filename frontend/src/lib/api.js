@@ -4,7 +4,16 @@
  * A single in-flight refresh is shared by every 401'd request, so a burst of
  * parallel calls after expiry produces one refresh, not N.
  */
-const BASE = 'https://campusnetra.onrender.com/api/v1'
+// In development, use a relative path so Vite proxies to the backend on
+// localhost:8000. A hardcoded production URL here means every developer's local
+// frontend talks to the deployed API — and writes to the live database.
+//
+// Production builds keep pointing at the deployed backend, so the existing
+// Vercel deployment is unaffected and needs no new environment variable.
+// Set VITE_API_BASE_URL to override either.
+const BASE =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? '/api/v1' : 'https://campusnetra.onrender.com/api/v1')
 
 const STORAGE_KEY = 'cn.auth'
 
@@ -134,8 +143,16 @@ export function connectTwin(campusId, { onEvent, onOpen, onClose } = {}) {
 
   const open = () => {
     if (closed) return
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    ws = new WebSocket(`${proto}://${location.host}/api/v1/campus/ws/${campusId}`)
+    // Derive the socket URL from BASE rather than location.host: in production
+    // the page is served from Vercel, which has no backend to connect to.
+    let wsUrl
+    if (BASE.startsWith('http')) {
+      wsUrl = `${BASE.replace(/^http/, 'ws')}/campus/ws/${campusId}`
+    } else {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+      wsUrl = `${proto}://${location.host}${BASE}/campus/ws/${campusId}`
+    }
+    ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       attempt = 0
