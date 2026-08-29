@@ -48,6 +48,37 @@ class RegisterRequest(BaseModel):
 
     _v_pw = field_validator("password")(validate_password)
 
+    @field_validator("phone")
+    @classmethod
+    def _v_phone(cls, value: Optional[str]) -> Optional[str]:
+        """Ten digits, however the person chose to type them.
+
+        Spaces, dashes and a +91 country code are all ways of writing the same
+        number, so they are stripped rather than rejected — being told a number
+        is invalid because it contains the spaces you were shown in the
+        placeholder is its own small insult. Stored bare, so lookups match.
+        """
+        if value is None or not value.strip():
+            return None
+        digits = re.sub(r"\D", "", value)
+        if digits.startswith("91") and len(digits) == 12:
+            digits = digits[2:]
+        elif digits.startswith("0") and len(digits) == 11:
+            digits = digits[1:]
+        if len(digits) != 10:
+            raise ValueError("Enter a 10-digit mobile number")
+        return digits
+
+    @field_validator("enrollment_no")
+    @classmethod
+    def _v_enrollment(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        cleaned = value.strip()
+        if not re.fullmatch(r"\d{6}", cleaned):
+            raise ValueError("Enrollment number must be exactly 6 digits")
+        return cleaned
+
     @field_validator("role")
     @classmethod
     def _no_self_service_superadmin(cls, v: UserRole) -> UserRole:

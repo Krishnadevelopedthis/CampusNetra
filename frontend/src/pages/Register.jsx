@@ -8,7 +8,8 @@ import { useAuth } from '@/lib/auth'
 
 /** Extra fields each account type needs beyond name/email/password. */
 const EXTRA_FIELDS = {
-  student:    [{ name: 'enrollment_no', label: 'Enrollment number', placeholder: '21BCE1234', required: true }],
+  student:    [{ name: 'enrollment_no', label: 'Enrollment number', placeholder: '214321',
+                 required: true, numeric: true, hint: 'Six digits.' }],
   teacher:    [{ name: 'employee_id', label: 'Employee ID', placeholder: 'EMP-2041', required: true },
                { name: 'designation', label: 'Designation', placeholder: 'Assistant Professor' }],
   technician: [{ name: 'employee_id', label: 'Employee ID', placeholder: 'TECH-118', required: true }],
@@ -49,6 +50,17 @@ export default function Register() {
     extras.filter((f) => f.required).forEach((f) => {
       if (!form[f.name]?.trim()) next[f.name] = `${f.label} is required`
     })
+
+    // Checked here as well as on the server so the answer arrives while the
+    // field is still in front of you, rather than after a round trip.
+    if (form.enrollment_no?.trim() && !/^\d{6}$/.test(form.enrollment_no.trim())) {
+      next.enrollment_no = 'Six digits, e.g. 214321'
+    }
+    if (form.phone?.trim()) {
+      // Spaces, dashes and +91 are all ways of writing the same number.
+      const digits = form.phone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '')
+      if (digits.length !== 10) next.phone = 'Enter a 10-digit mobile number'
+    }
     if (Object.keys(next).length) return setErrors(next)
 
     setSubmitting(true)
@@ -114,8 +126,11 @@ export default function Register() {
         </Field>
 
         {extras.map((f) => (
-          <Field key={f.name} label={f.label} error={errors[f.name]} required={f.required}>
-            <Input value={form[f.name] || ''} onChange={set(f.name)} placeholder={f.placeholder} error={errors[f.name]} />
+          <Field key={f.name} label={f.label} error={errors[f.name]}
+                 required={f.required} hint={f.hint}>
+            <Input value={form[f.name] || ''} onChange={set(f.name)}
+                   inputMode={f.numeric ? 'numeric' : undefined}
+                   placeholder={f.placeholder} error={errors[f.name]} />
           </Field>
         ))}
 
@@ -128,8 +143,10 @@ export default function Register() {
           </Field>
         )}
 
-        <Field label="Phone" hint="Optional — used for urgent notifications">
-          <Input type="tel" value={form.phone || ''} onChange={set('phone')} placeholder="+91 98765 43210" />
+        <Field label="Phone" error={errors.phone}
+               hint="Optional — used for urgent notifications">
+          <Input type="tel" inputMode="numeric" value={form.phone || ''} onChange={set('phone')}
+                 error={errors.phone} placeholder="98765 43210" />
         </Field>
 
         <div className="grid sm:grid-cols-2 gap-4">
