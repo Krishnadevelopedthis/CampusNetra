@@ -12,7 +12,7 @@ import { dt } from '@/lib/format'
 const BAND_STYLE = {
   high: 'bg-danger-bg text-danger-text',
   medium: 'bg-warning-bg text-warning-text',
-  low: 'bg-slate-100 text-slate-600',
+  low: 'bg-neutral-bg text-neutral-text',
 }
 
 const SIGNAL_LABEL = {

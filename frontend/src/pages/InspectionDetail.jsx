@@ -20,7 +20,7 @@ const CHOICES = [
   { value: 'needs_attention', label: 'Attention', icon: AlertTriangle,
     on: 'bg-warning text-white border-warning', off: 'hover:bg-warning-bg hover:border-warning-border' },
   { value: 'na', label: 'N/A', icon: MinusCircle,
-    on: 'bg-slate-500 text-white border-slate-500', off: 'hover:bg-surface-sunken' },
+    on: 'bg-border-strong text-white border-border-strong', off: 'hover:bg-surface-sunken' },
 ]
 
 export default function InspectionDetail() {

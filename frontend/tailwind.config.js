@@ -8,57 +8,105 @@ export default {
   theme: {
     extend: {
       colors: {
-        // --- Brand ---
+        // Every value below points at a CSS variable defined in
+        // src/styles/theme.css. Swapping themes is therefore a value swap, and
+        // no component ever needs to know which theme is active. The
+        // <alpha-value> placeholder keeps modifiers like bg-surface/95 working.
         primary: {
-          DEFAULT: '#1e1b4b',   // deep professional indigo — nav, headings, branding
-          50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe', 300: '#a5b4fc',
-          400: '#818cf8', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
-          800: '#3730a3', 900: '#1e1b4b', 950: '#070235',
+          DEFAULT: 'rgb(var(--c-primary) / <alpha-value>)',
+          50: 'rgb(var(--c-primary-50) / <alpha-value>)',
+          100: 'rgb(var(--c-primary-100) / <alpha-value>)',
+          200: 'rgb(var(--c-primary-200) / <alpha-value>)',
+          300: 'rgb(var(--c-primary-300) / <alpha-value>)',
+          400: 'rgb(var(--c-primary-400) / <alpha-value>)',
+          500: 'rgb(var(--c-primary-500) / <alpha-value>)',
+          600: 'rgb(var(--c-primary-600) / <alpha-value>)',
+          700: 'rgb(var(--c-primary-700) / <alpha-value>)',
+          800: 'rgb(var(--c-primary-800) / <alpha-value>)',
+          900: 'rgb(var(--c-primary-900) / <alpha-value>)',
+          950: 'rgb(var(--c-primary-950) / <alpha-value>)',
         },
-        // --- Action / AI indicator ---
+        // Brand as a text/label colour, as opposed to `primary` as a fill.
+        brand: {
+          DEFAULT: 'rgb(var(--c-brand) / <alpha-value>)',
+          soft: 'rgb(var(--c-brand-soft) / <alpha-value>)',
+        },
         secondary: {
-          DEFAULT: '#3b82f6',
-          50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
-          400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
-          800: '#1e40af', 900: '#1e3a8a',
+          DEFAULT: 'rgb(var(--c-secondary) / <alpha-value>)',
+          50: 'rgb(var(--c-secondary-50) / <alpha-value>)',
+          100: 'rgb(var(--c-secondary-100) / <alpha-value>)',
+          200: 'rgb(var(--c-secondary-200) / <alpha-value>)',
+          300: 'rgb(var(--c-secondary-300) / <alpha-value>)',
+          400: 'rgb(var(--c-secondary-400) / <alpha-value>)',
+          500: 'rgb(var(--c-secondary-500) / <alpha-value>)',
+          600: 'rgb(var(--c-secondary-600) / <alpha-value>)',
+          700: 'rgb(var(--c-secondary-700) / <alpha-value>)',
+          800: 'rgb(var(--c-secondary-800) / <alpha-value>)',
+          900: 'rgb(var(--c-secondary-900) / <alpha-value>)',
         },
-        // --- Semantic: status indicators only, never decoration ---
-        success: { DEFAULT: '#10b981', bg: '#ecfdf5', border: '#a7f3d0', text: '#047857' },
-        warning: { DEFAULT: '#f59e0b', bg: '#fffbeb', border: '#fde68a', text: '#b45309' },
-        danger:  { DEFAULT: '#ef4444', bg: '#fef2f2', border: '#fecaca', text: '#b91c1c' },
-        info:    { DEFAULT: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe', text: '#1d4ed8' },
+        success: {
+          DEFAULT: 'rgb(var(--c-success) / <alpha-value>)',
+          bg: 'rgb(var(--c-success-bg) / <alpha-value>)',
+          border: 'rgb(var(--c-success-border) / <alpha-value>)',
+          text: 'rgb(var(--c-success-text) / <alpha-value>)',
+        },
+        warning: {
+          DEFAULT: 'rgb(var(--c-warning) / <alpha-value>)',
+          bg: 'rgb(var(--c-warning-bg) / <alpha-value>)',
+          border: 'rgb(var(--c-warning-border) / <alpha-value>)',
+          text: 'rgb(var(--c-warning-text) / <alpha-value>)',
+        },
+        danger: {
+          DEFAULT: 'rgb(var(--c-danger) / <alpha-value>)',
+          bg: 'rgb(var(--c-danger-bg) / <alpha-value>)',
+          border: 'rgb(var(--c-danger-border) / <alpha-value>)',
+          text: 'rgb(var(--c-danger-text) / <alpha-value>)',
+          strong: 'rgb(var(--c-danger-strong) / <alpha-value>)',
+        },
+        info: {
+          DEFAULT: 'rgb(var(--c-info) / <alpha-value>)',
+          bg: 'rgb(var(--c-info-bg) / <alpha-value>)',
+          border: 'rgb(var(--c-info-border) / <alpha-value>)',
+          text: 'rgb(var(--c-info-text) / <alpha-value>)',
+        },
 
         // --- Digital Twin asset states (must match backend STATE_COLOURS) ---
         twin: {
-          healthy: '#10b981',
-          warning: '#f59e0b',
-          fault: '#ef4444',
-          maintenance: '#3b82f6',
-          inspection: '#8b5cf6',
-          decommissioned: '#94a3b8',
+          healthy: 'rgb(var(--c-twin-healthy) / <alpha-value>)',
+          warning: 'rgb(var(--c-twin-warning) / <alpha-value>)',
+          fault: 'rgb(var(--c-twin-fault) / <alpha-value>)',
+          maintenance: 'rgb(var(--c-twin-maintenance) / <alpha-value>)',
+          inspection: 'rgb(var(--c-twin-inspection) / <alpha-value>)',
+          decommissioned: 'rgb(var(--c-twin-decommissioned) / <alpha-value>)',
         },
 
         // --- Tiered neutral surfaces: "desk" vs "papers" ---
         surface: {
-          base: '#f8fafc',     // the desk (page background)
-          DEFAULT: '#ffffff',  // the papers (widgets)
-          sunken: '#f1f5f9',
-          raised: '#ffffff',
-          inverse: '#0b1c30',
+          base: 'rgb(var(--c-surface-base) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--c-surface) / <alpha-value>)',
+          sunken: 'rgb(var(--c-surface-sunken) / <alpha-value>)',
+          raised: 'rgb(var(--c-surface-raised) / <alpha-value>)',
+          inverse: 'rgb(var(--c-surface-inverse) / <alpha-value>)',
         },
         border: {
-          subtle: '#e2e8f0',   // the 1px that defines a Level-1 widget
-          DEFAULT: '#cbd5e1',
-          strong: '#94a3b8',
+          subtle: 'rgb(var(--c-border-subtle) / <alpha-value>)',
+          DEFAULT: 'rgb(var(--c-border) / <alpha-value>)',
+          strong: 'rgb(var(--c-border-strong) / <alpha-value>)',
         },
         ink: {
-          DEFAULT: '#0b1c30',  // on-surface
-          muted: '#47464f',    // on-surface-variant
-          faint: '#64748b',
-          inverse: '#eaf1ff',
+          DEFAULT: 'rgb(var(--c-ink) / <alpha-value>)',
+          muted: 'rgb(var(--c-ink-muted) / <alpha-value>)',
+          faint: 'rgb(var(--c-ink-faint) / <alpha-value>)',
+          inverse: 'rgb(var(--c-ink-inverse) / <alpha-value>)',
         },
-        // AI responses sit on a faint indigo tint to read as non-human.
-        ai: { bg: '#f0f7ff', border: '#dbeafe' },
+        ai: {
+          bg: 'rgb(var(--c-ai-bg) / <alpha-value>)',
+          border: 'rgb(var(--c-ai-border) / <alpha-value>)',
+        },
+        neutral: {
+          bg: 'rgb(var(--c-neutral-bg) / <alpha-value>)',
+          text: 'rgb(var(--c-neutral-text) / <alpha-value>)',
+        },
       },
 
       fontFamily: {
@@ -79,12 +127,14 @@ export default {
       },
 
       borderRadius: {
-        // Soft(1) profile: structural elements stay tight and grid-aligned.
-        DEFAULT: '0.25rem',
-        sm: '0.125rem',
-        md: '0.375rem',
-        lg: '0.5rem',   // buttons
-        xl: '0.75rem',  // AI bubbles, status pills
+        // Soft(2) profile. Structural elements stay grid-aligned but carry a
+        // visible radius, which reads as finished rather than wireframed.
+        DEFAULT: '0.5rem',   // widgets, inputs, tables
+        sm: '0.25rem',
+        md: '0.5rem',
+        lg: '0.625rem',      // buttons
+        xl: '0.875rem',      // AI bubbles, status pills
+        '2xl': '1rem',       // page-level panels and modals
       },
 
       spacing: {
@@ -99,10 +149,10 @@ export default {
 
       boxShadow: {
         // Level 2 — hover/active. Level 1 uses borders, never shadow.
-        level2: '0 1px 4px 0 rgb(15 23 42 / 0.05)',
+        level2: 'var(--shadow-level2)',
         // Level 3 — overlays, drawers, AI panels.
-        level3: '0 4px 12px -1px rgb(15 23 42 / 0.10), 0 2px 6px -2px rgb(15 23 42 / 0.06)',
-        popover: '0 8px 24px -4px rgb(15 23 42 / 0.14)',
+        level3: 'var(--shadow-level3)',
+        popover: 'var(--shadow-popover)',
       },
 
       keyframes: {

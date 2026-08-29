@@ -129,7 +129,7 @@ export default function VerifyEmail() {
               This server has no mail delivery configured, so your code is shown here
               instead of being emailed.
             </p>
-            <p className="font-mono text-headline-lg tracking-[0.3em] text-primary mt-2">
+            <p className="font-mono text-headline-lg tracking-[0.3em] text-brand mt-2">
               {notice.code}
             </p>
             <p className="text-body-sm text-ink-faint mt-1">

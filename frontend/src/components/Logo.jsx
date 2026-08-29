@@ -34,7 +34,7 @@ export function Logo({ subtitle = 'Campus Facilities', size = 40, className }) {
     <div className={clsx('flex items-center gap-3 min-w-0', className)}>
       <LogoMark size={size} />
       <div className="min-w-0">
-        <p className="text-headline-md text-primary leading-tight truncate">Campus Netra</p>
+        <p className="text-headline-md text-brand leading-tight truncate">Campus Netra</p>
         {subtitle && <p className="text-body-sm text-ink-faint truncate">{subtitle}</p>}
       </div>
     </div>

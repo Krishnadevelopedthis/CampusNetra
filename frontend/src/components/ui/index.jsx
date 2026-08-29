@@ -25,7 +25,7 @@ export function Widget({ title, subtitle, action, children, className, bodyClass
 export function StatusPill({ status, className }) {
   if (!status) return null
   return (
-    <span className={clsx('pill', STATUS_STYLE[status] || 'bg-slate-100 text-slate-700', className)}>
+    <span className={clsx('pill', STATUS_STYLE[status] || 'bg-neutral-bg text-neutral-text', className)}>
       {titleCase(status)}
     </span>
   )
@@ -34,7 +34,7 @@ export function StatusPill({ status, className }) {
 export function PriorityPill({ priority, className }) {
   if (!priority) return null
   return (
-    <span className={clsx('pill', PRIORITY_STYLE[priority] || 'bg-slate-100', className)}>
+    <span className={clsx('pill', PRIORITY_STYLE[priority] || 'bg-neutral-bg', className)}>
       {priority === 'critical' && <AlertCircle size={12} />}
       {titleCase(priority)}
     </span>
@@ -119,7 +119,7 @@ export function Avatar({ name, src, size = 32, className }) {
   return (
     <div
       className={clsx(
-        'rounded-full bg-primary-100 text-primary-800 grid place-items-center font-semibold shrink-0',
+        'rounded-full bg-brand-soft text-brand grid place-items-center font-semibold shrink-0',
         className,
       )}
       style={{ width: size, height: size, fontSize: size * 0.38 }}

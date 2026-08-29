@@ -10,12 +10,14 @@ import {
 import {
   EmptyState, ErrorState, Metric, PriorityPill, Spinner, StatusPill, Widget,
 } from '@/components/ui'
+import { useChartTheme } from '@/hooks/useChartTheme'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { TWIN_STATE, ago, slaLabel } from '@/lib/format'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const chart = useChartTheme()
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard'),
@@ -126,7 +128,7 @@ function ReporterBody({ data }) {
               ['Track', 'Watch it move from Reported to Resolved.'],
             ].map(([t, d], i) => (
               <li key={t} className="flex gap-3">
-                <span className="w-6 h-6 rounded-full bg-primary-50 text-primary grid place-items-center text-body-sm font-semibold shrink-0">
+                <span className="w-6 h-6 rounded-full bg-brand-soft text-brand grid place-items-center text-body-sm font-semibold shrink-0">
                   {i + 1}
                 </span>
                 <div>
@@ -147,7 +149,7 @@ function QuickAction({ to, icon: Icon, label, primary }) {
     <Link
       to={to}
       className={`flex items-center justify-between gap-2 h-11 px-3 rounded-lg transition-colors ${
-        primary ? 'bg-white text-primary hover:bg-white/90' : 'bg-white/10 text-white hover:bg-white/20'
+        primary ? 'bg-white text-primary-950 hover:bg-white/90' : 'bg-white/10 text-white hover:bg-white/20'
       }`}
     >
       <span className="flex items-center gap-2.5 text-body-lg font-medium">
@@ -194,18 +196,13 @@ function StaffBody({ data, user }) {
         <Widget className="lg:col-span-2" title="Created vs Resolved" subtitle="Last 7 days">
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={data.trend} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 13,
-                  boxShadow: '0 4px 12px -1px rgb(15 23 42 / 0.10)',
-                }}
-              />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 13, paddingTop: 8 }} />
-              <Bar dataKey="created" name="Created" fill="#cbd5e1" radius={[3, 3, 0, 0]} maxBarSize={26} />
-              <Bar dataKey="resolved" name="Resolved" fill="#1e1b4b" radius={[3, 3, 0, 0]} maxBarSize={26} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
+              <XAxis dataKey="day" tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip {...chart.tooltip} />
+              <Legend iconType="circle" wrapperStyle={{ fontSize: 13, paddingTop: 8, color: chart.axis }} />
+              <Bar dataKey="created" name="Created" fill={chart.seriesMuted} radius={[4, 4, 0, 0]} maxBarSize={26} />
+              <Bar dataKey="resolved" name="Resolved" fill={chart.seriesStrong} radius={[4, 4, 0, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
         </Widget>
@@ -287,13 +284,14 @@ function StaffBody({ data, user }) {
 }
 
 function HealthRing({ score = 0 }) {
+  const { surfaceSunken: track } = useChartTheme()
   const R = 54
   const C = 2 * Math.PI * R
   const colour = score >= 90 ? '#10b981' : score >= 70 ? '#f59e0b' : '#ef4444'
   return (
     <div className="relative w-[140px] h-[140px]">
       <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-        <circle cx="70" cy="70" r={R} fill="none" stroke="#e2e8f0" strokeWidth="12" />
+        <circle cx="70" cy="70" r={R} fill="none" stroke={track} strokeWidth="12" />
         <circle
           cx="70" cy="70" r={R} fill="none" stroke={colour} strokeWidth="12" strokeLinecap="round"
           strokeDasharray={C} strokeDashoffset={C - (score / 100) * C}

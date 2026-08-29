@@ -1,0 +1,182 @@
+/**
+ * Palette tokens.
+ *
+ * Every colour in tailwind.config.js resolves to one of these variables, so a
+ * theme is a value swap and nothing else — no component knows which theme is
+ * active. Values are space-separated RGB channels so Tailwind's alpha
+ * modifiers (bg-surface/95) keep working.
+ *
+ * The dark block is keyed only on [data-theme="dark"], never on a media query.
+ * "Follow the device" is resolved to a concrete light/dark value in JS (see
+ * lib/theme.js and the bootstrap in index.html), which keeps one source of
+ * truth and lets the user override the device setting.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Brand: solid fills that always carry white text. */
+  --c-primary: 30 27 75;
+  --c-primary-50: 238 242 255;
+  --c-primary-100: 224 231 255;
+  --c-primary-200: 199 210 254;
+  --c-primary-300: 165 180 252;
+  --c-primary-400: 129 140 248;
+  --c-primary-500: 99 102 241;
+  --c-primary-600: 79 70 229;
+  --c-primary-700: 67 56 202;
+  --c-primary-800: 55 48 163;
+  --c-primary-900: 30 27 75;
+  --c-primary-950: 7 2 53;
+
+  /* Brand as *text* on a light surface. Split from --c-primary because a
+     fill and a label need to move in opposite directions when the lights go
+     out: the fill stays dark, the label has to become light. */
+  --c-brand: 30 27 75;
+  --c-brand-soft: 238 242 255;
+
+  --c-secondary: 59 130 246;
+  --c-secondary-50: 239 246 255;
+  --c-secondary-100: 219 234 254;
+  --c-secondary-200: 191 219 254;
+  --c-secondary-300: 147 197 253;
+  --c-secondary-400: 96 165 250;
+  --c-secondary-500: 59 130 246;
+  --c-secondary-600: 37 99 235;
+  --c-secondary-700: 29 78 216;
+  --c-secondary-800: 30 64 175;
+  --c-secondary-900: 30 58 138;
+
+  /* Semantic: status only, never decoration. */
+  --c-success: 16 185 129;
+  --c-success-bg: 236 253 245;
+  --c-success-border: 167 243 208;
+  --c-success-text: 4 120 87;
+
+  --c-warning: 245 158 11;
+  --c-warning-bg: 255 251 235;
+  --c-warning-border: 253 230 138;
+  --c-warning-text: 180 83 9;
+
+  --c-danger: 239 68 68;
+  --c-danger-bg: 254 242 242;
+  --c-danger-border: 254 202 202;
+  --c-danger-text: 185 28 28;
+  --c-danger-strong: 220 38 38;
+
+  --c-info: 59 130 246;
+  --c-info-bg: 239 246 255;
+  --c-info-border: 191 219 254;
+  --c-info-text: 29 78 216;
+
+  /* Digital Twin asset states — must stay recognisable against both grounds. */
+  --c-twin-healthy: 16 185 129;
+  --c-twin-warning: 245 158 11;
+  --c-twin-fault: 239 68 68;
+  --c-twin-maintenance: 59 130 246;
+  --c-twin-inspection: 139 92 246;
+  --c-twin-decommissioned: 148 163 184;
+
+  /* Tiered surfaces: "the desk" vs "the papers". */
+  --c-surface-base: 248 250 252;
+  --c-surface: 255 255 255;
+  --c-surface-sunken: 241 245 249;
+  --c-surface-raised: 255 255 255;
+  --c-surface-inverse: 11 28 48;
+
+  --c-border-subtle: 226 232 240;
+  --c-border: 203 213 225;
+  --c-border-strong: 148 163 184;
+
+  --c-ink: 11 28 48;
+  --c-ink-muted: 71 70 79;
+  --c-ink-faint: 100 116 139;
+  --c-ink-inverse: 234 241 255;
+
+  --c-ai-bg: 240 247 255;
+  --c-ai-border: 219 234 254;
+
+  /* "No particular status" — the neutral counterpart to success/warning/... */
+  --c-neutral-bg: 241 245 249;
+  --c-neutral-text: 51 65 85;
+
+  /* Level 2/3 elevation. Dark themes need a heavier shadow to read at all. */
+  --shadow-level2: 0 1px 4px 0 rgb(15 23 42 / 0.05);
+  --shadow-level3: 0 4px 12px -1px rgb(15 23 42 / 0.10), 0 2px 6px -2px rgb(15 23 42 / 0.06);
+  --shadow-popover: 0 8px 24px -4px rgb(15 23 42 / 0.14);
+  --skeleton-sheen: 255 255 255;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* The fill stays saturated indigo so white text still clears AA on it. */
+  --c-primary: 55 48 163;
+  --c-primary-50: 30 27 75;
+  --c-primary-100: 40 36 96;
+  --c-primary-800: 129 140 248;
+  --c-primary-900: 165 180 252;
+
+  /* ...while the label form goes light, which is the whole reason it is a
+     separate token. */
+  --c-brand: 165 180 252;
+  --c-brand-soft: 38 36 82;
+
+  /* Lifted one step: blue-500 on a dark ground sits at 4.0:1, under AA. */
+  --c-secondary: 96 165 250;
+
+  --c-success-bg: 6 42 32;
+  --c-success-border: 16 96 63;
+  --c-success-text: 110 231 183;
+
+  --c-warning-bg: 43 30 5;
+  --c-warning-border: 120 80 10;
+  --c-warning-text: 252 211 77;
+
+  --c-danger-bg: 44 17 19;
+  --c-danger-border: 127 35 38;
+  --c-danger-text: 252 165 165;
+  --c-danger-strong: 220 38 38;
+
+  --c-info-bg: 13 31 56;
+  --c-info-border: 30 74 138;
+  --c-info-text: 147 197 253;
+
+  --c-twin-decommissioned: 100 116 139;
+
+  --c-surface-base: 11 18 32;
+  --c-surface: 19 28 46;
+  --c-surface-sunken: 27 37 55;
+  --c-surface-raised: 28 39 57;
+  --c-surface-inverse: 248 250 252;
+
+  --c-border-subtle: 36 48 74;
+  --c-border: 51 65 85;
+  --c-border-strong: 71 85 105;
+
+  --c-ink: 230 237 247;
+  --c-ink-muted: 163 176 196;
+  --c-ink-faint: 124 138 160;
+  --c-ink-inverse: 11 28 48;
+
+  --c-ai-bg: 19 31 51;
+  --c-ai-border: 30 58 95;
+
+  --c-neutral-bg: 30 41 59;
+  --c-neutral-text: 203 213 225;
+
+  --shadow-level2: 0 1px 4px 0 rgb(0 0 0 / 0.40);
+  --shadow-level3: 0 4px 12px -1px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.40);
+  --shadow-popover: 0 8px 24px -4px rgb(0 0 0 / 0.60);
+  --skeleton-sheen: 148 163 184;
+}
+
+/* Theme changes repaint every surface at once; without this the swap reads as
+   a glitch rather than a deliberate transition. Anything already animating
+   its own colours is left alone. */
+:root.theme-switching *,
+:root.theme-switching *::before,
+:root.theme-switching *::after {
+  transition: background-color 180ms ease, border-color 180ms ease,
+              color 180ms ease, fill 180ms ease, stroke 180ms ease !important;
+}

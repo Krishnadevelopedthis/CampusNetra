@@ -93,7 +93,7 @@ export function FloorPlan({
       >
         <defs>
           <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" strokeWidth="1" />
+            <path d="M 40 0 L 0 0 0 40" fill="none" className="stroke-border-subtle" strokeWidth="1" />
           </pattern>
         </defs>
 
@@ -123,11 +123,11 @@ export function FloorPlan({
                 <>
                   <text x={anchor.x} y={anchor.y}
                         className="font-mono pointer-events-none"
-                        fontSize="19" fill="#0b1c30" fillOpacity="0.75">
+                        fontSize="19" className="fill-ink" fillOpacity="0.75">
                     {room.code}
                   </text>
                   <text x={anchor.x} y={anchor.y + 20}
-                        className="pointer-events-none" fontSize="15" fill="#64748b">
+                        className="pointer-events-none" fontSize="15" className="fill-ink-faint">
                     {room.name}
                   </text>
                 </>
@@ -166,9 +166,9 @@ export function FloorPlan({
                   <circle r="14" fill={asset.colour} className="animate-pulse-ring" />
                 )}
                 {selected && <circle r="20" fill="none" stroke="#3b82f6" strokeWidth="2.5" />}
-                <circle r="12" fill={asset.colour} stroke="white" strokeWidth="2" />
+                <circle r="12" fill={asset.colour} className="stroke-surface" strokeWidth="2" />
                 {asset.open_issue_count > 0 && (
-                  <circle r="4" cx="10" cy="-10" fill="#ef4444" stroke="white" strokeWidth="1.5" />
+                  <circle r="4" cx="10" cy="-10" fill="#ef4444" className="stroke-surface" strokeWidth="1.5" />
                 )}
               </g>
             )

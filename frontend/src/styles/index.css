@@ -1,12 +1,10 @@
+@import './theme.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    color-scheme: light;
-  }
-
   html {
     -webkit-text-size-adjust: 100%;
   }
@@ -52,11 +50,11 @@
            text-body-md font-medium transition-colors duration-150
            disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap;
   }
-  .btn-primary   { @apply btn bg-secondary text-white hover:bg-secondary-600; }
+  .btn-primary   { @apply btn bg-secondary-600 text-white hover:bg-secondary-700; }
   .btn-dark      { @apply btn bg-primary text-white hover:bg-primary-800; }
   .btn-secondary { @apply btn bg-surface text-ink border border-border-subtle hover:bg-surface-sunken; }
   .btn-ghost     { @apply btn bg-transparent text-ink-muted hover:bg-surface-sunken; }
-  .btn-danger    { @apply btn bg-danger text-white hover:bg-red-600; }
+  .btn-danger    { @apply btn bg-danger text-white hover:bg-danger-strong; }
   .btn-sm        { @apply h-8 px-3 text-body-sm; }
   .btn-lg        { @apply h-11 px-5 text-body-lg; }
 
@@ -86,7 +84,7 @@
   .table-wrap { @apply w-full overflow-x-auto; }
   .table      { @apply w-full text-body-md border-collapse; }
   .table thead th {
-    @apply text-label-caps uppercase text-primary bg-surface-sunken
+    @apply text-label-caps uppercase text-brand bg-surface-sunken
            text-left px-3 py-2.5 border-b border-border-subtle whitespace-nowrap;
   }
   .table tbody td {
@@ -115,11 +113,11 @@
   .skeleton::after {
     content: '';
     @apply absolute inset-0 -translate-x-full animate-shimmer;
-    background-image: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.6), transparent);
+    background-image: linear-gradient(90deg, transparent, rgb(var(--skeleton-sheen) / 0.18), transparent);
   }
 }
 
 @media print {
   .no-print { display: none !important; }
-  body { @apply bg-white; }
+  body { background: #fff; }
 }

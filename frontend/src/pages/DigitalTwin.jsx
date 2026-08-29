@@ -118,7 +118,7 @@ export default function DigitalTwin() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`pill ${live ? 'bg-success-bg text-success-text' : 'bg-slate-100 text-slate-600'}`}>
+          <span className={`pill ${live ? 'bg-success-bg text-success-text' : 'bg-neutral-bg text-neutral-text'}`}>
             <Radio size={12} className={live ? 'animate-pulse' : ''} />
             {live ? 'Live' : 'Reconnecting…'}
           </span>
@@ -160,7 +160,7 @@ export default function DigitalTwin() {
                   <button
                     onClick={() => { setBuildingId(b.id); setSelectedFloor(null); setSelectedRoom(null) }}
                     className={`w-full flex items-center gap-2 h-10 px-2.5 rounded text-left transition-colors
-                                ${active ? 'bg-primary-50 text-primary font-medium' : 'hover:bg-surface-sunken text-ink'}`}
+                                ${active ? 'bg-brand-soft text-brand font-medium' : 'hover:bg-surface-sunken text-ink'}`}
                   >
                     <Building2 size={16} className="shrink-0 text-ink-faint" />
                     <span className="flex-1 truncate text-body-md">{b.name}</span>

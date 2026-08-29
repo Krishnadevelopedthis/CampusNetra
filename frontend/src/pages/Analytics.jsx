@@ -9,10 +9,11 @@ import {
 import {
   Button, ErrorState, Field, Input, Metric, Select, Spinner, Widget, toast,
 } from '@/components/ui'
+import { useChartTheme } from '@/hooks/useChartTheme'
 import { api } from '@/lib/api'
 import { money, titleCase } from '@/lib/format'
 
-const CATEGORY_COLOURS = ['#1e1b4b', '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#64748b', '#0ea5e9']
+
 
 export default function Analytics() {
   const [days, setDays] = useState(30)
@@ -69,6 +70,7 @@ export default function Analytics() {
 }
 
 function Overview({ data }) {
+  const chart = useChartTheme()
   const categoryData = data.issues.by_category.slice(0, 8)
   const statusData = Object.entries(data.issues.by_status)
     .map(([name, value]) => ({ name: titleCase(name), value }))
@@ -77,7 +79,7 @@ function Overview({ data }) {
   return (
     <>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Metric label="Total issues" value={data.issues.total} accent="#1e1b4b" />
+        <Metric label="Total issues" value={data.issues.total} accent="rgb(var(--c-brand))" />
         <Metric label="Currently open" value={data.issues.open} accent="#f59e0b" />
         <Metric label="SLA compliance" value={`${data.sla.compliance_pct}%`}
                 accent={data.sla.compliance_pct >= 90 ? '#10b981' : '#f59e0b'} />
@@ -92,14 +94,14 @@ function Overview({ data }) {
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
+                <XAxis type="number" tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={110}
-                       tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 13 }} />
+                       tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} />
+                <Tooltip {...chart.tooltip} />
                 <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={22}>
                   {categoryData.map((_, i) => (
-                    <Cell key={i} fill={CATEGORY_COLOURS[i % CATEGORY_COLOURS.length]} />
+                    <Cell key={i} fill={chart.categories[i % chart.categories.length]} />
                   ))}
                 </Bar>
               </BarChart>
@@ -116,11 +118,11 @@ function Overview({ data }) {
                 <Pie data={statusData} dataKey="value" nameKey="name"
                      innerRadius={62} outerRadius={100} paddingAngle={2}>
                   {statusData.map((_, i) => (
-                    <Cell key={i} fill={CATEGORY_COLOURS[i % CATEGORY_COLOURS.length]} />
+                    <Cell key={i} fill={chart.categories[i % chart.categories.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ border: '1px solid #e2e8f0', borderRadius: 4, fontSize: 13 }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Tooltip {...chart.tooltip} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: chart.axis }} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -254,6 +256,7 @@ function Technicians({ query }) {
 
 /* ---------------- Scenario simulation ---------------- */
 function SimulationPanel() {
+  const chart = useChartTheme()
   const [config, setConfig] = useState({
     name: 'Complaint surge', complaint_count: 30,
     hours_available: 8, avg_minutes_per_job: 45,
@@ -310,7 +313,7 @@ function SimulationPanel() {
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Metric label="Complaints" value={result.complaint_count} accent="#1e1b4b" />
+            <Metric label="Complaints" value={result.complaint_count} accent="rgb(var(--c-brand))" />
             <Metric label="Total capacity" value={result.capacity.total_capacity} accent="#3b82f6" />
             <Metric label="Backlog" value={result.capacity.total_backlog}
                     accent={result.capacity.total_backlog > 0 ? '#ef4444' : '#10b981'} />
@@ -363,7 +366,7 @@ function SimulationPanel() {
                       <div className="h-full rounded-full"
                            style={{
                              width: `${(c.count / result.complaint_count) * 100}%`,
-                             background: CATEGORY_COLOURS[i % CATEGORY_COLOURS.length],
+                             background: chart.categories[i % chart.categories.length],
                            }} />
                     </div>
                     <span className="tabular text-body-md w-8 text-right">{c.count}</span>
