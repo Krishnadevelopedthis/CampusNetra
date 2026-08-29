@@ -118,6 +118,8 @@ class UserOut(ORMModel):
     specialization: Optional[list[str]] = None
     organization_id: Optional[uuid.UUID] = None
     department_id: Optional[uuid.UUID] = None
+    programme_id: Optional[uuid.UUID] = None
+    academic_year: Optional[int] = None
     email_verified_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     created_at: datetime

@@ -12,6 +12,9 @@ import { dt } from '@/lib/format'
 
 const ROLES = ['student', 'teacher', 'technician', 'facility_manager', 'admin']
 
+// Roles that belong to a course rather than to a maintenance team.
+const STUDY_ROLES = ['student', 'teacher']
+
 export default function AdminUsers() {
   const { isAdmin, user: me } = useAuth()
   const qc = useQueryClient()
@@ -26,6 +29,9 @@ export default function AdminUsers() {
     queryKey: ['admin-users', params],
     queryFn: () => api.get('/admin/users', { params }),
     keepPreviousData: true,
+  })
+  const programmes = useQuery({
+    queryKey: ['admin-programmes'], queryFn: () => api.get('/admin/programmes'),
   })
   const departments = useQuery({
     queryKey: ['admin-departments'], queryFn: () => api.get('/admin/departments'),
@@ -144,17 +150,19 @@ export default function AdminUsers() {
 
       <CreateUserModal
         open={createOpen} onClose={() => setCreateOpen(false)}
-        departments={departments.data || []} onDone={invalidate}
+        departments={departments.data || []}
+        programmes={programmes.data || []} onDone={invalidate}
       />
       <EditUserModal
         user={editing} onClose={() => setEditing(null)}
-        departments={departments.data || []} onDone={invalidate}
+        departments={departments.data || []}
+        programmes={programmes.data || []} onDone={invalidate}
       />
     </div>
   )
 }
 
-function CreateUserModal({ open, onClose, departments, onDone }) {
+function CreateUserModal({ open, onClose, departments, programmes, onDone }) {
   const [form, setForm] = useState({ role: 'student' })
   const [errors, setErrors] = useState({})
 
@@ -166,6 +174,8 @@ function CreateUserModal({ open, onClose, departments, onDone }) {
       employee_id: form.employee_id || null,
       enrollment_no: form.enrollment_no || null,
       designation: form.designation || null,
+      programme_id: form.programme_id || null,
+      academic_year: form.academic_year ? Number(form.academic_year) : null,
     }),
     onSuccess: (u) => {
       toast.success(`${u.full_name} created and activated.`)
@@ -216,12 +226,31 @@ function CreateUserModal({ open, onClose, departments, onDone }) {
         </div>
 
         {['technician', 'facility_manager'].includes(form.role) && (
-          <Field label="Department" hint="Work orders in this department route here">
+          <Field label="Maintenance department" hint="Work orders in this department route here">
             <Select value={form.department_id || ''} onChange={set('department_id')}>
               <option value="">No department</option>
               {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </Select>
           </Field>
+        )}
+
+        {STUDY_ROLES.includes(form.role) && (
+          <div className="grid sm:grid-cols-[1fr_120px] gap-4">
+            <Field label="Course / Programme">
+              <Select value={form.programme_id || ''} onChange={set('programme_id')}>
+                <option value="">Not set</option>
+                {programmes.map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Year">
+              <Select value={form.academic_year || ''} onChange={set('academic_year')}>
+                <option value="">—</option>
+                {[1, 2, 3, 4, 5].map((y) => <option key={y} value={y}>Year {y}</option>)}
+              </Select>
+            </Field>
+          </div>
         )}
 
         <Field label="Temporary password" error={errors.password} required
@@ -234,7 +263,7 @@ function CreateUserModal({ open, onClose, departments, onDone }) {
   )
 }
 
-function EditUserModal({ user, onClose, departments, onDone }) {
+function EditUserModal({ user, onClose, departments, programmes, onDone }) {
   const [form, setForm] = useState({})
 
   const update = useMutation({
@@ -271,13 +300,41 @@ function EditUserModal({ user, onClose, departments, onDone }) {
             ))}
           </Select>
         </Field>
-        <Field label="Department">
-          <Select value={form.department_id ?? user.department_id ?? ''}
-                  onChange={(e) => setForm((f) => ({ ...f, department_id: e.target.value || null }))}>
-            <option value="">No department</option>
-            {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-          </Select>
-        </Field>
+        {/* Which field applies depends on the role. A student has a course; a
+            technician belongs to a maintenance team that work is routed to.
+            Offering both to everyone invites filing a student under
+            "Electrical & Maintenance", which would then send them every
+            electrical fault reported on campus. */}
+        {STUDY_ROLES.includes(form.role ?? user.role) ? (
+          <div className="grid sm:grid-cols-[1fr_120px] gap-4">
+            <Field label="Course / Programme" hint="What they are enrolled on.">
+              <Select value={form.programme_id ?? user.programme_id ?? ''}
+                      onChange={(e) => setForm((f) => ({ ...f, programme_id: e.target.value || null }))}>
+                <option value="">Not set</option>
+                {programmes.map((p) => (
+                  <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Year">
+              <Select value={form.academic_year ?? user.academic_year ?? ''}
+                      onChange={(e) => setForm((f) => ({
+                        ...f, academic_year: e.target.value ? Number(e.target.value) : null,
+                      }))}>
+                <option value="">—</option>
+                {[1, 2, 3, 4, 5].map((y) => <option key={y} value={y}>Year {y}</option>)}
+              </Select>
+            </Field>
+          </div>
+        ) : (
+          <Field label="Maintenance department" hint="The team work is routed to.">
+            <Select value={form.department_id ?? user.department_id ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, department_id: e.target.value || null }))}>
+              <option value="">No department</option>
+              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </Select>
+          </Field>
+        )}
         <Field label="Designation">
           <Input value={form.designation ?? user.designation ?? ''}
                  onChange={(e) => setForm((f) => ({ ...f, designation: e.target.value }))} />
