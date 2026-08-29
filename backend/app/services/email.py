@@ -75,7 +75,8 @@ def _auth_hint() -> str:
             "generic auth failure: (1) your IP is not on the authorized list — "
             "Brevo blocks unlisted IPs by default, see SMTP & API > 'authorized IP "
             "addresses'; (2) SMTP_USER must be the relay login from that page "
-            "(like b70ef1001@smtp-brevo.com), not your account email; (3) a new "
+            "(it looks like 9a1b2c001@smtp-brevo.com), not your account email; "
+            "(3) a new "
             "account stays under review until activated."
         )
     if "gmail" in host or "google" in host:
