@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { useMemo, useRef, useState } from 'react'
 import { Maximize2, Minus, Plus } from 'lucide-react'
 
+import { mediaUrl } from '@/lib/api'
 import { TWIN_STATE } from '@/lib/format'
 
 /**
@@ -15,6 +16,7 @@ const VB = 1000 // internal viewBox units
 
 export function FloorPlan({
   rooms = [],
+  planImage,
   selectedRoomId,
   selectedAssetId,
   recentlyChanged = new Set(),
@@ -99,6 +101,18 @@ export function FloorPlan({
 
         {/* Level 0 — the physical base of the UI. */}
         <rect width={VB} height={VB} fill="url(#grid)" />
+
+        {/* The architectural drawing the rooms were traced from. Without it the
+            twin is coloured polygons floating on a grid; with it, the state
+            sits on the plan people already recognise. Dimmed so the asset
+            markers stay the thing you read first. */}
+        {planImage && (
+          <image
+            href={mediaUrl(planImage)} x="0" y="0" width={VB} height={VB}
+            preserveAspectRatio="xMidYMid meet" opacity="0.35"
+            className="pointer-events-none"
+          />
+        )}
 
         {polygons.map(({ room, points, anchor, centre }) => {
           if (!points) return null

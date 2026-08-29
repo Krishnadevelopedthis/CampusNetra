@@ -26,7 +26,7 @@ import {
   toast,
 } from '@/components/ui'
 import { AssetModal } from '@/features/twin/AssetRoomModals'
-import { api, upload } from '@/lib/api'
+import { api, mediaUrl, upload } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 
 const VB = 1000
@@ -273,7 +273,7 @@ export default function FloorPlanEditor() {
 
                       {/* Uploaded plan sits under everything as a tracing guide */}
                       {planImage && (
-                        <image href={planImage} x="0" y="0" width={VB} height={VB}
+                        <image href={mediaUrl(planImage)} x="0" y="0" width={VB} height={VB}
                                preserveAspectRatio="xMidYMid meet" opacity="0.55" />
                       )}
 
