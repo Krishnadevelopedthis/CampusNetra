@@ -142,6 +142,89 @@ async def list_issues(
     )
 
 
+@router.get("/map", response_model=dict)
+async def issue_map(
+    user: CurrentUser, db: DB,
+    floor_id: Optional[uuid.UUID] = None,
+    status_in: Optional[list[IssueStatus]] = Query(None, alias="status"),
+    priority_in: Optional[list[Priority]] = Query(None, alias="priority"),
+    days: int = Query(30, ge=1, le=365),
+):
+    """Issues grouped by where they are, for plotting on a floor plan.
+
+    Declared before /{issue_id} so "map" is not captured as a UUID path segment.
+    """
+    from datetime import datetime, timedelta, timezone
+    from app.models.spatial import Asset, Building, Floor, Room
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    query = (
+        select(Issue, Room.id, Room.code, Room.name, Asset.id, Asset.tag)
+        .join(Room, Room.id == Issue.room_id, isouter=True)
+        .join(Asset, Asset.id == Issue.asset_id, isouter=True)
+        .where(Issue.organization_id == user.organization_id, Issue.created_at >= since)
+    )
+
+    # Students and teachers only ever see their own reports, here as elsewhere.
+    if user.role in (UserRole.STUDENT, UserRole.TEACHER):
+        query = query.where(Issue.reported_by == user.id)
+    if floor_id:
+        query = query.where(Issue.floor_id == floor_id)
+    if status_in:
+        query = query.where(Issue.status.in_(status_in))
+    else:
+        query = query.where(Issue.status.notin_(
+            [IssueStatus.CLOSED, IssueStatus.REJECTED, IssueStatus.DUPLICATE]))
+    if priority_in:
+        query = query.where(Issue.priority.in_(priority_in))
+
+    rows = (await db.execute(query.order_by(Issue.created_at.desc()).limit(500))).all()
+
+    PRIORITY_COLOUR = {
+        "critical": "#ef4444", "high": "#f59e0b",
+        "medium": "#3b82f6", "low": "#94a3b8",
+    }
+
+    by_room: dict = {}
+    unplaced = []
+    for issue, room_id, room_code, room_name, asset_id, asset_tag in rows:
+        entry = {
+            "id": str(issue.id), "reference": issue.reference, "title": issue.title,
+            "status": issue.status.value, "priority": issue.priority.value,
+            "colour": PRIORITY_COLOUR[issue.priority.value],
+            "asset_id": str(asset_id) if asset_id else None,
+            "asset_tag": asset_tag,
+            "sla_breached": issue.sla_breached,
+            "created_at": issue.created_at.isoformat(),
+        }
+        if room_id is None:
+            # Reported without a room: it cannot be drawn, so surface it
+            # separately rather than dropping it silently.
+            unplaced.append(entry)
+            continue
+        bucket = by_room.setdefault(str(room_id), {
+            "room_id": str(room_id), "room_code": room_code, "room_name": room_name,
+            "issues": [], "worst_priority": "low",
+        })
+        bucket["issues"].append(entry)
+
+    order = ["low", "medium", "high", "critical"]
+    for bucket in by_room.values():
+        bucket["worst_priority"] = max(
+            (i["priority"] for i in bucket["issues"]), key=order.index)
+        bucket["colour"] = PRIORITY_COLOUR[bucket["worst_priority"]]
+        bucket["count"] = len(bucket["issues"])
+
+    return {
+        "window_days": days,
+        "total": len(rows),
+        "rooms": sorted(by_room.values(), key=lambda b: -b["count"]),
+        "unplaced": unplaced,
+        "legend": [{"priority": p, "colour": c} for p, c in PRIORITY_COLOUR.items()],
+    }
+
+
 @router.get("/{issue_id}", response_model=IssueDetail)
 async def get_issue(issue_id: uuid.UUID, user: CurrentUser, db: DB):
     issue = await _get_issue_or_404(db, issue_id, user)
