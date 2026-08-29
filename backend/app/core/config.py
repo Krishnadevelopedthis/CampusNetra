@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173"]
 
     # Database
-    DATABASE_URL: str = ""
+    DATABASE_URL: str = ( " ")
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
