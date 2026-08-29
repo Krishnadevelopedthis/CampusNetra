@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
@@ -367,6 +367,51 @@ async def twin_events(
             room_id=e.room_id, payload=e.payload, occurred_at=e.occurred_at,
         ) for e in rows
     ]
+
+
+@router.get("/campuses/{campus_id}/replay-range", response_model=dict)
+async def replay_range(campus_id: uuid.UUID, user: CurrentUser, db: DB):
+    """Bounds for the replay scrubber: when history starts, and how much there is.
+
+    Derived from asset_state_history rather than twin_events, because that is
+    what state reconstruction actually replays — a range wider than the history
+    would let the scrubber sit in a period with nothing to show.
+    """
+    asset_ids = (await db.scalars(
+        select(Asset.id)
+        .join(Room, Room.id == Asset.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .where(Building.campus_id == campus_id)
+    )).all()
+
+    earliest = latest = None
+    transitions = 0
+    if asset_ids:
+        row = (await db.execute(
+            select(func.min(AssetStateHistory.changed_at),
+                   func.max(AssetStateHistory.changed_at),
+                   func.count())
+            .where(AssetStateHistory.asset_id.in_(asset_ids))
+        )).first()
+        earliest, latest, transitions = row
+
+    now = datetime.now(timezone.utc)
+    # With no history yet, offer the last 24 hours so the control still renders.
+    start = earliest or (now - timedelta(hours=24))
+
+    events = await db.scalar(
+        select(func.count()).select_from(TwinEvent)
+        .where(TwinEvent.campus_id == campus_id, TwinEvent.simulation_id.is_(None))) or 0
+
+    return {
+        "start": start.isoformat(),
+        "end": now.isoformat(),
+        "latest_change": latest.isoformat() if latest else None,
+        "transitions": transitions,
+        "events": events,
+        "has_history": transitions > 0,
+    }
 
 
 @router.get("/campuses/{campus_id}/state-at", response_model=dict)

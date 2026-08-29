@@ -1,6 +1,6 @@
 import {
   Activity, BarChart3, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
-  FileSearch, Gauge, LayoutDashboard, ListChecks, MapPinned, Package,
+  FileSearch, Gauge, History, LayoutDashboard, ListChecks, MapPinned, Package,
   PlusCircle, Search, Settings, Shield, ShieldAlert, Sparkles, TrendingUp,
   Users, Wrench,
 } from 'lucide-react'
@@ -30,6 +30,7 @@ const TECHNICIAN = [
 
 const MANAGER = [
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
+  { to: '/replay', label: 'Event Replay', icon: History },
   { to: '/issues', label: 'Live Issues', icon: Activity },
   { to: '/work-orders', label: 'Work Orders', icon: Wrench },
   { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
@@ -40,6 +41,7 @@ const MANAGER = [
 
 const ADMIN = [
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
+  { to: '/replay', label: 'Event Replay', icon: History },
   { to: '/issues', label: 'Issues', icon: Activity },
   { to: '/work-orders', label: 'Work Orders', icon: Wrench },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
