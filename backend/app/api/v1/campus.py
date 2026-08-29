@@ -18,6 +18,7 @@ from app.models.spatial import (
 )
 from app.models.work import WorkOrder
 from app.schemas.campus import (
+    AssetBulkCreate, AssetUpdate, CampusUpdate, FloorUpdate,
     AssetCategoryOut, AssetCreate, AssetMarker, AssetOut, AssetStateUpdate,
     BuildingCreate, BuildingOut, CampusOut, CampusOverviewOut, FloorCreate,
     FloorOut, FloorPlanOut, RoomCreate, RoomOut, RoomWithMarkers, TwinEventOut,
@@ -284,6 +285,74 @@ async def create_campus(payload: CampusUpsert, user: RequireAdmin, db: DB):
     await db.flush()
     await db.refresh(campus)
     return CampusOut.model_validate(campus)
+
+
+@router.patch("/campuses/{campus_id}", response_model=CampusOut)
+async def update_campus(
+    campus_id: uuid.UUID, payload: CampusUpdate, user: RequireAdmin, db: DB
+):
+    campus = await db.scalar(
+        select(Campus).where(Campus.id == campus_id,
+                             Campus.organization_id == user.organization_id))
+    if campus is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campus not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "code" in data and data["code"] != campus.code:
+        clash = await db.scalar(select(Campus.id).where(
+            Campus.organization_id == user.organization_id,
+            Campus.code == data["code"], Campus.id != campus_id))
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                f"Campus code {data['code']} already exists.")
+
+    for field, value in data.items():
+        setattr(campus, field, value)
+    await db.flush()
+    return CampusOut.model_validate(campus)
+
+
+@router.delete("/campuses/{campus_id}", response_model=Message)
+async def delete_campus(campus_id: uuid.UUID, user: RequireAdmin, db: DB):
+    campus = await db.scalar(
+        select(Campus).where(Campus.id == campus_id,
+                             Campus.organization_id == user.organization_id))
+    if campus is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Campus not found")
+
+    buildings = await db.scalar(
+        select(func.count()).select_from(Building)
+        .where(Building.campus_id == campus_id)) or 0
+    if buildings:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{campus.code} still contains {buildings} building(s). Remove them first.")
+
+    await db.delete(campus)
+    return Message(detail=f"{campus.name} removed.")
+
+
+@router.patch("/floors/{floor_id}", response_model=FloorOut)
+async def update_floor(
+    floor_id: uuid.UUID, payload: FloorUpdate, user: RequireStaff, db: DB
+):
+    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
+    if floor is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "level" in data and data["level"] != floor.level:
+        clash = await db.scalar(select(Floor.id).where(
+            Floor.building_id == floor.building_id,
+            Floor.level == data["level"], Floor.id != floor_id))
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                f"Level {data['level']} already exists in this building.")
+
+    for field, value in data.items():
+        setattr(floor, field, value)
+    await db.flush()
+    return FloorOut.model_validate(floor)
 
 
 @router.post("/campuses/{campus_id}/buildings", response_model=BuildingOut, status_code=201)
@@ -581,6 +650,90 @@ async def create_asset(
     await db.flush()
     await db.refresh(asset)
     return AssetOut.model_validate(asset)
+
+
+@router.post("/rooms/{room_id}/assets/bulk", response_model=list[AssetOut], status_code=201)
+async def create_assets_bulk(
+    room_id: uuid.UUID, payload: AssetBulkCreate, user: RequireStaff, db: DB
+):
+    """Register a run of identical units in one go.
+
+    A lab with twelve identical tube lights is the normal case, and forcing
+    twelve separate submissions with twelve hand-typed tags is why asset
+    registers stop being maintained. Tags are suffixed from the given stem;
+    every other field is shared.
+    """
+    room = await db.scalar(select(Room).where(Room.id == room_id))
+    if room is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+
+    quantity = payload.quantity
+    stem = payload.tag.rstrip("-")
+    tags = [payload.tag] if quantity == 1 else [f"{stem}-{i:02d}" for i in range(1, quantity + 1)]
+
+    taken = set((await db.scalars(select(Asset.tag).where(Asset.tag.in_(tags)))).all())
+    if taken:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Already in use: {', '.join(sorted(taken)[:5])}"
+            + (" …" if len(taken) > 5 else ""),
+        )
+
+    data = payload.model_dump(exclude={"room_id", "quantity", "tag"})
+    created = []
+    for i, tag in enumerate(tags):
+        asset = Asset(room_id=room_id, tag=tag, **data)
+        # Spread the markers so a dozen units are not stacked on one pixel.
+        if quantity > 1 and payload.pos_x is not None and payload.pos_y is not None:
+            asset.pos_x = min(0.98, max(0.02, float(payload.pos_x) + (i % 5) * 0.03))
+            asset.pos_y = min(0.98, max(0.02, float(payload.pos_y) + (i // 5) * 0.03))
+        db.add(asset)
+        created.append(asset)
+
+    await db.flush()
+    for a in created:
+        await db.refresh(a)
+    return [AssetOut.model_validate(a) for a in created]
+
+
+@router.patch("/assets/{asset_id}", response_model=AssetOut)
+async def update_asset(
+    asset_id: uuid.UUID, payload: AssetUpdate, user: RequireStaff, db: DB
+):
+    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "tag" in data and data["tag"] != asset.tag:
+        clash = await db.scalar(
+            select(Asset.id).where(Asset.tag == data["tag"], Asset.id != asset_id))
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                f"Asset tag {data['tag']} is already in use.")
+
+    for field, value in data.items():
+        setattr(asset, field, value)
+    await db.flush()
+    await db.refresh(asset)
+    return AssetOut.model_validate(asset)
+
+
+@router.delete("/assets/{asset_id}", response_model=Message)
+async def delete_asset(asset_id: uuid.UUID, user: RequireAdmin, db: DB):
+    """Removes the asset and its history.
+
+    Work orders and issues that referenced it keep their own records; the
+    foreign keys null out rather than cascading, so the maintenance spend
+    already booked against it stays in the ledger.
+    """
+    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+
+    tag = asset.tag
+    await db.delete(asset)
+    return Message(detail=f"Asset {tag} removed.")
 
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)

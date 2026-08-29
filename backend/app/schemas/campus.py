@@ -65,8 +65,12 @@ class AssetOut(ORMModel):
     state: AssetState
     pos_x: Optional[Decimal] = None
     pos_y: Optional[Decimal] = None
+    purchase_date: Optional[datetime] = None
     warranty_expiry: Optional[datetime] = None
+    cost: Optional[Decimal] = None
     last_service_at: Optional[datetime] = None
+    service_interval_days: Optional[int] = None
+    expected_life_months: Optional[int] = None
 
 
 class AssetMarker(BaseModel):
@@ -166,6 +170,49 @@ class AssetCreate(BaseModel):
     warranty_expiry: Optional[datetime] = None
     cost: Optional[float] = Field(None, ge=0)
     service_interval_days: Optional[int] = Field(None, ge=1)
+
+
+class AssetBulkCreate(AssetCreate):
+    """Creating a run of identical assets — twelve tube lights in one lab.
+
+    `tag` is treated as a stem when quantity > 1 and suffixed per unit, because
+    tags are unique and typing twelve of them by hand is how registers stop
+    being maintained.
+    """
+    quantity: int = Field(1, ge=1, le=200)
+
+
+class AssetUpdate(BaseModel):
+    room_id: Optional[uuid.UUID] = None
+    category_id: Optional[uuid.UUID] = None
+    tag: Optional[str] = Field(None, min_length=1, max_length=40)
+    name: Optional[str] = Field(None, min_length=1, max_length=120)
+    manufacturer: Optional[str] = None
+    model: Optional[str] = None
+    serial_no: Optional[str] = None
+    pos_x: Optional[float] = Field(None, ge=0, le=1)
+    pos_y: Optional[float] = Field(None, ge=0, le=1)
+    purchase_date: Optional[datetime] = None
+    warranty_expiry: Optional[datetime] = None
+    cost: Optional[float] = Field(None, ge=0)
+    last_service_at: Optional[datetime] = None
+    service_interval_days: Optional[int] = Field(None, ge=1)
+    expected_life_months: Optional[int] = Field(None, ge=1)
+
+
+class CampusUpdate(BaseModel):
+    """Partial edit. Creation uses the router's own CampusUpsert, which
+    requires the fields a campus cannot exist without."""
+    name: Optional[str] = Field(None, min_length=1, max_length=120)
+    code: Optional[str] = Field(None, min_length=1, max_length=20)
+    address: Optional[str] = None
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
+
+
+class FloorUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=60)
+    level: Optional[int] = None
 
 
 class AssetStateUpdate(BaseModel):
