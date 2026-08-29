@@ -45,10 +45,41 @@ class SendResult:
     logged_only: bool = False
 
 
+def _no_sender_error() -> str:
+    return (
+        f"SMTP_FROM is not a usable address (got {settings.SMTP_FROM!r}). "
+        "Set it to either 'you@example.com' or 'Campus Netra <you@example.com>' "
+        "— with no surrounding quotes when setting it in a hosting dashboard."
+    )
+
+
+def _sender() -> tuple[str, str]:
+    """The display name and address messages are sent from.
+
+    SMTP_FROM is quoted in a .env file — `SMTP_FROM="Campus Netra <a@b.com>"` —
+    because a value containing spaces has to be. A hosting dashboard takes the
+    value literally, so pasting that same line into one leaves the quotes as
+    part of the string, and parseaddr then reads the entire thing as the
+    address. SMTP tolerates that; an HTTPS API rejects it, and in production
+    the failure is invisible because the fallback code is hidden. Stripping the
+    wrapper here means the value works wherever it was copied from.
+    """
+    raw = (settings.SMTP_FROM or "").strip()
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
+        raw = raw[1:-1].strip()
+
+    name, addr = parseaddr(raw)
+    # An empty address is reported as such rather than substituted. SMTP_USER
+    # looks like a fallback but for Brevo it is a relay login, not a mailbox —
+    # sending as it produces an opaque provider rejection instead of the
+    # message that says which variable to fix.
+    return name or settings.APP_NAME, addr if "@" in addr else ""
+
+
 def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessage:
     msg = EmailMessage()
-    name, addr = parseaddr(settings.SMTP_FROM)
-    msg["From"] = formataddr((name or settings.APP_NAME, addr or settings.SMTP_USER))
+    name, addr = _sender()
+    msg["From"] = formataddr((name, addr or settings.SMTP_USER))
     msg["To"] = to
     msg["Subject"] = subject
     msg["Message-ID"] = make_msgid(domain="campusnetra.app")
@@ -97,8 +128,10 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
     """Resend's HTTPS API. Used where outbound SMTP is blocked."""
     import httpx
 
-    name, addr = parseaddr(settings.SMTP_FROM)
-    sender = formataddr((name or settings.APP_NAME, addr)) if addr else settings.SMTP_FROM
+    name, addr = _sender()
+    if not addr:
+        return SendResult(delivered=False, error=_no_sender_error())
+    sender = formataddr((name, addr))
 
     try:
         async with httpx.AsyncClient(timeout=20) as client:
@@ -133,7 +166,10 @@ async def _send_brevo_api(to: str, subject: str, text: str, html: Optional[str])
     """Brevo's HTTPS API — same account as their SMTP relay, different transport."""
     import httpx
 
-    name, addr = parseaddr(settings.SMTP_FROM)
+    name, addr = _sender()
+    if not addr:
+        return SendResult(delivered=False, error=_no_sender_error())
+
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.post(
@@ -141,8 +177,7 @@ async def _send_brevo_api(to: str, subject: str, text: str, html: Optional[str])
                 headers={"api-key": settings.BREVO_API_KEY,
                          "content-type": "application/json"},
                 json={
-                    "sender": {"email": addr or settings.SMTP_USER,
-                               "name": name or settings.APP_NAME},
+                    "sender": {"email": addr, "name": name},
                     "to": [{"email": to}],
                     "subject": subject,
                     "textContent": text,
