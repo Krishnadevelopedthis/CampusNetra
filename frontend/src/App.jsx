@@ -39,6 +39,7 @@ const AdminUsers     = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminPredictive= lazy(() => import('@/pages/admin/AdminPredictive'))
 const AdminAI        = lazy(() => import('@/pages/admin/AdminAI'))
 const AdminCampus    = lazy(() => import('@/pages/admin/AdminCampus'))
+const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
 const AdminIssueConfig = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminIssueConfig })))
 const AdminSLA       = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminSLA })))
 const AdminAudit     = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminAudit })))
@@ -125,6 +126,7 @@ export default function App() {
               <Route path="floor-plans" element={<FloorPlanEditor />} />
               <Route path="ai" element={<AdminAI />} />
               <Route path="campus" element={<AdminCampus />} />
+              <Route path="lost-found" element={<AdminLostFound />} />
               <Route path="issue-config" element={<AdminIssueConfig />} />
               <Route path="sla" element={<AdminSLA />} />
               <Route path="audit" element={<RequireAuth roles={ADMIN}><AdminAudit /></RequireAuth>} />
