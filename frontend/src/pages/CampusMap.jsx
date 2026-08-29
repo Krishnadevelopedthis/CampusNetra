@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Download, Flame, MapPinned } from 'lucide-react'
 import { useState } from 'react'
 
@@ -18,6 +19,7 @@ import { api } from '@/lib/api'
 import { TWIN_STATE } from '@/lib/format'
 
 const VB = 1000
+const VB_H = 620
 
 /** Cold blue through to hot red, by complaint intensity. */
 function heatColour(intensity) {
@@ -61,6 +63,7 @@ export default function CampusMap() {
     enabled: !!campusId,
   })
 
+  const navigate = useNavigate()
   const { refresh, refreshing } = useRefresh(
     overview.refetch, heat.refetch, campuses.refetch,
   )
@@ -152,18 +155,18 @@ export default function CampusMap() {
                       description="Buildings need map coordinates before they can be placed. An administrator sets these in Campus Management." />
         ) : (
           <div className="relative bg-surface-sunken">
-            <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-[520px]" role="img"
+            <svg viewBox={`0 0 ${VB} ${VB_H}`} className="w-full h-[560px]" role="img"
                  aria-label="Campus map">
               <defs>
                 <pattern id="campusgrid" width="50" height="50" patternUnits="userSpaceOnUse">
-                  <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e2e8f0" strokeWidth="1" />
+                  <path d="M 50 0 L 0 0 0 50" fill="none" className="stroke-border-subtle" strokeWidth="1" />
                 </pattern>
                 <radialGradient id="glow">
                   <stop offset="0%" stopColor="currentColor" stopOpacity="0.55" />
                   <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
                 </radialGradient>
               </defs>
-              <rect width={VB} height={VB} fill="url(#campusgrid)" />
+              <rect width={VB} height={VB_H} fill="url(#campusgrid)" />
 
               {/* Heat glow sits under the buildings so labels stay readable. */}
               {mode === 'heat' && positioned.map((b) => {
@@ -171,54 +174,25 @@ export default function CampusMap() {
                 if (!h?.count) return null
                 return (
                   <circle key={`glow-${b.id}`}
-                          cx={b.map_x * VB} cy={b.map_y * VB}
+                          cx={b.map_x * VB} cy={b.map_y * VB_H}
                           r={90 + h.intensity * 110}
                           fill="url(#glow)"
                           style={{ color: heatColour(h.intensity) }} />
                 )
               })}
 
-              {positioned.map((b) => {
-                const h = heatByBuilding.get(b.id)
-                const colour = mode === 'heat'
-                  ? heatColour(h?.intensity ?? 0)
-                  : b.aggregate_colour
-                const x = b.map_x * VB
-                const y = b.map_y * VB
-                const w = 150
-                const ht = 100
-                return (
-                  <g key={b.id}
-                     onMouseEnter={() => setHover({ ...b, heat: h })}
-                     onMouseLeave={() => setHover(null)}
-                     className="cursor-pointer">
-                    <rect x={x - w / 2} y={y - ht / 2} width={w} height={ht} rx="6"
-                          fill={colour} fillOpacity={mode === 'heat' ? 0.28 : 0.16}
-                          stroke={colour} strokeWidth="2.5"
-                          className="transition-all duration-200" />
-                    <text x={x} y={y - 8} textAnchor="middle" fontSize="26"
-                          fontWeight="700" fill="#0b1c30" className="font-mono pointer-events-none">
-                      {b.code}
-                    </text>
-                    <text x={x} y={y + 16} textAnchor="middle" fontSize="15"
-                          fill="#64748b" className="pointer-events-none">
-                      {mode === 'heat'
-                        ? `${h?.count ?? 0} complaint${(h?.count ?? 0) === 1 ? '' : 's'}`
-                        : `${b.asset_count} assets`}
-                    </text>
-                    {b.open_issues > 0 && mode === 'condition' && (
-                      <>
-                        <circle cx={x + w / 2 - 14} cy={y - ht / 2 + 14} r="15" fill="#ef4444" />
-                        <text x={x + w / 2 - 14} y={y - ht / 2 + 20} textAnchor="middle"
-                              fontSize="16" fill="white" fontWeight="700"
-                              className="pointer-events-none">
-                          {b.open_issues}
-                        </text>
-                      </>
-                    )}
-                  </g>
-                )
-              })}
+              {positioned.map((b) => (
+                <BuildingBlock
+                  key={b.id}
+                  building={b}
+                  heat={heatByBuilding.get(b.id)}
+                  mode={mode}
+                  vb={VB}
+                  vbH={VB_H}
+                  onHover={setHover}
+                  onOpenRoom={(roomId, floorId) => navigate(`/twin/${floorId}?room=${roomId}`)}
+                />
+              ))}
             </svg>
 
             {hover && (
@@ -297,5 +271,140 @@ export default function CampusMap() {
         </Widget>
       </div>
     </div>
+  )
+}
+
+/**
+ * One building, drawn as an outline containing what is actually inside it.
+ *
+ * A coloured block tells you a building has a problem. It does not tell you the
+ * problem is in the second-floor physics lab — which is the thing a facility
+ * manager is standing at the map to find out. Floors stack top-down at their
+ * real levels, and each room is a chip carrying its own worst asset state, so a
+ * single red chip among green ones locates the fault without a drill-down.
+ *
+ * Rooms are only legible above a certain size, so below that the block falls
+ * back to floor bands with counts rather than rendering unreadable slivers.
+ */
+function BuildingBlock({ building: b, heat, mode, vb, vbH, onHover, onOpenRoom }) {
+  const colour = mode === 'heat' ? heatColour(heat?.intensity ?? 0) : b.aggregate_colour
+  const floors = b.floors || []
+
+  // Size to contents: a building with eight rooms needs more room than one
+  // with a single office, and a fixed box makes both look wrong.
+  const widest = Math.max(1, ...floors.map((f) => f.rooms.length))
+  const w = Math.min(300, Math.max(168, 56 + widest * 34))
+  const headerH = 42
+  const floorH = 26
+  const ht = headerH + Math.max(1, floors.length) * floorH + 10
+
+  // Nudge away from the edges so a wide block is never clipped.
+  const x = Math.min(vb - w - 8, Math.max(8, b.map_x * vb - w / 2))
+  const y = Math.min(vbH - ht - 8, Math.max(8, b.map_y * vbH - ht / 2))
+
+  return (
+    <g
+      onMouseEnter={() => onHover({ ...b, heat })}
+      onMouseLeave={() => onHover(null)}
+      className="cursor-pointer"
+    >
+      {/* Shell */}
+      <rect
+        x={x} y={y} width={w} height={ht} rx="10"
+        fill={colour} fillOpacity={mode === 'heat' ? 0.24 : 0.10}
+        stroke={colour} strokeWidth="2.5"
+        className="transition-all duration-200"
+      />
+
+      {/* Header band, so the code and totals never collide with the contents */}
+      <rect x={x} y={y} width={w} height={headerH} rx="10" fill={colour} fillOpacity="0.16" />
+      <rect x={x} y={y + headerH - 10} width={w} height="10" fill={colour} fillOpacity="0.16" />
+      <line x1={x} y1={y + headerH} x2={x + w} y2={y + headerH}
+            stroke={colour} strokeOpacity="0.4" strokeWidth="1.5" />
+
+      <text x={x + 10} y={y + 20} fontSize="17" fontWeight="700"
+            className="font-mono fill-ink pointer-events-none">
+        {b.code}
+      </text>
+      <text x={x + 10} y={y + 34} fontSize="10.5"
+            className="fill-ink-faint pointer-events-none">
+        {mode === 'heat'
+          ? `${heat?.count ?? 0} complaint${(heat?.count ?? 0) === 1 ? '' : 's'}`
+          : `${b.room_count ?? 0} rooms · ${b.asset_count} assets`}
+      </text>
+
+      {b.open_issues > 0 && mode === 'condition' && (
+        <>
+          <circle cx={x + w - 17} cy={y + 17} r="10.5" fill="#ef4444" />
+          <text x={x + w - 17} y={y + 21} textAnchor="middle" fontSize="11"
+                fill="white" fontWeight="700" className="pointer-events-none">
+            {b.open_issues}
+          </text>
+        </>
+      )}
+
+      {/* Floors, highest at the top — the way a building is actually stacked */}
+      {floors.length === 0 ? (
+        <text x={x + w / 2} y={y + headerH + 18} textAnchor="middle" fontSize="10.5"
+              className="fill-ink-faint pointer-events-none">
+          No floors mapped yet
+        </text>
+      ) : (
+        floors.map((f, i) => {
+          const fy = y + headerH + 4 + i * floorH
+          const chipW = Math.min(36, (w - 46) / Math.max(1, f.rooms.length) - 3)
+          const showRooms = chipW >= 14 && f.rooms.length > 0
+          return (
+            <g key={f.id}>
+              <text x={x + 10} y={fy + 16} fontSize="10"
+                    className="fill-ink-muted font-mono pointer-events-none">
+                {f.level}
+              </text>
+
+              {showRooms ? (
+                f.rooms.map((r, j) => (
+                  <g
+                    key={r.id}
+                    onClick={(e) => { e.stopPropagation(); onOpenRoom(r.id, f.id) }}
+                  >
+                    <title>
+                      {`${r.code} · ${r.name} (${r.kind.replace(/_/g, ' ')}) — `
+                        + `${r.asset_count} asset${r.asset_count === 1 ? '' : 's'}`
+                        + (r.open_issues ? `, ${r.open_issues} open` : '')}
+                    </title>
+                    <rect
+                      x={x + 26 + j * (chipW + 3)} y={fy + 4}
+                      width={chipW} height={18} rx="3.5"
+                      fill={r.colour} fillOpacity={r.state === 'healthy' ? 0.34 : 0.62}
+                      stroke={r.colour} strokeWidth="1"
+                    />
+                    <text
+                      x={x + 26 + j * (chipW + 3) + chipW / 2} y={fy + 17}
+                      textAnchor="middle" fontSize="9" fontWeight="700"
+                      className="fill-ink pointer-events-none font-mono"
+                    >
+                      {r.code.split('-').pop()}
+                    </text>
+                    {r.open_issues > 0 && (
+                      <circle
+                        cx={x + 26 + j * (chipW + 3) + chipW - 2} cy={fy + 5}
+                        r="3" fill="#ef4444" className="stroke-surface" strokeWidth="1"
+                      />
+                    )}
+                  </g>
+                ))
+              ) : (
+                <text x={x + 26} y={fy + 16} fontSize="10"
+                      className="fill-ink-faint pointer-events-none">
+                  {f.rooms.length
+                    ? `${f.rooms.length} rooms`
+                    : 'no rooms mapped'}
+                </text>
+              )}
+            </g>
+          )
+        })
+      )}
+    </g>
   )
 }
