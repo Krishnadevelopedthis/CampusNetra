@@ -1,9 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { PackageSearch, Send } from 'lucide-react'
+import clsx from 'clsx'
+import { CheckCircle2, HandHeart, PackageSearch, SearchX, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button, Field, Input, Select, Textarea, Widget, toast } from '@/components/ui'
+import { DateTimePicker } from '@/components/DateTimePicker'
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 
@@ -83,25 +85,70 @@ export default function ReportItem() {
         </p>
       </header>
 
-      {/* Lost vs Found */}
-      <div className="grid sm:grid-cols-2 gap-3">
-        {[
-          ['lost', 'I lost something', 'Report an item you can no longer find.'],
-          ['found', 'I found something', 'Hand in an item you found on campus.'],
-        ].map(([value, title, desc]) => (
-          <button
-            key={value} type="button" onClick={() => setKind(value)}
-            className={`text-left p-4 rounded border transition-colors ${
-              kind === value
-                ? 'border-secondary bg-info-bg ring-1 ring-secondary'
-                : 'border-border-subtle bg-surface hover:bg-surface-sunken'
-            }`}
-          >
-            <p className="text-body-lg font-medium text-ink">{title}</p>
-            <p className="text-body-sm text-ink-muted mt-0.5">{desc}</p>
-          </button>
-        ))}
-      </div>
+      {/* Which side of the exchange the reporter is on. This choice changes the
+          rest of the form, so it is deliberately the largest control on the
+          page rather than a pair of radio buttons. */}
+      <fieldset>
+        <legend className="label mb-2">What are you reporting?</legend>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[
+            {
+              value: 'lost',
+              icon: SearchX,
+              title: 'I lost an item',
+              desc: 'Describe it and we will watch for a match.',
+              tone: 'warning',
+            },
+            {
+              value: 'found',
+              icon: HandHeart,
+              title: 'I found an item',
+              desc: 'Hand it in so the owner can claim it.',
+              tone: 'success',
+            },
+          ].map(({ value, icon: Icon, title, desc, tone }) => {
+            const active = kind === value
+            return (
+              <button
+                key={value} type="button" onClick={() => setKind(value)}
+                aria-pressed={active}
+                className={clsx(
+                  'relative text-left p-4 rounded-xl border-2 flex gap-3.5 items-start transition-all',
+                  active
+                    ? 'border-secondary bg-info-bg shadow-level2'
+                    : 'border-border-subtle bg-surface hover:border-border-strong hover:bg-surface-sunken',
+                )}
+              >
+                <span
+                  className={clsx(
+                    'w-11 h-11 rounded-xl grid place-items-center shrink-0 transition-colors',
+                    active
+                      ? tone === 'warning'
+                        ? 'bg-warning-bg text-warning-text'
+                        : 'bg-success-bg text-success-text'
+                      : 'bg-surface-sunken text-ink-faint',
+                  )}
+                >
+                  <Icon size={22} />
+                </span>
+
+                <span className="min-w-0">
+                  <span className="block text-body-lg font-semibold text-ink">{title}</span>
+                  <span className="block text-body-sm text-ink-muted mt-0.5">{desc}</span>
+                </span>
+
+                {active && (
+                  <CheckCircle2
+                    size={18}
+                    className="absolute top-3 right-3 text-secondary"
+                    aria-hidden
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </fieldset>
 
       <Widget title="Item details">
         <div className="space-y-4">
@@ -150,10 +197,16 @@ export default function ReportItem() {
               {(buildings.data || []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </Select>
           </Field>
-          <Field label={`Date & time ${kind}`} error={errors.occurred_at} required>
-            <Input type="datetime-local" value={form.occurred_at || ''}
-                   onChange={set('occurred_at')} error={errors.occurred_at}
-                   max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)} />
+          <Field
+            label={kind === 'found' ? 'When did you find it?' : 'When did you last have it?'}
+            error={errors.occurred_at} required
+          >
+            <DateTimePicker
+              value={form.occurred_at || ''}
+              onChange={(v) => setForm((f) => ({ ...f, occurred_at: v }))}
+              error={errors.occurred_at}
+              max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+            />
           </Field>
           <Field label="Specific location" className="sm:col-span-2">
             <Input value={form.location_note || ''} onChange={set('location_note')}
