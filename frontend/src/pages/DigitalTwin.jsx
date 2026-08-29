@@ -1,19 +1,25 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, ChevronRight, CircleDot, Layers, Radio, X } from 'lucide-react'
+import {
+  Boxes, Building2, ChevronRight, CircleDot, DoorOpen, Layers, Pencil, Radio, X,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import { EmptyState, ErrorState, RefreshButton, Spinner, StatusPill, Widget } from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
+import { AssetModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import { useRefresh } from '@/hooks/useRefresh'
+import { useAuth } from '@/lib/auth'
 import { api, connectTwin } from '@/lib/api'
 import { ago, titleCase } from '@/lib/format'
 
 export default function DigitalTwin() {
+  const { user } = useAuth()
+  const canEdit = ['technician', 'facility_manager', 'admin', 'super_admin']
+    .includes(user?.role)
   const { floorId } = useParams()
   const [searchParams] = useSearchParams()
   const wantedRoom = searchParams.get('room')
-  const navigate = useNavigate()
   const qc = useQueryClient()
 
   const [buildingId, setBuildingId] = useState(null)
@@ -21,8 +27,16 @@ export default function DigitalTwin() {
   const [selectedRoom, setSelectedRoom] = useState(null)
   const [selectedAsset, setSelectedAsset] = useState(null)
   const [live, setLive] = useState(false)
+  const [roomModal, setRoomModal] = useState(null)
+  const [assetModal, setAssetModal] = useState(false)
   // Assets whose state changed in the last few seconds get a pulse ring.
   const [changed, setChanged] = useState(new Set())
+
+  const assetCategories = useQuery({
+    queryKey: ['asset-categories'],
+    queryFn: () => api.get('/campus/asset-categories'),
+    enabled: canEdit,
+  })
 
   const campuses = useQuery({
     queryKey: ['campuses'],
@@ -158,7 +172,8 @@ export default function DigitalTwin() {
       )}
 
       <div className="grid lg:grid-cols-[280px_1fr] gap-5 items-start">
-        {/* Hierarchy rail */}
+        {/* Left rail: the hierarchy, and the controls that extend it */}
+        <div className="space-y-4">
         <Widget title="Hierarchy" bodyClass="p-0">
           <div className="p-3 space-y-1">
             {(buildings.data || []).map((b) => {
@@ -202,6 +217,63 @@ export default function DigitalTwin() {
           </div>
         </Widget>
 
+        {/* Build out the floor you are looking at.
+            This lives on the twin rather than only in the admin panel because
+            the twin is where a missing room is noticed — an empty floor plan is
+            the thing that tells you nothing has been mapped yet, and sending
+            someone to another screen to act on it is how estates stay
+            half-configured. */}
+        {canEdit && (
+          <Widget
+            title="Add to this floor"
+            subtitle={plan.data?.floor?.name
+              ? `${plan.data?.building?.name} · ${plan.data.floor.name}`
+              : 'Select a floor first'}
+          >
+            <div className="space-y-2">
+              <button
+                onClick={() => setRoomModal({ floor_id: selectedFloor })}
+                disabled={!selectedFloor}
+                className="btn-secondary w-full justify-start"
+              >
+                <DoorOpen size={16} /> Add classroom or lab
+              </button>
+
+              <button
+                onClick={() => setAssetModal(true)}
+                disabled={!selectedRoom}
+                className="btn-secondary w-full justify-start"
+                title={selectedRoom ? undefined : 'Pick a room on the plan first'}
+              >
+                <Boxes size={16} /> Add assets
+                {selectedRoom && (
+                  <span className="font-mono text-body-sm text-ink-faint ml-auto">
+                    {selectedRoom.code}
+                  </span>
+                )}
+              </button>
+
+              <p className="text-body-sm text-ink-faint pt-1">
+                {!selectedFloor
+                  ? 'Choose a building and floor above.'
+                  : !selectedRoom
+                    ? 'Assets belong to a room — click one on the plan to add equipment to it.'
+                    : `Equipment will be registered in ${selectedRoom.name}.`}
+              </p>
+
+              {selectedFloor && (
+                <Link
+                  to="/admin/assets"
+                  className="btn-ghost btn-sm w-full justify-start !px-2"
+                >
+                  <Pencil size={14} /> Manage the full registry
+                </Link>
+              )}
+            </div>
+          </Widget>
+        )}
+        </div>
+
         {/* Plan + inspector */}
         <div className="space-y-4">
           <Widget bodyClass="p-0" className="overflow-hidden">
@@ -244,6 +316,30 @@ export default function DigitalTwin() {
           )}
         </div>
       </div>
+      <RoomModal
+        open={!!roomModal}
+        room={null}
+        floorId={selectedFloor}
+        onClose={() => setRoomModal(null)}
+        onSaved={() => {
+          setRoomModal(null)
+          qc.invalidateQueries({ queryKey: ['floor-plan', selectedFloor] })
+        }}
+      />
+
+      <AssetModal
+        open={assetModal}
+        asset={null}
+        roomId={selectedRoom?.id}
+        categories={assetCategories.data || []}
+        onClose={() => setAssetModal(false)}
+        onSaved={() => {
+          setAssetModal(false)
+          qc.invalidateQueries({ queryKey: ['floor-plan', selectedFloor] })
+          qc.invalidateQueries({ queryKey: ['campus-overview'] })
+        }}
+      />
+
     </div>
   )
 }
