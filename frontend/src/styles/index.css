@@ -32,7 +32,7 @@
 @layer components {
   /* ---- Level 1: bordered, never shadowed ---- */
   .widget {
-    @apply bg-surface border border-border-subtle rounded-xl;
+    @apply bg-surface border border-border-subtle rounded-xl min-w-0;
   }
   .widget-header {
     @apply flex items-center justify-between px-widget py-3.5 border-b border-border-subtle;
@@ -75,13 +75,21 @@
   .hint        { @apply mt-1 text-body-sm text-ink-faint; }
 
   /* ---- Status pills: 10% tint background, solid text ---- */
+  /* Horizontal strips of controls — tabs, sub-nav — scroll instead of pushing
+     the page wider than the screen. */
+  .strip-scroll {
+    @apply overflow-x-auto min-w-0 max-w-full;
+    scrollbar-width: none;
+  }
+  .strip-scroll::-webkit-scrollbar { display: none; }
+
   .pill {
     @apply inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1
            text-body-sm font-medium whitespace-nowrap;
   }
 
   /* ---- High-density tables ---- */
-  .table-wrap { @apply w-full overflow-x-auto; }
+  .table-wrap { @apply w-full min-w-0 overflow-x-auto; }
   .table      { @apply w-full text-body-md border-collapse; }
   .table thead th {
     @apply text-label-caps uppercase text-brand bg-surface-sunken
