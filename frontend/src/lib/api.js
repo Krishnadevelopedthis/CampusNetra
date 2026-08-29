@@ -4,7 +4,7 @@
  * A single in-flight refresh is shared by every 401'd request, so a burst of
  * parallel calls after expiry produces one refresh, not N.
  */
-const BASE = '/api/v1'
+const BASE = 'https://campusnetra.onrender.com/api/v1'
 
 const STORAGE_KEY = 'cn.auth'
 
