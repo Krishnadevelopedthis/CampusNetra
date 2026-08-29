@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
-from app.api.deps import DB, CurrentUser, RequireAdmin, RequireStaff
+from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff
 from app.core.enums import AssetState, IssueStatus
 from app.models.identity import Organization
 from app.models.issues import Issue
@@ -21,7 +21,7 @@ from app.schemas.campus import (
     BuildingCreate, BuildingOut, CampusOut, CampusOverviewOut, FloorCreate,
     FloorOut, FloorPlanOut, RoomCreate, RoomOut, RoomWithMarkers, TwinEventOut,
 )
-from app.schemas.common import Message
+from app.schemas.common import Message, Page
 from app.services.realtime import hub
 from app.services.twin import STATE_COLOURS, STATE_LABELS, set_asset_state
 
@@ -273,6 +273,105 @@ async def asset_categories(user: CurrentUser, db: DB):
         .order_by(AssetCategory.name)
     )).all()
     return [AssetCategoryOut.model_validate(c) for c in rows]
+
+
+@router.get("/assets", response_model=Page[dict])
+async def list_assets(
+    user: CurrentUser, db: DB, paging: Paging,
+    building_id: Optional[uuid.UUID] = None,
+    floor_id: Optional[uuid.UUID] = None,
+    room_id: Optional[uuid.UUID] = None,
+    category_id: Optional[uuid.UUID] = None,
+    state: Optional[list[AssetState]] = Query(None),
+    q: Optional[str] = Query(None, description="Search tag, name, model or serial"),
+    needs_attention: bool = Query(False, description="Anything not healthy"),
+    sort: str = Query("tag", pattern="^(tag|name|state|room|warranty)$"),
+):
+    """Campus-wide asset registry.
+
+    Joined up through the spatial hierarchy so a caller can filter at any level
+    without first resolving the tree themselves.
+    """
+    query = (
+        select(Asset, Room, Floor, Building, AssetCategory)
+        .join(Room, Room.id == Asset.room_id, isouter=True)
+        .join(Floor, Floor.id == Room.floor_id, isouter=True)
+        .join(Building, Building.id == Floor.building_id, isouter=True)
+        .join(Campus, Campus.id == Building.campus_id, isouter=True)
+        .join(AssetCategory, AssetCategory.id == Asset.category_id)
+        .where(AssetCategory.organization_id == user.organization_id)
+    )
+
+    if building_id:
+        query = query.where(Building.id == building_id)
+    if floor_id:
+        query = query.where(Floor.id == floor_id)
+    if room_id:
+        query = query.where(Asset.room_id == room_id)
+    if category_id:
+        query = query.where(Asset.category_id == category_id)
+    if state:
+        query = query.where(Asset.state.in_(state))
+    if needs_attention:
+        query = query.where(Asset.state != AssetState.HEALTHY)
+    if q:
+        like = f"%{q}%"
+        query = query.where(or_(
+            Asset.tag.ilike(like), Asset.name.ilike(like),
+            Asset.model.ilike(like), Asset.serial_no.ilike(like)))
+
+    total = await db.scalar(select(func.count()).select_from(query.subquery())) or 0
+
+    order = {
+        "tag": Asset.tag.asc(),
+        "name": Asset.name.asc(),
+        # Postgres orders enums by declaration order: healthy first, so reverse
+        # it to surface the problems.
+        "state": Asset.state.desc(),
+        "room": Room.code.asc().nullslast(),
+        "warranty": Asset.warranty_expiry.asc().nullslast(),
+    }[sort]
+
+    rows = (await db.execute(
+        query.order_by(order).offset(paging.offset).limit(paging.limit))).all()
+
+    asset_ids = [r[0].id for r in rows]
+
+    # Open issue counts, in one grouped query rather than per row.
+    counts = dict((await db.execute(
+        select(Issue.asset_id, func.count())
+        .where(Issue.asset_id.in_(asset_ids), Issue.status.in_(OPEN_ISSUE_STATES))
+        .group_by(Issue.asset_id))).all()) if asset_ids else {}
+
+    today = date.today()
+    items = []
+    for asset, room, floor, building, category in rows:
+        expired = bool(asset.warranty_expiry and asset.warranty_expiry < today)
+        items.append({
+            "id": str(asset.id),
+            "tag": asset.tag,
+            "name": asset.name,
+            "state": asset.state.value,
+            "colour": STATE_COLOURS[asset.state.value],
+            "state_label": STATE_LABELS[asset.state.value],
+            "category": category.name if category else None,
+            "category_icon": category.icon if category else None,
+            "manufacturer": asset.manufacturer,
+            "model": asset.model,
+            "room": room.name if room else None,
+            "room_code": room.code if room else None,
+            "room_id": str(room.id) if room else None,
+            "floor": floor.name if floor else None,
+            "building": building.name if building else None,
+            "building_code": building.code if building else None,
+            "warranty_expiry": asset.warranty_expiry.isoformat() if asset.warranty_expiry else None,
+            "warranty_expired": expired,
+            "last_service_at": asset.last_service_at.isoformat() if asset.last_service_at else None,
+            "open_issues": counts.get(asset.id, 0),
+        })
+
+    return Page[dict](items=items, total=total,
+                      page=paging.page, page_size=paging.page_size)
 
 
 @router.get("/assets/{asset_id}", response_model=dict)

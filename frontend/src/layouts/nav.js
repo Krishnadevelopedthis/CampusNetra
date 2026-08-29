@@ -25,12 +25,14 @@ const TECHNICIAN = [
   { to: '/work-orders/board', label: 'Work Board', icon: ListChecks },
   { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
+  { to: '/assets', label: 'Assets', icon: Package },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
 ]
 
 const MANAGER = [
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
   { to: '/replay', label: 'Event Replay', icon: History },
+  { to: '/assets', label: 'Assets', icon: Package },
   { to: '/issues', label: 'Live Issues', icon: Activity },
   { to: '/work-orders', label: 'Work Orders', icon: Wrench },
   { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
@@ -42,6 +44,7 @@ const MANAGER = [
 const ADMIN = [
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
   { to: '/replay', label: 'Event Replay', icon: History },
+  { to: '/assets', label: 'Assets', icon: Package },
   { to: '/issues', label: 'Issues', icon: Activity },
   { to: '/work-orders', label: 'Work Orders', icon: Wrench },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
