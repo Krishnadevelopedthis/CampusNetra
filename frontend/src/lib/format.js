@@ -29,6 +29,12 @@ export const money = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
     .format(Number(n) || 0)
 
+/** Currency for chart axes, where the full form does not fit. */
+export const moneyCompact = (n) =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency', currency: 'INR', notation: 'compact', maximumFractionDigits: 1,
+  }).format(Number(n) || 0)
+
 export const compact = (n) =>
   new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 })
     .format(Number(n) || 0)
