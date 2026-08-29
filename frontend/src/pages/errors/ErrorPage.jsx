@@ -13,7 +13,7 @@ export function ErrorPage({ code, title, description, icon: Icon, action }) {
         </div>
       )}
 
-      <p className="text-display-metrics text-primary tabular">{code}</p>
+      <p className="text-display-metrics text-brand tabular">{code}</p>
       <h1 className="text-headline-lg text-ink mt-2">{title}</h1>
       <p className="text-body-lg text-ink-muted mt-2 max-w-md">{description}</p>
 

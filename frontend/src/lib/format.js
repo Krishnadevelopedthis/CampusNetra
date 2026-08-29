@@ -46,9 +46,9 @@ export const initials = (name) =>
 
 /** Status → pill styling. Shared by issues, work orders and inspections. */
 export const STATUS_STYLE = {
-  reported:    'bg-slate-100 text-slate-700',
+  reported:    'bg-neutral-bg text-neutral-text',
   triaged:     'bg-info-bg text-info-text',
-  open:        'bg-slate-100 text-slate-700',
+  open:        'bg-neutral-bg text-neutral-text',
   assigned:    'bg-info-bg text-info-text',
   accepted:    'bg-info-bg text-info-text',
   in_progress: 'bg-warning-bg text-warning-text',
@@ -57,18 +57,18 @@ export const STATUS_STYLE = {
   resolved:    'bg-success-bg text-success-text',
   completed:   'bg-success-bg text-success-text',
   verified:    'bg-success-bg text-success-text',
-  closed:      'bg-slate-100 text-slate-600',
+  closed:      'bg-neutral-bg text-neutral-text',
   rejected:    'bg-danger-bg text-danger-text',
-  cancelled:   'bg-slate-100 text-slate-600',
-  duplicate:   'bg-slate-100 text-slate-600',
-  draft:       'bg-slate-100 text-slate-600',
+  cancelled:   'bg-neutral-bg text-neutral-text',
+  duplicate:   'bg-neutral-bg text-neutral-text',
+  draft:       'bg-neutral-bg text-neutral-text',
   // Lost & Found
   matched:     'bg-info-bg text-info-text',
   claim_pending: 'bg-warning-bg text-warning-text',
   claimed:     'bg-success-bg text-success-text',
   returned:    'bg-success-bg text-success-text',
-  archived:    'bg-slate-100 text-slate-600',
-  expired:     'bg-slate-100 text-slate-600',
+  archived:    'bg-neutral-bg text-neutral-text',
+  expired:     'bg-neutral-bg text-neutral-text',
   submitted:   'bg-info-bg text-info-text',
   under_review:'bg-warning-bg text-warning-text',
   approved:    'bg-success-bg text-success-text',
@@ -78,7 +78,7 @@ export const STATUS_STYLE = {
 }
 
 export const PRIORITY_STYLE = {
-  low:      'bg-slate-100 text-slate-600',
+  low:      'bg-neutral-bg text-neutral-text',
   medium:   'bg-info-bg text-info-text',
   high:     'bg-warning-bg text-warning-text',
   critical: 'bg-danger-bg text-danger-text',

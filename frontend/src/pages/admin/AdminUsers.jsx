@@ -94,7 +94,7 @@ export default function AdminUsers() {
                           </div>
                         </td>
                         <td className="whitespace-nowrap">
-                          <span className="pill bg-primary-50 text-primary">{ROLE_LABEL[u.role]}</span>
+                          <span className="pill bg-brand-soft text-brand">{ROLE_LABEL[u.role]}</span>
                         </td>
                         <td className="font-mono text-[11px] text-ink-muted">
                           {u.employee_id || u.enrollment_no || '—'}

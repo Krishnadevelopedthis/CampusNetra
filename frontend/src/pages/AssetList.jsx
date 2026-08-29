@@ -71,7 +71,7 @@ export default function AssetList() {
       </header>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Metric label="Total assets" value={totals.data?.total ?? '—'} accent="#1e1b4b" icon={Boxes} />
+        <Metric label="Total assets" value={totals.data?.total ?? '—'} accent="rgb(var(--c-brand))" icon={Boxes} />
         <Metric label="Need attention" icon={AlertTriangle}
                 value={summary.filter((a) => a.state !== 'healthy').length}
                 accent={summary.some((a) => a.state !== 'healthy') ? '#f59e0b' : '#10b981'} />

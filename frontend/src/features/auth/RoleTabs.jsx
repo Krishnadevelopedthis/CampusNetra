@@ -19,7 +19,7 @@ export function RoleTabs({ value, onChange, tabs = ROLE_TABS }) {
   return (
     <div
       role="tablist" aria-label="Account type"
-      className="grid gap-1 p-1 bg-primary-50 rounded-lg"
+      className="grid gap-1 p-1 bg-brand-soft rounded-lg"
       style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
     >
       {tabs.map((t) => {
@@ -32,7 +32,7 @@ export function RoleTabs({ value, onChange, tabs = ROLE_TABS }) {
               'flex items-center justify-center gap-1.5 h-10 rounded text-body-md font-medium transition-colors px-1',
               active
                 ? 'bg-primary text-white shadow-level2'
-                : 'text-ink-muted hover:text-ink hover:bg-white/60',
+                : 'text-ink-muted hover:text-ink hover:bg-surface/60',
             )}
           >
             <t.icon size={15} className="shrink-0" />

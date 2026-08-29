@@ -1,4 +1,5 @@
 import { Logo } from '@/components/Logo'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 /** Split layout: brand narrative on the left, the form on the right. */
 export function AuthShell({ title, subtitle, children, footer }) {
@@ -49,7 +50,11 @@ export function AuthShell({ title, subtitle, children, footer }) {
       </div>
 
       {/* Form panel */}
-      <div className="flex items-center justify-center p-6 sm:p-10">
+      <div className="relative flex items-center justify-center p-6 sm:p-10">
+        {/* Signed-out visitors need the control too — this is the only chrome
+            they ever see. */}
+        <div className="absolute top-4 right-4"><ThemeToggle /></div>
+
         <div className="w-full max-w-[420px]">
           <div className="lg:hidden mb-8">
             <Logo subtitle={null} />

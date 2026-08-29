@@ -103,7 +103,7 @@ export default function CampusMap() {
 
       {overview.data && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Metric label="Buildings" value={overview.data.totals.buildings} accent="#1e1b4b" />
+          <Metric label="Buildings" value={overview.data.totals.buildings} accent="rgb(var(--c-brand))" />
           <Metric label="Rooms" value={overview.data.totals.rooms} accent="#3b82f6" />
           <Metric label="Assets" value={overview.data.totals.assets} accent="#8b5cf6" />
           <Metric label="Open issues" value={overview.data.totals.open_issues}

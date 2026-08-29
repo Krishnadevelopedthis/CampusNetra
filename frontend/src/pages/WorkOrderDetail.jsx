@@ -163,7 +163,7 @@ export default function WorkOrderDetail() {
                     <p className="text-body-md">
                       <strong className="text-ink">{c.author?.full_name || 'Unknown'}</strong>{' '}
                       <span className="text-ink-faint text-body-sm">{ago(c.created_at)}</span>
-                      {c.is_internal && <span className="pill bg-slate-100 text-slate-600 ml-2 text-body-sm">Internal</span>}
+                      {c.is_internal && <span className="pill bg-neutral-bg text-neutral-text ml-2 text-body-sm">Internal</span>}
                     </p>
                     <p className="text-body-md text-ink mt-0.5 whitespace-pre-wrap">{c.body}</p>
                   </div>

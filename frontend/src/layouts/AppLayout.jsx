@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { Logo, LogoMark } from '@/components/Logo'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar } from '@/components/ui'
 import { api } from '@/lib/api'
 import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
@@ -285,6 +286,7 @@ export default function AppLayout() {
           </div>
 
           <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <NotificationBell />
             <UserMenu />
           </div>

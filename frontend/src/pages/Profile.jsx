@@ -59,7 +59,7 @@ export default function Profile() {
             <p className="text-headline-md text-ink truncate">{user?.full_name}</p>
             <p className="text-body-md text-ink-muted truncate">{user?.email}</p>
             <div className="flex flex-wrap gap-2 mt-1.5">
-              <span className="pill bg-primary-50 text-primary">{ROLE_LABEL[user?.role]}</span>
+              <span className="pill bg-brand-soft text-brand">{ROLE_LABEL[user?.role]}</span>
               {user?.enrollment_no && (
                 <span className="pill bg-surface-sunken text-ink-muted font-mono text-body-sm">
                   {user.enrollment_no}

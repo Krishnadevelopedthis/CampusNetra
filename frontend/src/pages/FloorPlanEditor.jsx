@@ -268,7 +268,7 @@ export default function FloorPlanEditor() {
                     >
                       <defs>
                         <pattern id="editgrid" width="40" height="40" patternUnits="userSpaceOnUse">
-                          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" strokeWidth="1" />
+                          <path d="M 40 0 L 0 0 0 40" fill="none" className="stroke-border-subtle" strokeWidth="1" />
                         </pattern>
                       </defs>
                       <rect width={VB} height={VB} fill="url(#editgrid)" />
@@ -295,9 +295,9 @@ export default function FloorPlanEditor() {
                                      fill={room.aggregate_colour} fillOpacity={selected ? 0.3 : 0.12}
                                      stroke={selected ? '#3b82f6' : room.aggregate_colour}
                                      strokeWidth={selected ? 3 : 1.8} />
-                            <text x={anchor.x} y={anchor.y} fontSize="18" fill="#0b1c30"
+                            <text x={anchor.x} y={anchor.y} fontSize="18" className="fill-ink"
                                   className="font-mono pointer-events-none">{room.code}</text>
-                            <text x={anchor.x} y={anchor.y + 18} fontSize="14" fill="#64748b"
+                            <text x={anchor.x} y={anchor.y + 18} fontSize="14" className="fill-ink-faint"
                                   className="pointer-events-none">{room.name}</text>
                           </g>
                         )
@@ -312,8 +312,8 @@ export default function FloorPlanEditor() {
                         const y = (Math.min(...ys) + a.pos_y * (Math.max(...ys) - Math.min(...ys))) * VB
                         return (
                           <g key={a.id} transform={`translate(${x},${y})`}>
-                            <circle r="11" fill={a.colour} stroke="white" strokeWidth="2" />
-                            <text y="26" textAnchor="middle" fontSize="12" fill="#475569"
+                            <circle r="11" fill={a.colour} className="stroke-surface" strokeWidth="2" />
+                            <text y="26" textAnchor="middle" fontSize="12" className="fill-ink-muted"
                                   className="font-mono pointer-events-none">{a.tag}</text>
                           </g>
                         )
@@ -328,7 +328,7 @@ export default function FloorPlanEditor() {
                             stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="6 4" />
                           {draft.map(([x, y], i) => (
                             <circle key={i} cx={x * VB} cy={y * VB} r="6"
-                                    fill="#3b82f6" stroke="white" strokeWidth="2" />
+                                    fill="#3b82f6" className="stroke-surface" strokeWidth="2" />
                           ))}
                         </>
                       )}

@@ -191,7 +191,7 @@ export default function AdminLostFound() {
                       <span className={`pill ${
                         m.band === 'high' ? 'bg-success-bg text-success-text'
                         : m.band === 'medium' ? 'bg-warning-bg text-warning-text'
-                        : 'bg-slate-100 text-slate-600'}`}>
+                        : 'bg-neutral-bg text-neutral-text'}`}>
                         {m.score_pct}% {m.band}
                       </span>
                       <StatusPill status={m.status} />
