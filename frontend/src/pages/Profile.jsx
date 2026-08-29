@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { Avatar, Input, Widget, toast } from '@/components/ui'
-import { api, readAuth } from '@/lib/api'
+import { api, upload } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { dt } from '@/lib/format'
 
@@ -146,19 +146,12 @@ function AvatarPicker({ user, setUser }) {
     try {
       const body = new FormData()
       body.append('file', file)
-      const token = readAuth()?.access_token
-      const res = await fetch('/api/v1/uploads/image?purpose=avatar', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body,
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Upload failed')
+      const data = await upload('/uploads/image', body, { params: { purpose: 'avatar' } })
       const updated = await api.patch('/auth/me', { avatar_url: data.thumb_url || data.url })
       setUser(updated)
       toast.success('Photo updated.')
     } catch (err) {
-      toast.error(err.message || 'Could not update your photo.')
+      toast.error(err.detail || err.message || 'Could not update your photo.')
     } finally {
       setBusy(false)
     }

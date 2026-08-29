@@ -25,7 +25,7 @@ import {
   Widget,
   toast,
 } from '@/components/ui'
-import { api, readAuth } from '@/lib/api'
+import { api, upload } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 
 const VB = 1000
@@ -128,20 +128,13 @@ export default function FloorPlanEditor() {
     mutationFn: async (file) => {
       const body = new FormData()
       body.append('file', file)
-      const token = readAuth()?.access_token
-      const res = await fetch('/api/v1/uploads/image?purpose=floorplan', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body,
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Upload failed')
+      const data = await upload('/uploads/image', body, { params: { purpose: 'floorplan' } })
       return api.patch(`/campus/floors/${floorId}/plan-image`, {
         floor_plan_url: data.url, plan_width: data.width, plan_height: data.height,
       })
     },
     onSuccess: () => { toast.success('Floor plan uploaded.'); refresh() },
-    onError: (e) => toast.error(e.message || 'Could not upload the plan'),
+    onError: (e) => toast.error(e.detail || e.message || 'Could not upload the plan'),
   })
 
   /** Convert a click into normalised 0..1 plan coordinates. */
