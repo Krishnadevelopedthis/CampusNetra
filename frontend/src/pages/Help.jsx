@@ -1,6 +1,17 @@
 import {
-  Boxes, Brain, Camera, ChevronDown, Mail, MapPin, MessageSquare, PackageSearch,
-  Phone, Radar, Send, ShieldCheck, Sparkles, Wrench,
+  Boxes,
+  Brain,
+  Camera,
+  ChevronDown,
+  Mail,
+  MapPin,
+  MessageSquare,
+  PackageSearch,
+  Phone,
+  Radar,
+  Send,
+  ShieldCheck,
+  Wrench,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'

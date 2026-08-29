@@ -2,9 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
 import { useState } from 'react'
 
-import {
-  Button, ErrorState, Input, PriorityPill, Spinner, StatusPill, Widget, toast,
-} from '@/components/ui'
+import { Button, ErrorState, Input, PriorityPill, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 

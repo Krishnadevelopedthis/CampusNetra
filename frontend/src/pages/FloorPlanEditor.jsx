@@ -1,14 +1,32 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Check, Image as ImageIcon, MousePointer2, Pencil, Plus, Save, Square, Trash2, Undo2, X,
+  Check,
+  Image as ImageIcon,
+  MousePointer2,
+  Pencil,
+  Plus,
+  Save,
+  Square,
+  Trash2,
+  Undo2,
+  X,
 } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import {
-  Button, EmptyState, ErrorState, Field, Input, Modal, Select, Spinner, Widget, toast,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  Modal,
+  Select,
+  Spinner,
+  Widget,
+  toast,
 } from '@/components/ui'
 import { api, readAuth } from '@/lib/api'
-import { TWIN_STATE, titleCase } from '@/lib/format'
+import { titleCase } from '@/lib/format'
 
 const VB = 1000
 const ROOM_KINDS = [

@@ -1,13 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ArrowLeft, Check, Copy, MapPin, Sparkles, ThumbsUp, Wrench,
-} from 'lucide-react'
+import { ArrowLeft, Check, Copy, MapPin, Sparkles, ThumbsUp, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import {
-  Avatar, Button, ErrorState, Modal, PriorityPill, Select, Spinner, StatusPill,
-  Textarea, Widget, toast,
+  Button,
+  ErrorState,
+  Modal,
+  PriorityPill,
+  Select,
+  Spinner,
+  StatusPill,
+  Textarea,
+  Widget,
+  toast,
 } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'

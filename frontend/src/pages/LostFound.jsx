@@ -4,11 +4,19 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  EmptyState, ErrorState, Metric, Select, SkeletonRows, Spinner, StatusPill, Widget,
+  EmptyState,
+  ErrorState,
+  Metric,
+  PageHeader,
+  Select,
+  SkeletonRows,
+  StatusPill,
+  Widget,
 } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { ago, dt } from '@/lib/format'
+import { ago } from '@/lib/format'
 
 export default function LostFound() {
   const { isStaff } = useAuth()
@@ -38,19 +46,23 @@ export default function LostFound() {
 
   const t = dashboard.data?.totals
 
+  const { refresh, refreshing } = useRefresh(
+    items.refetch, dashboard.refetch, categories.refetch,
+  )
+
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-headline-lg text-ink">Lost & Found</h1>
-          <p className="text-body-md text-ink-muted mt-1">
-            Report items and let AI match them against the other side of the ledger.
-          </p>
-        </div>
-        <Link to="/lost-found/report" className="btn-dark">
-          <PlusCircle size={16} /> Report an item
-        </Link>
-      </header>
+      <PageHeader
+        title="Lost & Found"
+        subtitle="Report items and let AI match them against the other side of the ledger."
+        onRefresh={refresh}
+        refreshing={refreshing}
+        actions={
+          <Link to="/lost-found/report" className="btn-dark">
+            <PlusCircle size={16} /> Report an item
+          </Link>
+        }
+      />
 
       {t && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -124,7 +136,7 @@ export default function LostFound() {
           </Select>
         </div>
 
-        {items.isLoading ? <SkeletonRows rows={4} cols={4} />
+        {items.isLoading || refreshing ? <SkeletonRows rows={6} cols={4} />
           : items.error ? <ErrorState error={items.error} onRetry={items.refetch} />
           : items.data.items.length === 0 ? (
             <EmptyState

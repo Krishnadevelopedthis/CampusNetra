@@ -1,62 +1,84 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  Activity, AlertTriangle, ArrowRight, ClipboardList, PlusCircle, Search, Wrench,
-} from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, ClipboardList, PlusCircle, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts'
 
 import {
-  EmptyState, ErrorState, Metric, PriorityPill, Spinner, StatusPill, Widget,
+  EmptyState,
+  ErrorState,
+  Metric,
+  PageHeader,
+  PriorityPill,
+  StatusPill,
+  Widget,
 } from '@/components/ui'
+import { SkeletonChart, SkeletonList, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
 import { useChartTheme } from '@/hooks/useChartTheme'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { TWIN_STATE, ago, slaLabel } from '@/lib/format'
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const chart = useChartTheme()
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => api.get('/dashboard'),
   })
-
-  if (isLoading) return <Spinner label="Loading your dashboard…" />
-  if (error) return <ErrorState error={error} onRetry={refetch} />
+  const { refresh, refreshing } = useRefresh(refetch)
 
   const isReporter = ['student', 'teacher'].includes(user?.role)
   const first = user?.full_name?.split(' ')[0]
+  const busy = isLoading || refreshing
+
+  if (error && !data) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-headline-lg text-ink">
-            {isReporter ? `Welcome back, ${first}` : 'Campus Overview'}
-          </h1>
-          <p className="text-body-md text-ink-muted mt-1">
-            {isReporter
-              ? 'Your reports and campus utility status.'
-              : 'Real-time telemetry and operational metrics.'}
-          </p>
-        </div>
-        {isReporter && (
+      <PageHeader
+        title={isReporter ? `Welcome back, ${first}` : 'Campus Overview'}
+        subtitle={isReporter
+          ? 'Your reports and campus utility status.'
+          : 'Real-time telemetry and operational metrics.'}
+        onRefresh={refresh}
+        refreshing={refreshing}
+        actions={isReporter && (
           <Link to="/issues/new" className="btn-dark">
             <PlusCircle size={16} /> Report an Issue
           </Link>
         )}
-      </header>
+      />
 
-      {/* Metric tiles */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {data.metrics.map((m) => (
-          <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} />
-        ))}
-      </div>
+      {busy ? (
+        <>
+          <SkeletonMetrics />
+          <div className="grid lg:grid-cols-3 gap-4">
+            <SkeletonWidget lines={6} />
+            <SkeletonChart className="lg:col-span-2" />
+          </div>
+          <SkeletonList rows={3} />
+        </>
+      ) : (
+        <>
+          {/* Metric tiles */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {data.metrics.map((m) => (
+              <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} />
+            ))}
+          </div>
 
-      {isReporter ? <ReporterBody data={data} /> : <StaffBody data={data} user={user} />}
+          {isReporter ? <ReporterBody data={data} /> : <StaffBody data={data} user={user} />}
+        </>
+      )}
     </div>
   )
 }
@@ -162,6 +184,7 @@ function QuickAction({ to, icon: Icon, label, primary }) {
 
 /* ---------------- Technician / manager / admin ---------------- */
 function StaffBody({ data, user }) {
+  const chart = useChartTheme()
   const states = Object.entries(data.asset_states || {}).filter(([, v]) => v > 0)
 
   return (

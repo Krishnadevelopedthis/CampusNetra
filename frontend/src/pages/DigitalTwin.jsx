@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Building2, ChevronRight, CircleDot, Layers, Radio, RefreshCw, Wrench, X,
-} from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Building2, ChevronRight, CircleDot, Layers, Radio, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { Button, EmptyState, ErrorState, Spinner, StatusPill, Widget } from '@/components/ui'
+import { EmptyState, ErrorState, RefreshButton, Spinner, StatusPill, Widget } from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api, connectTwin } from '@/lib/api'
 import { ago, titleCase } from '@/lib/format'
 
@@ -100,6 +99,8 @@ export default function DigitalTwin() {
     return out
   }, [plan.data])
 
+  const { refresh, refreshing } = useRefresh(plan.refetch, overview.refetch)
+
   if (campuses.isLoading) return <Spinner label="Loading campus…" />
   if (campuses.error) return <ErrorState error={campuses.error} onRetry={campuses.refetch} />
   if (!campusId) {
@@ -122,10 +123,7 @@ export default function DigitalTwin() {
             <Radio size={12} className={live ? 'animate-pulse' : ''} />
             {live ? 'Live' : 'Reconnecting…'}
           </span>
-          <Button variant="secondary" size="sm" icon={RefreshCw}
-                  onClick={() => { plan.refetch(); overview.refetch() }}>
-            Refresh
-          </Button>
+          <RefreshButton onRefresh={refresh} refreshing={refreshing} />
         </div>
       </div>
 
@@ -205,8 +203,10 @@ export default function DigitalTwin() {
               <TwinLegend breakdown={stateBreakdown} />
             </div>
 
-            {plan.isLoading ? (
-              <Spinner label="Rendering floor plan…" />
+            {plan.isLoading || refreshing ? (
+              <div className="p-widget">
+                <div className="skeleton w-full rounded-lg" style={{ aspectRatio: '16 / 10' }} />
+              </div>
             ) : plan.error ? (
               <ErrorState error={plan.error} onRetry={plan.refetch} />
             ) : !plan.data?.rooms?.length ? (

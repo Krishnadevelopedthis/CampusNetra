@@ -1,11 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react'
+import { Check, Copy, Sparkles, ThumbsUp, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import {
-  Button, EmptyState, ErrorState, Metric, Select, Spinner, Widget, toast,
-} from '@/components/ui'
+import { Button, EmptyState, ErrorState, Metric, Select, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 

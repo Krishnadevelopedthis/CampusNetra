@@ -4,12 +4,21 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Avatar, Button, EmptyState, ErrorState, PriorityPill, Select, SkeletonRows,
-  StatusPill, Widget,
+  Avatar,
+  Button,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  PriorityPill,
+  Select,
+  SkeletonRows,
+  StatusPill,
+  Widget,
 } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { ago, money, slaLabel } from '@/lib/format'
+import { money, slaLabel } from '@/lib/format'
 
 export default function WorkOrderList() {
   const { user } = useAuth()
@@ -28,19 +37,23 @@ export default function WorkOrderList() {
 
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 0
 
+  const { refresh, refreshing } = useRefresh(refetch)
+
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-headline-lg text-ink">{isTech ? 'My Work Orders' : 'Work Orders'}</h1>
-          <p className="text-body-md text-ink-muted mt-1">
-            {isTech ? 'Jobs assigned to you, most urgent first.' : 'Every maintenance job across the campus.'}
-          </p>
-        </div>
-        <Link to="/work-orders/board" className="btn-secondary">
-          <LayoutGrid size={16} /> Board view
-        </Link>
-      </header>
+      <PageHeader
+        title={isTech ? 'My Work Orders' : 'Work Orders'}
+        subtitle={isTech
+          ? 'Jobs assigned to you, most urgent first.'
+          : 'Every maintenance job across the campus.'}
+        onRefresh={refresh}
+        refreshing={refreshing}
+        actions={
+          <Link to="/work-orders/board" className="btn-secondary">
+            <LayoutGrid size={16} /> Board view
+          </Link>
+        }
+      />
 
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">
@@ -64,7 +77,7 @@ export default function WorkOrderList() {
           </Select>
         </div>
 
-        {isLoading ? <SkeletonRows rows={6} cols={7} />
+        {isLoading || refreshing ? <SkeletonRows rows={8} cols={7} />
           : error ? <ErrorState error={error} onRetry={refetch} />
           : data.items.length === 0 ? (
             <EmptyState icon={Wrench} title="No work orders"

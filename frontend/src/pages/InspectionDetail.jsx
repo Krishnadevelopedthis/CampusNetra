@@ -1,13 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  AlertTriangle, ArrowLeft, Check, CircleSlash, MinusCircle, Play, Send, X,
-} from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, MinusCircle, Play, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import {
-  Button, ErrorState, Spinner, StatusPill, Textarea, Widget, toast,
-} from '@/components/ui'
+import { Button, ErrorState, Spinner, StatusPill, Textarea, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 
