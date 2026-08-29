@@ -32,10 +32,10 @@
 @layer components {
   /* ---- Level 1: bordered, never shadowed ---- */
   .widget {
-    @apply bg-surface border border-border-subtle rounded;
+    @apply bg-surface border border-border-subtle rounded-xl;
   }
   .widget-header {
-    @apply flex items-center justify-between px-widget py-3 border-b border-border-subtle;
+    @apply flex items-center justify-between px-widget py-3.5 border-b border-border-subtle;
   }
   .widget-title {
     @apply text-headline-md text-ink;
@@ -93,10 +93,15 @@
   .table tbody tr { @apply min-h-[40px] transition-colors; }
   .table tbody tr:hover { @apply bg-surface-sunken/60; }
   .table-compact tbody td { @apply py-2 text-body-sm; }
+  /* Without this the header's square corners poke out through the card's
+     radius wherever a table is the first thing inside a widget. */
+  .widget > .table-wrap:first-child .table thead th:first-child { @apply rounded-tl-xl; }
+  .widget > .table-wrap:first-child .table thead th:last-child { @apply rounded-tr-xl; }
+  .table tbody tr:last-child td { @apply border-b-0; }
 
   /* ---- AI surfaces: tinted so machine output reads as non-human ---- */
   .ai-surface {
-    @apply bg-ai-bg border border-ai-border rounded-lg;
+    @apply bg-ai-bg border border-ai-border rounded-xl;
   }
 
   .sidebar-link {
@@ -108,7 +113,7 @@
   }
 
   .skeleton {
-    @apply relative overflow-hidden bg-surface-sunken rounded;
+    @apply relative overflow-hidden bg-surface-sunken rounded-md;
   }
   .skeleton::after {
     content: '';

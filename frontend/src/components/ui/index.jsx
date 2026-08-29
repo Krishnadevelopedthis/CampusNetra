@@ -170,7 +170,7 @@ export function EmptyState({ icon: Icon, title, description, action }) {
   return (
     <div className="text-center py-14 px-6">
       {Icon && (
-        <div className="mx-auto w-12 h-12 rounded-lg bg-surface-sunken grid place-items-center mb-4">
+        <div className="mx-auto w-12 h-12 rounded-2xl bg-surface-sunken grid place-items-center mb-4">
           <Icon size={22} className="text-ink-faint" />
         </div>
       )}
@@ -193,7 +193,7 @@ export function Spinner({ label = 'Loading…', className }) {
 export function ErrorState({ error, onRetry }) {
   return (
     <div className="text-center py-12 px-6">
-      <div className="mx-auto w-12 h-12 rounded-lg bg-danger-bg grid place-items-center mb-4">
+      <div className="mx-auto w-12 h-12 rounded-2xl bg-danger-bg grid place-items-center mb-4">
         <AlertCircle size={22} className="text-danger" />
       </div>
       <h3 className="text-headline-md text-ink">Something went wrong</h3>
@@ -252,13 +252,13 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       <div
         ref={ref} role="dialog" aria-modal="true" aria-label={title}
         className={clsx(
-          'relative w-full bg-surface rounded-lg shadow-level3 animate-slide-up',
+          'relative w-full bg-surface rounded-2xl border border-border-subtle shadow-level3 animate-slide-up',
           'max-h-[90vh] flex flex-col', widths[size],
         )}
       >
         <header className="flex items-center justify-between px-5 py-4 border-b border-border-subtle shrink-0">
           <h2 className="text-headline-md">{title}</h2>
-          <button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close">
+          <button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded-lg" aria-label="Close">
             <X size={18} />
           </button>
         </header>
@@ -308,7 +308,7 @@ export function Toaster() {
           <div
             key={t.id} role="status"
             className={clsx(
-              'flex items-start gap-2.5 px-4 py-3 rounded-lg border shadow-level3 animate-slide-up',
+              'flex items-start gap-2.5 px-4 py-3 rounded-xl border shadow-level3 animate-slide-up',
               styles[t.kind],
             )}
           >

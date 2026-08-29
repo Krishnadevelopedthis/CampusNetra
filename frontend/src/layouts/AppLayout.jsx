@@ -82,7 +82,7 @@ function NotificationBell() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen((o) => !o); if (!open) load() }}
-        className="btn-ghost h-9 w-9 p-0 rounded relative"
+        className="btn-ghost h-9 w-9 p-0 rounded-lg relative"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
       >
         <Bell size={18} className={clsx(pinged && 'animate-[pulse-ring_0.6s_ease-out_2]')} />
@@ -96,7 +96,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-surface rounded-lg shadow-popover border border-border-subtle z-50 animate-slide-up">
+        <div className="absolute right-0 mt-2 w-80 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
             <span className="text-headline-md">Notifications</span>
             {unread > 0 && (
@@ -141,7 +141,7 @@ function UserMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 h-9 pl-2 pr-1 rounded hover:bg-surface-sunken transition-colors"
+        className="flex items-center gap-2.5 h-9 pl-2 pr-1 rounded-lg hover:bg-surface-sunken transition-colors"
       >
         <div className="text-right hidden sm:block leading-tight">
           <p className="text-body-md font-medium text-ink truncate max-w-[140px]">{user?.full_name}</p>
@@ -152,7 +152,7 @@ function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-56 bg-surface rounded-lg shadow-popover border border-border-subtle z-50 py-1 animate-slide-up">
+        <div className="absolute right-0 mt-2 w-56 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 py-1 overflow-hidden animate-slide-up">
           <div className="px-4 py-3 border-b border-border-subtle">
             <p className="text-body-md font-medium truncate">{user?.full_name}</p>
             <p className="text-body-sm text-ink-faint truncate">{user?.email}</p>
@@ -283,7 +283,7 @@ export default function AppLayout() {
           <aside className="relative w-sidebar max-w-[85vw] h-full bg-surface flex flex-col shadow-level3 animate-slide-up">
             <button
               onClick={() => setMobileOpen(false)}
-              className="absolute top-3 right-3 btn-ghost h-8 w-8 p-0 rounded z-10"
+              className="absolute top-3 right-3 btn-ghost h-8 w-8 p-0 rounded-lg z-10"
               aria-label="Close menu"
             >
               <X size={18} />
@@ -295,7 +295,7 @@ export default function AppLayout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 bg-surface border-b border-border-subtle flex items-center gap-3 px-4 lg:px-6 sticky top-0 z-30 no-print">
-          <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded lg:hidden" aria-label="Open menu">
+          <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
           </button>
 
