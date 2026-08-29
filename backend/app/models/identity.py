@@ -1,10 +1,12 @@
 """Organizations, departments, users, permissions and auth artefacts."""
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
-    ARRAY, Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint,
+    ARRAY, Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, Numeric, String, Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -56,6 +58,30 @@ class Department(TimestampMixin, Base):
     members: Mapped[list["User"]] = relationship(back_populates="department")
 
 
+class AcademicProgramme(TimestampMixin, Base):
+    """A course a student is enrolled on — BSc IT, AI & DS, BCom.
+
+    Deliberately separate from Department, which is the maintenance org chart
+    that issues, work orders and asset categories are routed to. Sharing one
+    table would make a degree course selectable as the team responsible for a
+    broken tap.
+    """
+    __tablename__ = "academic_programmes"
+    __table_args__ = (UniqueConstraint("organization_id", "code"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    code: Mapped[str] = mapped_column(Text, nullable=False)
+    level: Mapped[Optional[str]] = mapped_column(Text)
+    duration_years: Mapped[Optional[Decimal]] = mapped_column(Numeric(3, 1))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    students: Mapped[list["User"]] = relationship(back_populates="programme")
+
+
 class User(UpdatedMixin, Base):
     __tablename__ = "users"
 
@@ -85,9 +111,14 @@ class User(UpdatedMixin, Base):
     failed_login_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     preferences: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    programme_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("academic_programmes.id", ondelete="SET NULL")
+    )
+    academic_year: Mapped[Optional[int]] = mapped_column(Integer)
 
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="users")
     department: Mapped[Optional["Department"]] = relationship(back_populates="members")
+    programme: Mapped[Optional["AcademicProgramme"]] = relationship(back_populates="students")
 
     @property
     def is_active(self) -> bool:

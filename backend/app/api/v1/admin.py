@@ -14,7 +14,9 @@ from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, 
 from app.core.config import settings
 from app.core.enums import Priority, UserRole, UserStatus
 from app.core.security import hash_password
-from app.models.identity import Department, Organization, Permission, RolePermission, User
+from app.models.identity import (
+    AcademicProgramme, Department, Organization, Permission, RolePermission, User,
+)
 from app.models.issues import Issue, IssueCategory
 from app.models.platform import AuditLog, LoginActivity, MaintenancePrediction
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
@@ -40,6 +42,8 @@ class UserCreate(BaseModel):
     enrollment_no: Optional[str] = None
     designation: Optional[str] = None
     specialization: Optional[list[str]] = None
+    programme_id: Optional[uuid.UUID] = None
+    academic_year: Optional[int] = Field(None, ge=1, le=10)
 
     @classmethod
     def __get_validators__(cls):  # pragma: no cover - pydantic v2 uses field_validator
@@ -53,6 +57,17 @@ class UserUpdate(BaseModel):
     department_id: Optional[uuid.UUID] = None
     designation: Optional[str] = None
     specialization: Optional[list[str]] = None
+    # A student's course, distinct from the maintenance department above.
+    programme_id: Optional[uuid.UUID] = None
+    academic_year: Optional[int] = Field(None, ge=1, le=10)
+
+
+class ProgrammeUpsert(BaseModel):
+    name: str = Field(min_length=2, max_length=160)
+    code: str = Field(min_length=1, max_length=20)
+    level: Optional[str] = Field(None, max_length=40)
+    duration_years: Optional[float] = Field(None, gt=0, le=10)
+    is_active: bool = True
 
 
 @router.get("/users", response_model=Page[UserOut])
@@ -848,3 +863,98 @@ async def email_test(admin: RequireAdmin):
         "provider": settings.email_provider,
         "error": result.error,
     }
+
+
+# ---------------- Academic programmes ----------------
+
+@router.get("/programmes", response_model=list[dict])
+async def list_programmes(user: CurrentUser, db: DB, include_inactive: bool = False):
+    """Courses students can be enrolled on.
+
+    Distinct from /departments, which is the maintenance org chart complaints
+    are routed to — the two must not be offered from one list.
+    """
+    query = (
+        select(AcademicProgramme, func.count(User.id))
+        .join(User, User.programme_id == AcademicProgramme.id, isouter=True)
+        .where(AcademicProgramme.organization_id == user.organization_id)
+        .group_by(AcademicProgramme.id)
+        .order_by(AcademicProgramme.name)
+    )
+    if not include_inactive:
+        query = query.where(AcademicProgramme.is_active.is_(True))
+
+    return [
+        {
+            "id": str(p.id), "name": p.name, "code": p.code, "level": p.level,
+            "duration_years": float(p.duration_years) if p.duration_years else None,
+            "is_active": p.is_active, "student_count": count,
+        }
+        for p, count in (await db.execute(query)).all()
+    ]
+
+
+@router.post("/programmes", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_programme(payload: ProgrammeUpsert, admin: RequireAdmin, db: DB):
+    clash = await db.scalar(select(AcademicProgramme.id).where(
+        AcademicProgramme.organization_id == admin.organization_id,
+        AcademicProgramme.code == payload.code))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Programme code {payload.code} already exists.")
+
+    programme = AcademicProgramme(
+        organization_id=admin.organization_id, **payload.model_dump())
+    db.add(programme)
+    await db.flush()
+    return {"id": str(programme.id), "name": programme.name, "code": programme.code}
+
+
+@router.patch("/programmes/{programme_id}", response_model=dict)
+async def update_programme(
+    programme_id: uuid.UUID, payload: ProgrammeUpsert, admin: RequireAdmin, db: DB
+):
+    programme = await db.scalar(select(AcademicProgramme).where(
+        AcademicProgramme.id == programme_id,
+        AcademicProgramme.organization_id == admin.organization_id))
+    if programme is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Programme not found")
+
+    data = payload.model_dump(exclude_unset=True)
+    if "code" in data and data["code"] != programme.code:
+        clash = await db.scalar(select(AcademicProgramme.id).where(
+            AcademicProgramme.organization_id == admin.organization_id,
+            AcademicProgramme.code == data["code"],
+            AcademicProgramme.id != programme_id))
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                f"Programme code {data['code']} already exists.")
+
+    for field, value in data.items():
+        setattr(programme, field, value)
+    await db.flush()
+    return {"id": str(programme.id), "name": programme.name, "code": programme.code}
+
+
+@router.delete("/programmes/{programme_id}", response_model=Message)
+async def delete_programme(programme_id: uuid.UUID, admin: RequireAdmin, db: DB):
+    """Retires a course rather than deleting it, when anyone is enrolled.
+
+    Removing it outright would strip the course from every student who studied
+    it, including graduates, so an in-use programme is deactivated instead and
+    simply stops being offered.
+    """
+    programme = await db.scalar(select(AcademicProgramme).where(
+        AcademicProgramme.id == programme_id,
+        AcademicProgramme.organization_id == admin.organization_id))
+    if programme is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Programme not found")
+
+    enrolled = await db.scalar(select(func.count(User.id)).where(
+        User.programme_id == programme_id)) or 0
+    if enrolled:
+        programme.is_active = False
+        return Message(detail=f"{programme.name} retired — {enrolled} student(s) keep it on record.")
+
+    await db.delete(programme)
+    return Message(detail=f"{programme.name} removed.")

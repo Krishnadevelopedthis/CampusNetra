@@ -7,6 +7,7 @@ import {
   Building2,
   Camera,
   Check,
+  GraduationCap,
   IdCard,
   Loader2,
   Pencil,
@@ -34,7 +35,15 @@ export default function Profile() {
     retry: false,
   })
 
+  const programmes = useQuery({
+    queryKey: ['programmes'],
+    queryFn: () => api.get('/admin/programmes'),
+    enabled: !!user?.programme_id,
+    retry: false,
+  })
+
   const department = (departments.data || []).find((d) => d.id === user?.department_id)
+  const programme = (programmes.data || []).find((p) => p.id === user?.programme_id)
 
   return (
     <div className="space-y-4 max-w-4xl">
@@ -57,11 +66,23 @@ export default function Profile() {
       <Widget title="Campus record" subtitle="Set by your administrator — contact them to correct anything here">
         <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
           <ReadOnlyRow icon={ShieldCheck} label="Role" value={ROLE_LABEL[user?.role] || '—'} />
-          <ReadOnlyRow
-            icon={Building2}
-            label="Department"
-            value={department?.name || (user?.department_id ? '—' : 'Not assigned')}
-          />
+          {/* A student has a course; staff belong to a maintenance team. Showing
+              the row that does not apply is just a permanent "Not assigned". */}
+          {['student', 'teacher'].includes(user?.role) ? (
+            <ReadOnlyRow
+              icon={GraduationCap}
+              label="Course"
+              value={programme
+                ? `${programme.name}${user?.academic_year ? ` · Year ${user.academic_year}` : ''}`
+                : 'Not set'}
+            />
+          ) : (
+            <ReadOnlyRow
+              icon={Building2}
+              label="Department"
+              value={department?.name || (user?.department_id ? '—' : 'Not assigned')}
+            />
+          )}
           {user?.enrollment_no && (
             <ReadOnlyRow icon={IdCard} label="Enrollment number" value={user.enrollment_no} mono />
           )}
