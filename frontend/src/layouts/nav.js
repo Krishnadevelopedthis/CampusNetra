@@ -77,6 +77,7 @@ export const ADMIN_NAV = [
   { to: '/admin/campus', label: 'Campus & Buildings', icon: Building2 },
   { to: '/admin/floor-plans', label: 'Floor Plans', icon: MapPinned },
   { to: '/admin/issue-config', label: 'Issue Configuration', icon: FileSearch },
+  { to: '/admin/lost-found', label: 'Lost & Found Desk', icon: Search },
   { to: '/admin/ai', label: 'AI Management', icon: Sparkles },
   { to: '/admin/sla', label: 'SLA Policies', icon: Shield },
   { to: '/admin/audit', label: 'Audit & Security', icon: ShieldAlert },
