@@ -7,6 +7,7 @@ from fastapi import APIRouter
 from sqlalchemy import func, select
 
 from app.api.deps import DB, CurrentUser
+from app.core.routing import CommitRoute
 from app.core.enums import AssetState, IssueStatus, LFKind, LFStatus, UserRole, WorkOrderStatus
 from app.models.issues import Issue
 from app.models.lostfound import LFItem
@@ -14,7 +15,7 @@ from app.models.spatial import Asset, Building, Campus, Floor, Room
 from app.models.work import Inspection, WorkOrder
 from app.services import issue_views
 
-router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+router = APIRouter(route_class=CommitRoute, prefix="/dashboard", tags=["Dashboard"])
 
 OPEN_ISSUES = [IssueStatus.REPORTED, IssueStatus.TRIAGED, IssueStatus.ASSIGNED,
                IssueStatus.IN_PROGRESS, IssueStatus.ON_HOLD]

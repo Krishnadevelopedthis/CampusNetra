@@ -1,12 +1,15 @@
 """Aggregates every v1 route module."""
 from fastapi import APIRouter
 
+from app.core.routing import CommitRoute
 from app.api.v1 import (
     admin, ai, analytics, auth, campus, dashboard, inspections, issues, lostfound,
     notifications, uploads, work_orders,
 )
 
-api_router = APIRouter()
+# Every route commits its transaction before answering — see CommitRoute for
+# why that cannot be left to the session dependency's teardown.
+api_router = APIRouter(route_class=CommitRoute)
 api_router.include_router(auth.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(campus.router)

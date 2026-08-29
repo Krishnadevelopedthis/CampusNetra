@@ -1,6 +1,7 @@
 """Async SQLAlchemy engine, session factory and FastAPI dependency."""
 from typing import AsyncGenerator
 
+from fastapi import Request
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -27,12 +28,20 @@ class Base(DeclarativeBase):
     """Declarative base for every ORM model."""
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Request-scoped session. Commits on success, rolls back on error."""
+async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
+    """Request-scoped session, rolled back if the request fails.
+
+    The commit deliberately does not happen here. A dependency's teardown runs
+    after the response has been sent, so committing at this point hands the
+    client an answer describing work that has not landed yet — a client acting
+    on that answer immediately can be told the thing it was just given does not
+    exist. The session is published on request.state so CommitRoute can commit
+    it while the response is still being assembled.
+    """
     async with SessionLocal() as session:
+        request.state.db = session
         try:
             yield session
-            await session.commit()
         except Exception:
             await session.rollback()
             raise

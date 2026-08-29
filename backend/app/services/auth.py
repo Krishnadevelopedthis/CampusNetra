@@ -292,11 +292,21 @@ async def rotate_refresh_token(
     except (_jwt.PyJWTError, KeyError, ValueError):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
 
+    # Locked for the length of the transaction, so a second request presenting
+    # the same token waits here rather than reading the row alongside us. Both
+    # used to pass the revoked_at check before either had written it, which
+    # meant "single-use" held only when nobody raced — and a stolen token could
+    # be replayed simply by using it at the same moment as its owner.
+    #
+    # Postgres re-evaluates the WHERE clause after the lock is granted, so the
+    # loser finds revoked_at already set and gets nothing back.
     stored = await db.scalar(
-        select(RefreshToken).where(
+        select(RefreshToken)
+        .where(
             RefreshToken.token_hash == sha256(raw_token),
             RefreshToken.revoked_at.is_(None),
         )
+        .with_for_update()
     )
     if stored is None or stored.expires_at < _now():
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Refresh token is expired or revoked")
