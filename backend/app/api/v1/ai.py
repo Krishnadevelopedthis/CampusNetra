@@ -7,13 +7,14 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
+from sqlalchemy.orm import aliased
 
 from app.ai.client import call_text
 from app.ai.classifier import classify
 from app.api.deps import DB, CurrentUser, RequireManager
 from app.core.config import settings
 from app.core.enums import AssetState, IssueStatus, UserRole
-from app.models.issues import Issue, IssueCategory
+from app.models.issues import Issue, IssueCategory, IssueDuplicateCandidate
 from app.models.lostfound import LFItem, LFMatch
 from app.models.platform import AIFeedback, AIInvocation
 from app.models.spatial import Asset, Building, Campus, Floor, Room
@@ -166,6 +167,95 @@ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
         model="heuristic-v1", used_fallback=True))
     return {"reply": reply, "confidence": 0.55, "sources": ["campus_data"],
             "model": "heuristic-v1"}
+
+
+@router.get("/review-queue", response_model=dict)
+async def review_queue(
+    user: RequireManager, db: DB,
+    confidence_below: float = Query(0.7, ge=0, le=1),
+    limit: int = Query(25, ge=1, le=100),
+):
+    """Issues where the AI was unsure, and issues flagged as possible duplicates.
+
+    Low confidence is where human review is actually worth someone's time —
+    a correction there is also the training signal the accuracy figures come from.
+    """
+    org = user.organization_id
+
+    # Join the AI's original pick and the issue's current category separately:
+    # routing corrections (e.g. from a selected asset) mean they can differ, and a
+    # reviewer confirming "correct" needs to see which one they are confirming.
+    AiCategory = aliased(IssueCategory)
+    CurrentCategory = aliased(IssueCategory)
+
+    uncertain = (await db.execute(
+        select(Issue, AiCategory.name, CurrentCategory.name)
+        .join(AiCategory, AiCategory.id == Issue.ai_category_id, isouter=True)
+        .join(CurrentCategory, CurrentCategory.id == Issue.category_id, isouter=True)
+        .where(
+            Issue.organization_id == org,
+            Issue.ai_classified_at.isnot(None),
+            Issue.ai_confidence < confidence_below,
+            Issue.was_reclassified.is_(False),
+            Issue.status.in_(OPEN_ISSUES),
+        )
+        .order_by(Issue.ai_confidence.asc())
+        .limit(limit)
+    )).all()
+
+    dup_rows = (await db.execute(
+        select(IssueDuplicateCandidate, Issue)
+        .join(Issue, Issue.id == IssueDuplicateCandidate.issue_id)
+        .where(
+            Issue.organization_id == org,
+            IssueDuplicateCandidate.resolution == "pending",
+        )
+        .order_by(IssueDuplicateCandidate.score.desc())
+        .limit(limit)
+    )).all()
+
+    master_ids = [c.candidate_id for c, _ in dup_rows]
+    masters = {i.id: i for i in (await db.scalars(
+        select(Issue).where(Issue.id.in_(master_ids)))).all()} if master_ids else {}
+
+    return {
+        "uncertain": [
+            {
+                "id": str(i.id), "reference": i.reference, "title": i.title,
+                "description": i.description[:180],
+                "ai_category": ai_name,
+                "current_category": current_name,
+                "current_category_id": str(i.category_id) if i.category_id else None,
+                # True when routing already overrode the text classifier, so the
+                # UI can say what is actually in effect.
+                "was_rerouted": ai_name != current_name,
+                "confidence": float(i.ai_confidence) if i.ai_confidence is not None else None,
+                "priority": i.priority.value,
+                "reasoning": i.ai_reasoning,
+                "model": i.ai_model,
+                "created_at": i.created_at.isoformat(),
+            }
+            for i, ai_name, current_name in uncertain
+        ],
+        "duplicates": [
+            {
+                "id": str(c.id),
+                "issue_id": str(c.issue_id), "issue_reference": issue.reference,
+                "issue_title": issue.title,
+                "candidate_id": str(c.candidate_id),
+                "candidate_reference": masters[c.candidate_id].reference if c.candidate_id in masters else None,
+                "candidate_title": masters[c.candidate_id].title if c.candidate_id in masters else None,
+                "score": float(c.score),
+                "verdict": "likely" if float(c.score) >= 0.75 else "possible",
+                "signals": c.signals or {},
+            }
+            for c, issue in dup_rows if c.candidate_id in masters
+        ],
+        "counts": {
+            "uncertain": len(uncertain),
+            "duplicates": len(dup_rows),
+        },
+    }
 
 
 @router.get("/performance", response_model=dict)

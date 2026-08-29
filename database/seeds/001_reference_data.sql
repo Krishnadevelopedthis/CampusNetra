@@ -95,7 +95,7 @@ ON CONFLICT (tag) DO NOTHING;
 -- ---------- Issue categories (keywords feed the heuristic classifier) ----------
 INSERT INTO issue_categories (id, organization_id, name, code, icon, department_id, default_priority, keywords, sla_response_mins, sla_resolve_mins) VALUES
  ('99999999-0000-0000-0000-000000000001','11111111-1111-1111-1111-111111111111','Electrical','ELEC','zap','22222222-0000-0000-0000-000000000001','high',
-   ARRAY['fan','light','bulb','switch','socket','power','electrical','wiring','tube','short circuit','spark','no power','fuse','mcb'],60,720),
+   ARRAY['fan','ceiling fan','exhaust fan','light','tube light','bulb','switch','socket','power point','power','electrical','wiring','tube','short circuit','spark','no power','fuse','mcb'],60,720),
  ('99999999-0000-0000-0000-000000000002','11111111-1111-1111-1111-111111111111','Plumbing','PLUMB','droplet','22222222-0000-0000-0000-000000000002','high',
    ARRAY['water','leak','leakage','tap','pipe','drain','flush','toilet','washroom','overflow','sink','blocked','seepage'],60,720),
  ('99999999-0000-0000-0000-000000000003','11111111-1111-1111-1111-111111111111','Network / IT','IT','wifi','22222222-0000-0000-0000-000000000003','high',
@@ -107,7 +107,7 @@ INSERT INTO issue_categories (id, organization_id, name, code, icon, department_
  ('99999999-0000-0000-0000-000000000006','11111111-1111-1111-1111-111111111111','Air Conditioning','HVAC','snowflake','22222222-0000-0000-0000-000000000001','medium',
    ARRAY['ac','air conditioner','cooling','not cooling','hvac','ventilation','stuffy','temperature'],120,720),
  ('99999999-0000-0000-0000-000000000007','11111111-1111-1111-1111-111111111111','Civil / Structural','CIVIL','hammer','22222222-0000-0000-0000-000000000005','medium',
-   ARRAY['door','window','wall','ceiling','floor','tile','crack','paint','lock','handle','glass'],240,2880),
+   ARRAY['door','window','wall','false ceiling','ceiling leak','ceiling','floor','tile','crack','paint','lock','handle','glass','plaster'],240,2880),
  ('99999999-0000-0000-0000-000000000008','11111111-1111-1111-1111-111111111111','Housekeeping','HK','sparkles','22222222-0000-0000-0000-000000000005','low',
    ARRAY['dirty','clean','garbage','waste','dustbin','smell','unhygienic','sweeping'],240,1440)
 ON CONFLICT (organization_id, code) DO NOTHING;

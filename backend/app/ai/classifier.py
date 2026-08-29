@@ -65,10 +65,16 @@ def _tokenize(text: str) -> list[str]:
     return re.findall(r"[a-z]+", text.lower())
 
 
-def _keyword_score(text: str, keywords: Sequence[str]) -> float:
-    """Fraction-of-keywords-hit, with a bonus for exact phrase matches."""
-    if not keywords:
-        return 0.0
+# A title is the reporter's own summary of what is wrong; a description also
+# carries context — where it is, what they tried, what else is nearby. Weighting
+# them equally lets incidental nouns decide the category: "socket sparking near
+# the door" routed to Civil because 'door' and 'wall' outnumbered 'socket'.
+_TITLE_WEIGHT = 3.0
+_BODY_WEIGHT = 1.0
+
+
+def _raw_hits(text: str, keywords: Sequence[str]) -> float:
+    """Weighted count of keywords present, before any normalisation."""
     low = text.lower()
     tokens = set(_tokenize(text))
     hits = 0.0
@@ -81,9 +87,26 @@ def _keyword_score(text: str, keywords: Sequence[str]) -> float:
                 hits += 1.5          # multi-word phrases are stronger evidence
         elif kw_low in tokens:
             hits += 1.0
-        elif any(t.startswith(kw_low[:5]) for t in tokens if len(kw_low) >= 5):
-            hits += 0.4              # tolerate "leaking" vs "leak"
-    return hits / len(keywords)
+        elif len(kw_low) >= 5 and any(t.startswith(kw_low[:5]) for t in tokens):
+            hits += 0.4              # tolerate "leaking" vs "leak", "sparked" vs "spark"
+    return hits
+
+
+def _keyword_score(title: str, description: str, keywords: Sequence[str]) -> float:
+    """Score a category against the report, weighting the title far higher.
+
+    Normalisation is by the square root of the vocabulary size rather than by
+    the size itself. Dividing by the count rewards sparsely-defined categories:
+    a category with four keywords beat one with fourteen on a single incidental
+    match. The square root still discounts large vocabularies without handing
+    small ones an advantage.
+    """
+    if not keywords:
+        return 0.0
+
+    hits = (_raw_hits(title, keywords) * _TITLE_WEIGHT
+            + _raw_hits(description, keywords) * _BODY_WEIGHT)
+    return hits / (len(keywords) ** 0.5)
 
 
 def detect_priority(text: str, base: Priority = Priority.MEDIUM) -> tuple[Priority, str]:
@@ -111,9 +134,13 @@ def classify_heuristic(
 
     scored: list[tuple[float, dict]] = []
     for cat in categories:
-        score = _keyword_score(text, cat.get("keywords") or [])
-        # The category's own name is an implicit keyword.
-        if cat.get("name", "").lower() in text.lower():
+        score = _keyword_score(title, description, cat.get("keywords") or [])
+        # The category's own name is an implicit keyword, and naming it in the
+        # title is about as explicit as a reporter can be.
+        name = cat.get("name", "").lower()
+        if name and name in title.lower():
+            score += 1.5
+        elif name and name in description.lower():
             score += 0.5
         scored.append((score, cat))
 
@@ -133,9 +160,10 @@ def classify_heuristic(
         base_priority = Priority(base_priority)
     priority, why = detect_priority(text, base_priority)
 
-    # Map a raw keyword score onto a calibrated-looking confidence.
-    # A perfect keyword sweep is still capped below 1.0 — heuristics are never certain.
-    confidence = round(min(0.88, 0.45 + top_score * 0.5), 3)
+    # Map the raw score onto a calibrated-looking confidence. Capped below 1.0
+    # because a keyword heuristic is never certain, and scaled for the weighted
+    # scoring above, where a strong title match lands around 1.5-3.0.
+    confidence = round(min(0.88, 0.40 + top_score * 0.22), 3)
     runner_up = scored[1][0] if len(scored) > 1 else 0.0
     if top_score - runner_up < 0.15:
         confidence = round(confidence * 0.8, 3)   # ambiguous between two categories
