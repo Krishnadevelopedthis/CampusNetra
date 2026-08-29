@@ -42,6 +42,8 @@ const AdminOverview  = lazy(() => import('@/pages/admin/AdminOverview'))
 const AdminUsers     = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminPredictive= lazy(() => import('@/pages/admin/AdminPredictive'))
 const AdminAI        = lazy(() => import('@/pages/admin/AdminAI'))
+const AdminAssets    = lazy(() => import('@/pages/admin/AdminAssets'))
+const AdminCosts     = lazy(() => import('@/pages/admin/AdminCosts'))
 const AdminCampus    = lazy(() => import('@/pages/admin/AdminCampus'))
 const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
 const AdminInspectionConfig = lazy(() => import('@/pages/admin/AdminTemplates').then((m) => ({ default: m.AdminInspectionConfig })))
@@ -141,6 +143,8 @@ export default function App() {
               <Route path="floor-plans" element={<FloorPlanEditor />} />
               <Route path="ai" element={<AdminAI />} />
               <Route path="campus" element={<AdminCampus />} />
+              <Route path="assets" element={<AdminAssets />} />
+              <Route path="costs" element={<AdminCosts />} />
               <Route path="lost-found" element={<AdminLostFound />} />
               <Route path="inspection-config" element={<AdminInspectionConfig />} />
               <Route path="notifications" element={<AdminNotifications />} />

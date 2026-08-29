@@ -1,5 +1,5 @@
 import {
-  Activity, BarChart3, Bell, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
+  Activity, Banknote, BarChart3, Bell, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
   FileSearch, Gauge, History, LayoutDashboard, ListChecks, MapPinned, Package,
   PlusCircle, Search, Settings, Shield, ShieldAlert, Sparkles, TrendingUp,
   Users, Wrench,
@@ -77,6 +77,8 @@ export const ADMIN_NAV = [
   { to: '/admin/users', label: 'Users & Roles', icon: Users },
   { to: '/admin/predictive', label: 'Predictive Maintenance', icon: TrendingUp },
   { to: '/admin/campus', label: 'Campus & Buildings', icon: Building2 },
+  { to: '/admin/assets', label: 'Asset Registry', icon: Boxes },
+  { to: '/admin/costs', label: 'Maintenance & Costs', icon: Banknote },
   { to: '/admin/floor-plans', label: 'Floor Plans', icon: MapPinned },
   { to: '/admin/issue-config', label: 'Issue Configuration', icon: FileSearch },
   { to: '/admin/lost-found', label: 'Lost & Found Desk', icon: Search },
