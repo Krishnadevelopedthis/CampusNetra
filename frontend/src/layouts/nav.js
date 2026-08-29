@@ -81,6 +81,8 @@ export const ADMIN_NAV = [
   { to: '/admin/ai', label: 'AI Management', icon: Sparkles },
   { to: '/admin/inspection-config', label: 'Inspection Checklists', icon: ClipboardCheck },
   { to: '/admin/notifications', label: 'Notifications', icon: Bell },
+  { to: '/admin/workorder-config', label: 'Work Order Flow', icon: ListChecks },
+  { to: '/admin/twin-config', label: 'Twin Configuration', icon: Boxes },
   { to: '/admin/sla', label: 'SLA Policies', icon: Shield },
   { to: '/admin/audit', label: 'Audit & Security', icon: ShieldAlert },
 ]

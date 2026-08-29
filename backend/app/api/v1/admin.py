@@ -551,6 +551,144 @@ async def login_activity(
     ]
 
 
+# ---------------- Work order configuration ----------------
+@router.get("/workorder-config", response_model=dict)
+async def workorder_config(user: RequireManager, db: DB):
+    """How work orders actually flow, measured rather than declared.
+
+    The status machine is fixed in code; what varies is where work piles up and
+    who it lands on. Showing live counts against each state makes the
+    configuration screen useful rather than a static diagram.
+    """
+    from app.core.enums import WORK_ORDER_TRANSITIONS, WorkOrderStatus
+    from app.models.work import WorkOrder
+
+    counts = dict((await db.execute(
+        select(WorkOrder.status, func.count())
+        .where(WorkOrder.organization_id == user.organization_id)
+        .group_by(WorkOrder.status))).all())
+
+    by_department = (await db.execute(
+        select(Department.name, func.count(WorkOrder.id),
+               func.count(WorkOrder.id).filter(WorkOrder.sla_breached.is_(True)),
+               func.avg(WorkOrder.actual_mins))
+        .select_from(Department)
+        .join(WorkOrder, WorkOrder.department_id == Department.id, isouter=True)
+        .where(Department.organization_id == user.organization_id)
+        .group_by(Department.name))).all()
+
+    technicians = (await db.execute(
+        select(User.full_name, Department.name, func.count(WorkOrder.id))
+        .select_from(User)
+        .join(Department, Department.id == User.department_id, isouter=True)
+        .join(WorkOrder, (WorkOrder.assigned_to == User.id)
+              & (WorkOrder.status.notin_(["closed", "cancelled", "verified"])), isouter=True)
+        .where(User.organization_id == user.organization_id,
+               User.role == UserRole.TECHNICIAN, User.status == "active")
+        .group_by(User.full_name, Department.name)
+        .order_by(func.count(WorkOrder.id).desc()))).all()
+
+    return {
+        "statuses": [
+            {
+                "status": st.value,
+                "count": counts.get(st, 0),
+                "allowed_next": sorted(s.value for s in WORK_ORDER_TRANSITIONS.get(st, set())),
+                "terminal": not WORK_ORDER_TRANSITIONS.get(st),
+            }
+            for st in WorkOrderStatus
+        ],
+        "by_department": [
+            {"department": name, "total": total, "breached": breached,
+             "avg_minutes": round(float(avg)) if avg else None}
+            for name, total, breached, avg in by_department
+        ],
+        "technician_load": [
+            {"name": name, "department": dept, "open_work_orders": count}
+            for name, dept, count in technicians
+        ],
+    }
+
+
+# ---------------- Digital twin configuration ----------------
+@router.get("/twin-config", response_model=dict)
+async def twin_config(user: RequireManager, db: DB):
+    """Spatial data health: what is mapped, and what would be invisible."""
+    from app.models.spatial import Asset, Building, Campus, Floor, Room
+    from app.services.twin import STATE_COLOURS, STATE_LABELS
+    from app.core.enums import AssetState
+
+    campus_ids = (await db.scalars(
+        select(Campus.id).where(Campus.organization_id == user.organization_id))).all()
+
+    floors = (await db.execute(
+        select(Building.code, Building.name, Floor.id, Floor.name, Floor.level,
+               Floor.floor_plan_url, func.count(Room.id))
+        .select_from(Floor)
+        .join(Building, Building.id == Floor.building_id)
+        .join(Room, Room.floor_id == Floor.id, isouter=True)
+        .where(Building.campus_id.in_(campus_ids))
+        .group_by(Building.code, Building.name, Floor.id, Floor.name,
+                  Floor.level, Floor.floor_plan_url)
+        .order_by(Building.code, Floor.level))).all()
+
+    # A room without a boundary, or an asset without a position, exists in the
+    # database but cannot be drawn — these are the gaps worth surfacing.
+    rooms_total = await db.scalar(
+        select(func.count(Room.id)).select_from(Room)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .where(Building.campus_id.in_(campus_ids))) or 0
+    rooms_unmapped = await db.scalar(
+        select(func.count(Room.id)).select_from(Room)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .where(Building.campus_id.in_(campus_ids), Room.boundary.is_(None))) or 0
+
+    assets_total = await db.scalar(
+        select(func.count(Asset.id)).select_from(Asset)
+        .join(Room, Room.id == Asset.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .where(Building.campus_id.in_(campus_ids))) or 0
+    assets_unplaced = await db.scalar(
+        select(func.count(Asset.id)).select_from(Asset)
+        .join(Room, Room.id == Asset.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .where(Building.campus_id.in_(campus_ids), Asset.pos_x.is_(None))) or 0
+
+    orphan_assets = await db.scalar(
+        select(func.count()).select_from(Asset).where(Asset.room_id.is_(None))) or 0
+
+    buildings_unpositioned = await db.scalar(
+        select(func.count()).select_from(Building)
+        .where(Building.campus_id.in_(campus_ids), Building.map_x.is_(None))) or 0
+
+    return {
+        "legend": [
+            {"state": s.value, "colour": STATE_COLOURS[s.value], "label": STATE_LABELS[s.value]}
+            for s in AssetState
+        ],
+        "coverage": {
+            "rooms_total": rooms_total,
+            "rooms_unmapped": rooms_unmapped,
+            "rooms_mapped_pct": round(100 * (rooms_total - rooms_unmapped) / rooms_total, 1) if rooms_total else 0,
+            "assets_total": assets_total,
+            "assets_unplaced": assets_unplaced,
+            "assets_placed_pct": round(100 * (assets_total - assets_unplaced) / assets_total, 1) if assets_total else 0,
+            "orphan_assets": orphan_assets,
+            "buildings_unpositioned": buildings_unpositioned,
+        },
+        "floors": [
+            {"building_code": bcode, "building": bname, "floor_id": str(fid),
+             "floor": fname, "level": level,
+             "has_plan_image": plan is not None, "rooms": rooms}
+            for bcode, bname, fid, fname, level, plan, rooms in floors
+        ],
+    }
+
+
 # ---------------- Predictive maintenance ----------------
 @router.get("/predictive", response_model=dict)
 async def predictive_forecast(
