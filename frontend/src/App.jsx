@@ -18,6 +18,7 @@ const ReportIssue    = lazy(() => import('@/pages/ReportIssue'))
 const IssueList      = lazy(() => import('@/pages/IssueList'))
 const IssueDetail    = lazy(() => import('@/pages/IssueDetail'))
 const DigitalTwin    = lazy(() => import('@/pages/DigitalTwin'))
+const CampusMap      = lazy(() => import('@/pages/CampusMap'))
 const AssetList      = lazy(() => import('@/pages/AssetList'))
 const AssetDetail    = lazy(() => import('@/pages/AssetDetail'))
 const EventReplay    = lazy(() => import('@/pages/EventReplay'))
@@ -88,6 +89,7 @@ export default function App() {
             <Route path="/issues/new" element={<ReportIssue />} />
             <Route path="/issues/:id" element={<IssueDetail />} />
 
+            <Route path="/map" element={<CampusMap />} />
             <Route path="/twin" element={<DigitalTwin />} />
             <Route path="/twin/:floorId" element={<DigitalTwin />} />
             <Route path="/replay" element={<RequireAuth roles={STAFF}><EventReplay /></RequireAuth>} />

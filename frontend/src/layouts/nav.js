@@ -17,7 +17,7 @@ const REPORTER = [
   { to: '/issues/new', label: 'Report an Issue', icon: PlusCircle },
   { to: '/issues', label: 'Track Complaints', icon: ClipboardList },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
-  { to: '/twin', label: 'Campus Map', icon: MapPinned },
+  { to: '/map', label: 'Campus Map', icon: MapPinned },
 ]
 
 const TECHNICIAN = [
@@ -30,6 +30,7 @@ const TECHNICIAN = [
 ]
 
 const MANAGER = [
+  { to: '/map', label: 'Campus Map', icon: MapPinned },
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
   { to: '/replay', label: 'Event Replay', icon: History },
   { to: '/assets', label: 'Assets', icon: Package },
@@ -42,6 +43,7 @@ const MANAGER = [
 ]
 
 const ADMIN = [
+  { to: '/map', label: 'Campus Map', icon: MapPinned },
   { to: '/twin', label: 'Digital Twin', icon: Boxes },
   { to: '/replay', label: 'Event Replay', icon: History },
   { to: '/assets', label: 'Assets', icon: Package },

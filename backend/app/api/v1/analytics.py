@@ -123,6 +123,83 @@ async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=
     }
 
 
+@router.get("/heatmap", response_model=dict)
+async def heatmap(
+    user: RequireManager, db: DB,
+    days: int = Query(30, ge=1, le=365),
+    campus_id: Optional[uuid.UUID] = None,
+):
+    """Complaint density per building and per room, for the campus heatmap.
+
+    Intensity is normalised against the busiest location rather than an absolute
+    scale, so the map stays readable whether the campus saw five complaints this
+    month or five hundred.
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    campus = await db.scalar(
+        select(Campus).where(
+            Campus.organization_id == user.organization_id,
+            *( [Campus.id == campus_id] if campus_id else [] ),
+        ).limit(1)
+    )
+    if campus is None:
+        return {"campus": None, "buildings": [], "rooms": [], "max_count": 0}
+
+    building_rows = (await db.execute(
+        select(Building.id, Building.name, Building.code,
+               Building.map_x, Building.map_y,
+               func.count(Issue.id))
+        .select_from(Building)
+        .join(Issue, (Issue.building_id == Building.id) & (Issue.created_at >= since), isouter=True)
+        .where(Building.campus_id == campus.id)
+        .group_by(Building.id, Building.name, Building.code, Building.map_x, Building.map_y)
+    )).all()
+
+    room_rows = (await db.execute(
+        select(Room.id, Room.code, Room.name, Building.code, Floor.name,
+               func.count(Issue.id))
+        .select_from(Room)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .join(Issue, (Issue.room_id == Room.id) & (Issue.created_at >= since), isouter=True)
+        .where(Building.campus_id == campus.id)
+        .group_by(Room.id, Room.code, Room.name, Building.code, Floor.name)
+        .having(func.count(Issue.id) > 0)
+        .order_by(func.count(Issue.id).desc())
+        .limit(25)
+    )).all()
+
+    max_building = max((r[5] for r in building_rows), default=0)
+    max_room = max((r[5] for r in room_rows), default=0)
+
+    return {
+        "campus": {"id": str(campus.id), "name": campus.name},
+        "window_days": days,
+        "max_count": max_building,
+        "buildings": [
+            {
+                "id": str(bid), "name": name, "code": code,
+                "map_x": float(mx) if mx is not None else None,
+                "map_y": float(my) if my is not None else None,
+                "count": count,
+                # 0..1 against the busiest building, so colour is comparable
+                # regardless of overall volume.
+                "intensity": round(count / max_building, 3) if max_building else 0.0,
+            }
+            for bid, name, code, mx, my, count in building_rows
+        ],
+        "rooms": [
+            {
+                "id": str(rid), "code": rcode, "name": rname,
+                "building": bcode, "floor": fname, "count": count,
+                "intensity": round(count / max_room, 3) if max_room else 0.0,
+            }
+            for rid, rcode, rname, bcode, fname, count in room_rows
+        ],
+    }
+
+
 @router.get("/technicians", response_model=list[dict])
 async def technician_performance(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=365)):
     since = datetime.now(timezone.utc) - timedelta(days=days)
