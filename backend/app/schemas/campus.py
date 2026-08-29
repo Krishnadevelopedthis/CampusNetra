@@ -71,6 +71,8 @@ class AssetOut(ORMModel):
     last_service_at: Optional[datetime] = None
     service_interval_days: Optional[int] = None
     expected_life_months: Optional[int] = None
+    annual_maintenance_cost: Optional[Decimal] = None
+    warranty_months: Optional[int] = None
 
 
 class AssetMarker(BaseModel):
@@ -170,6 +172,9 @@ class AssetCreate(BaseModel):
     warranty_expiry: Optional[datetime] = None
     cost: Optional[float] = Field(None, ge=0)
     service_interval_days: Optional[int] = Field(None, ge=1)
+    expected_life_months: Optional[int] = Field(None, ge=1)
+    annual_maintenance_cost: Optional[float] = Field(None, ge=0)
+    warranty_months: Optional[int] = Field(None, ge=0, le=600)
 
 
 class AssetBulkCreate(AssetCreate):
@@ -198,6 +203,8 @@ class AssetUpdate(BaseModel):
     last_service_at: Optional[datetime] = None
     service_interval_days: Optional[int] = Field(None, ge=1)
     expected_life_months: Optional[int] = Field(None, ge=1)
+    annual_maintenance_cost: Optional[float] = Field(None, ge=0)
+    warranty_months: Optional[int] = Field(None, ge=0, le=600)
 
 
 class CampusUpdate(BaseModel):

@@ -25,6 +25,7 @@ import {
   Widget,
   toast,
 } from '@/components/ui'
+import { AssetModal } from '@/features/twin/AssetRoomModals'
 import { api, upload } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 
@@ -103,20 +104,6 @@ export default function FloorPlanEditor() {
     onError: (e) => toast.error(e.detail),
   })
 
-  const createAsset = useMutation({
-    mutationFn: ({ roomId, body }) => api.post(`/campus/rooms/${roomId}/assets`, body),
-    onSuccess: async (a) => {
-      // Place it where the user clicked, then refresh once.
-      if (placingAsset) {
-        await api.patch(`/campus/assets/${a.id}/position`, {
-          pos_x: placingAsset.x, pos_y: placingAsset.y,
-        })
-      }
-      toast.success(`${a.tag} added.`)
-      setAssetForm(null); setPlacingAsset(null); setMode('select'); refresh()
-    },
-    onError: (e) => toast.error(e.detail || 'Could not add the asset'),
-  })
 
   const moveAsset = useMutation({
     mutationFn: ({ id, pos }) => api.patch(`/campus/assets/${id}/position`, pos),
@@ -470,61 +457,32 @@ export default function FloorPlanEditor() {
         )}
       </Modal>
 
-      {/* New asset modal */}
-      <Modal
-        open={!!assetForm} onClose={() => { setAssetForm(null); setPlacingAsset(null) }}
-        title={placingAsset ? `Add an asset to ${placingAsset.room.code}` : 'Add asset'}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => { setAssetForm(null); setPlacingAsset(null) }}>
-              Cancel
-            </Button>
-            <Button loading={createAsset.isPending}
-                    disabled={!assetForm?.tag || !assetForm?.name || !assetForm?.category_id}
-                    onClick={() => createAsset.mutate({
-                      roomId: placingAsset.room.id,
-                      body: {
-                        category_id: assetForm.category_id,
-                        tag: assetForm.tag, name: assetForm.name,
-                        manufacturer: assetForm.manufacturer || null,
-                        model: assetForm.model || null,
-                      },
-                    })}>
-              Add asset
-            </Button>
-          </>
-        }
-      >
-        {assetForm && (
-          <div className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Asset tag" required hint="Unique across the campus">
-                <Input value={assetForm.tag || ''} placeholder="PRJ-301-1"
-                       onChange={(e) => setAssetForm((f) => ({ ...f, tag: e.target.value }))} />
-              </Field>
-              <Field label="Category" required>
-                <Select value={assetForm.category_id || ''}
-                        onChange={(e) => setAssetForm((f) => ({ ...f, category_id: e.target.value }))}>
-                  <option value="">Select category</option>
-                  {(categories.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </Select>
-              </Field>
-              <Field label="Name" required className="sm:col-span-2">
-                <Input value={assetForm.name || ''} placeholder="Projector — Seminar Hall"
-                       onChange={(e) => setAssetForm((f) => ({ ...f, name: e.target.value }))} />
-              </Field>
-              <Field label="Manufacturer">
-                <Input value={assetForm.manufacturer || ''}
-                       onChange={(e) => setAssetForm((f) => ({ ...f, manufacturer: e.target.value }))} />
-              </Field>
-              <Field label="Model">
-                <Input value={assetForm.model || ''}
-                       onChange={(e) => setAssetForm((f) => ({ ...f, model: e.target.value }))} />
-              </Field>
-            </div>
-          </div>
-        )}
-      </Modal>
+      {/* The registry's own dialog, rather than a thinner copy: an asset placed
+          on the plan is the same asset, and the copy here asked for five fields
+          where the registry asks for the purchase, warranty and service detail
+          that make the cost reporting work at all. */}
+      <AssetModal
+        open={!!assetForm}
+        asset={null}
+        roomId={placingAsset?.room?.id}
+        categories={categories.data || []}
+        onClose={() => { setAssetForm(null); setPlacingAsset(null); setMode('select') }}
+        onSaved={async (created) => {
+          // Pin it where the click landed, so it appears under the cursor
+          // rather than at the room's default position.
+          const first = Array.isArray(created) ? created[0] : created
+          if (placingAsset && first?.id) {
+            try {
+              await api.patch(`/campus/assets/${first.id}/position`, {
+                pos_x: placingAsset.x, pos_y: placingAsset.y,
+              })
+            } catch {
+              // The asset exists either way; only its marker position is lost.
+            }
+          }
+          setAssetForm(null); setPlacingAsset(null); setMode('select'); refresh()
+        }}
+      />
     </div>
   )
 }
