@@ -966,14 +966,29 @@ async def asset_detail(asset_id: uuid.UUID, user: CurrentUser, db: DB):
         .order_by(WorkOrder.created_at.desc()).limit(20)
     )).all()
 
-    room = await db.scalar(select(Room).where(Room.id == asset.room_id)) if asset.room_id else None
+    # The whole chain, not just the room: "Class 103" locates nothing on its
+    # own, and a technician dispatched to a five-storey block needs the floor.
+    placement = (await db.execute(
+        select(Room, Floor, Building)
+        .join(Floor, Floor.id == Room.floor_id, isouter=True)
+        .join(Building, Building.id == Floor.building_id, isouter=True)
+        .where(Room.id == asset.room_id)
+    )).first() if asset.room_id else None
+    room, floor, building = placement if placement else (None, None, None)
 
     return {
         "asset": AssetOut.model_validate(asset).model_dump(mode="json"),
         "state_colour": STATE_COLOURS[asset.state.value],
         "state_label": STATE_LABELS[asset.state.value],
-        "room": {"id": str(room.id), "name": room.name, "code": room.code,
-                 "zone_id": room.zone_id} if room else None,
+        "room": {
+            "id": str(room.id), "name": room.name, "code": room.code,
+            "zone_id": room.zone_id,
+            "floor": floor.name if floor else None,
+            "floor_id": str(floor.id) if floor else None,
+            "floor_level": floor.level if floor else None,
+            "building": building.name if building else None,
+            "building_code": building.code if building else None,
+        } if room else None,
         "condition_history": [
             {"from": h.from_state.value if h.from_state else None,
              "to": h.to_state.value, "reason": h.reason,

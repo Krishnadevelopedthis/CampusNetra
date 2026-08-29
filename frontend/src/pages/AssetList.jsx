@@ -159,8 +159,13 @@ export default function AssetList() {
                         <td className="text-ink-muted whitespace-nowrap">{a.category || '—'}</td>
                         <td className="whitespace-nowrap">
                           <span className="text-ink">{a.room || '—'}</span>
-                          {a.building && (
-                            <span className="text-body-sm text-ink-faint block">{a.building}</span>
+                          {/* Building alone does not locate anything in a
+                              multi-storey block — "Class 103, Bldg A" still
+                              means walking every floor to find it. */}
+                          {(a.building || a.floor) && (
+                            <span className="text-body-sm text-ink-faint block">
+                              {[a.building, a.floor].filter(Boolean).join(' · ')}
+                            </span>
                           )}
                         </td>
                         <td>
