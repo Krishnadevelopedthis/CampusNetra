@@ -15,7 +15,7 @@ from app.models.identity import Department, User
 from app.models.issues import Issue, IssueCategory
 from app.models.lostfound import LFItem, LFMatch
 from app.models.platform import Simulation
-from app.models.spatial import Asset, Building, Campus, Floor, Room
+from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.models.work import WorkOrder
 from app.services.references import next_reference
 
@@ -387,3 +387,152 @@ async def list_simulations(user: RequireManager, db: DB, limit: int = Query(20, 
          "created_at": s.created_at.isoformat()}
         for s in rows
     ]
+
+
+# --------------------------------------------------------------------------
+# Maintenance spend
+#
+# What a campus actually spends keeping itself running: the cost booked against
+# completed work orders, plus what the assets cost to buy in the first place.
+# Rolled up by period so the same figures answer "this month", "this quarter"
+# and "this year" without three different reports.
+# --------------------------------------------------------------------------
+
+_GRAINS = {
+    "month": "YYYY-MM",
+    "quarter": "YYYY-\"Q\"Q",
+    "year": "YYYY",
+}
+
+
+@router.get("/spend", response_model=dict)
+async def maintenance_spend(
+    user: RequireManager,
+    db: DB,
+    granularity: str = Query("month", pattern="^(month|quarter|year)$"),
+    months: int = Query(12, ge=1, le=60),
+    campus_id: Optional[uuid.UUID] = None,
+):
+    """Maintenance expenditure over time, and where it went.
+
+    Only completed work is counted. Cost accrues on a job while it is open and
+    is not final until sign-off, so including in-flight work would make every
+    period look more expensive than it turned out to be — and would move the
+    figure for a period that has already been reported.
+    """
+    since = datetime.now(timezone.utc) - timedelta(days=months * 31)
+
+    campus_scope = [Campus.organization_id == user.organization_id]
+    if campus_id:
+        campus_scope.append(Campus.id == campus_id)
+
+    # Work orders reach a campus through the asset's room, so the join is the
+    # full spatial chain; jobs with no asset are counted in the totals but
+    # cannot be attributed to a building.
+    def spend_expr():
+        return func.coalesce(func.sum(WorkOrder.labour_cost + WorkOrder.parts_cost), 0)
+
+    completed = [
+        WorkOrder.status.in_([WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED]),
+        WorkOrder.completed_at.is_not(None),
+        WorkOrder.completed_at >= since,
+    ]
+
+    label = func.to_char(WorkOrder.completed_at, _GRAINS[granularity])
+    rows = (await db.execute(
+        select(label.label("period"), spend_expr().label("total"),
+               func.count(WorkOrder.id).label("jobs"))
+        .select_from(WorkOrder)
+        .outerjoin(Asset, Asset.id == WorkOrder.asset_id)
+        .outerjoin(Room, Room.id == Asset.room_id)
+        .outerjoin(Floor, Floor.id == Room.floor_id)
+        .outerjoin(Building, Building.id == Floor.building_id)
+        .outerjoin(Campus, Campus.id == Building.campus_id)
+        .where(*completed)
+        .group_by(label).order_by(label)
+    )).all()
+
+    series = [
+        {"period": r.period, "total": float(r.total or 0), "jobs": r.jobs}
+        for r in rows
+    ]
+
+    by_building = (await db.execute(
+        select(Building.name, Building.code, spend_expr().label("total"),
+               func.count(WorkOrder.id).label("jobs"))
+        .select_from(WorkOrder)
+        .join(Asset, Asset.id == WorkOrder.asset_id)
+        .join(Room, Room.id == Asset.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .join(Campus, Campus.id == Building.campus_id)
+        .where(*completed, *campus_scope)
+        .group_by(Building.id, Building.name, Building.code)
+        .order_by(spend_expr().desc()).limit(12)
+    )).all()
+
+    by_category = (await db.execute(
+        select(AssetCategory.name, spend_expr().label("total"),
+               func.count(WorkOrder.id).label("jobs"))
+        .select_from(WorkOrder)
+        .join(Asset, Asset.id == WorkOrder.asset_id)
+        .join(AssetCategory, AssetCategory.id == Asset.category_id)
+        .where(*completed)
+        .group_by(AssetCategory.id, AssetCategory.name)
+        .order_by(spend_expr().desc()).limit(12)
+    )).all()
+
+    # The assets that keep costing money — the argument for replacing rather
+    # than repairing one more time.
+    worst = (await db.execute(
+        select(Asset.id, Asset.tag, Asset.name, Asset.cost.label("purchase"),
+               spend_expr().label("total"), func.count(WorkOrder.id).label("jobs"))
+        .select_from(WorkOrder)
+        .join(Asset, Asset.id == WorkOrder.asset_id)
+        .where(*completed)
+        .group_by(Asset.id, Asset.tag, Asset.name, Asset.cost)
+        .order_by(spend_expr().desc()).limit(10)
+    )).all()
+
+    capital = await db.scalar(
+        select(func.coalesce(func.sum(Asset.cost), 0))
+        .select_from(Asset)
+        .join(Room, Room.id == Asset.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .join(Campus, Campus.id == Building.campus_id)
+        .where(*campus_scope)
+    ) or 0
+
+    total = sum(p["total"] for p in series)
+    jobs = sum(p["jobs"] for p in series)
+
+    return {
+        "granularity": granularity,
+        "series": series,
+        "totals": {
+            "maintenance": float(total),
+            "jobs": jobs,
+            "average_per_job": round(float(total) / jobs, 2) if jobs else 0.0,
+            "capital": float(capital),
+        },
+        "by_building": [
+            {"name": r.name, "code": r.code, "total": float(r.total or 0), "jobs": r.jobs}
+            for r in by_building
+        ],
+        "by_category": [
+            {"name": r.name, "total": float(r.total or 0), "jobs": r.jobs}
+            for r in by_category
+        ],
+        "worst_offenders": [
+            {
+                "id": str(r.id), "tag": r.tag, "name": r.name,
+                "purchase": float(r.purchase or 0), "total": float(r.total or 0),
+                "jobs": r.jobs,
+                # Repairs past the purchase price is the clearest replace signal
+                # there is, and it needs no judgement to read.
+                "beyond_value": bool(r.purchase and float(r.total or 0) > float(r.purchase)),
+            }
+            for r in worst
+        ],
+    }
