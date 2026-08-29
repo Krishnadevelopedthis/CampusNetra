@@ -8,8 +8,8 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 
 import { Logo, LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { Avatar } from '@/components/ui'
-import { api } from '@/lib/api'
+import { Avatar, toast } from '@/components/ui'
+import { api, connectNotifications } from '@/lib/api'
 import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { navFor } from './nav'
@@ -29,6 +29,7 @@ function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState([])
   const [unread, setUnread] = useState(0)
+  const [pinged, setPinged] = useState(false)
   const ref = useRef(null)
   useOutsideClick(ref, () => setOpen(false))
 
@@ -44,8 +45,29 @@ function NotificationBell() {
 
   useEffect(() => {
     load()
-    const t = setInterval(load, 60000)
-    return () => clearInterval(t)
+    // A slow poll is the safety net for a socket that never connected or
+    // dropped frames while the tab was asleep, not the delivery mechanism.
+    const t = setInterval(load, 120000)
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => { clearInterval(t); window.removeEventListener('focus', onFocus) }
+  }, [])
+
+  // Live delivery. Arriving frames carry the notification itself, so the bell
+  // updates without a round trip; the reload afterwards is only to pick up the
+  // server-assigned id and timestamp the list needs for its links.
+  useEffect(() => {
+    const disconnect = connectNotifications({
+      onEvent: (evt) => {
+        if (evt?.type !== 'notification') return
+        setUnread((n) => n + 1)
+        setPinged(true)
+        window.setTimeout(() => setPinged(false), 1200)
+        toast.info(evt.title)
+        load()
+      },
+    })
+    return disconnect
   }, [])
 
   const markAll = async () => {
@@ -63,9 +85,13 @@ function NotificationBell() {
         className="btn-ghost h-9 w-9 p-0 rounded relative"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
       >
-        <Bell size={18} />
+        <Bell size={18} className={clsx(pinged && 'animate-[pulse-ring_0.6s_ease-out_2]')} />
         {unread > 0 && (
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger ring-2 ring-surface" />
+          <span className="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 rounded-full
+                           bg-danger text-white text-[10px] font-semibold leading-[17px]
+                           text-center ring-2 ring-surface tabular">
+            {unread > 9 ? '9+' : unread}
+          </span>
         )}
       </button>
 

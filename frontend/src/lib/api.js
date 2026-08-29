@@ -177,8 +177,26 @@ export const api = {
   del: (p, opts) => request(p, { ...opts, method: 'DELETE' }),
 }
 
-/** Live Digital Twin socket. Reconnects with backoff. */
-export function connectTwin(campusId, { onEvent, onOpen, onClose } = {}) {
+/**
+ * Socket URL for an API path.
+ *
+ * Derived from BASE rather than location.host: in production the page is served
+ * from Vercel, which has no backend to connect to.
+ */
+function socketUrl(path) {
+  if (BASE.startsWith('http')) return `${BASE.replace(/^http/, 'ws')}${path}`
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+  return `${proto}://${location.host}${BASE}${path}`
+}
+
+/**
+ * Reconnecting WebSocket with exponential backoff and a heartbeat.
+ *
+ * `path` is resolved lazily on every attempt, so a socket whose URL embeds a
+ * credential picks up a refreshed one when it reconnects instead of retrying
+ * forever with a token that has since expired.
+ */
+function connectSocket(path, { onEvent, onOpen, onClose } = {}) {
   let ws = null
   let closed = false
   let attempt = 0
@@ -186,16 +204,13 @@ export function connectTwin(campusId, { onEvent, onOpen, onClose } = {}) {
 
   const open = () => {
     if (closed) return
-    // Derive the socket URL from BASE rather than location.host: in production
-    // the page is served from Vercel, which has no backend to connect to.
-    let wsUrl
-    if (BASE.startsWith('http')) {
-      wsUrl = `${BASE.replace(/^http/, 'ws')}/campus/ws/${campusId}`
-    } else {
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      wsUrl = `${proto}://${location.host}${BASE}/campus/ws/${campusId}`
+    const resolved = typeof path === 'function' ? path() : path
+    if (!resolved) {
+      // Nothing to connect with yet (no token). Try again shortly.
+      setTimeout(open, 2000)
+      return
     }
-    ws = new WebSocket(wsUrl)
+    ws = new WebSocket(socketUrl(resolved))
 
     ws.onopen = () => {
       attempt = 0
@@ -227,4 +242,23 @@ export function connectTwin(campusId, { onEvent, onOpen, onClose } = {}) {
     clearInterval(heartbeat)
     ws?.close()
   }
+}
+
+/** Live Digital Twin feed for one campus. */
+export function connectTwin(campusId, handlers) {
+  return connectSocket(`/campus/ws/${campusId}`, handlers)
+}
+
+/**
+ * Live notification feed for the signed-in user.
+ *
+ * The token is read on each connection attempt rather than captured once:
+ * access tokens are short lived, and a socket that reconnects an hour later
+ * must present a current one or it will be refused forever.
+ */
+export function connectNotifications(handlers) {
+  return connectSocket(() => {
+    const token = readAuth()?.access_token
+    return token ? `/notifications/ws?token=${encodeURIComponent(token)}` : null
+  }, handlers)
 }

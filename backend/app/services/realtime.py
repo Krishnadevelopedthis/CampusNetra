@@ -68,4 +68,51 @@ class TwinHub:
         return len(self._rooms.get(str(campus_id), ()))
 
 
+class UserHub:
+    """Per-user sockets, for notifications addressed to one person.
+
+    Separate from TwinHub because the addressing is different in kind: the twin
+    feed is public to anyone watching a campus, whereas a notification is
+    private and must never be fanned out to a room.
+    """
+
+    def __init__(self) -> None:
+        self._users: dict[str, set[WebSocket]] = defaultdict(set)
+        self._lock = asyncio.Lock()
+
+    async def connect(self, ws: WebSocket, user_id: str) -> None:
+        await ws.accept()
+        async with self._lock:
+            self._users[str(user_id)].add(ws)
+
+    async def disconnect(self, ws: WebSocket, user_id: str) -> None:
+        async with self._lock:
+            self._users[str(user_id)].discard(ws)
+            if not self._users[str(user_id)]:
+                self._users.pop(str(user_id), None)
+
+    def is_online(self, user_id: str) -> bool:
+        return bool(self._users.get(str(user_id)))
+
+    async def send(self, user_id: str, event: dict) -> None:
+        async with self._lock:
+            targets = list(self._users.get(str(user_id), ()))
+        if not targets:
+            return
+
+        message = json.dumps(event, default=_encode)
+        dead: list[WebSocket] = []
+        for ws in targets:
+            try:
+                await ws.send_text(message)
+            except Exception:
+                dead.append(ws)
+
+        if dead:
+            async with self._lock:
+                for ws in dead:
+                    self._users.get(str(user_id), set()).discard(ws)
+
+
 hub = TwinHub()
+users = UserHub()
