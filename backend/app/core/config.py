@@ -20,8 +20,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = (
-        "
-postgresql://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?ssl=require"
+        "postgresql://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?ssl=require"
     )
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 20
