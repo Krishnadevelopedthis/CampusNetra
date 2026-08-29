@@ -116,11 +116,79 @@ async def campus_overview(campus_id: uuid.UUID, user: CurrentUser, db: DB):
         if bid in buildings:
             buildings[bid]["open_issues"] = count
 
+    # ---- What is actually inside each building ----
+    #
+    # A building card that only shows a colour says a building has a problem;
+    # it does not say the problem is in the second-floor physics lab. The floors
+    # and their rooms come back nested so the map can draw the contents inside
+    # the building's own boundary, with each room carrying its own worst state
+    # rather than inheriting the building's.
+    room_rows = (await db.execute(
+        select(Building.id, Floor.id, Floor.name, Floor.level,
+               Room.id, Room.code, Room.name, Room.kind,
+               Asset.state, func.count(Asset.id))
+        .select_from(Building)
+        .join(Floor, Floor.building_id == Building.id)
+        .join(Room, Room.floor_id == Floor.id, isouter=True)
+        .join(Asset, Asset.room_id == Room.id, isouter=True)
+        .where(Building.campus_id == campus_id)
+        .group_by(Building.id, Floor.id, Floor.name, Floor.level,
+                  Room.id, Room.code, Room.name, Room.kind, Asset.state)
+        .order_by(Floor.level.desc())
+    )).all()
+
+    # building -> floor -> room, built in one pass over the flattened rows.
+    nested: dict[uuid.UUID, dict[uuid.UUID, dict]] = {}
+    for bid, fid, fname, flevel, rid, rcode, rname, rkind, state, count in room_rows:
+        floors = nested.setdefault(bid, {})
+        floor = floors.setdefault(fid, {
+            "id": str(fid), "name": fname, "level": flevel, "rooms": {},
+        })
+        if rid is None:
+            continue
+        room = floor["rooms"].setdefault(rid, {
+            "id": str(rid), "code": rcode, "name": rname,
+            "kind": rkind.value if hasattr(rkind, "value") else rkind,
+            "asset_count": 0, "states": {},
+        })
+        if state is not None:
+            room["asset_count"] += count
+            room["states"][state.value] = room["states"].get(state.value, 0) + count
+
+    open_by_room = dict((await db.execute(
+        select(Issue.room_id, func.count())
+        .where(Issue.campus_id == campus_id,
+               Issue.status.in_(OPEN_ISSUE_STATES),
+               Issue.room_id.is_not(None))
+        .group_by(Issue.room_id)
+    )).all())
+
     for b in buildings.values():
         present = [AssetState(s) for s in b["states"]]
         worst = _worst(present) if present else AssetState.HEALTHY
         b["aggregate_state"] = worst.value
         b["aggregate_colour"] = STATE_COLOURS[worst.value]
+
+        floors = nested.get(uuid.UUID(b["id"]), {})
+        out_floors = []
+        for floor in sorted(floors.values(), key=lambda f: -f["level"]):
+            rooms = []
+            for room in sorted(floor["rooms"].values(), key=lambda r: r["code"]):
+                states = [AssetState(x) for x in room["states"]]
+                room_worst = _worst(states) if states else AssetState.HEALTHY
+                rooms.append({
+                    "id": room["id"], "code": room["code"], "name": room["name"],
+                    "kind": room["kind"], "asset_count": room["asset_count"],
+                    "state": room_worst.value,
+                    "colour": STATE_COLOURS[room_worst.value],
+                    "open_issues": open_by_room.get(uuid.UUID(room["id"]), 0),
+                })
+            out_floors.append({
+                "id": floor["id"], "name": floor["name"],
+                "level": floor["level"], "rooms": rooms,
+            })
+        b["floors"] = out_floors
+        b["room_count"] = sum(len(f["rooms"]) for f in out_floors)
 
     totals = {
         "buildings": len(buildings),

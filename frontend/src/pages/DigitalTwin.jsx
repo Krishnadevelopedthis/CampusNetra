@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Building2, ChevronRight, CircleDot, Layers, Radio, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { EmptyState, ErrorState, RefreshButton, Spinner, StatusPill, Widget } from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
@@ -11,6 +11,8 @@ import { ago, titleCase } from '@/lib/format'
 
 export default function DigitalTwin() {
   const { floorId } = useParams()
+  const [searchParams] = useSearchParams()
+  const wantedRoom = searchParams.get('room')
   const navigate = useNavigate()
   const qc = useQueryClient()
 
@@ -62,6 +64,15 @@ export default function DigitalTwin() {
     queryFn: () => api.get(`/campus/floors/${selectedFloor}/plan`),
     enabled: !!selectedFloor,
   })
+
+  // Arriving from the campus map with ?room=… — select that room as soon as
+  // the plan holding it has loaded, so the deep link lands on the thing the
+  // user clicked rather than on the floor that contains it.
+  useEffect(() => {
+    if (!wantedRoom || !plan.data?.rooms) return
+    const match = plan.data.rooms.find((r) => r.id === wantedRoom)
+    if (match) setSelectedRoom(match)
+  }, [wantedRoom, plan.data])
 
   // Live socket: refetch the plan whenever anything on this campus changes.
   useEffect(() => {
