@@ -54,9 +54,20 @@ export const useAuth = create((set, get) => ({
       const user = await api.get('/auth/me')
       writeAuth({ ...stored, user })
       set({ user, initialised: true })
-    } catch {
-      writeAuth(null)
-      set({ user: null, initialised: true })
+    } catch (err) {
+      // Only the server rejecting the session ends it. A network failure or a
+      // server error means we could not find out — and a sleeping free-tier
+      // instance makes the first request after a quiet spell routinely time
+      // out. Clearing the session on that signs people out for coming back
+      // later, which is what "your session expired" was really reporting.
+      if (err?.status === 401 || err?.status === 403) {
+        writeAuth(null)
+        set({ user: null, initialised: true })
+        return
+      }
+      // Carry on with whoever was stored; the next successful call corrects it,
+      // and a genuinely dead session is caught by the request that needs it.
+      set({ user: stored.user ?? null, initialised: true })
     }
   },
 

@@ -103,25 +103,58 @@ export class ApiError extends Error {
 
 let refreshInFlight = null
 
+/**
+ * Exchange the refresh token, tolerating another tab having just done the same.
+ *
+ * Refresh tokens are single-use: presenting one revokes it. `refreshInFlight`
+ * dedupes concurrent requests within a tab, but every tab has its own copy of
+ * this module and they all share localStorage. Two tabs whose access tokens
+ * expire together both present the same refresh token; one wins, and the
+ * loser's is already revoked.
+ *
+ * Treating that 401 as the end of the session logs the user out of every tab —
+ * including the one that just refreshed successfully — because writeAuth(null)
+ * clears the storage they share. So before giving up, look at what is in
+ * storage now: if the refresh token there is not the one we presented, someone
+ * else rotated it and the session is alive.
+ */
 async function refreshTokens() {
   const auth = readAuth()
   if (!auth?.refresh_token) throw new ApiError(401, 'Session expired')
 
   if (!refreshInFlight) {
-    refreshInFlight = fetch(`${BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: auth.refresh_token }),
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new ApiError(401, 'Session expired')
+    const presented = auth.refresh_token
+
+    refreshInFlight = (async () => {
+      let res
+      try {
+        res = await fetch(`${BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: presented }),
+        })
+      } catch {
+        // The network dropped. That is not an expired session, and treating it
+        // as one signs the user out for being briefly offline.
+        throw new ApiError(0)
+      }
+
+      if (res.ok) {
         const tokens = await res.json()
-        writeAuth({ ...auth, ...tokens })
+        // Merge onto whatever storage holds now rather than the copy read
+        // above, so a concurrent profile update is not rolled back.
+        writeAuth({ ...(readAuth() || auth), ...tokens })
         return tokens.access_token
-      })
-      .finally(() => {
-        refreshInFlight = null
-      })
+      }
+
+      const current = readAuth()
+      if (current?.access_token && current.refresh_token !== presented) {
+        return current.access_token
+      }
+      throw new ApiError(401, 'Session expired')
+    })().finally(() => {
+      refreshInFlight = null
+    })
   }
   return refreshInFlight
 }
@@ -185,8 +218,14 @@ export async function upload(path, formData, { params, signal } = {}) {
   if (res.status === 401 && stored?.refresh_token) {
     try {
       res = await send(await refreshTokens())
-    } catch {
+    } catch (err) {
+      // Only an actually-rejected session ends it. A refresh that failed
+      // because the network was down leaves the user signed in to retry.
+      if (err?.status === 0) throw err
       writeAuth(null)
+      if (!location.pathname.startsWith('/login')) {
+        location.assign('/login?expired=1')
+      }
       throw new ApiError(401, 'Your session has expired. Please sign in again.')
     }
   }
@@ -238,7 +277,10 @@ export async function request(path, { method = 'GET', body, params, signal, auth
     try {
       const fresh = await refreshTokens()
       res = await send(fresh)
-    } catch {
+    } catch (err) {
+      // Only an actually-rejected session ends it. A refresh that failed
+      // because the network was down leaves the user signed in to retry.
+      if (err?.status === 0) throw err
       writeAuth(null)
       if (!location.pathname.startsWith('/login')) {
         location.assign('/login?expired=1')
