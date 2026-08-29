@@ -1,5 +1,5 @@
 import {
-  Activity, BarChart3, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
+  Activity, BarChart3, Bell, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
   FileSearch, Gauge, History, LayoutDashboard, ListChecks, MapPinned, Package,
   PlusCircle, Search, Settings, Shield, ShieldAlert, Sparkles, TrendingUp,
   Users, Wrench,
@@ -79,6 +79,8 @@ export const ADMIN_NAV = [
   { to: '/admin/issue-config', label: 'Issue Configuration', icon: FileSearch },
   { to: '/admin/lost-found', label: 'Lost & Found Desk', icon: Search },
   { to: '/admin/ai', label: 'AI Management', icon: Sparkles },
+  { to: '/admin/inspection-config', label: 'Inspection Checklists', icon: ClipboardCheck },
+  { to: '/admin/notifications', label: 'Notifications', icon: Bell },
   { to: '/admin/sla', label: 'SLA Policies', icon: Shield },
   { to: '/admin/audit', label: 'Audit & Security', icon: ShieldAlert },
 ]
