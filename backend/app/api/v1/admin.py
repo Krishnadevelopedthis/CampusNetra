@@ -205,6 +205,32 @@ async def deactivate_user(
     return Message(detail=f"{target.full_name} deactivated and signed out everywhere.")
 
 
+@router.post("/users/{user_id}/activate", response_model=Message)
+async def activate_user(
+    user_id: uuid.UUID, admin: RequireAdmin, db: DB, request: Request
+):
+    """Restore a deactivated or suspended account.
+
+    Their old sessions stay revoked — deactivating signed every device out, and
+    reactivating should not silently hand those sessions back. They sign in
+    again, which is also the moment their password is checked once more.
+    """
+    target = await db.scalar(select(User).where(User.id == user_id))
+    if target is None or target.organization_id != admin.organization_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if target.status == UserStatus.ACTIVE:
+        return Message(detail=f"{target.full_name} is already active.")
+
+    target.status = UserStatus.ACTIVE
+
+    await record_audit(
+        db, action="user.activate", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="user", entity_id=target.id,
+        ip_address=client_ip(request),
+    )
+    return Message(detail=f"{target.full_name} reactivated. They can sign in again.")
+
+
 # ---------------- Departments & roles ----------------
 @router.get("/departments", response_model=list[dict])
 async def list_departments(user: CurrentUser, db: DB):

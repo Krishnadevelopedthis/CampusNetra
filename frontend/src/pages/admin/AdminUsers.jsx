@@ -15,16 +15,32 @@ const ROLES = ['student', 'teacher', 'technician', 'facility_manager', 'admin']
 // Roles that belong to a course rather than to a maintenance team.
 const STUDY_ROLES = ['student', 'teacher']
 
+// Values must match UserStatus in backend/app/core/enums.py — the filter is
+// validated server-side, so a wrong entry here is a dropdown that 422s.
+const STATUSES = ['active', 'deactivated', 'suspended', 'pending_verification']
+const STATUS_LABEL = {
+  active: 'Active only',
+  deactivated: 'Deactivated only',
+  suspended: 'Suspended only',
+  pending_verification: 'Awaiting verification',
+}
+
 export default function AdminUsers() {
   const { isAdmin, user: me } = useAuth()
   const qc = useQueryClient()
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [role, setRole] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState(null)
 
-  const params = { page, page_size: 20, q: q || undefined, role: role || undefined }
+  const params = {
+    page, page_size: 20,
+    q: q || undefined,
+    role: role || undefined,
+    status: statusFilter || undefined,
+  }
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-users', params],
     queryFn: () => api.get('/admin/users', { params }),
@@ -42,10 +58,17 @@ export default function AdminUsers() {
     qc.invalidateQueries({ queryKey: ['admin-roles'] })
   }
 
-  const deactivate = useMutation({
-    mutationFn: (id) => api.post(`/admin/users/${id}/deactivate`),
+  // One mutation is shared by every row, so its isPending is true for all of
+  // them at once. Binding a row's spinner to that made a single click look like
+  // it was deactivating the entire list. Track which row is actually in flight.
+  const [pendingId, setPendingId] = useState(null)
+
+  const setStatus = useMutation({
+    mutationFn: ({ id, action }) => api.post(`/admin/users/${id}/${action}`),
+    onMutate: ({ id }) => setPendingId(id),
     onSuccess: (d) => { toast.success(d.detail); invalidate() },
     onError: (err) => toast.error(err.detail),
+    onSettled: () => setPendingId(null),
   })
 
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 0
@@ -64,6 +87,25 @@ export default function AdminUsers() {
             <option value="">All roles</option>
             {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </Select>
+
+          {/* Deactivated accounts are hidden by default, which makes them hard
+              to find again — and reactivating one requires finding it first. */}
+          <Select value={statusFilter}
+                  onChange={(e) => { setStatusFilter(e.target.value); setPage(1) }}
+                  className="w-auto min-w-[170px]">
+            <option value="">All statuses</option>
+            {STATUSES.map((v) => (
+              <option key={v} value={v}>{STATUS_LABEL[v]}</option>
+            ))}
+          </Select>
+
+          {(role || statusFilter || q) && (
+            <Button variant="ghost" size="sm"
+                    onClick={() => { setRole(''); setStatusFilter(''); setQ(''); setPage(1) }}>
+              Clear
+            </Button>
+          )}
+
           {isAdmin() && (
             <Button icon={UserPlus} onClick={() => setCreateOpen(true)}>Add user</Button>
           )}
@@ -113,12 +155,26 @@ export default function AdminUsers() {
                           {isAdmin() && u.id !== me?.id && (
                             <div className="flex gap-1 justify-end">
                               <Button size="sm" variant="ghost" onClick={() => setEditing(u)}>Edit</Button>
-                              {u.status === 'active' && (
+                              {u.status === 'active' ? (
                                 <Button size="sm" variant="ghost"
                                         className="text-danger-text"
-                                        loading={deactivate.isPending}
-                                        onClick={() => deactivate.mutate(u.id)}>
+                                        loading={pendingId === u.id}
+                                        disabled={!!pendingId}
+                                        onClick={() => {
+                                          if (confirm(
+                                            `Deactivate ${u.full_name}? They will be signed out `
+                                            + 'of every device and cannot sign in until reactivated.',
+                                          )) setStatus.mutate({ id: u.id, action: 'deactivate' })
+                                        }}>
                                   Deactivate
+                                </Button>
+                              ) : (
+                                <Button size="sm" variant="ghost"
+                                        className="text-success-text"
+                                        loading={pendingId === u.id}
+                                        disabled={!!pendingId}
+                                        onClick={() => setStatus.mutate({ id: u.id, action: 'activate' })}>
+                                  Activate
                                 </Button>
                               )}
                             </div>
