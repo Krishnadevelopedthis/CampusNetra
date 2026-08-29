@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.core.routing import CommitRoute
 from app.core.enums import InspectionStatus, UserRole
 from app.models.identity import User
 from app.models.spatial import Asset, Room
@@ -23,7 +24,7 @@ from app.schemas.work import (
 )
 from app.services import inspections as svc
 
-router = APIRouter(prefix="/inspections", tags=["Inspections"])
+router = APIRouter(route_class=CommitRoute, prefix="/inspections", tags=["Inspections"])
 
 ACTIVE = [InspectionStatus.SCHEDULED, InspectionStatus.IN_PROGRESS, InspectionStatus.OVERDUE]
 

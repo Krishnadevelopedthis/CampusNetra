@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.core.routing import CommitRoute
 from app.core.enums import IssueStatus, Priority, UserRole
 from app.models.issues import Issue, IssueCategory, IssueDuplicateCandidate, IssueEvent, IssueUpvote
 from app.models.platform import AIFeedback
@@ -21,7 +22,7 @@ from app.schemas.issues import (
 from app.services import issue_views
 from app.services import issues as issue_service
 
-router = APIRouter(prefix="/issues", tags=["Issues"])
+router = APIRouter(route_class=CommitRoute, prefix="/issues", tags=["Issues"])
 
 
 async def _get_issue_or_404(db, issue_id: uuid.UUID, user) -> Issue:

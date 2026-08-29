@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 
 from app.api.deps import DB, CurrentUser, client_ip
+from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.core.enums import UserStatus
 from app.core.security import hash_password, verify_password
@@ -21,7 +22,7 @@ from app.services import auth as auth_service
 from app.services.audit import record_audit
 from app.services.email import send_otp
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(route_class=CommitRoute, prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)

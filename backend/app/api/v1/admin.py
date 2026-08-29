@@ -11,6 +11,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip
+from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.core.enums import Priority, UserRole, UserStatus
 from app.core.security import hash_password
@@ -28,7 +29,7 @@ from app.services.audit import record_audit
 from app.services.templates import NOTIFICATION_CODES, codes_payload
 from app.services.work_orders import create_work_order
 
-router = APIRouter(prefix="/admin", tags=["Administration"])
+router = APIRouter(route_class=CommitRoute, prefix="/admin", tags=["Administration"])
 
 
 # ---------------- Users ----------------

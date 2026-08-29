@@ -11,10 +11,11 @@ import asyncio
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.deps import CurrentUser
+from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.services.storage import UploadError, store_image
 
-router = APIRouter(prefix="/uploads", tags=["Uploads"])
+router = APIRouter(route_class=CommitRoute, prefix="/uploads", tags=["Uploads"])
 
 # A phone photo is a few MB; refuse obviously wrong input before reading it all.
 MAX_FILES = 5

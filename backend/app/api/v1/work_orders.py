@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.core.routing import CommitRoute
 from app.core.enums import WORK_ORDER_TRANSITIONS, Priority, UserRole, WorkOrderStatus
 from app.models.identity import Department, User
 from app.models.issues import Issue
@@ -25,7 +26,7 @@ from app.schemas.work import (
 )
 from app.services import work_orders as wo_service
 
-router = APIRouter(prefix="/work-orders", tags=["Work Orders"])
+router = APIRouter(route_class=CommitRoute, prefix="/work-orders", tags=["Work Orders"])
 
 BOARD_COLUMNS = [
     WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS,

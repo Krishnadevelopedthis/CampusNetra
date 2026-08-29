@@ -9,12 +9,13 @@ from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconn
 from sqlalchemy import func, select, update
 
 from app.api.deps import DB, CurrentUser
+from app.core.routing import CommitRoute
 from app.core.security import decode_token
 from app.models.platform import Notification
 from app.schemas.common import Message
 from app.services.realtime import users as user_hub
 
-router = APIRouter(prefix="/notifications", tags=["Notifications"])
+router = APIRouter(route_class=CommitRoute, prefix="/notifications", tags=["Notifications"])
 
 
 @router.get("", response_model=dict)

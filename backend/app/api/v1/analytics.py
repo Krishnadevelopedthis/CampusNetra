@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from app.api.deps import DB, CurrentUser, RequireManager
+from app.core.routing import CommitRoute
 from app.core.enums import IssueStatus, Priority, UserRole, WorkOrderStatus
 from app.models.identity import Department, User
 from app.models.issues import Issue, IssueCategory
@@ -19,7 +20,7 @@ from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Ro
 from app.models.work import WorkOrder
 from app.services.references import next_reference
 
-router = APIRouter(prefix="/analytics", tags=["Analytics & Simulation"])
+router = APIRouter(route_class=CommitRoute, prefix="/analytics", tags=["Analytics & Simulation"])
 
 OPEN_ISSUES = [IssueStatus.REPORTED, IssueStatus.TRIAGED, IssueStatus.ASSIGNED,
                IssueStatus.IN_PROGRESS, IssueStatus.ON_HOLD]

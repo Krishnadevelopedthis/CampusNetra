@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.core.routing import CommitRoute
 from app.core.enums import ClaimStatus, LFKind, LFStatus, MatchStatus, UserRole
 from app.models.identity import User
 from app.models.lostfound import LFAttachment, LFCategory, LFClaim, LFItem, LFMatch
@@ -22,7 +23,7 @@ from app.schemas.lostfound import (
 )
 from app.services import lostfound as lf_service
 
-router = APIRouter(prefix="/lost-found", tags=["Lost & Found"])
+router = APIRouter(route_class=CommitRoute, prefix="/lost-found", tags=["Lost & Found"])
 
 OPEN_STATES = [LFStatus.OPEN, LFStatus.MATCHED, LFStatus.CLAIM_PENDING]
 

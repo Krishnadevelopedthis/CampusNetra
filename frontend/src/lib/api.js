@@ -147,9 +147,18 @@ async function refreshTokens() {
         return tokens.access_token
       }
 
-      const current = readAuth()
-      if (current?.access_token && current.refresh_token !== presented) {
-        return current.access_token
+      // The winner's rejection reaches us before it has written its new token
+      // to storage as often as not — both responses land within a few
+      // milliseconds of each other. Look once, then look again after a moment
+      // before concluding the session is over.
+      for (const wait of [0, 150, 400]) {
+        if (wait) await new Promise((r) => setTimeout(r, wait))
+        const current = readAuth()
+        if (current?.access_token && current.refresh_token !== presented) {
+          return current.access_token
+        }
+        // Storage cleared by whichever tab decided the session was over.
+        if (!current?.refresh_token) break
       }
       throw new ApiError(401, 'Session expired')
     })().finally(() => {

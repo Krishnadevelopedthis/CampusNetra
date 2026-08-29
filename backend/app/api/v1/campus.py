@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff
+from app.core.routing import CommitRoute
 from app.core.enums import AssetState, IssueStatus, RoomKind
 from app.models.identity import Organization
 from app.models.issues import Issue
@@ -27,7 +28,7 @@ from app.schemas.common import Message, Page
 from app.services.realtime import hub
 from app.services.twin import STATE_COLOURS, STATE_LABELS, set_asset_state
 
-router = APIRouter(prefix="/campus", tags=["Campus & Digital Twin"])
+router = APIRouter(route_class=CommitRoute, prefix="/campus", tags=["Campus & Digital Twin"])
 
 # Ranked worst-first: a room shows the most severe state among its assets.
 _SEVERITY = [

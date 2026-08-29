@@ -12,6 +12,7 @@ from sqlalchemy.orm import aliased
 from app.ai.client import call_text
 from app.ai.classifier import classify
 from app.api.deps import DB, CurrentUser, RequireManager
+from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.core.enums import AssetState, IssueStatus, UserRole
 from app.models.issues import Issue, IssueCategory, IssueDuplicateCandidate
@@ -21,7 +22,7 @@ from app.models.spatial import Asset, Building, Campus, Floor, Room
 from app.models.work import WorkOrder
 from app.services.issues import load_categories
 
-router = APIRouter(prefix="/ai", tags=["AI & Intelligence"])
+router = APIRouter(route_class=CommitRoute, prefix="/ai", tags=["AI & Intelligence"])
 
 OPEN_ISSUES = [IssueStatus.REPORTED, IssueStatus.TRIAGED, IssueStatus.ASSIGNED,
                IssueStatus.IN_PROGRESS, IssueStatus.ON_HOLD]
