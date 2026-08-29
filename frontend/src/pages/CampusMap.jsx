@@ -1,12 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
-import { Building2, Download, Flame, MapPinned } from 'lucide-react'
+import { Download, Flame, MapPinned } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Metric, Select, Spinner, Widget,
+  Button,
+  EmptyState,
+  ErrorState,
+  Metric,
+  RefreshButton,
+  Select,
+  Spinner,
+  Widget,
 } from '@/components/ui'
 import { TwinLegend } from '@/features/twin/FloorPlan'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { TWIN_STATE } from '@/lib/format'
 
@@ -54,6 +61,10 @@ export default function CampusMap() {
     enabled: !!campusId,
   })
 
+  const { refresh, refreshing } = useRefresh(
+    overview.refetch, heat.refetch, campuses.refetch,
+  )
+
   if (campuses.isLoading || overview.isLoading) return <Spinner label="Loading campus map…" />
   if (overview.error) return <ErrorState error={overview.error} onRetry={overview.refetch} />
 
@@ -98,6 +109,7 @@ export default function CampusMap() {
             <option value={90}>Last 90 days</option>
           </Select>
           <Button variant="secondary" icon={Download} onClick={exportCsv}>Export CSV</Button>
+          <RefreshButton onRefresh={refresh} refreshing={refreshing} />
         </div>
       </header>
 

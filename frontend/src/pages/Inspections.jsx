@@ -1,14 +1,23 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  AlertTriangle, CalendarPlus, ClipboardCheck, ClipboardList, Clock,
-} from 'lucide-react'
+import { AlertTriangle, CalendarPlus, ClipboardCheck } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Field, Metric, Modal, Select, SkeletonRows,
-  Spinner, StatusPill, Widget, toast,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  Metric,
+  Modal,
+  PageHeader,
+  Select,
+  SkeletonRows,
+  StatusPill,
+  Widget,
+  toast,
 } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { dt } from '@/lib/format'
@@ -40,21 +49,21 @@ export default function Inspections() {
 
   const t = dashboard.data?.totals
 
+  const { refresh, refreshing } = useRefresh(list.refetch, dashboard.refetch)
+
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-headline-lg text-ink">Inspections</h1>
-          <p className="text-body-md text-ink-muted mt-1">
-            Routine checks. A failed critical item raises an issue automatically.
-          </p>
-        </div>
-        {isManager() && (
+      <PageHeader
+        title="Inspections"
+        subtitle="Routine checks. A failed critical item raises an issue automatically."
+        onRefresh={refresh}
+        refreshing={refreshing}
+        actions={isManager() && (
           <Button icon={CalendarPlus} variant="dark" onClick={() => setScheduleOpen(true)}>
             Schedule inspection
           </Button>
         )}
-      </header>
+      />
 
       {t && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -80,7 +89,7 @@ export default function Inspections() {
           </div>
         </div>
 
-        {list.isLoading ? <SkeletonRows rows={5} cols={6} />
+        {list.isLoading || refreshing ? <SkeletonRows rows={7} cols={6} />
           : list.error ? <ErrorState error={list.error} onRetry={list.refetch} />
           : list.data.items.length === 0 ? (
             <EmptyState icon={ClipboardCheck} title="No inspections here"

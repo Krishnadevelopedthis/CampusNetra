@@ -2,14 +2,34 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Cpu, Download, Flame, Play, TrendingUp } from 'lucide-react'
 import { useState } from 'react'
 import {
-  Bar, BarChart, Cell, Pie, PieChart, PolarAngleAxis, RadialBar, RadialBarChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend,
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
 } from 'recharts'
 
 import {
-  Button, ErrorState, Field, Input, Metric, Select, Spinner, Widget, toast,
+  Button,
+  ErrorState,
+  Field,
+  Input,
+  Metric,
+  RefreshButton,
+  Select,
+  Spinner,
+  Widget,
+  toast,
 } from '@/components/ui'
+import { SkeletonChart, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
 import { useChartTheme } from '@/hooks/useChartTheme'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { money, titleCase } from '@/lib/format'
 
@@ -29,8 +49,10 @@ export default function Analytics() {
     enabled: tab === 'technicians',
   })
 
-  if (isLoading) return <Spinner label="Crunching numbers…" />
-  if (error) return <ErrorState error={error} onRetry={refetch} />
+  const { refresh, refreshing } = useRefresh(refetch, technicians.refetch)
+  const busy = isLoading || refreshing
+
+  if (error && !data) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="space-y-5">
@@ -42,6 +64,7 @@ export default function Analytics() {
           </p>
         </div>
         <div className="flex gap-2">
+          <RefreshButton onRefresh={refresh} refreshing={refreshing} />
           <Select value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-auto">
             <option value={7}>Last 7 days</option>
             <option value={30}>Last 30 days</option>
@@ -62,7 +85,21 @@ export default function Analytics() {
         ))}
       </div>
 
-      {tab === 'overview' && <Overview data={data} />}
+      {tab === 'overview' && (
+        busy || !data ? (
+          <>
+            <SkeletonMetrics />
+            <div className="grid md:grid-cols-2 gap-4">
+              <SkeletonChart />
+              <SkeletonChart />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <SkeletonWidget lines={5} />
+              <SkeletonWidget lines={5} />
+            </div>
+          </>
+        ) : <Overview data={data} />
+      )}
       {tab === 'technicians' && <Technicians query={technicians} />}
       {tab === 'simulation' && <SimulationPanel />}
     </div>

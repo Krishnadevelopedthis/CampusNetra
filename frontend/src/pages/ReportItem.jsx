@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { CheckCircle2, HandHeart, PackageSearch, SearchX, Send } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { CheckCircle2, HandHeart, SearchX, Send } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Button, Field, Input, Select, Textarea, Widget, toast } from '@/components/ui'

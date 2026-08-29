@@ -1,8 +1,19 @@
 import { useMutation } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell, Clock, Contrast, Download, KeyRound, LogOut, Mail, Monitor,
-  Palette, ShieldAlert, Sparkles, Table2, Trash2, Type,
+  Bell,
+  Clock,
+  Contrast,
+  Download,
+  KeyRound,
+  LogOut,
+  Mail,
+  Palette,
+  ShieldAlert,
+  Sparkles,
+  Table2,
+  Trash2,
+  Type,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { AlertCircle, Check, ChevronDown, Loader2, X } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
 import { forwardRef, useEffect, useRef, useState } from 'react'
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 
@@ -131,6 +131,41 @@ export function Avatar({ name, src, size = 32, className }) {
 }
 
 /* ---------------- Empty / loading / error states ---------------- */
+/**
+ * Standard page header. Pulled out of the pages because the refresh control
+ * belongs in the same place on every one of them — a control that moves is a
+ * control people stop looking for.
+ */
+export function PageHeader({ title, subtitle, actions, onRefresh, refreshing }) {
+  return (
+    <header className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-headline-lg text-ink">{title}</h1>
+        {subtitle && <p className="text-body-md text-ink-muted mt-1">{subtitle}</p>}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        {actions}
+        {onRefresh && <RefreshButton onRefresh={onRefresh} refreshing={refreshing} />}
+      </div>
+    </header>
+  )
+}
+
+export function RefreshButton({ onRefresh, refreshing, className }) {
+  return (
+    <button
+      type="button"
+      onClick={onRefresh}
+      disabled={refreshing}
+      title="Refresh"
+      aria-label={refreshing ? 'Refreshing' : 'Refresh'}
+      className={clsx('btn-secondary h-10 w-10 p-0', className)}
+    >
+      <RefreshCw size={16} className={clsx(refreshing && 'animate-spin')} />
+    </button>
+  )
+}
+
 export function EmptyState({ icon: Icon, title, description, action }) {
   return (
     <div className="text-center py-14 px-6">

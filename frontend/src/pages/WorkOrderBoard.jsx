@@ -2,9 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { List } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { ErrorState, PriorityPill, Spinner, Widget } from '@/components/ui'
+import { ErrorState, PageHeader, PriorityPill } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
-import { ago, slaLabel } from '@/lib/format'
+import { slaLabel } from '@/lib/format'
 
 const COLUMN_ACCENT = {
   open: '#94a3b8', assigned: '#3b82f6', in_progress: '#f59e0b',
@@ -17,20 +18,41 @@ export default function WorkOrderBoard() {
     queryFn: () => api.get('/work-orders/board'),
   })
 
-  if (isLoading) return <Spinner label="Loading board…" />
-  if (error) return <ErrorState error={error} onRetry={refetch} />
+  const { refresh, refreshing } = useRefresh(refetch)
+
+  if (error && !data) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-headline-lg text-ink">Work Order Board</h1>
-          <p className="text-body-md text-ink-muted mt-1">
-            {data.total} active job{data.total === 1 ? '' : 's'} across the pipeline.
-          </p>
+      <PageHeader
+        title="Work Order Board"
+        subtitle={data
+          ? `${data.total} active job${data.total === 1 ? '' : 's'} across the pipeline.`
+          : 'Jobs across the pipeline.'}
+        onRefresh={refresh}
+        refreshing={refreshing}
+        actions={<Link to="/work-orders" className="btn-secondary"><List size={16} /> List view</Link>}
+      />
+
+      {isLoading || refreshing ? (
+        <div className="overflow-x-auto pb-2">
+          <div className="flex gap-4 min-w-max">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="w-[300px] shrink-0 widget bg-surface-sunken">
+                <div className="px-3 py-2.5 border-b border-border-subtle">
+                  <div className="skeleton h-4 w-2/3" />
+                </div>
+                <div className="p-3 space-y-2">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="skeleton h-20 rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <Link to="/work-orders" className="btn-secondary"><List size={16} /> List view</Link>
-      </header>
+      ) : (
+      <>
 
       <div className="overflow-x-auto pb-2">
         <div className="flex gap-4 min-w-max">
@@ -84,6 +106,8 @@ export default function WorkOrderBoard() {
           ))}
         </div>
       </div>
+      </>
+      )}
     </div>
   )
 }

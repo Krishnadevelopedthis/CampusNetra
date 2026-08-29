@@ -4,10 +4,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Metric, Select, Spinner, StatusPill, Widget,
+  EmptyState,
+  ErrorState,
+  Metric,
+  RefreshButton,
+  Select,
+  Spinner,
+  StatusPill,
+  Widget,
 } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
-import { ago, slaLabel } from '@/lib/format'
+import { ago } from '@/lib/format'
 
 const VB = 1000
 const PRIORITIES = ['critical', 'high', 'medium', 'low']
@@ -60,6 +68,8 @@ export default function IssueMap() {
     [map.data],
   )
 
+  const { refresh, refreshing } = useRefresh(map.refetch, plan.refetch)
+
   if (campuses.isLoading) return <Spinner label="Loading campus…" />
   if (campuses.error) return <ErrorState error={campuses.error} onRetry={campuses.refetch} />
 
@@ -90,6 +100,7 @@ export default function IssueMap() {
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
           </Select>
+          <RefreshButton onRefresh={refresh} refreshing={refreshing} />
         </div>
       </header>
 
@@ -125,7 +136,9 @@ export default function IssueMap() {
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-5 items-start">
         <Widget bodyClass="p-0" className="overflow-hidden">
-          {plan.isLoading ? <Spinner label="Loading plan…" />
+          {plan.isLoading || refreshing ? (
+            <div className="skeleton w-full rounded-lg" style={{ aspectRatio: '16 / 10' }} />
+          )
             : !rooms.length ? (
               <EmptyState icon={Layers} title="No rooms mapped on this floor"
                           description="Outline the rooms in the Floor Plan editor first." />

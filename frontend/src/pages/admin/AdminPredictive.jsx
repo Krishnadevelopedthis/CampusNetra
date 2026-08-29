@@ -1,11 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Info, TrendingUp, Wrench } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
 
-import {
-  Button, EmptyState, ErrorState, Metric, Spinner, Widget, toast,
-} from '@/components/ui'
+import { Button, EmptyState, ErrorState, Metric, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 

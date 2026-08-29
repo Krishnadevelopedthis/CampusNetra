@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, PriorityPill, Select, SkeletonRows, StatusPill, Widget,
+  Button, EmptyState, ErrorState, PageHeader, PriorityPill, Select, SkeletonRows,
+  StatusPill, Widget,
 } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ago, slaLabel } from '@/lib/format'
@@ -39,6 +41,8 @@ export default function IssueList() {
     keepPreviousData: true,
   })
 
+  const { refresh, refreshing } = useRefresh(refetch)
+
   const clearFilters = () => {
     setQ(''); setStatus(''); setPriority(''); setBreachedOnly(false); setPage(1)
   }
@@ -47,21 +51,19 @@ export default function IssueList() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-headline-lg text-ink">
-            {isReporter ? 'Track Complaints' : 'All Issues'}
-          </h1>
-          <p className="text-body-md text-ink-muted mt-1">
-            {isReporter
-              ? 'Every issue you have reported, with live status.'
-              : 'Every reported issue across the campus.'}
-          </p>
-        </div>
-        <Link to="/issues/new" className="btn-dark">
-          <PlusCircle size={16} /> Report an Issue
-        </Link>
-      </header>
+      <PageHeader
+        title={isReporter ? 'Track Complaints' : 'All Issues'}
+        subtitle={isReporter
+          ? 'Every issue you have reported, with live status.'
+          : 'Every reported issue across the campus.'}
+        onRefresh={refresh}
+        refreshing={refreshing}
+        actions={
+          <Link to="/issues/new" className="btn-dark">
+            <PlusCircle size={16} /> Report an Issue
+          </Link>
+        }
+      />
 
       <Widget bodyClass="p-0">
         {/* Filter bar */}
@@ -111,8 +113,8 @@ export default function IssueList() {
           )}
         </div>
 
-        {isLoading ? (
-          <SkeletonRows rows={6} cols={6} />
+        {isLoading || refreshing ? (
+          <SkeletonRows rows={8} cols={isReporter ? 5 : 6} />
         ) : error ? (
           <ErrorState error={error} onRetry={refetch} />
         ) : data.items.length === 0 ? (

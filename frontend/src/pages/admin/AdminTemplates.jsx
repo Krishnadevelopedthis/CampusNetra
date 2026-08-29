@@ -1,12 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  AlertTriangle, Bell, Camera, ClipboardCheck, Plus, Save, Trash2,
-} from 'lucide-react'
+import { AlertTriangle, Camera, ClipboardCheck, Plus, Save, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 import {
-  Button, EmptyState, ErrorState, Field, Input, Modal, Select, Spinner,
-  Textarea, Widget, toast,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  Modal,
+  Spinner,
+  Textarea,
+  Widget,
+  toast,
 } from '@/components/ui'
 import { api } from '@/lib/api'
 

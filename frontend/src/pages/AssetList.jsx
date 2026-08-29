@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Metric, Select, SkeletonRows, Widget,
+  Button, EmptyState, ErrorState, Metric, PageHeader, Select, SkeletonRows, Widget,
 } from '@/components/ui'
+import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { TWIN_STATE, ago, dt } from '@/lib/format'
 
@@ -61,14 +62,16 @@ export default function AssetList() {
   const filtered = q || state || buildingId || categoryId || needsAttention
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 0
 
+  const { refresh, refreshing } = useRefresh(refetch, totals.refetch)
+
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="text-headline-lg text-ink">Asset Registry</h1>
-        <p className="text-body-md text-ink-muted mt-1">
-          Every tracked asset across the campus, with live condition.
-        </p>
-      </header>
+      <PageHeader
+        title="Asset Registry"
+        subtitle="Every tracked asset across the campus, with live condition."
+        onRefresh={refresh}
+        refreshing={refreshing}
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Metric label="Total assets" value={totals.data?.total ?? '—'} accent="rgb(var(--c-brand))" icon={Boxes} />
@@ -129,7 +132,7 @@ export default function AssetList() {
           {filtered && <Button variant="ghost" size="sm" icon={X} onClick={clear}>Clear</Button>}
         </div>
 
-        {isLoading ? <SkeletonRows rows={8} cols={6} />
+        {isLoading || refreshing ? <SkeletonRows rows={8} cols={6} />
           : error ? <ErrorState error={error} onRetry={refetch} />
           : data.items.length === 0 ? (
             <EmptyState icon={Package} title="No assets match"
