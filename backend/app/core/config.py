@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "production"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: List[str] = ["https://campus-netra-git-main-krishnadevelopedthis-projects.vercel.app"]
+    BACKEND_CORS_ORIGINS: List[str] = ["https://campus-netra-git-main-krishnadevelopedthis-projects.vercel.app,https://campus-netra-krishnadevelopedthis-projects.vercel.app"]
 
     # Database
     DATABASE_URL: str = ( "postgresql+asyncpg://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?ssl=require")
