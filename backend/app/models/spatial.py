@@ -148,6 +148,10 @@ class Asset(UpdatedMixin, Base):
     last_service_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     service_interval_days: Mapped[Optional[int]] = mapped_column(Integer)
     expected_life_months: Mapped[Optional[int]] = mapped_column(Integer)
+    # Budgeted upkeep. Actual spend is derived from completed work orders; this
+    # is the AMC figure, known at install time and used to compare against it.
+    annual_maintenance_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
+    warranty_months: Mapped[Optional[int]] = mapped_column(Integer)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
     room: Mapped[Optional["Room"]] = relationship(back_populates="assets")
