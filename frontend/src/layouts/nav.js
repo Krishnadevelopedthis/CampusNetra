@@ -76,6 +76,7 @@ export const ADMIN_NAV = [
   { to: '/admin/predictive', label: 'Predictive Maintenance', icon: TrendingUp },
   { to: '/admin/floor-plans', label: 'Floor Plans', icon: MapPinned },
   { to: '/admin/issue-config', label: 'Issue Configuration', icon: FileSearch },
+  { to: '/admin/ai', label: 'AI Management', icon: Sparkles },
   { to: '/admin/sla', label: 'SLA Policies', icon: Shield },
   { to: '/admin/audit', label: 'Audit & Security', icon: ShieldAlert },
 ]

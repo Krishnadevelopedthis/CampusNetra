@@ -19,7 +19,7 @@ from app.models.issues import (
     Issue, IssueAttachment, IssueCategory, IssueDuplicateCandidate, IssueEvent,
 )
 from app.models.platform import AIInvocation
-from app.models.spatial import Asset, Building, Campus, Floor, Room
+from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.services import notifications as notify_svc
 from app.services.references import next_reference
 from app.services.twin import record_event, sync_asset_to_issue_status
@@ -163,6 +163,38 @@ async def create_issue(
         if cat:
             issue.department_id = cat.department_id
             issue.sla_due_at = _now() + timedelta(minutes=cat.sla_resolve_mins)
+
+    # A selected asset outranks the text classifier. "The projector will not power
+    # on" matches Electrical on 'power' and 'light' while only 'projector' points
+    # at AV, so keyword weight alone routes it wrongly. The reporter already told
+    # us what the thing is by choosing it from the asset list, and that is
+    # physical evidence rather than an inference from prose.
+    if asset_id:
+        asset_dept = await db.scalar(
+            select(AssetCategory.default_department_id)
+            .join(Asset, Asset.category_id == AssetCategory.id)
+            .where(Asset.id == asset_id)
+        )
+        if asset_dept and asset_dept != issue.department_id:
+            asset_category = await db.scalar(
+                select(IssueCategory).where(
+                    IssueCategory.organization_id == org_id,
+                    IssueCategory.department_id == asset_dept,
+                    IssueCategory.is_active.is_(True),
+                ).limit(1)
+            )
+            previous = issue.category_id
+            issue.department_id = asset_dept
+            if asset_category is not None and category_id is None:
+                issue.category_id = asset_category.id
+                issue.sla_due_at = _now() + timedelta(minutes=asset_category.sla_resolve_mins)
+            # Record why the routing differs from what the text alone suggested,
+            # so the AI review queue is not full of apparent misclassifications.
+            if previous != issue.category_id:
+                issue.ai_reasoning = (
+                    f"{issue.ai_reasoning or ''} Routing corrected from the selected "
+                    f"asset, which belongs to a different department."
+                ).strip()
 
     db.add(IssueEvent(
         issue_id=issue.id, from_status=None, to_status=IssueStatus.REPORTED,
