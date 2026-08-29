@@ -34,13 +34,48 @@ export function writeAuth(value) {
   }
 }
 
+/**
+ * What to show when the server did not give us a sentence worth showing.
+ *
+ * The server already replaces its own 5xx bodies with a generic message, but a
+ * response can still arrive with no body at all — a proxy timeout, a dropped
+ * connection, a gateway error that never reached the application. Those must
+ * not surface as "Bad Gateway" or an empty string.
+ */
+const STATUS_MESSAGE = {
+  0: 'Cannot reach the server. Check your connection and try again.',
+  400: 'That request could not be completed. Please check the details and retry.',
+  401: 'Please sign in to continue.',
+  403: 'You do not have permission to do that.',
+  404: 'We could not find what you were looking for.',
+  409: 'That conflicts with something already saved. Refresh and try again.',
+  413: 'That file is too large to upload.',
+  422: 'Please correct the highlighted fields.',
+  429: 'Too many requests. Please wait a moment and try again.',
+  503: 'The service is temporarily unavailable. Please try again shortly.',
+}
+
+const SERVER_FAULT =
+  'Something went wrong on our end. Please try again in a moment.'
+
+export function friendlyMessage(status, detail) {
+  // A 5xx body is never shown verbatim: even when the server means well, the
+  // message can be a driver error that leaked through a layer we do not own.
+  if (status >= 500) return STATUS_MESSAGE[status] || SERVER_FAULT
+  if (detail && typeof detail === 'string') return detail
+  return STATUS_MESSAGE[status] || SERVER_FAULT
+}
+
 export class ApiError extends Error {
-  constructor(status, detail, fields) {
-    super(detail || `Request failed (${status})`)
+  constructor(status, detail, fields, reference) {
+    super(friendlyMessage(status, detail))
     this.name = 'ApiError'
     this.status = status
-    this.detail = detail
+    /** Always safe to render. */
+    this.detail = friendlyMessage(status, detail)
     this.fields = fields || null
+    /** Correlates with the server log line, for support requests. */
+    this.reference = reference || null
   }
 }
 
@@ -74,9 +109,11 @@ async function parseError(res) {
   try {
     body = await res.json()
   } catch {
-    return new ApiError(res.status, res.statusText)
+    // No JSON body at all: a proxy or gateway answered, not the application.
+    return new ApiError(res.status)
   }
-  return new ApiError(res.status, body.detail, body.fields)
+  const detail = typeof body?.detail === 'string' ? body.detail : null
+  return new ApiError(res.status, detail, body?.fields, body?.reference)
 }
 
 export async function request(path, { method = 'GET', body, params, signal, auth = true } = {}) {
@@ -105,7 +142,13 @@ export async function request(path, { method = 'GET', body, params, signal, auth
   }
 
   const stored = readAuth()
-  let res = await send(stored?.access_token)
+  let res
+  try {
+    res = await send(stored?.access_token)
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err
+    throw new ApiError(0)
+  }
 
   // One retry after a silent refresh; a second 401 means the session is truly done.
   if (res.status === 401 && auth && stored?.refresh_token) {

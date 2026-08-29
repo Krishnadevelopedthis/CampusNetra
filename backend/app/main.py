@@ -3,14 +3,17 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -78,6 +81,90 @@ async def validation_handler(request: Request, exc: RequestValidationError):
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": "Please correct the highlighted fields.", "fields": fields},
     )
+
+
+# --------------------------------------------------------------------------
+# Failure disclosure
+#
+# Anything raised deliberately by a route is a message we wrote for the person
+# reading it, and passes through untouched. Anything else — a driver error, a
+# constraint we did not anticipate, a bug — is a sentence we never wrote, and
+# frequently contains a table name, a SQL fragment or a connection string. Those
+# are replaced with a fixed message and a reference the logs can be searched by,
+# so support can find the real cause without it ever reaching the screen.
+# --------------------------------------------------------------------------
+
+GENERIC_ERROR = (
+    "Something went wrong on our end. The team has been notified — "
+    "please try again in a moment."
+)
+
+
+def _reference() -> str:
+    """Short, quotable, and enough to find the traceback in the logs."""
+    return uuid.uuid4().hex[:8]
+
+
+def _failure(status_code: int, detail: str, ref: str | None = None) -> JSONResponse:
+    body: dict[str, object] = {"detail": detail}
+    if ref:
+        body["reference"] = ref
+    return JSONResponse(status_code=status_code, content=body)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    # 5xx raised as an HTTPException is still a server fault; only the 4xx
+    # messages were written with a reader in mind.
+    if exc.status_code >= 500:
+        ref = _reference()
+        log.error("[%s] %s %s -> %s: %s",
+                  ref, request.method, request.url.path, exc.status_code, exc.detail)
+        return _failure(exc.status_code, GENERIC_ERROR, ref)
+    return _failure(exc.status_code, exc.detail if isinstance(exc.detail, str)
+                    else "That request could not be completed.")
+
+
+@app.exception_handler(IntegrityError)
+async def integrity_handler(request: Request, exc: IntegrityError):
+    """A constraint we did not check first. The driver's message names the
+    constraint and often the row, so it is logged rather than returned."""
+    ref = _reference()
+    log.warning("[%s] integrity error on %s %s: %s",
+                ref, request.method, request.url.path, exc.orig)
+    return _failure(
+        status.HTTP_409_CONFLICT,
+        "That conflicts with something already saved. Refresh and try again.",
+        ref,
+    )
+
+
+@app.exception_handler(OperationalError)
+async def operational_handler(request: Request, exc: OperationalError):
+    """The database is unreachable or refusing connections. Distinct from a bug:
+    retrying actually is the right advice, and the status says so."""
+    ref = _reference()
+    log.error("[%s] database unavailable on %s %s: %s",
+              ref, request.method, request.url.path, exc.orig)
+    return _failure(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "The service is temporarily unavailable. Please try again shortly.",
+        ref,
+    )
+
+
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_handler(request: Request, exc: SQLAlchemyError):
+    ref = _reference()
+    log.exception("[%s] database error on %s %s", ref, request.method, request.url.path)
+    return _failure(status.HTTP_500_INTERNAL_SERVER_ERROR, GENERIC_ERROR, ref)
+
+
+@app.exception_handler(Exception)
+async def unhandled_handler(request: Request, exc: Exception):
+    ref = _reference()
+    log.exception("[%s] unhandled error on %s %s", ref, request.method, request.url.path)
+    return _failure(status.HTTP_500_INTERNAL_SERVER_ERROR, GENERIC_ERROR, ref)
 
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
