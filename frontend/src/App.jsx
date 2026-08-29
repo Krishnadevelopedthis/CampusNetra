@@ -127,6 +127,12 @@ export default function App() {
             <Route path="/lost-found/items/:id" element={<LostFoundItem />} />
 
             <Route path="/analytics" element={<RequireAuth roles={MANAGER}><Analytics /></RequireAuth>} />
+            {/* The sidebar lists Simulation separately, so it needs a path of
+                its own — sharing /analytics would light up both nav entries. */}
+            <Route
+              path="/simulation"
+              element={<RequireAuth roles={MANAGER}><Analytics defaultTab="simulation" /></RequireAuth>}
+            />
 
             <Route path="/help" element={<Help />} />
 

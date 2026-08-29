@@ -35,9 +35,11 @@ import { money, titleCase } from '@/lib/format'
 
 
 
-export default function Analytics() {
+export default function Analytics({ defaultTab = 'overview' }) {
   const [days, setDays] = useState(30)
-  const [tab, setTab] = useState('overview')
+  // Simulation has its own sidebar entry and therefore its own route, so which
+  // tab opens depends on how the page was reached.
+  const [tab, setTab] = useState(defaultTab)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['analytics', days],
