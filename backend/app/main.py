@@ -189,6 +189,11 @@ async def health():
         "status": "ok" if db_ok else "degraded",
         "database": "up" if db_ok else "down",
         "ai": "live" if settings.ai_available else "heuristic",
+        # Which transport is configured — the provider name only, never the key.
+        # Without this there is no way to tell a deployment that cannot send
+        # email from one whose mail is simply slow: production hides the
+        # fallback code, so both look identical from the browser.
+        "email": settings.email_provider,
         "environment": settings.ENVIRONMENT,
         "version": app.version,
     }
