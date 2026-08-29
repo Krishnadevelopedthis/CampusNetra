@@ -159,6 +159,12 @@ async def create_work_order(
             body=f"{wo.reference} — {priority.value} priority",
             link=f"/work-orders/{wo.id}", kind="work_order",
             entity_type="work_order", entity_id=wo.id,
+            code="workorder.assigned",
+            context={
+                "reference": wo.reference, "title": title,
+                "priority": priority.value,
+                "due": wo.sla_due_at.strftime("%d %b %Y, %H:%M") if wo.sla_due_at else "",
+            },
         )
     return wo
 
@@ -196,6 +202,12 @@ async def assign_work_order(
         body=f"{wo.reference} — {wo.priority.value} priority",
         link=f"/work-orders/{wo.id}", kind="work_order",
         entity_type="work_order", entity_id=wo.id,
+        code="workorder.assigned",
+        context={
+            "reference": wo.reference, "title": wo.title,
+            "priority": wo.priority.value,
+            "due": wo.sla_due_at.strftime("%d %b %Y, %H:%M") if wo.sla_due_at else "",
+        },
     )
     return wo
 

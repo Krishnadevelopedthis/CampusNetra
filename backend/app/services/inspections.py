@@ -70,12 +70,21 @@ async def schedule_inspection(
     await db.flush()
 
     if assigned_to:
+        room_name = ""
+        if room_id:
+            room_name = await db.scalar(select(Room.name).where(Room.id == room_id)) or ""
         await notify_svc.notify(
             db, [assigned_to],
             title=f"Inspection scheduled: {template.name}",
             body=f"{inspection.reference} due {scheduled_for.strftime('%d %b %Y, %H:%M')}",
             link=f"/inspections/{inspection.id}", kind="inspection",
             entity_type="inspection", entity_id=inspection.id,
+            code="inspection.due",
+            context={
+                "reference": inspection.reference, "template": template.name,
+                "room": room_name,
+                "due": scheduled_for.strftime("%d %b %Y, %H:%M"),
+            },
         )
     return inspection
 

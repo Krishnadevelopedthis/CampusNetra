@@ -234,6 +234,14 @@ async def create_issue(
         body=f"{issue.reference} reported at {location_note or 'campus'}",
         link=f"/issues/{issue.id}", kind="issue",
         entity_type="issue", entity_id=issue.id,
+        code="issue.created",
+        context={
+            "reference": issue.reference,
+            "title": title,
+            "location": location_note or "campus",
+            "priority": issue.priority.value,
+            "reporter": reporter.full_name,
+        },
     )
 
     return issue, candidates
@@ -285,12 +293,19 @@ async def transition_issue(
 
     # Keep the reporter informed unless they made the change themselves.
     if issue.reported_by != actor.id:
+        resolved = target in (IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED)
         await notify_svc.notify(
             db, [issue.reported_by],
             title=f"{issue.reference} is now {target.value.replace('_', ' ')}",
             body=note or f"Your report '{issue.title}' was updated.",
             link=f"/issues/{issue.id}", kind="issue_update",
             entity_type="issue", entity_id=issue.id,
+            code="issue.resolved" if resolved else None,
+            context={
+                "reference": issue.reference,
+                "title": issue.title,
+                "resolution": note or target.value.replace("_", " "),
+            },
         )
 
     return issue
