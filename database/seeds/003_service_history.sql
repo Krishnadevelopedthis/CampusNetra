@@ -46,4 +46,19 @@ SELECT
 FROM generate_series(1, 4) AS gs
 ON CONFLICT (reference) DO NOTHING;
 
+-- Warranty dates relative to today rather than fixed calendar dates. Hardcoded
+-- years mean every asset eventually reads as out of warranty, which flattens
+-- the predictive model's warranty signal to a constant and makes the registry
+-- look broken.
+UPDATE assets SET warranty_expiry = (now() + INTERVAL '18 months')::date WHERE tag = 'AC-202-A';
+UPDATE assets SET warranty_expiry = (now() + INTERVAL '14 months')::date WHERE tag = 'PRJ-202-1';
+UPDATE assets SET warranty_expiry = (now() + INTERVAL '9 months')::date  WHERE tag = 'NET-L2-AP';
+UPDATE assets SET warranty_expiry = (now() + INTERVAL '4 months')::date  WHERE tag = 'NET-201-AP';
+UPDATE assets SET warranty_expiry = (now() + INTERVAL '2 months')::date  WHERE tag = 'FAN-102-A';
+UPDATE assets SET warranty_expiry = (now() - INTERVAL '3 months')::date  WHERE tag = 'FAN-101-A';
+UPDATE assets SET warranty_expiry = (now() - INTERVAL '8 months')::date  WHERE tag = 'LGT-103-1';
+UPDATE assets SET warranty_expiry = (now() - INTERVAL '14 months')::date WHERE tag = 'P-101';
+UPDATE assets SET warranty_expiry = (now() - INTERVAL '20 months')::date WHERE tag = 'PLB-W1-T1';
+UPDATE assets SET warranty_expiry = (now() - INTERVAL '3 years')::date   WHERE tag = 'PC-201-01';
+
 COMMIT;
