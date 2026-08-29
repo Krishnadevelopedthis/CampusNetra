@@ -17,6 +17,7 @@ const Dashboard      = lazy(() => import('@/pages/Dashboard'))
 const ReportIssue    = lazy(() => import('@/pages/ReportIssue'))
 const IssueList      = lazy(() => import('@/pages/IssueList'))
 const IssueDetail    = lazy(() => import('@/pages/IssueDetail'))
+const IssueMap       = lazy(() => import('@/pages/IssueMap'))
 const DigitalTwin    = lazy(() => import('@/pages/DigitalTwin'))
 const CampusMap      = lazy(() => import('@/pages/CampusMap'))
 const FloorPlanEditor= lazy(() => import('@/pages/FloorPlanEditor'))
@@ -95,6 +96,7 @@ export default function App() {
 
             <Route path="/issues" element={<IssueList />} />
             <Route path="/issues/new" element={<ReportIssue />} />
+            <Route path="/issues/map" element={<IssueMap />} />
             <Route path="/issues/:id" element={<IssueDetail />} />
 
             <Route path="/map" element={<CampusMap />} />
