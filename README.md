@@ -1,7 +1,6 @@
 # Campus Netra
 
-postgresql://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?ssl=require
-AI-powered campus facility management and Lost & Found.
+
 
 Report a campus problem with a photo and a location. Campus Netra classifies it,
 routes it to the right department, opens a work order, and turns the marker red on
