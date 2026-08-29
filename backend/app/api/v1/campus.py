@@ -6,10 +6,11 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff
-from app.core.enums import AssetState, IssueStatus
+from app.core.enums import AssetState, IssueStatus, RoomKind
 from app.models.identity import Organization
 from app.models.issues import Issue
 from app.models.spatial import (
@@ -248,6 +249,181 @@ async def floor_plan(floor_id: uuid.UUID, user: CurrentUser, db: DB):
         legend=LEGEND,
         generated_at=datetime.now(timezone.utc),
     )
+
+
+# ---------------------------------------------------------------- editing
+class FloorPlanImage(BaseModel):
+    floor_plan_url: str
+    plan_width: Optional[int] = None
+    plan_height: Optional[int] = None
+
+
+class RoomUpsert(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    code: str = Field(min_length=1, max_length=30)
+    kind: RoomKind = RoomKind.CLASSROOM
+    capacity: Optional[int] = Field(None, ge=0)
+    area_sqft: Optional[float] = Field(None, ge=0)
+    # Polygon as [[x, y], …] normalised 0..1 against the floor plan.
+    boundary: Optional[list] = None
+
+
+class AssetPlacement(BaseModel):
+    pos_x: float = Field(ge=0, le=1)
+    pos_y: float = Field(ge=0, le=1)
+
+
+def _validate_boundary(boundary: Optional[list]) -> Optional[list]:
+    """A malformed polygon renders as an invisible or nonsensical room, so
+    reject it here rather than letting it reach the twin."""
+    if boundary is None:
+        return None
+    if not isinstance(boundary, list) or len(boundary) < 3:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "A room outline needs at least three points.")
+    cleaned = []
+    for point in boundary:
+        if not isinstance(point, (list, tuple)) or len(point) != 2:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "Each outline point must be a pair of coordinates.")
+        x, y = point
+        try:
+            x, y = float(x), float(y)
+        except (TypeError, ValueError):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "Outline coordinates must be numbers.")
+        if not (0 <= x <= 1 and 0 <= y <= 1):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Outline coordinates are normalised and must fall between 0 and 1.")
+        cleaned.append([round(x, 5), round(y, 5)])
+    return cleaned
+
+
+@router.patch("/floors/{floor_id}/plan-image", response_model=FloorOut)
+async def set_floor_plan_image(
+    floor_id: uuid.UUID, payload: FloorPlanImage, user: RequireStaff, db: DB
+):
+    """Attach an uploaded plan image to a floor. Upload via /uploads/image first."""
+    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
+    if floor is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+
+    floor.floor_plan_url = payload.floor_plan_url
+    floor.plan_width = payload.plan_width
+    floor.plan_height = payload.plan_height
+    await db.flush()
+    return FloorOut.model_validate(floor)
+
+
+@router.post("/floors/{floor_id}/rooms", response_model=RoomOut, status_code=201)
+async def create_room(
+    floor_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
+):
+    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
+    if floor is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+
+    clash = await db.scalar(
+        select(Room.id).where(Room.floor_id == floor_id, Room.code == payload.code))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Room code {payload.code} already exists on this floor.")
+
+    building = await db.scalar(select(Building).where(Building.id == floor.building_id))
+    room = Room(
+        floor_id=floor_id, name=payload.name, code=payload.code, kind=payload.kind,
+        capacity=payload.capacity, area_sqft=payload.area_sqft,
+        boundary=_validate_boundary(payload.boundary),
+        # Deterministic zone id, matching the format used elsewhere.
+        zone_id=f"ZN-BLD{building.code}-F{floor.level}-{payload.code.split('-')[-1]}"
+        if building else None,
+    )
+    db.add(room)
+    await db.flush()
+    await db.refresh(room)
+    return RoomOut.model_validate(room)
+
+
+@router.patch("/rooms/{room_id}", response_model=RoomOut)
+async def update_room(
+    room_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
+):
+    room = await db.scalar(select(Room).where(Room.id == room_id))
+    if room is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+
+    if payload.code != room.code:
+        clash = await db.scalar(
+            select(Room.id).where(
+                Room.floor_id == room.floor_id, Room.code == payload.code,
+                Room.id != room_id))
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT,
+                                f"Room code {payload.code} already exists on this floor.")
+
+    room.name = payload.name
+    room.code = payload.code
+    room.kind = payload.kind
+    room.capacity = payload.capacity
+    room.area_sqft = payload.area_sqft
+    if payload.boundary is not None:
+        room.boundary = _validate_boundary(payload.boundary)
+    await db.flush()
+    return RoomOut.model_validate(room)
+
+
+@router.delete("/rooms/{room_id}", response_model=Message)
+async def delete_room(room_id: uuid.UUID, user: RequireAdmin, db: DB):
+    room = await db.scalar(select(Room).where(Room.id == room_id))
+    if room is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+
+    assets = await db.scalar(
+        select(func.count()).select_from(Asset).where(Asset.room_id == room_id)) or 0
+    if assets:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{room.code} still holds {assets} asset(s). Move or remove them first.")
+
+    await db.delete(room)
+    return Message(detail=f"{room.code} removed.")
+
+
+@router.patch("/assets/{asset_id}/position", response_model=Message)
+async def place_asset(
+    asset_id: uuid.UUID, payload: AssetPlacement, user: RequireStaff, db: DB
+):
+    """Position an asset on the floor plan, normalised within its room."""
+    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+
+    asset.pos_x = payload.pos_x
+    asset.pos_y = payload.pos_y
+    await db.flush()
+    return Message(detail=f"{asset.tag} placed.")
+
+
+@router.post("/rooms/{room_id}/assets", response_model=AssetOut, status_code=201)
+async def create_asset(
+    room_id: uuid.UUID, payload: AssetCreate, user: RequireStaff, db: DB
+):
+    room = await db.scalar(select(Room).where(Room.id == room_id))
+    if room is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+
+    clash = await db.scalar(select(Asset.id).where(Asset.tag == payload.tag))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Asset tag {payload.tag} is already in use.")
+
+    data = payload.model_dump(exclude={"room_id"})
+    asset = Asset(room_id=room_id, **data)
+    db.add(asset)
+    await db.flush()
+    await db.refresh(asset)
+    return AssetOut.model_validate(asset)
 
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)
