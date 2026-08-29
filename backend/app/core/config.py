@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:5173"]
 
     # Database
-    DATABASE_URL: str = ( "postgresql+asyncpg://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?ssl=require")
+    DATABASE_URL: str = ( "postgresql+asyncpg://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require")
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
