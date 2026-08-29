@@ -74,6 +74,7 @@ export const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: Gauge, end: true },
   { to: '/admin/users', label: 'Users & Roles', icon: Users },
   { to: '/admin/predictive', label: 'Predictive Maintenance', icon: TrendingUp },
+  { to: '/admin/campus', label: 'Campus & Buildings', icon: Building2 },
   { to: '/admin/floor-plans', label: 'Floor Plans', icon: MapPinned },
   { to: '/admin/issue-config', label: 'Issue Configuration', icon: FileSearch },
   { to: '/admin/ai', label: 'AI Management', icon: Sparkles },
