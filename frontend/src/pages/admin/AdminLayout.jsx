@@ -5,7 +5,7 @@ import { ADMIN_NAV } from '@/layouts/nav'
 
 export default function AdminLayout() {
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 min-w-0">
       <header>
         <h1 className="text-headline-lg text-ink">Administration</h1>
         <p className="text-body-md text-ink-muted mt-1">
@@ -14,7 +14,7 @@ export default function AdminLayout() {
       </header>
 
       {/* Horizontal sub-nav; the module rail is already the primary sidebar. */}
-      <nav className="border-b border-border-subtle overflow-x-auto no-print">
+      <nav className="border-b border-border-subtle strip-scroll no-print">
         <div className="flex gap-1 min-w-max">
           {ADMIN_NAV.map((item) => (
             <NavLink

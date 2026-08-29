@@ -78,13 +78,15 @@ export default function Analytics({ defaultTab = 'overview' }) {
         </div>
       </header>
 
-      <div className="flex p-1 bg-surface-sunken rounded-lg w-fit no-print">
+      <div className="strip-scroll no-print">
+        <div className="flex p-1 bg-surface-sunken rounded-lg w-fit">
         {[['overview', 'Overview'], ['technicians', 'Technicians'], ['simulation', 'Simulation']].map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
                   className={`h-9 px-4 rounded text-body-md font-medium transition-colors ${
                     tab === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
                   }`}>{label}</button>
         ))}
+        </div>
       </div>
 
       {tab === 'overview' && (

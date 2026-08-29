@@ -212,11 +212,15 @@ function Breakdown({ title, subtitle, rows, chart }) {
       ) : (
         <div className="space-y-2.5">
           {rows.map((r, i) => (
-            <div key={r.name} className="flex items-center gap-3">
-              <span className="text-body-md text-ink-muted w-32 truncate shrink-0" title={r.name}>
+            <div key={r.name} className="flex items-center gap-2 sm:gap-3 min-w-0">
+              {/* Fixed columns for the label, the amount and the job count add
+                  up to more than a narrow phone has. The label gives way — it
+                  is the one that can truncate and still be recognised. */}
+              <span className="text-body-md text-ink-muted w-20 sm:w-32 truncate shrink"
+                    title={r.name}>
                 {r.name}
               </span>
-              <div className="flex-1 h-2.5 rounded-full bg-surface-sunken overflow-hidden">
+              <div className="flex-1 min-w-[24px] h-2.5 rounded-full bg-surface-sunken overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{
@@ -225,10 +229,10 @@ function Breakdown({ title, subtitle, rows, chart }) {
                   }}
                 />
               </div>
-              <span className="tabular text-body-md w-24 text-right shrink-0">
+              <span className="tabular text-body-md w-20 sm:w-24 text-right shrink-0">
                 {money(r.total)}
               </span>
-              <span className="tabular text-body-sm text-ink-faint w-10 text-right shrink-0">
+              <span className="tabular text-body-sm text-ink-faint w-8 sm:w-10 text-right shrink-0">
                 {r.jobs}
               </span>
             </div>

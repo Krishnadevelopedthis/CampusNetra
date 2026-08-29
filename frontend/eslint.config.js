@@ -29,6 +29,10 @@ export default [
       'react/jsx-uses-vars': 'error',
       'react/jsx-uses-react': 'off',
       'no-undef': 'error',
+      // no-undef does not see an undefined JSX component — <Input /> with no
+      // import passes it and then throws on render, which is the single most
+      // common way a React page breaks. This is the rule that catches it.
+      'react/jsx-no-undef': 'error',
       'no-unused-vars': ['warn', {
         varsIgnorePattern: '^_', argsIgnorePattern: '^_', ignoreRestSiblings: true,
       }],

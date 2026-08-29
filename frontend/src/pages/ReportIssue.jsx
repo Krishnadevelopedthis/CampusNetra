@@ -1,12 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  Armchair, Droplet, Fan, Lightbulb, MapPin, Monitor, Send, Sparkles,
-  Video, Wifi, Wrench,
+  Armchair, Droplet, Fan, HelpCircle, Lightbulb, MapPin, Monitor, Send, Sparkles, Video, Wifi, Wrench,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Button, Field, PriorityPill, Select, Textarea, Widget, toast } from '@/components/ui'
+import {
+  Button, Field, Input, PriorityPill, Select, Textarea, Widget, toast,
+} from '@/components/ui'
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 
@@ -24,6 +25,8 @@ export default function ReportIssue() {
   const [floorId, setFloorId] = useState('')
   const [roomId, setRoomId] = useState('')
   const [assetId, setAssetId] = useState('')
+  // null = not reporting an unlisted item; a string = its name, possibly blank.
+  const [otherAsset, setOtherAsset] = useState(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [locationNote, setLocationNote] = useState('')
@@ -97,7 +100,11 @@ export default function ReportIssue() {
     setErrors({})
     submit.mutate({
       title: title.trim(),
-      description: description.trim(),
+      // No asset row to point at, so the name goes where a human will read it,
+      // marked so whoever maintains the register can act on the gap.
+      description: otherAsset?.trim()
+        ? `${description.trim()}\n\n[Unlisted equipment: ${otherAsset.trim()}]`
+        : description.trim(),
       campus_id: campusId,
       building_id: buildingId || null,
       floor_id: floorId || null,
@@ -210,19 +217,15 @@ export default function ReportIssue() {
               <p className="text-body-md text-ink-faint py-6 text-center">
                 Pick a building, floor and room to list the equipment there.
               </p>
-            ) : selectedRoom.assets.length === 0 ? (
-              <p className="text-body-md text-ink-faint py-6 text-center">
-                No assets are mapped in this room. You can still report a general issue.
-              </p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
                 {selectedRoom.assets.map((a) => {
                   const Icon = ICONS[a.category_icon] || Wrench
                   const selected = assetId === a.id
                   return (
                     <button
                       key={a.id} type="button"
-                      onClick={() => setAssetId(selected ? '' : a.id)}
+                      onClick={() => { setAssetId(selected ? '' : a.id); setOtherAsset(null) }}
                       className={`relative flex flex-col items-center gap-2 p-3 rounded border transition-colors ${
                         selected
                           ? 'border-secondary bg-info-bg ring-1 ring-secondary'
@@ -241,6 +244,55 @@ export default function ReportIssue() {
                     </button>
                   )
                 })}
+
+                {/* Registers are never complete, and the person standing in
+                    front of the broken thing is the one who found the gap.
+                    Naming it here keeps the report attached to the room, and
+                    gives whoever maintains the register something to act on. */}
+                <button
+                  type="button"
+                  onClick={() => { setAssetId(''); setOtherAsset((v) => (v === null ? '' : null)) }}
+                  className={`relative flex flex-col items-center justify-center gap-2 p-3
+                              rounded-xl border border-dashed transition-colors ${
+                    otherAsset !== null
+                      ? 'border-secondary bg-info-bg ring-1 ring-secondary'
+                      : 'border-border-strong bg-surface hover:bg-surface-sunken'
+                  }`}
+                >
+                  <HelpCircle size={22} className={otherAsset !== null ? 'text-secondary' : 'text-ink-muted'} />
+                  <span className="text-body-sm text-center text-ink leading-tight">
+                    Something else
+                  </span>
+                  <span className="text-[11px] text-ink-faint text-center">
+                    Not in this list
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {selectedRoom && selectedRoom.assets.length === 0 && otherAsset === null && (
+              <p className="text-body-md text-ink-faint pt-3 text-center">
+                Nothing is mapped in this room yet — use “Something else” to name it.
+              </p>
+            )}
+
+            {otherAsset !== null && (
+              <div className="mt-3 space-y-3">
+                <Field
+                  label="What is it?"
+                  hint="A name is enough — a photo below helps whoever comes to look."
+                >
+                  <Input
+                    value={otherAsset}
+                    onChange={(e) => setOtherAsset(e.target.value)}
+                    placeholder="e.g. Wall socket beside the whiteboard"
+                    autoFocus
+                  />
+                </Field>
+                <p className="text-body-sm text-ink-faint">
+                  This is reported against {selectedRoom.code} and flagged for the
+                  register, so the equipment can be added properly.
+                </p>
               </div>
             )}
           </Widget>
