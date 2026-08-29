@@ -4,12 +4,15 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, status
+import jwt
+from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import func, select, update
 
 from app.api.deps import DB, CurrentUser
+from app.core.security import decode_token
 from app.models.platform import Notification
 from app.schemas.common import Message
+from app.services.realtime import users as user_hub
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -62,3 +65,33 @@ async def mark_all_read(user: CurrentUser, db: DB):
         .where(Notification.user_id == user.id, Notification.read_at.is_(None))
         .values(read_at=datetime.now(timezone.utc)))
     return Message(detail=f"{result.rowcount} notification(s) marked as read.")
+
+
+@router.websocket("/ws")
+async def notification_socket(websocket: WebSocket, token: str = Query(...)):
+    """Live feed for one signed-in user.
+
+    The token arrives as a query parameter because browsers cannot set an
+    Authorization header on a WebSocket handshake. It is an access token — short
+    lived, and the same one the REST calls already carry — and the socket is
+    closed the moment it fails to verify, before it is ever accepted.
+    """
+    try:
+        payload = decode_token(token, "access")
+        user_id = payload["sub"]
+    except (jwt.PyJWTError, KeyError):
+        # 1008 = policy violation. Closing before accept() keeps an
+        # unauthenticated peer from ever holding an open socket.
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    await user_hub.connect(websocket, user_id)
+    try:
+        await websocket.send_json({"type": "connected"})
+        while True:
+            # Heartbeats only; nothing a client sends here is acted on.
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await user_hub.disconnect(websocket, user_id)
