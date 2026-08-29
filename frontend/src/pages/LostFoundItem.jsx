@@ -6,7 +6,7 @@ import { Link, useParams } from 'react-router-dom'
 import {
   Button, ErrorState, Field, Modal, Spinner, StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, mediaUrl } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { dt, titleCase } from '@/lib/format'
 
@@ -89,7 +89,7 @@ export default function LostFoundItem() {
         <Widget bodyClass="p-0">
           <div className="h-56 bg-surface-sunken grid place-items-center overflow-hidden">
             {primary ? (
-              <img src={primary.url} alt={item.title} className="w-full h-full object-contain" />
+              <img src={mediaUrl(primary.url)} alt={item.title} className="w-full h-full object-contain" />
             ) : (
               <PackageSearch size={40} className="text-ink-faint" />
             )}
@@ -274,7 +274,7 @@ function MatchCard({ preview, label }) {
     <div className="flex-1 min-w-0 text-center">
       <div className="h-24 rounded bg-surface-sunken overflow-hidden grid place-items-center mb-1.5">
         {preview.image
-          ? <img src={preview.image} alt={preview.title} className="w-full h-full object-cover" />
+          ? <img src={mediaUrl(preview.image)} alt={preview.title} className="w-full h-full object-cover" />
           : <PackageSearch size={20} className="text-ink-faint" />}
       </div>
       <p className="text-body-sm text-ink-muted">{label}</p>

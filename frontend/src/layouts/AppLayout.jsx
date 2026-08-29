@@ -9,7 +9,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { Logo, LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
-import { api, connectNotifications } from '@/lib/api'
+import { api, connectNotifications, mediaUrl } from '@/lib/api'
 import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { navFor } from './nav'
@@ -147,7 +147,7 @@ function UserMenu() {
           <p className="text-body-md font-medium text-ink truncate max-w-[140px]">{user?.full_name}</p>
           <p className="text-body-sm text-ink-faint">{ROLE_LABEL[user?.role]}</p>
         </div>
-        <Avatar name={user?.full_name} src={user?.avatar_url} size={32} />
+        <Avatar name={user?.full_name} src={mediaUrl(user?.avatar_url)} size={32} />
         <ChevronDown size={14} className="text-ink-faint" />
       </button>
 

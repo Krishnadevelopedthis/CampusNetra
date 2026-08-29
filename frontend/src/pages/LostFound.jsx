@@ -14,7 +14,7 @@ import {
   Widget,
 } from '@/components/ui'
 import { useRefresh } from '@/hooks/useRefresh'
-import { api } from '@/lib/api'
+import { api, mediaUrl } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 
@@ -154,7 +154,7 @@ export default function LostFound() {
                 >
                   <div className="h-36 bg-surface-sunken grid place-items-center overflow-hidden">
                     {i.primary_image ? (
-                      <img src={i.primary_image} alt={i.title}
+                      <img src={mediaUrl(i.primary_image)} alt={i.title}
                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
                     ) : (
                       <PackageSearch size={28} className="text-ink-faint" />
@@ -196,7 +196,7 @@ function Preview({ item, label }) {
     <div className="flex items-center gap-2 min-w-0">
       <div className="w-10 h-10 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
         {item.image
-          ? <img src={item.image} alt="" className="w-full h-full object-cover" />
+          ? <img src={mediaUrl(item.image)} alt="" className="w-full h-full object-cover" />
           : <PackageSearch size={16} className="text-ink-faint" />}
       </div>
       <div className="min-w-0">

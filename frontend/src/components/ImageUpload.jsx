@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 
 import { CameraCapture, isTouchDevice } from '@/components/CameraCapture'
 import { toast } from '@/components/ui'
-import { upload } from '@/lib/api'
+import { mediaUrl, upload } from '@/lib/api'
 
 /**
  * Uploads images as soon as they are picked, rather than at form submit.
@@ -155,7 +155,7 @@ export function ImageUpload({
           {value.map((img, i) => (
             <div key={img.url}
                  className="relative w-24 h-24 rounded-xl overflow-hidden border border-border-subtle group">
-              <img src={img.thumb_url || img.url} alt={img.filename || 'Attachment'}
+              <img src={mediaUrl(img.thumb_url || img.url)} alt={img.filename || 'Attachment'}
                    className="w-full h-full object-cover" />
               <button
                 type="button" onClick={() => remove(i)}
