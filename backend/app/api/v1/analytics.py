@@ -98,10 +98,21 @@ async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=
         .having(func.count(Issue.id) > 1)
         .order_by(func.count(Issue.id).desc()).limit(10))).all()
 
+    # This window counts every job raised in it, finished or not, because the
+    # page is about the last N days of operations rather than the books. That
+    # makes it a different number from Maintenance & Expenses, which counts only
+    # signed-off work and dates it by completion — so the split is reported
+    # alongside it and both cards say which they are.
     cost = (await db.execute(
         select(func.coalesce(func.sum(WorkOrder.labour_cost), 0),
                func.coalesce(func.sum(WorkOrder.parts_cost), 0))
         .where(WorkOrder.organization_id == org, WorkOrder.created_at >= since))).first()
+
+    settled = await db.scalar(
+        select(func.coalesce(func.sum(WorkOrder.labour_cost + WorkOrder.parts_cost), 0))
+        .where(WorkOrder.organization_id == org, WorkOrder.created_at >= since,
+               WorkOrder.status.in_([WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED]))
+    ) or 0
 
     return {
         "window_days": days,
@@ -137,6 +148,8 @@ async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=
         "cost": {
             "labour": float(cost[0]), "parts": float(cost[1]),
             "total": float(cost[0]) + float(cost[1]),
+            "settled": float(settled),
+            "in_progress": float(cost[0]) + float(cost[1]) - float(settled),
         },
     }
 
@@ -568,6 +581,18 @@ async def maintenance_spend(
     total = sum(p["total"] for p in series)
     jobs = sum(p["jobs"] for p in series)
 
+    # Spend that reaches no room, and so appears in the total but in none of the
+    # breakdowns. Without this a campus whose work orders were raised without an
+    # asset sees a large figure beside three widgets reading "nothing recorded
+    # yet", which looks like the page is broken rather than like the jobs are
+    # missing a location.
+    unattributed = await db.scalar(
+        spatial(
+            select(func.coalesce(func.sum(WorkOrder.labour_cost + WorkOrder.parts_cost), 0))
+            .select_from(WorkOrder))
+        .where(*completed, *place_scope, Room.id.is_(None))
+    ) or 0
+
     return {
         "granularity": granularity,
         "series": series,
@@ -576,6 +601,7 @@ async def maintenance_spend(
             "jobs": jobs,
             "average_per_job": round(float(total) / jobs, 2) if jobs else 0.0,
             "capital": float(capital),
+            "unattributed": float(unattributed),
         },
         "by_building": [
             {"name": r.name, "code": r.code, "total": float(r.total or 0), "jobs": r.jobs}

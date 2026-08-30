@@ -284,6 +284,20 @@ export default function AdminCosts() {
               </dl>
             </Widget>
 
+            {d.totals.unattributed > 0 && (
+              <Widget title="Not attributed to a place">
+                <p className="text-body-md text-ink-muted">
+                  {money(d.totals.unattributed)} of this spend is on work orders raised
+                  without an asset or a room, so it counts in the totals above but
+                  appears in none of the breakdowns below.
+                </p>
+                <p className="text-body-sm text-ink-faint mt-2">
+                  Raising work against the asset or room it concerns is what puts it on
+                  the map.
+                </p>
+              </Widget>
+            )}
+
             <Breakdown
               title="By asset category"
               subtitle="Where the money goes"

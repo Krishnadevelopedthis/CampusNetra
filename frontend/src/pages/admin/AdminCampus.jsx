@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import {
   Button, EmptyState, ErrorState, Field, Input, Modal, Spinner, Widget, toast,
 } from '@/components/ui'
+import { useCascadingDelete } from '@/hooks/useCascadingDelete'
 import { api } from '@/lib/api'
 import { TWIN_STATE } from '@/lib/format'
 
@@ -45,11 +46,7 @@ export default function AdminCampus() {
     onError: (e) => toast.error(e.detail || 'Could not save the building'),
   })
 
-  const deleteBuilding = useMutation({
-    mutationFn: (id) => api.del(`/campus/buildings/${id}`),
-    onSuccess: (d) => { toast.success(d.detail); refresh() },
-    onError: (e) => toast.error(e.detail),
-  })
+  const deleteBuilding = useCascadingDelete({ path: '/campus/buildings', onDone: refresh })
 
   const addFloor = useMutation({
     mutationFn: ({ buildingId, ...f }) =>
@@ -58,11 +55,7 @@ export default function AdminCampus() {
     onError: (e) => toast.error(e.detail || 'Could not add the floor'),
   })
 
-  const deleteFloor = useMutation({
-    mutationFn: (id) => api.del(`/campus/floors/${id}`),
-    onSuccess: (d) => { toast.success(d.detail); refresh() },
-    onError: (e) => toast.error(e.detail),
-  })
+  const deleteFloor = useCascadingDelete({ path: '/campus/floors', onDone: refresh })
 
   if (campuses.isLoading || overview.isLoading) return <Spinner label="Loading campus…" />
   if (overview.error) return <ErrorState error={overview.error} onRetry={overview.refetch} />
@@ -141,7 +134,7 @@ export default function AdminCampus() {
                             onClick={() => setBuildingForm({ ...b })} />
                     <Button size="sm" variant="ghost" icon={Trash2} className="text-danger-text"
                             loading={deleteBuilding.isPending}
-                            onClick={() => deleteBuilding.mutate(b.id)} />
+                            onClick={() => deleteBuilding.remove(b.id, `${b.name}`)} />
                   </div>
                 </div>
 
@@ -163,7 +156,7 @@ export default function AdminCampus() {
                               <Button size="sm" variant="ghost" icon={Trash2}
                                       className="text-danger-text"
                                       loading={deleteFloor.isPending}
-                                      onClick={() => deleteFloor.mutate(f.id)} />
+                                      onClick={() => deleteFloor.remove(f.id, `${f.name}`)} />
                             </div>
                           ))}
                           {floors.data?.length === 0 && (

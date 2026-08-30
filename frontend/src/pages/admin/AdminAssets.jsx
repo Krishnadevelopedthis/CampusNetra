@@ -11,6 +11,7 @@ import {
 } from '@/components/ui'
 import { AssetModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import { useRefresh } from '@/hooks/useRefresh'
+import { useCascadingDelete } from '@/hooks/useCascadingDelete'
 import { api } from '@/lib/api'
 import { dt, money } from '@/lib/format'
 
@@ -114,14 +115,12 @@ export default function AdminAssets() {
     onError: (e) => toast.error(e.detail),
   })
 
-  const removeRoom = useMutation({
-    mutationFn: (id) => api.del(`/campus/rooms/${id}`),
-    onSuccess: (r) => {
-      toast.success(r.detail)
+  const removeRoom = useCascadingDelete({
+    path: '/campus/rooms',
+    onDone: () => {
       setRoomId('')
       qc.invalidateQueries({ queryKey: ['floor-plan', floorId] })
     },
-    onError: (e) => toast.error(e.detail),
   })
 
   const totals = useMemo(() => {
@@ -225,7 +224,7 @@ export default function AdminAssets() {
                 <Button
                   size="sm" variant="ghost" icon={Trash2}
                   onClick={() => {
-                    if (confirm(`Remove ${room.code} — ${room.name}?`)) removeRoom.mutate(room.id)
+                    removeRoom.remove(room.id, `${room.code} — ${room.name}`)
                   }}
                 >
                   Delete room

@@ -222,7 +222,16 @@ function Overview({ data }) {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        <Widget title="Maintenance Cost" className="lg:col-span-1">
+        {/* Deliberately a different number from Maintenance & Expenses, which
+            counts only signed-off work and dates it by completion. This card is
+            about the window the rest of the page covers and includes jobs still
+            running, so both say which they are rather than appearing to
+            contradict each other. */}
+        <Widget
+          title="Maintenance Cost"
+          subtitle={`Work raised in the last ${data.window_days} days`}
+          className="lg:col-span-1"
+        >
           <dl className="space-y-3">
             <div className="flex justify-between"><dt className="text-ink-muted">Labour</dt>
               <dd className="tabular">{money(data.cost.labour)}</dd></div>
@@ -232,6 +241,13 @@ function Overview({ data }) {
               <dt className="font-medium">Total</dt>
               <dd className="text-headline-md tabular">{money(data.cost.total)}</dd>
             </div>
+            {data.cost.in_progress > 0 && (
+              <p className="text-body-sm text-ink-faint pt-1">
+                {money(data.cost.settled)} signed off; {money(data.cost.in_progress)} on
+                jobs still open. Administration → Maintenance &amp; Expenses counts the
+                signed-off figure only.
+              </p>
+            )}
           </dl>
         </Widget>
 
