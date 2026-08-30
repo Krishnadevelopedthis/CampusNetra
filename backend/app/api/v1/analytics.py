@@ -417,8 +417,10 @@ async def list_simulations(user: RequireManager, db: DB, limit: int = Query(20, 
 # --------------------------------------------------------------------------
 
 _GRAINS = {
+    # ISO weeks, so a week that straddles a month boundary is still one bucket.
+    "week": 'IYYY-"W"IW',
     "month": "YYYY-MM",
-    "quarter": "YYYY-\"Q\"Q",
+    "quarter": 'YYYY-"Q"Q',
     "year": "YYYY",
 }
 
@@ -427,9 +429,12 @@ _GRAINS = {
 async def maintenance_spend(
     user: RequireManager,
     db: DB,
-    granularity: str = Query("month", pattern="^(month|quarter|year)$"),
+    granularity: str = Query("month", pattern="^(week|month|quarter|year)$"),
     months: int = Query(12, ge=1, le=60),
     campus_id: Optional[uuid.UUID] = None,
+    building_id: Optional[uuid.UUID] = None,
+    floor_id: Optional[uuid.UUID] = None,
+    room_id: Optional[uuid.UUID] = None,
 ):
     """Maintenance expenditure over time, and where it went.
 
@@ -444,11 +449,34 @@ async def maintenance_spend(
     if campus_id:
         campus_scope.append(Campus.id == campus_id)
 
-    # Work orders reach a campus through the asset's room, so the join is the
-    # full spatial chain; jobs with no asset are counted in the totals but
-    # cannot be attributed to a building.
+    # Narrowing to one building, floor or room. Each level implies the ones
+    # above it, so only the most specific filter needs applying.
+    place_scope: list = []
+    if room_id:
+        place_scope.append(Room.id == room_id)
+    elif floor_id:
+        place_scope.append(Floor.id == floor_id)
+    elif building_id:
+        place_scope.append(Building.id == building_id)
+
     def spend_expr():
         return func.coalesce(func.sum(WorkOrder.labour_cost + WorkOrder.parts_cost), 0)
+
+    # Where a job happened. A work order carries its own room, and also reaches
+    # one through the asset it was raised against; taking either means a job
+    # logged against a room with no asset still lands in the right building
+    # instead of dropping out of every breakdown.
+    wo_room = func.coalesce(WorkOrder.room_id, Asset.room_id)
+
+    def spatial(query):
+        return (
+            query
+            .outerjoin(Asset, Asset.id == WorkOrder.asset_id)
+            .outerjoin(Room, Room.id == wo_room)
+            .outerjoin(Floor, Floor.id == Room.floor_id)
+            .outerjoin(Building, Building.id == Floor.building_id)
+            .outerjoin(Campus, Campus.id == Building.campus_id)
+        )
 
     completed = [
         WorkOrder.status.in_([WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED]),
@@ -458,15 +486,11 @@ async def maintenance_spend(
 
     label = func.to_char(WorkOrder.completed_at, _GRAINS[granularity])
     rows = (await db.execute(
-        select(label.label("period"), spend_expr().label("total"),
-               func.count(WorkOrder.id).label("jobs"))
-        .select_from(WorkOrder)
-        .outerjoin(Asset, Asset.id == WorkOrder.asset_id)
-        .outerjoin(Room, Room.id == Asset.room_id)
-        .outerjoin(Floor, Floor.id == Room.floor_id)
-        .outerjoin(Building, Building.id == Floor.building_id)
-        .outerjoin(Campus, Campus.id == Building.campus_id)
-        .where(*completed)
+        spatial(
+            select(label.label("period"), spend_expr().label("total"),
+                   func.count(WorkOrder.id).label("jobs"))
+            .select_from(WorkOrder))
+        .where(*completed, *place_scope)
         .group_by(label).order_by(label)
     )).all()
 
@@ -476,26 +500,35 @@ async def maintenance_spend(
     ]
 
     by_building = (await db.execute(
-        select(Building.name, Building.code, spend_expr().label("total"),
-               func.count(WorkOrder.id).label("jobs"))
-        .select_from(WorkOrder)
-        .join(Asset, Asset.id == WorkOrder.asset_id)
-        .join(Room, Room.id == Asset.room_id)
-        .join(Floor, Floor.id == Room.floor_id)
-        .join(Building, Building.id == Floor.building_id)
-        .join(Campus, Campus.id == Building.campus_id)
-        .where(*completed, *campus_scope)
+        spatial(
+            select(Building.name, Building.code, spend_expr().label("total"),
+                   func.count(WorkOrder.id).label("jobs"))
+            .select_from(WorkOrder))
+        .where(*completed, *campus_scope, *place_scope, Building.id.is_not(None))
         .group_by(Building.id, Building.name, Building.code)
         .order_by(spend_expr().desc()).limit(12)
     )).all()
 
+    # Rooms matter once the view is narrowed to a building or a floor: "which
+    # lab is eating the budget" is the question a building-level total prompts
+    # and cannot answer.
+    by_room = (await db.execute(
+        spatial(
+            select(Room.name, Room.code, Room.kind, spend_expr().label("total"),
+                   func.count(WorkOrder.id).label("jobs"))
+            .select_from(WorkOrder))
+        .where(*completed, *campus_scope, *place_scope, Room.id.is_not(None))
+        .group_by(Room.id, Room.name, Room.code, Room.kind)
+        .order_by(spend_expr().desc()).limit(12)
+    )).all()
+
     by_category = (await db.execute(
-        select(AssetCategory.name, spend_expr().label("total"),
-               func.count(WorkOrder.id).label("jobs"))
-        .select_from(WorkOrder)
-        .join(Asset, Asset.id == WorkOrder.asset_id)
+        spatial(
+            select(AssetCategory.name, spend_expr().label("total"),
+                   func.count(WorkOrder.id).label("jobs"))
+            .select_from(WorkOrder))
         .join(AssetCategory, AssetCategory.id == Asset.category_id)
-        .where(*completed)
+        .where(*completed, *place_scope)
         .group_by(AssetCategory.id, AssetCategory.name)
         .order_by(spend_expr().desc()).limit(12)
     )).all()
@@ -503,14 +536,24 @@ async def maintenance_spend(
     # The assets that keep costing money — the argument for replacing rather
     # than repairing one more time.
     worst = (await db.execute(
-        select(Asset.id, Asset.tag, Asset.name, Asset.cost.label("purchase"),
-               spend_expr().label("total"), func.count(WorkOrder.id).label("jobs"))
-        .select_from(WorkOrder)
-        .join(Asset, Asset.id == WorkOrder.asset_id)
-        .where(*completed)
+        spatial(
+            select(Asset.id, Asset.tag, Asset.name, Asset.cost.label("purchase"),
+                   spend_expr().label("total"), func.count(WorkOrder.id).label("jobs"))
+            .select_from(WorkOrder))
+        .where(*completed, *place_scope, Asset.id.is_not(None))
         .group_by(Asset.id, Asset.tag, Asset.name, Asset.cost)
         .order_by(spend_expr().desc()).limit(10)
     )).all()
+
+    # Purchase value follows the same filter, so the figure beside the repair
+    # spend is what that same building or room cost to equip.
+    capital_place: list = []
+    if room_id:
+        capital_place.append(Room.id == room_id)
+    elif floor_id:
+        capital_place.append(Floor.id == floor_id)
+    elif building_id:
+        capital_place.append(Building.id == building_id)
 
     capital = await db.scalar(
         select(func.coalesce(func.sum(Asset.cost), 0))
@@ -519,7 +562,7 @@ async def maintenance_spend(
         .join(Floor, Floor.id == Room.floor_id)
         .join(Building, Building.id == Floor.building_id)
         .join(Campus, Campus.id == Building.campus_id)
-        .where(*campus_scope)
+        .where(*campus_scope, *capital_place)
     ) or 0
 
     total = sum(p["total"] for p in series)
@@ -537,6 +580,12 @@ async def maintenance_spend(
         "by_building": [
             {"name": r.name, "code": r.code, "total": float(r.total or 0), "jobs": r.jobs}
             for r in by_building
+        ],
+        "by_room": [
+            {"name": r.name, "code": r.code,
+             "kind": r.kind.value if hasattr(r.kind, "value") else str(r.kind),
+             "total": float(r.total or 0), "jobs": r.jobs}
+            for r in by_room
         ],
         "by_category": [
             {"name": r.name, "total": float(r.total or 0), "jobs": r.jobs}

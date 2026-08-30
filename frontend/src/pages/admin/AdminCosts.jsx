@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, Banknote, CircleDollarSign, Hammer, TrendingUp } from 'lucide-react'
+import {
+  AlertTriangle, Banknote, CircleDollarSign, Hammer, MapPin, TrendingUp,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -14,12 +16,15 @@ import { api } from '@/lib/api'
 import { money, moneyCompact } from '@/lib/format'
 
 const GRAINS = [
+  ['week', 'Weekly'],
   ['month', 'Monthly'],
   ['quarter', 'Quarterly'],
   ['year', 'Yearly'],
 ]
 
 const WINDOWS = [
+  [3, 'Last 3 months'],
+  [6, 'Last 6 months'],
   [12, 'Last 12 months'],
   [24, 'Last 2 years'],
   [60, 'Last 5 years'],
@@ -28,11 +33,40 @@ const WINDOWS = [
 export default function AdminCosts() {
   const [granularity, setGranularity] = useState('month')
   const [months, setMonths] = useState(12)
+  const [buildingId, setBuildingId] = useState('')
+  const [floorId, setFloorId] = useState('')
+  const [roomId, setRoomId] = useState('')
   const chart = useChartTheme()
 
+  // The place filters cascade, so the lists below only offer what sits inside
+  // the level already chosen.
+  const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
+  const campusId = campuses.data?.[0]?.id
+  const buildings = useQuery({
+    queryKey: ['buildings', campusId],
+    queryFn: () => api.get(`/campus/campuses/${campusId}/buildings`),
+    enabled: !!campusId,
+  })
+  const floors = useQuery({
+    queryKey: ['floors', buildingId],
+    queryFn: () => api.get(`/campus/buildings/${buildingId}/floors`),
+    enabled: !!buildingId,
+  })
+  const plan = useQuery({
+    queryKey: ['floor-plan', floorId],
+    queryFn: () => api.get(`/campus/floors/${floorId}/plan`),
+    enabled: !!floorId,
+  })
+
+  const params = {
+    granularity, months,
+    building_id: buildingId || undefined,
+    floor_id: floorId || undefined,
+    room_id: roomId || undefined,
+  }
   const spend = useQuery({
-    queryKey: ['spend', granularity, months],
-    queryFn: () => api.get('/analytics/spend', { params: { granularity, months } }),
+    queryKey: ['spend', params],
+    queryFn: () => api.get('/analytics/spend', { params }),
   })
   const { refresh, refreshing } = useRefresh(spend.refetch)
   const busy = spend.isLoading || refreshing
@@ -47,6 +81,15 @@ export default function AdminCosts() {
   const delta = latest && previous && previous.total
     ? Math.round(((latest.total - previous.total) / previous.total) * 100)
     : null
+
+  const scopeLabel = roomId
+    ? (plan.data?.rooms || []).find((r) => r.id === roomId)?.name || 'One room'
+    : floorId
+      ? `${(buildings.data || []).find((b) => b.id === buildingId)?.name || ''} · `
+        + `${(floors.data || []).find((f) => f.id === floorId)?.name || ''}`
+      : buildingId
+        ? (buildings.data || []).find((b) => b.id === buildingId)?.name || ''
+        : 'Whole campus'
 
   return (
     <div className="space-y-4">
@@ -73,6 +116,42 @@ export default function AdminCosts() {
         </div>
       </div>
 
+      {/* Narrow the whole page to one place. Every figure below — the totals,
+          the chart, the breakdowns and the repeat offenders — answers for the
+          selection, so "what does this lab cost us" is one question rather
+          than a reading exercise across four widgets. */}
+      <Widget bodyClass="p-widget">
+        <div className="flex flex-wrap items-center gap-2">
+          <MapPin size={16} className="text-ink-faint shrink-0" />
+          <Select value={buildingId} className="w-auto min-w-[180px]"
+                  onChange={(e) => { setBuildingId(e.target.value); setFloorId(''); setRoomId('') }}>
+            <option value="">All buildings</option>
+            {(buildings.data || []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </Select>
+          <Select value={floorId} disabled={!buildingId} className="w-auto min-w-[150px]"
+                  onChange={(e) => { setFloorId(e.target.value); setRoomId('') }}>
+            <option value="">All floors</option>
+            {(floors.data || []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </Select>
+          <Select value={roomId} disabled={!floorId} className="w-auto min-w-[190px]"
+                  onChange={(e) => setRoomId(e.target.value)}>
+            <option value="">All classrooms &amp; labs</option>
+            {(plan.data?.rooms || []).map((r) => (
+              <option key={r.id} value={r.id}>{r.code} — {r.name}</option>
+            ))}
+          </Select>
+          {(buildingId || floorId || roomId) && (
+            <button className="btn-ghost btn-sm"
+                    onClick={() => { setBuildingId(''); setFloorId(''); setRoomId('') }}>
+              Clear
+            </button>
+          )}
+          <span className="text-body-sm text-ink-faint ml-auto">
+            {scopeLabel}
+          </span>
+        </div>
+      </Widget>
+
       {busy ? (
         <>
           <SkeletonMetrics />
@@ -84,6 +163,8 @@ export default function AdminCosts() {
         </>
       ) : (
         <>
+          <div className="grid xl:grid-cols-[1fr_340px] gap-4 items-start">
+          <div className="space-y-4 min-w-0">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Metric
               label="Maintenance spend" value={money(d.totals.maintenance)}
@@ -134,21 +215,6 @@ export default function AdminCosts() {
             )}
           </Widget>
 
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Breakdown
-              title="By asset category"
-              subtitle="Where the money goes"
-              rows={d.by_category}
-              chart={chart}
-            />
-            <Breakdown
-              title="By building"
-              subtitle="Which buildings cost the most to maintain"
-              rows={d.by_building}
-              chart={chart}
-            />
-          </div>
-
           <Widget
             title="Repeat offenders"
             subtitle="Assets ranked by what has been spent repairing them"
@@ -197,8 +263,61 @@ export default function AdminCosts() {
               </div>
             )}
           </Widget>
+          </div>
+
+          {/* Side panel: where the money went, at whatever level is selected.
+              A building filter makes the per-building bar meaningless, so the
+              rooms inside it take that slot instead. */}
+          <div className="space-y-4">
+            <Widget title="Spend at a glance" subtitle={scopeLabel}>
+              <dl className="space-y-2.5 text-body-md">
+                <SideRow label="Maintenance" value={money(d.totals.maintenance)} strong />
+                <SideRow label="Jobs completed" value={d.totals.jobs} />
+                <SideRow label="Average per job" value={money(d.totals.average_per_job)} />
+                <SideRow label="Purchase value" value={money(d.totals.capital)} />
+                <SideRow
+                  label="Repairs vs purchase"
+                  value={d.totals.capital
+                    ? `${Math.round((d.totals.maintenance / d.totals.capital) * 100)}%`
+                    : '—'}
+                />
+              </dl>
+            </Widget>
+
+            <Breakdown
+              title="By asset category"
+              subtitle="Where the money goes"
+              rows={d.by_category}
+              chart={chart}
+            />
+            {buildingId ? (
+              <Breakdown
+                title="By classroom or lab"
+                subtitle="Which rooms cost the most to maintain"
+                rows={d.by_room}
+                chart={chart}
+              />
+            ) : (
+              <Breakdown
+                title="By building"
+                subtitle="Which buildings cost the most to maintain"
+                rows={d.by_building}
+                chart={chart}
+              />
+            )}
+          </div>
+          </div>
         </>
       )}
+    </div>
+  )
+}
+
+function SideRow({ label, value, strong }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <dt className="text-ink-muted">{label}</dt>
+      <dd className={`tabular ${strong ? 'text-ink font-medium' : 'text-ink'}`}>{value}</dd>
     </div>
   )
 }
