@@ -27,7 +27,7 @@ from app.schemas.common import Message, Page, UserBrief
 from app.services import predictive
 from app.services.audit import record_audit
 from app.services.templates import NOTIFICATION_CODES, codes_payload
-from app.services.work_orders import create_work_order
+from app.services.work_orders import create_work_order, handover_open_work
 
 router = APIRouter(route_class=CommitRoute, prefix="/admin", tags=["Administration"])
 
@@ -191,21 +191,20 @@ async def update_user(
 async def deactivate_user(
     user_id: uuid.UUID, admin: RequireAdmin, db: DB, request: Request
 ):
-    """Deactivate rather than delete — complaints reference their reporter."""
+    """Deactivate rather than delete — complaints reference their reporter.
+
+    Open work is handed to another technician in the same department as part of
+    the same transaction. Refusing to deactivate until somebody reassigns the
+    queue by hand read as an obstacle rather than a safeguard: the person is
+    already gone, and the work still needs doing either way.
+    """
     target = await db.scalar(select(User).where(User.id == user_id))
     if target is None or target.organization_id != admin.organization_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
     if target.id == admin.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "You cannot deactivate yourself")
 
-    open_work = await db.scalar(
-        select(func.count()).select_from(WorkOrder).where(
-            WorkOrder.assigned_to == target.id,
-            WorkOrder.status.notin_(["closed", "cancelled", "verified"]))) or 0
-    if open_work:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"{target.full_name} still has {open_work} open work order(s). Reassign them first.")
+    moved, orphaned = await handover_open_work(db, target, admin)
 
     target.status = UserStatus.DEACTIVATED
     from app.services.auth import revoke_all_tokens
@@ -215,8 +214,20 @@ async def deactivate_user(
         db, action="user.deactivate", actor_id=admin.id,
         organization_id=admin.organization_id, entity_type="user", entity_id=target.id,
         ip_address=client_ip(request),
+        after={"reassigned": moved, "unassigned": orphaned},
     )
-    return Message(detail=f"{target.full_name} deactivated and signed out everywhere.")
+
+    detail = f"{target.full_name} deactivated and signed out everywhere."
+    if moved:
+        by_tech: dict[str, int] = {}
+        for row in moved:
+            by_tech[row["technician"]] = by_tech.get(row["technician"], 0) + 1
+        handed = ", ".join(f"{n} to {name}" for name, n in by_tech.items())
+        detail += f" {len(moved)} open work order(s) reassigned — {handed}."
+    if orphaned:
+        detail += (f" {len(orphaned)} left unassigned — no other technician in "
+                   "that department.")
+    return Message(detail=detail)
 
 
 @router.post("/users/{user_id}/activate", response_model=Message)

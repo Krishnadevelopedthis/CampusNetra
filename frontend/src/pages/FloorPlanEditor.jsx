@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Check,
   Image as ImageIcon,
+  Layers,
   MousePointer2,
   Pencil,
   Plus,
@@ -9,9 +10,10 @@ import {
   Square,
   Trash2,
   Undo2,
+  Wand2,
   X,
 } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   Button,
@@ -28,6 +30,7 @@ import {
 import { AssetModal } from '@/features/twin/AssetRoomModals'
 import { api, mediaUrl, upload } from '@/lib/api'
 import { titleCase } from '@/lib/format'
+import { loadPlanPixels, traceRoomAt } from '@/lib/planTrace'
 
 const VB = 1000
 const ROOM_KINDS = [
@@ -36,9 +39,10 @@ const ROOM_KINDS = [
   'utility', 'other',
 ]
 
-/** select · draw a room · place an asset */
+/** select · trace a room off the plan · draw one by hand · place an asset */
 const MODES = {
   select: { label: 'Select', icon: MousePointer2 },
+  trace: { label: 'Trace room', icon: Wand2, needsPlan: true },
   draw: { label: 'Draw room', icon: Square },
   place: { label: 'Place asset', icon: Plus },
 }
@@ -55,6 +59,9 @@ export default function FloorPlanEditor() {
   const [placingAsset, setPlacingAsset] = useState(null)
   const [roomForm, setRoomForm] = useState(null)  // open modal when non-null
   const [assetForm, setAssetForm] = useState(null)
+  const [floorForm, setFloorForm] = useState(null)
+  const [tracing, setTracing] = useState(false)
+  const pixels = useRef(null)   // greyscale plan, kept for repeated tracing
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   const campusId = campuses.data?.[0]?.id
@@ -124,16 +131,83 @@ export default function FloorPlanEditor() {
     onError: (e) => toast.error(e.detail || e.message || 'Could not upload the plan'),
   })
 
-  /** Convert a click into normalised 0..1 plan coordinates. */
+  const addFloor = useMutation({
+    mutationFn: (body) => api.post(`/campus/buildings/${buildingId}/floors`, body),
+    onSuccess: (f) => {
+      toast.success(`${f.name} added. Upload its plan to start outlining rooms.`)
+      setFloorForm(null)
+      qc.invalidateQueries({ queryKey: ['floors', buildingId] })
+      setFloorId(f.id)
+    },
+    onError: (e) => toast.error(e.detail || 'Could not add the floor'),
+  })
+
+  const rooms = plan.data?.rooms || []
+  const planImage = plan.data?.floor?.floor_plan_url
+  const planW = plan.data?.floor?.plan_width
+  const planH = plan.data?.floor?.plan_height
+
+  // The canvas takes the plan's own proportions so the image fills it exactly.
+  // A fixed square viewBox letterboxed a wide plan inside the canvas, which put
+  // every traced and hand-drawn outline out by the size of the empty margin.
+  const vbH = planW && planH ? Math.round((VB * planH) / planW) : VB
+
+  /**
+   * Convert a click into normalised 0..1 plan coordinates.
+   *
+   * Via the SVG's own screen matrix rather than the element's bounding box:
+   * the viewBox is scaled and centred inside the element, so box arithmetic is
+   * only right when the two happen to share an aspect ratio.
+   */
   const pointFromEvent = useCallback((e) => {
-    const rect = svgRef.current.getBoundingClientRect()
-    return {
-      x: Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width)),
-      y: Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height)),
+    const svg = svgRef.current
+    const pt = svg.createSVGPoint()
+    pt.x = e.clientX
+    pt.y = e.clientY
+    const local = pt.matrixTransform(svg.getScreenCTM().inverse())
+    const clamp = (n) => Math.min(1, Math.max(0, n))
+    return { x: clamp(local.x / VB), y: clamp(local.y / vbH) }
+  }, [vbH])
+
+  // The plan is decoded once per floor and kept, so tracing the fiftieth room
+  // costs a flood fill rather than another decode of a multi-megabyte scan.
+  useEffect(() => {
+    pixels.current = null
+    if (!planImage) return
+    let cancelled = false
+    loadPlanPixels(mediaUrl(planImage))
+      .then((px) => { if (!cancelled) pixels.current = px })
+      .catch(() => { /* reported when tracing is actually attempted */ })
+    return () => { cancelled = true }
+  }, [planImage])
+
+  const traceAt = async (p) => {
+    setTracing(true)
+    try {
+      if (!pixels.current) {
+        pixels.current = await loadPlanPixels(mediaUrl(planImage))
+      }
+      const hit = traceRoomAt(pixels.current, p.x, p.y)
+      if (!hit) {
+        toast.error(
+          'No enclosed room found there. Click inside a room rather than on a '
+          + 'wall, or use Draw room to outline it by hand.',
+        )
+        return
+      }
+      setRoomForm({ boundary: hit.boundary, kind: 'classroom', traced: true })
+    } catch {
+      toast.error('That plan image could not be read for tracing. Draw the room by hand instead.')
+    } finally {
+      setTracing(false)
     }
-  }, [])
+  }
 
   const onCanvasClick = (e) => {
+    if (mode === 'trace') {
+      if (!tracing) traceAt(pointFromEvent(e))
+      return
+    }
     if (mode === 'draw') {
       const p = pointFromEvent(e)
       setDraft((d) => [...d, [round5(p.x), round5(p.y)]])
@@ -163,9 +237,6 @@ export default function FloorPlanEditor() {
     if (e.target === svgRef.current) setSelectedRoom(null)
   }
 
-  const rooms = plan.data?.rooms || []
-  const planImage = plan.data?.floor?.floor_plan_url
-
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -175,26 +246,60 @@ export default function FloorPlanEditor() {
             Upload a plan, outline the rooms, and place the equipment inside them.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={buildingId}
-                  onChange={(e) => { setBuildingId(e.target.value); setFloorId(''); setSelectedRoom(null) }}
-                  className="w-auto min-w-[190px]">
-            <option value="">Select building</option>
-            {(buildings.data || []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </Select>
-          <Select value={floorId} disabled={!buildingId}
-                  onChange={(e) => { setFloorId(e.target.value); setSelectedRoom(null); setDraft([]) }}
-                  className="w-auto min-w-[140px]">
-            <option value="">Select floor</option>
-            {(floors.data || []).map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </Select>
-        </div>
+        <Select value={buildingId}
+                onChange={(e) => { setBuildingId(e.target.value); setFloorId(''); setSelectedRoom(null) }}
+                className="w-auto min-w-[190px]">
+          <option value="">Select building</option>
+          {(buildings.data || []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </Select>
       </header>
+
+      {/* Floors as a switcher rather than a dropdown. A plan is drawn one floor
+          at a time and the work moves between them constantly, so which floors
+          exist — and which are still missing a diagram — belongs on screen
+          rather than behind a closed menu. */}
+      {buildingId && (
+        <Widget bodyClass="p-widget">
+          <div className="flex flex-wrap items-center gap-2">
+            <Layers size={16} className="text-ink-faint" />
+            {floors.isLoading && <span className="text-body-md text-ink-faint">Loading floors…</span>}
+            {(floors.data || []).map((f) => (
+              <button key={f.id}
+                      onClick={() => { setFloorId(f.id); setSelectedRoom(null); setDraft([]); setMode('select') }}
+                      className={`flex items-center gap-2 h-9 px-3.5 rounded-lg text-body-md font-medium transition-colors ${
+                        floorId === f.id
+                          ? 'bg-brand text-white'
+                          : 'bg-surface-sunken text-ink-muted hover:text-ink'
+                      }`}>
+                {f.name}
+                <span
+                  title={f.floor_plan_url ? 'Plan uploaded' : 'No plan uploaded yet'}
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    f.floor_plan_url ? 'bg-success' : 'bg-warning'
+                  }`}
+                />
+              </button>
+            ))}
+            {floors.data?.length === 0 && (
+              <span className="text-body-md text-ink-faint">This building has no floors yet.</span>
+            )}
+            <Button variant="secondary" size="sm" icon={Plus} className="ml-auto"
+                    onClick={() => setFloorForm({
+                      level: (Math.max(0, ...(floors.data || []).map((f) => f.level)) || 0) + 1,
+                    })}>
+              Add floor
+            </Button>
+          </div>
+        </Widget>
+      )}
 
       {!floorId ? (
         <Widget>
-          <EmptyState icon={Square} title="Choose a building and floor"
-                      description="Pick where you want to work, then upload a plan or start outlining rooms." />
+          <EmptyState icon={Square}
+                      title={buildingId ? 'Pick a floor' : 'Choose a building'}
+                      description={buildingId
+                        ? 'Choose a floor above, then upload its plan or start outlining rooms.'
+                        : 'Pick a building to see its floors.'} />
         </Widget>
       ) : (
         <>
@@ -204,14 +309,25 @@ export default function FloorPlanEditor() {
               <div className="flex p-1 bg-surface-sunken rounded-lg">
                 {Object.entries(MODES).map(([k, m]) => (
                   <button key={k}
+                          disabled={m.needsPlan && !planImage}
+                          title={m.needsPlan && !planImage
+                            ? 'Upload a plan image for this floor first' : undefined}
                           onClick={() => { setMode(k); setDraft([]); setPlacingAsset(null) }}
-                          className={`flex items-center gap-1.5 h-9 px-3 rounded text-body-md font-medium transition-colors ${
+                          className={`flex items-center gap-1.5 h-9 px-3 rounded text-body-md font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
                             mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
                           }`}>
                     <m.icon size={15} /> {m.label}
                   </button>
                 ))}
               </div>
+
+              {mode === 'trace' && (
+                <span className="text-body-md text-ink-muted">
+                  {tracing
+                    ? 'Reading the plan…'
+                    : 'Click inside a room on the plan — its walls become the outline'}
+                </span>
+              )}
 
               {mode === 'draw' && (
                 <div className="flex items-center gap-2">
@@ -259,8 +375,11 @@ export default function FloorPlanEditor() {
                 : (
                   <div className="relative bg-surface-sunken">
                     <svg
-                      ref={svgRef} viewBox={`0 0 ${VB} ${VB}`}
-                      className={`w-full h-[560px] ${mode === 'select' ? '' : 'cursor-crosshair'}`}
+                      ref={svgRef} viewBox={`0 0 ${VB} ${vbH}`}
+                      style={{ aspectRatio: `${VB} / ${vbH}`, maxHeight: '620px' }}
+                      className={`w-full mx-auto ${
+                        tracing ? 'cursor-wait' : mode === 'select' ? '' : 'cursor-crosshair'
+                      }`}
                       onClick={onCanvasClick}
                       role="img" aria-label="Floor plan editor canvas"
                     >
@@ -269,21 +388,24 @@ export default function FloorPlanEditor() {
                           <path d="M 40 0 L 0 0 0 40" fill="none" className="stroke-border-subtle" strokeWidth="1" />
                         </pattern>
                       </defs>
-                      <rect width={VB} height={VB} fill="url(#editgrid)" />
+                      <rect width={VB} height={vbH} fill="url(#editgrid)" />
 
-                      {/* Uploaded plan sits under everything as a tracing guide */}
+                      {/* The plan fills the canvas exactly — the viewBox above
+                          carries its aspect ratio — so a room's normalised
+                          outline lands on the walls it was traced from. */}
                       {planImage && (
-                        <image href={mediaUrl(planImage)} x="0" y="0" width={VB} height={VB}
-                               preserveAspectRatio="xMidYMid meet" opacity="0.55" />
+                        <image href={mediaUrl(planImage)} x="0" y="0" width={VB} height={vbH}
+                               preserveAspectRatio="none"
+                               opacity={mode === 'trace' ? 0.85 : 0.55} />
                       )}
 
                       {rooms.map((room) => {
-                        const pts = (room.boundary || []).map(([x, y]) => `${x * VB},${y * VB}`).join(' ')
+                        const pts = (room.boundary || []).map(([x, y]) => `${x * VB},${y * vbH}`).join(' ')
                         if (!pts) return null
                         const selected = selectedRoom?.id === room.id
                         const anchor = {
                           x: Math.min(...room.boundary.map((p) => p[0])) * VB + 12,
-                          y: Math.min(...room.boundary.map((p) => p[1])) * VB + 24,
+                          y: Math.min(...room.boundary.map((p) => p[1])) * vbH + 24,
                         }
                         return (
                           <g key={room.id}
@@ -293,10 +415,10 @@ export default function FloorPlanEditor() {
                                      fill={room.aggregate_colour} fillOpacity={selected ? 0.3 : 0.12}
                                      stroke={selected ? '#3b82f6' : room.aggregate_colour}
                                      strokeWidth={selected ? 3 : 1.8} />
-                            <text x={anchor.x} y={anchor.y} fontSize="18" className="fill-ink"
-                                  className="font-mono pointer-events-none">{room.code}</text>
-                            <text x={anchor.x} y={anchor.y + 18} fontSize="14" className="fill-ink-faint"
-                                  className="pointer-events-none">{room.name}</text>
+                            <text x={anchor.x} y={anchor.y} fontSize="18"
+                                  className="fill-ink font-mono pointer-events-none">{room.code}</text>
+                            <text x={anchor.x} y={anchor.y + 18} fontSize="14"
+                                  className="fill-ink-faint pointer-events-none">{room.name}</text>
                           </g>
                         )
                       })}
@@ -307,12 +429,12 @@ export default function FloorPlanEditor() {
                         const xs = room.boundary.map((p) => p[0])
                         const ys = room.boundary.map((p) => p[1])
                         const x = (Math.min(...xs) + a.pos_x * (Math.max(...xs) - Math.min(...xs))) * VB
-                        const y = (Math.min(...ys) + a.pos_y * (Math.max(...ys) - Math.min(...ys))) * VB
+                        const y = (Math.min(...ys) + a.pos_y * (Math.max(...ys) - Math.min(...ys))) * vbH
                         return (
                           <g key={a.id} transform={`translate(${x},${y})`}>
                             <circle r="11" fill={a.colour} className="stroke-surface" strokeWidth="2" />
-                            <text y="26" textAnchor="middle" fontSize="12" className="fill-ink-muted"
-                                  className="font-mono pointer-events-none">{a.tag}</text>
+                            <text y="26" textAnchor="middle" fontSize="12"
+                                  className="fill-ink-muted font-mono pointer-events-none">{a.tag}</text>
                           </g>
                         )
                       }))}
@@ -321,11 +443,11 @@ export default function FloorPlanEditor() {
                       {draft.length > 0 && (
                         <>
                           <polyline
-                            points={draft.map(([x, y]) => `${x * VB},${y * VB}`).join(' ')}
+                            points={draft.map(([x, y]) => `${x * VB},${y * vbH}`).join(' ')}
                             fill={draft.length >= 3 ? '#3b82f6' : 'none'} fillOpacity="0.15"
                             stroke="#3b82f6" strokeWidth="2.5" strokeDasharray="6 4" />
                           {draft.map(([x, y], i) => (
-                            <circle key={i} cx={x * VB} cy={y * VB} r="6"
+                            <circle key={i} cx={x * VB} cy={y * vbH} r="6"
                                     fill="#3b82f6" className="stroke-surface" strokeWidth="2" />
                           ))}
                         </>
@@ -334,10 +456,15 @@ export default function FloorPlanEditor() {
 
                     {rooms.length === 0 && draft.length === 0 && (
                       <div className="absolute inset-0 grid place-items-center pointer-events-none">
-                        <div className="text-center">
-                          <p className="text-headline-md text-ink-faint">No rooms on this floor yet</p>
-                          <p className="text-body-md text-ink-faint mt-1">
-                            Switch to “Draw room” and click out the corners.
+                        <div className="text-center px-6">
+                          <p className="text-headline-md text-ink-faint">
+                            {planImage ? 'No rooms on this floor yet' : 'No plan for this floor yet'}
+                          </p>
+                          <p className="text-body-md text-ink-faint mt-1 max-w-sm mx-auto">
+                            {planImage
+                              ? 'Switch to “Trace room” and click inside a room on the plan.'
+                              : 'Upload this floor’s diagram above — then a click inside any room '
+                                + 'on it becomes that room’s outline.'}
                           </p>
                         </div>
                       </div>
@@ -451,7 +578,43 @@ export default function FloorPlanEditor() {
             </div>
             <p className="text-body-sm text-ink-faint">
               Outline: {roomForm.boundary?.length || 0} points
+              {roomForm.traced && ' — traced from the plan'}
               {roomForm.editingId && ' (unchanged — redraw the room to alter its shape)'}
+            </p>
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!floorForm} onClose={() => setFloorForm(null)} title="Add a floor" size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setFloorForm(null)}>Cancel</Button>
+            <Button icon={Save} loading={addFloor.isPending}
+                    disabled={!floorForm?.name}
+                    onClick={() => addFloor.mutate({
+                      name: floorForm.name, level: Number(floorForm.level),
+                    })}>
+              Add floor
+            </Button>
+          </>
+        }
+      >
+        {floorForm && (
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-[1fr_110px] gap-4">
+              <Field label="Floor name" required>
+                <Input value={floorForm.name || ''} placeholder="Second Floor"
+                       onChange={(e) => setFloorForm((f) => ({ ...f, name: e.target.value }))} />
+              </Field>
+              <Field label="Level" hint="0 is ground">
+                <Input type="number" value={floorForm.level ?? ''}
+                       onChange={(e) => setFloorForm((f) => ({ ...f, level: e.target.value }))} />
+              </Field>
+            </div>
+            <p className="text-body-sm text-ink-faint">
+              Upload this floor’s own diagram once it exists — each floor is traced
+              from its own plan.
             </p>
           </div>
         )}

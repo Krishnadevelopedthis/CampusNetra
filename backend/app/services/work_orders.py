@@ -54,7 +54,8 @@ async def resolve_sla(
 
 
 async def suggest_technician(
-    db: AsyncSession, org_id: uuid.UUID, department_id: Optional[uuid.UUID]
+    db: AsyncSession, org_id: uuid.UUID, department_id: Optional[uuid.UUID],
+    exclude: Optional[uuid.UUID] = None,
 ) -> Optional[User]:
     """Least-loaded active technician in the department.
 
@@ -81,9 +82,71 @@ async def suggest_technician(
     )
     if department_id:
         query = query.where(User.department_id == department_id)
+    if exclude:
+        query = query.where(User.id != exclude)
 
     row = (await db.execute(query.limit(1))).first()
     return row[0] if row else None
+
+
+async def handover_open_work(
+    db: AsyncSession, leaving: User, actor: User
+) -> tuple[list[dict], list[dict]]:
+    """Move a departing technician's live work onto someone who can do it.
+
+    Eligibility is the department, because that is where a technician's
+    speciality is recorded — handing an electrical fault to the plumbing team
+    would clear the queue without anybody being able to act on it.
+
+    Each order is placed separately rather than in one batch. `suggest_technician`
+    ranks by current load, so flushing between placements lets that count move
+    and spreads a departing technician's queue across the team instead of
+    dropping all of it on whoever happened to be quietest first.
+
+    Returns (moved, orphaned) — the second list is work with nobody left to take
+    it, which is unassigned and reopened so it shows up as unclaimed rather than
+    sitting with somebody who can no longer sign in.
+    """
+    open_orders = (await db.scalars(
+        select(WorkOrder).where(
+            WorkOrder.assigned_to == leaving.id,
+            WorkOrder.status.notin_([
+                WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED, WorkOrderStatus.VERIFIED,
+            ]),
+        ).order_by(WorkOrder.priority, WorkOrder.created_at)
+    )).all()
+
+    moved: list[dict] = []
+    orphaned: list[dict] = []
+    for wo in open_orders:
+        successor = await suggest_technician(
+            db, leaving.organization_id,
+            wo.department_id or leaving.department_id,
+            exclude=leaving.id,
+        )
+        if successor is None:
+            wo.assigned_to = None
+            wo.assigned_by = None
+            wo.assigned_at = None
+            if wo.status == WorkOrderStatus.ASSIGNED:
+                wo.status = WorkOrderStatus.OPEN
+            db.add(WorkOrderEvent(
+                work_order_id=wo.id, from_status=WorkOrderStatus.ASSIGNED,
+                to_status=wo.status, actor_id=actor.id, created_at=_now(),
+                note=f"Unassigned — {leaving.full_name} was deactivated and no "
+                     "other technician in that department is available",
+            ))
+            orphaned.append({"reference": wo.reference, "title": wo.title})
+        else:
+            await assign_work_order(
+                db, wo, successor.id, actor,
+                note=f"Reassigned from {leaving.full_name}, who was deactivated",
+            )
+            moved.append({"reference": wo.reference, "title": wo.title,
+                          "technician": successor.full_name})
+        await db.flush()
+
+    return moved, orphaned
 
 
 async def create_work_order(
