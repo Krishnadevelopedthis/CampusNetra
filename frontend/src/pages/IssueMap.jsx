@@ -74,6 +74,18 @@ export default function IssueMap() {
   if (campuses.error) return <ErrorState error={campuses.error} onRetry={campuses.refetch} />
 
   const rooms = plan.data?.rooms || []
+
+  // Same proportions as the twin renders: room outlines are normalised
+
+  // against the plan, so squaring the canvas stretches a wide floor and
+
+  // the two views disagree about the shape of the same rooms.
+
+  const vbH = plan.data?.floor?.plan_width && plan.data?.floor?.plan_height
+
+    ? Math.round((VB * plan.data.floor.plan_height) / plan.data.floor.plan_width)
+
+    : VB
   const counts = PRIORITIES.map((p) => ({
     priority: p,
     count: (map.data?.rooms || []).reduce(
@@ -144,17 +156,17 @@ export default function IssueMap() {
                           description="Outline the rooms in the Floor Plan editor first." />
             ) : (
               <div className="relative bg-surface-sunken">
-                <svg viewBox={`0 0 ${VB} ${VB}`} className="w-full h-[520px]"
+                <svg viewBox={`0 0 ${VB} ${vbH}`} className="w-full h-[520px]"
                      role="img" aria-label="Issues plotted on the floor plan">
                   <defs>
                     <pattern id="issuegrid" width="40" height="40" patternUnits="userSpaceOnUse">
                       <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e2e8f0" strokeWidth="1" />
                     </pattern>
                   </defs>
-                  <rect width={VB} height={VB} fill="url(#issuegrid)" />
+                  <rect width={VB} height={vbH} fill="url(#issuegrid)" />
 
                   {rooms.map((room) => {
-                    const pts = (room.boundary || []).map(([x, y]) => `${x * VB},${y * VB}`).join(' ')
+                    const pts = (room.boundary || []).map(([x, y]) => `${x * VB},${y * vbH}`).join(' ')
                     if (!pts) return null
                     const data = byRoom.get(room.id)
                     const isSelected = selected?.room_id === room.id
@@ -163,7 +175,7 @@ export default function IssueMap() {
                     const colour = data?.colour || '#cbd5e1'
                     const centre = {
                       x: (room.boundary.reduce((s, p) => s + p[0], 0) / room.boundary.length) * VB,
-                      y: (room.boundary.reduce((s, p) => s + p[1], 0) / room.boundary.length) * VB,
+                      y: (room.boundary.reduce((s, p) => s + p[1], 0) / room.boundary.length) * vbH,
                     }
                     return (
                       <g key={room.id} className="cursor-pointer"
