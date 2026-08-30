@@ -16,6 +16,7 @@ import { TwinLegend } from '@/features/twin/FloorPlan'
 import { SkeletonMetrics } from '@/components/Skeletons'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { TWIN_STATE } from '@/lib/format'
 
 const VB = 1000
@@ -49,6 +50,8 @@ export default function CampusMap() {
   const [mode, setMode] = useState('condition')   // condition | heat
   const [hover, setHover] = useState(null)
 
+  const { user } = useAuth()
+
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   const campusId = campuses.data?.[0]?.id
 
@@ -57,15 +60,20 @@ export default function CampusMap() {
     queryFn: () => api.get(`/campus/campuses/${campusId}/overview`),
     enabled: !!campusId,
   })
+  // The heatmap endpoint is manager-and-above, but Campus Map is in the student
+  // and teacher navigation, so every reporter opening this page fired a request
+  // that could only 403. Ask for it only when it can be answered, and drop the
+  // toggle that offers it otherwise.
+  const canSeeHeat = ['facility_manager', 'admin', 'super_admin'].includes(user?.role)
   const heat = useQuery({
     queryKey: ['heatmap', campusId, days],
     queryFn: () => api.get('/analytics/heatmap', { params: { days, campus_id: campusId } }),
-    enabled: !!campusId,
+    enabled: !!campusId && canSeeHeat,
   })
 
   const navigate = useNavigate()
   const { refresh, refreshing } = useRefresh(
-    overview.refetch, heat.refetch, campuses.refetch,
+    overview.refetch, canSeeHeat ? heat.refetch : null, campuses.refetch,
   )
 
   const busy = campuses.isLoading || overview.isLoading || refreshing
@@ -132,7 +140,8 @@ export default function CampusMap() {
       <Widget bodyClass="p-0" className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 p-widget border-b border-border-subtle">
           <div className="flex p-1 bg-surface-sunken rounded-lg">
-            {[['condition', 'Live condition'], ['heat', 'Complaint heatmap']].map(([k, label]) => (
+            {[['condition', 'Live condition'],
+              ...(canSeeHeat ? [['heat', 'Complaint heatmap']] : [])].map(([k, label]) => (
               <button key={k} onClick={() => setMode(k)}
                       className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
                         mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'

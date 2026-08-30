@@ -7,7 +7,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete as sa_delete, func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff
 from app.core.routing import CommitRoute
@@ -496,22 +496,87 @@ async def update_building(
 
 
 @router.delete("/buildings/{building_id}", response_model=Message)
-async def delete_building(building_id: uuid.UUID, user: RequireAdmin, db: DB):
+async def delete_building(
+    building_id: uuid.UUID, user: RequireAdmin, db: DB,
+    cascade: bool = Query(False,
+                          description="Also remove the floors, rooms and assets inside"),
+):
+    """Remove a building, optionally with everything inside it.
+
+    Refusing until the building is empty is the right default — deleting a block
+    should not silently take a hundred assets with it. It is the wrong only
+    option: emptying a building by hand means deleting every asset, then every
+    room, then every floor, and the API answered each attempt with the same
+    refusal. `cascade` does that walk in one transaction, and the refusal now
+    says what it would remove so the choice is informed.
+    """
     building = await db.scalar(select(Building).where(Building.id == building_id))
     if building is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
 
-    rooms = await db.scalar(
-        select(func.count(Room.id))
-        .select_from(Room).join(Floor, Floor.id == Room.floor_id)
-        .where(Floor.building_id == building_id)) or 0
-    if rooms:
+    contents = await _building_contents(db, building_id)
+    if any(contents.values()) and not cascade:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"{building.code} still contains {rooms} room(s). Remove them first.")
+            f"{building.code} still contains {_describe(contents)}.",
+        )
 
+    if cascade and contents["asset"]:
+        room_ids = (await db.scalars(
+            select(Room.id).join(Floor, Floor.id == Room.floor_id)
+            .where(Floor.building_id == building_id))).all()
+        await _purge_assets(db, room_ids)
+
+    name = building.name
     await db.delete(building)
-    return Message(detail=f"{building.name} removed.")
+    return Message(
+        detail=f"{name} removed."
+        + (f" {_describe(contents)} went with it." if any(contents.values()) else ""),
+    )
+
+
+async def _building_contents(db: DB, building_id: uuid.UUID) -> dict:
+    floors = await db.scalar(
+        select(func.count()).select_from(Floor)
+        .where(Floor.building_id == building_id)) or 0
+    rooms = await db.scalar(
+        select(func.count(Room.id)).select_from(Room)
+        .join(Floor, Floor.id == Room.floor_id)
+        .where(Floor.building_id == building_id)) or 0
+    assets = await db.scalar(
+        select(func.count(Asset.id)).select_from(Asset)
+        .join(Room, Room.id == Asset.room_id)
+        .join(Floor, Floor.id == Room.floor_id)
+        .where(Floor.building_id == building_id)) or 0
+    return {"floor": floors, "room": rooms, "asset": assets}
+
+
+async def _purge_assets(db: DB, room_ids) -> None:
+    """Delete the assets in these rooms.
+
+    Floors and rooms disappear with their parent through ON DELETE CASCADE, but
+    assets.room_id is SET NULL — so dropping a building would leave its
+    equipment in the registry with no location rather than removing it. A
+    cascade that says it took the assets has to actually take them.
+
+    Work orders and issues reference assets under SET NULL, so the record of
+    what was done to them survives the equipment itself, which is the point.
+    """
+    ids = list(room_ids)
+    if not ids:
+        return
+    await db.execute(sa_delete(Asset).where(Asset.room_id.in_(ids)))
+
+
+def _describe(counts: dict) -> str:
+    """"2 floors, 7 rooms and 13 assets", skipping whatever is zero."""
+    parts = [f"{n} {word}{'' if n == 1 else 's'}"
+             for word, n in counts.items() if n]
+    if not parts:
+        return "nothing"
+    if len(parts) == 1:
+        return parts[0]
+    return f"{', '.join(parts[:-1])} and {parts[-1]}"
 
 
 @router.post("/buildings/{building_id}/floors", response_model=FloorOut, status_code=201)
@@ -539,16 +604,29 @@ async def create_floor(
 
 
 @router.delete("/floors/{floor_id}", response_model=Message)
-async def delete_floor(floor_id: uuid.UUID, user: RequireAdmin, db: DB):
+async def delete_floor(
+    floor_id: uuid.UUID, user: RequireAdmin, db: DB,
+    cascade: bool = Query(False, description="Also remove the rooms and assets on it"),
+):
     floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
     if floor is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
 
     rooms = await db.scalar(
         select(func.count()).select_from(Room).where(Room.floor_id == floor_id)) or 0
-    if rooms:
+    assets = await db.scalar(
+        select(func.count(Asset.id)).select_from(Asset)
+        .join(Room, Room.id == Asset.room_id)
+        .where(Room.floor_id == floor_id)) or 0
+    contents = {"room": rooms, "asset": assets}
+    if rooms and not cascade:
         raise HTTPException(status.HTTP_409_CONFLICT,
-                            f"{floor.name} still contains {rooms} room(s). Remove them first.")
+                            f"{floor.name} still contains {_describe(contents)}.")
+
+    if cascade and assets:
+        room_ids = (await db.scalars(
+            select(Room.id).where(Room.floor_id == floor_id))).all()
+        await _purge_assets(db, room_ids)
 
     building_id = floor.building_id
     await db.delete(floor)
@@ -558,7 +636,10 @@ async def delete_floor(floor_id: uuid.UUID, user: RequireAdmin, db: DB):
     if building:
         building.floors_count = max(1, await db.scalar(
             select(func.count()).select_from(Floor).where(Floor.building_id == building_id)) or 1)
-    return Message(detail=f"{floor.name} removed.")
+    return Message(
+        detail=f"{floor.name} removed."
+        + (f" {_describe(contents)} went with it." if rooms else ""),
+    )
 
 
 # ---------------------------------------------------------------- editing
@@ -714,20 +795,30 @@ async def update_room(
 
 
 @router.delete("/rooms/{room_id}", response_model=Message)
-async def delete_room(room_id: uuid.UUID, user: RequireAdmin, db: DB):
+async def delete_room(
+    room_id: uuid.UUID, user: RequireAdmin, db: DB,
+    cascade: bool = Query(False, description="Also remove the assets inside"),
+):
     room = await db.scalar(select(Room).where(Room.id == room_id))
     if room is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
 
     assets = await db.scalar(
         select(func.count()).select_from(Asset).where(Asset.room_id == room_id)) or 0
-    if assets:
+    if assets and not cascade:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"{room.code} still holds {assets} asset(s). Move or remove them first.")
+            f"{room.code} still holds {_describe({'asset': assets})}.")
 
+    if cascade and assets:
+        await _purge_assets(db, [room_id])
+
+    code = room.code
     await db.delete(room)
-    return Message(detail=f"{room.code} removed.")
+    return Message(
+        detail=f"{code} removed."
+        + (f" {_describe({'asset': assets})} went with it." if assets else ""),
+    )
 
 
 @router.patch("/assets/{asset_id}/position", response_model=Message)

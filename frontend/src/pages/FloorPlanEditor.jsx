@@ -28,6 +28,7 @@ import {
   toast,
 } from '@/components/ui'
 import { AssetModal } from '@/features/twin/AssetRoomModals'
+import { useCascadingDelete } from '@/hooks/useCascadingDelete'
 import { api, mediaUrl, upload } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 import { loadPlanPixels, traceRoomAt } from '@/lib/planTrace'
@@ -105,10 +106,9 @@ export default function FloorPlanEditor() {
     onError: (e) => toast.error(e.detail || 'Could not update the room'),
   })
 
-  const deleteRoom = useMutation({
-    mutationFn: (id) => api.del(`/campus/rooms/${id}`),
-    onSuccess: (d) => { toast.success(d.detail); setSelectedRoom(null); refresh() },
-    onError: (e) => toast.error(e.detail),
+  const deleteRoom = useCascadingDelete({
+    path: '/campus/rooms',
+    onDone: () => { setSelectedRoom(null); refresh() },
   })
 
 
@@ -514,8 +514,9 @@ export default function FloorPlanEditor() {
                       Edit
                     </Button>
                     <Button size="sm" variant="ghost" icon={Trash2} className="text-danger-text"
-                            loading={deleteRoom.isPending}
-                            onClick={() => deleteRoom.mutate(selectedRoom.id)}>
+                            loading={deleteRoom.pendingId === selectedRoom.id}
+                            onClick={() => deleteRoom.remove(
+                              selectedRoom.id, `${selectedRoom.code} — ${selectedRoom.name}`)}>
                       Delete
                     </Button>
                   </div>
