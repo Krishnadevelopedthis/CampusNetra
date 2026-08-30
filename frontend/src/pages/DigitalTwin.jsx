@@ -1,11 +1,15 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Boxes, Building2, ChevronRight, CircleDot, DoorOpen, Layers, Pencil, Radio, X,
+  Boxes, Building2, ChevronRight, CircleDot, DoorOpen, Landmark, Layers, Pencil,
+  Plus, Radio, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
-import { EmptyState, ErrorState, RefreshButton, Spinner, StatusPill, Widget } from '@/components/ui'
+import {
+  Button, EmptyState, ErrorState, Field, Input, Modal, RefreshButton, Spinner,
+  StatusPill, Widget, toast,
+} from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
 import { AssetModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import { useRefresh } from '@/hooks/useRefresh'
@@ -29,6 +33,7 @@ export default function DigitalTwin() {
   const [live, setLive] = useState(false)
   const [roomModal, setRoomModal] = useState(null)
   const [assetModal, setAssetModal] = useState(false)
+  const [placeForm, setPlaceForm] = useState(null)   // campus / building / floor
   // Assets whose state changed in the last few seconds get a pulse ring.
   const [changed, setChanged] = useState(new Set())
 
@@ -124,13 +129,56 @@ export default function DigitalTwin() {
     return out
   }, [plan.data])
 
-  const { refresh, refreshing } = useRefresh(plan.refetch, overview.refetch)
+  const createPlace = useMutation({
+    mutationFn: ({ kind, body }) => {
+      if (kind === 'campus') return api.post('/campus/campuses', body)
+      if (kind === 'building') return api.post(`/campus/campuses/${campusId}/buildings`, body)
+      return api.post(`/campus/buildings/${buildingId}/floors`, body)
+    },
+    onSuccess: (created, { kind }) => {
+      toast.success(`${created.name} added.`)
+      setPlaceForm(null)
+      qc.invalidateQueries({ queryKey: ['campuses'] })
+      qc.invalidateQueries({ queryKey: ['campus-overview'] })
+      qc.invalidateQueries({ queryKey: ['buildings'] })
+      qc.invalidateQueries({ queryKey: ['floors'] })
+      // Drop straight into what was just created, so the chain carries on
+      // rather than ending at a list the person has to hunt through.
+      if (kind === 'building') { setBuildingId(created.id); setSelectedFloor(null) }
+      if (kind === 'floor') setSelectedFloor(created.id)
+    },
+    onError: (e) => toast.error(e.detail || 'Could not add that'),
+  })
+
+  // Guarded: refetch() runs even on a disabled query, so with no floor chosen
+  // the refresh button used to request /campus/floors/null/plan and answer with
+  // a validation error across the plan area of an estate that simply had
+  // nothing in it yet.
+  const { refresh, refreshing } = useRefresh(
+    selectedFloor ? plan.refetch : null,
+    campusId ? overview.refetch : null,
+    campusId ? buildings.refetch : null,
+    campuses.refetch,
+  )
 
   if (campuses.isLoading) return <Spinner label="Loading campus…" />
   if (campuses.error) return <ErrorState error={campuses.error} onRetry={campuses.refetch} />
   if (!campusId) {
-    return <EmptyState icon={Building2} title="No campus configured"
-                       description="An administrator needs to set up the campus hierarchy first." />
+    return (
+      <>
+        <EmptyState
+          icon={Landmark} title="No campus configured"
+          description="Start with a campus, then add its buildings, floors, rooms and equipment."
+          action={canEdit ? (
+            <Button icon={Plus} onClick={() => setPlaceForm({ kind: 'campus' })}>
+              Add a campus
+            </Button>
+          ) : undefined}
+        />
+        <PlaceModal form={placeForm} onClose={() => setPlaceForm(null)}
+                    onSave={createPlace.mutate} saving={createPlace.isPending} />
+      </>
+    )
   }
 
   return (
@@ -174,8 +222,22 @@ export default function DigitalTwin() {
       <div className="grid lg:grid-cols-[280px_1fr] gap-5 items-start">
         {/* Left rail: the hierarchy, and the controls that extend it */}
         <div className="space-y-4">
-        <Widget title="Hierarchy" bodyClass="p-0">
+        <Widget
+          title="Hierarchy"
+          action={canEdit && (
+            <button className="btn-ghost btn-sm !px-2"
+                    onClick={() => setPlaceForm({ kind: 'building', floors_count: 1 })}>
+              <Plus size={14} /> Building
+            </button>
+          )}
+          bodyClass="p-0"
+        >
           <div className="p-3 space-y-1">
+            {buildings.data?.length === 0 && (
+              <p className="text-body-sm text-ink-faint px-2 py-4 text-center">
+                No buildings yet.{canEdit && ' Add one to start mapping the campus.'}
+              </p>
+            )}
             {(buildings.data || []).map((b) => {
               const meta = overview.data?.buildings?.find((x) => x.id === b.id)
               const active = b.id === buildingId
@@ -209,6 +271,19 @@ export default function DigitalTwin() {
                       {floors.data?.length === 0 && (
                         <p className="text-body-sm text-ink-faint px-2 py-2">No floors configured</p>
                       )}
+                      {canEdit && (
+                        <button
+                          onClick={() => setPlaceForm({
+                            kind: 'floor',
+                            level: (Math.max(0, ...(floors.data || []).map((f) => f.level)) || 0) + 1,
+                          })}
+                          className="w-full flex items-center gap-2 h-9 px-2 rounded text-left
+                                     text-body-sm text-ink-faint hover:text-ink hover:bg-surface-sunken
+                                     transition-colors"
+                        >
+                          <Plus size={14} className="shrink-0" /> Add floor
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -225,12 +300,38 @@ export default function DigitalTwin() {
             half-configured. */}
         {canEdit && (
           <Widget
-            title="Add to this floor"
+            title="Build out the campus"
             subtitle={plan.data?.floor?.name
               ? `${plan.data?.building?.name} · ${plan.data.floor.name}`
-              : 'Select a floor first'}
+              : 'Campus → building → floor → room → equipment'}
           >
             <div className="space-y-2">
+              <button
+                onClick={() => setPlaceForm({ kind: 'campus' })}
+                className="btn-secondary w-full justify-start"
+              >
+                <Landmark size={16} /> Add campus
+              </button>
+
+              <button
+                onClick={() => setPlaceForm({ kind: 'building', floors_count: 1 })}
+                className="btn-secondary w-full justify-start"
+              >
+                <Building2 size={16} /> Add building
+              </button>
+
+              <button
+                onClick={() => setPlaceForm({
+                  kind: 'floor',
+                  level: (Math.max(0, ...(floors.data || []).map((f) => f.level)) || 0) + 1,
+                })}
+                disabled={!buildingId}
+                title={buildingId ? undefined : 'Pick a building first'}
+                className="btn-secondary w-full justify-start"
+              >
+                <Layers size={16} /> Add floor
+              </button>
+
               <button
                 onClick={() => setRoomModal({ floor_id: selectedFloor })}
                 disabled={!selectedFloor}
@@ -254,11 +355,13 @@ export default function DigitalTwin() {
               </button>
 
               <p className="text-body-sm text-ink-faint pt-1">
-                {!selectedFloor
-                  ? 'Choose a building and floor above.'
-                  : !selectedRoom
-                    ? 'Assets belong to a room — click one on the plan to add equipment to it.'
-                    : `Equipment will be registered in ${selectedRoom.name}.`}
+                {!buildingId
+                  ? 'Add a building to start, or pick one above.'
+                  : !selectedFloor
+                    ? 'Choose a floor above, or add one.'
+                    : !selectedRoom
+                      ? 'Assets belong to a room — click one on the plan to add equipment to it.'
+                      : `Equipment will be registered in ${selectedRoom.name}.`}
               </p>
 
               {selectedFloor && (
@@ -317,6 +420,8 @@ export default function DigitalTwin() {
           )}
         </div>
       </div>
+      <PlaceModal form={placeForm} onClose={() => setPlaceForm(null)}
+                  onSave={createPlace.mutate} saving={createPlace.isPending} />
       <RoomModal
         open={!!roomModal}
         room={null}
@@ -452,5 +557,94 @@ function Row({ label, children }) {
       <p className="text-label-caps uppercase text-ink-muted">{label}</p>
       <div className="text-body-md text-ink mt-1">{children}</div>
     </div>
+  )
+}
+
+
+/**
+ * The three levels above a room: campus, building, floor.
+ *
+ * One dialog for all three because they differ only in which fields apply, and
+ * because the point of the panel that opens it is that the whole chain is one
+ * flow — a person mapping a new site should not be sent to three screens to
+ * describe one building.
+ */
+const PLACE_TITLES = {
+  campus: 'Add a campus',
+  building: 'Add a building',
+  floor: 'Add a floor',
+}
+
+function PlaceModal({ form, onClose, onSave, saving }) {
+  const [draft, setDraft] = useState({})
+
+  // Reset when a different level is opened, so a building's code does not
+  // arrive prefilled in the floor dialog.
+  useEffect(() => { setDraft(form || {}) }, [form])
+
+  if (!form) return null
+  const kind = form.kind
+  const set = (k) => (e) => setDraft((f) => ({ ...f, [k]: e.target.value }))
+  const complete = kind === 'floor'
+    ? !!draft.name
+    : !!draft.name && !!draft.code
+
+  return (
+    <Modal
+      open onClose={onClose} title={PLACE_TITLES[kind]} size="sm"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button loading={saving} disabled={!complete}
+                  onClick={() => onSave({
+                    kind,
+                    body: kind === 'campus'
+                      ? { name: draft.name, code: draft.code, address: draft.address || null }
+                      : kind === 'building'
+                        ? {
+                          name: draft.name, code: draft.code,
+                          floors_count: Math.max(1, Number(draft.floors_count) || 1),
+                        }
+                        : { name: draft.name, level: Number(draft.level) || 0 },
+                  })}>
+            {PLACE_TITLES[kind]}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Name" required className={kind === 'floor' ? '' : undefined}>
+            <Input value={draft.name || ''} onChange={set('name')}
+                   placeholder={kind === 'campus' ? 'Main Campus'
+                     : kind === 'building' ? 'Science Block' : 'Second Floor'} />
+          </Field>
+          {kind === 'floor' ? (
+            <Field label="Level" hint="0 is ground">
+              <Input type="number" value={draft.level ?? ''} onChange={set('level')} />
+            </Field>
+          ) : (
+            <Field label="Code" required hint="Short and unique">
+              <Input value={draft.code || ''} onChange={set('code')}
+                     placeholder={kind === 'campus' ? 'MAIN' : 'SCI'} />
+            </Field>
+          )}
+        </div>
+
+        {kind === 'campus' && (
+          <Field label="Address">
+            <Input value={draft.address || ''} onChange={set('address')} />
+          </Field>
+        )}
+
+        {kind === 'building' && (
+          <Field label="How many floors?"
+                 hint="Created with the building — a building with no floors cannot hold rooms. More can be added later.">
+            <Input type="number" min="1" max="100" value={draft.floors_count ?? 1}
+                   onChange={set('floors_count')} />
+          </Field>
+        )}
+      </div>
+    </Modal>
   )
 }

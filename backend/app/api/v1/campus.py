@@ -626,6 +626,30 @@ async def set_floor_plan_image(
     return FloorOut.model_validate(floor)
 
 
+# Rooms are laid out in rows of this many when no outline is supplied.
+_DEFAULT_GRID = 4
+
+
+def _default_boundary(index: int) -> list:
+    """A placed rectangle for a room created without an outline.
+
+    A room with no polygon is invisible on the twin, which breaks the chain the
+    hierarchy panel exists to support: add a room, then click it to put
+    equipment in it. Tiling each new room into the next free cell means it can
+    be seen and selected straight away, and moved to its real position later by
+    tracing it off the floor plan.
+    """
+    col = index % _DEFAULT_GRID
+    row = index // _DEFAULT_GRID
+    cell = 1.0 / _DEFAULT_GRID
+    pad = cell * 0.08
+    x0 = round(col * cell + pad, 5)
+    y0 = round(min(row * cell + pad, 1 - cell + pad), 5)
+    x1 = round(x0 + cell - 2 * pad, 5)
+    y1 = round(min(y0 + cell - 2 * pad, 1.0), 5)
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]
+
+
 @router.post("/floors/{floor_id}/rooms", response_model=RoomOut, status_code=201)
 async def create_room(
     floor_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
@@ -641,10 +665,16 @@ async def create_room(
                             f"Room code {payload.code} already exists on this floor.")
 
     building = await db.scalar(select(Building).where(Building.id == floor.building_id))
+    boundary = _validate_boundary(payload.boundary)
+    if boundary is None:
+        placed = await db.scalar(
+            select(func.count()).select_from(Room).where(Room.floor_id == floor_id)) or 0
+        boundary = _default_boundary(placed)
+
     room = Room(
         floor_id=floor_id, name=payload.name, code=payload.code, kind=payload.kind,
         capacity=payload.capacity, area_sqft=payload.area_sqft,
-        boundary=_validate_boundary(payload.boundary),
+        boundary=boundary,
         # Deterministic zone id, matching the format used elsewhere.
         zone_id=f"ZN-BLD{building.code}-F{floor.level}-{payload.code.split('-')[-1]}"
         if building else None,
