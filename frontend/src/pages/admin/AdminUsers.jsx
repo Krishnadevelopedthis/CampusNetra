@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, UserMinus, UserPlus, UserX } from 'lucide-react'
+import {
+  AlertTriangle, CalendarClock, ClipboardList, LogIn, PackageSearch, Search,
+  Trash2, UserMinus, UserPlus, UserX, Wrench,
+} from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -25,6 +28,13 @@ const STATUS_LABEL = {
   pending_verification: 'Awaiting verification',
 }
 
+// Rolling windows, matching the `joined` parameter the API validates.
+const JOINED = [
+  ['week', 'Joined this week'],
+  ['month', 'Joined this month'],
+  ['year', 'Joined this year'],
+]
+
 export default function AdminUsers() {
   const { isAdmin, user: me } = useAuth()
   const qc = useQueryClient()
@@ -32,14 +42,17 @@ export default function AdminUsers() {
   const [q, setQ] = useState('')
   const [role, setRole] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [joined, setJoined] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [viewing, setViewing] = useState(null)
 
   const params = {
     page, page_size: 20,
     q: q || undefined,
     role: role || undefined,
     status: statusFilter || undefined,
+    joined: joined || undefined,
   }
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['admin-users', params],
@@ -71,6 +84,38 @@ export default function AdminUsers() {
     onSettled: () => setPendingId(null),
   })
 
+  // Deleting outright is only possible while nothing on the campus record
+  // points at the account. When something does, the API says so and offers to
+  // strip the person from the row instead — which is a different enough
+  // outcome that it gets its own confirmation rather than happening silently.
+  const remove = useMutation({
+    mutationFn: ({ id, anonymise }) =>
+      api.del(`/admin/users/${id}`, { params: anonymise ? { anonymise: 1 } : undefined }),
+    onMutate: ({ id }) => setPendingId(id),
+    onSuccess: (d) => { toast.success(d.detail); invalidate(); setViewing(null) },
+    onSettled: () => setPendingId(null),
+  })
+
+  const askRemove = (u) => {
+    if (!confirm(
+      `Delete ${u.full_name}?\n\nThis removes the account permanently and cannot `
+      + 'be undone.',
+    )) return
+    remove.mutate({ id: u.id, anonymise: false }, {
+      onError: (err) => {
+        if (err.status !== 409) return toast.error(err.detail || 'Could not delete')
+        if (confirm(
+          `${err.detail}\n\nRemove their name from the account instead? They will no `
+          + 'longer be able to sign in, and their reports stay on the record without '
+          + 'their name. This cannot be undone.',
+        )) {
+          remove.mutate({ id: u.id, anonymise: true },
+                        { onError: (e) => toast.error(e.detail || 'Could not delete') })
+        }
+      },
+    })
+  }
+
   const totalPages = data ? Math.ceil(data.total / data.page_size) : 0
 
   return (
@@ -101,9 +146,17 @@ export default function AdminUsers() {
             ))}
           </Select>
 
-          {(role || statusFilter || q) && (
+          <Select value={joined} onChange={(e) => { setJoined(e.target.value); setPage(1) }}
+                  className="w-auto min-w-[170px]">
+            <option value="">Joined any time</option>
+            {JOINED.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </Select>
+
+          {(role || statusFilter || joined || q) && (
             <Button variant="ghost" size="sm"
-                    onClick={() => { setRole(''); setStatusFilter(''); setQ(''); setPage(1) }}>
+                    onClick={() => {
+                      setRole(''); setStatusFilter(''); setJoined(''); setQ(''); setPage(1)
+                    }}>
               Clear
             </Button>
           )}
@@ -128,7 +181,9 @@ export default function AdminUsers() {
                   </thead>
                   <tbody>
                     {data.items.map((u) => (
-                      <tr key={u.id}>
+                      <tr key={u.id} onClick={() => setViewing(u)}
+                          className="cursor-pointer hover:bg-surface-sunken"
+                          title={`Open ${u.full_name}'s record`}>
                         <td>
                           <div className="flex items-center gap-2.5">
                             <Avatar name={u.full_name} src={mediaUrl(u.avatar_url)} size={32} />
@@ -153,7 +208,9 @@ export default function AdminUsers() {
                         <td className="text-ink-muted whitespace-nowrap">
                           {u.last_login_at ? dt(u.last_login_at, 'd MMM, HH:mm') : 'Never'}
                         </td>
-                        <td>
+                        {/* Buttons sit inside the clickable row, so their
+                            clicks must not also open the record behind them. */}
+                        <td onClick={(e) => e.stopPropagation()}>
                           {isAdmin() && u.id !== me?.id && (
                             <div className="flex gap-1 justify-end">
                               <Button size="sm" variant="ghost" onClick={() => setEditing(u)}>Edit</Button>
@@ -179,6 +236,12 @@ export default function AdminUsers() {
                                   Activate
                                 </Button>
                               )}
+                              <Button size="sm" variant="ghost" icon={Trash2}
+                                      className="text-danger-text"
+                                      aria-label={`Delete ${u.full_name}`}
+                                      loading={pendingId === u.id}
+                                      disabled={!!pendingId}
+                                      onClick={() => askRemove(u)} />
                             </div>
                           )}
                         </td>
@@ -215,6 +278,11 @@ export default function AdminUsers() {
         user={editing} onClose={() => setEditing(null)}
         departments={departments.data || []}
         programmes={programmes.data || []} onDone={invalidate}
+      />
+      <UserDetailModal
+        user={viewing} onClose={() => setViewing(null)}
+        onEdit={(u) => { setViewing(null); setEditing(u) }}
+        onDelete={askRemove} canManage={isAdmin() && viewing?.id !== me?.id}
       />
     </div>
   )
@@ -399,6 +467,214 @@ function EditUserModal({ user, onClose, departments, programmes, onDone }) {
         </Field>
       </div>
     </Modal>
+  )
+}
+
+
+/* ================== One person's record ================== */
+
+/**
+ * Opened by clicking a row: everything held about that account in one place.
+ *
+ * Deliberately the same collector the person's own data export uses, so what an
+ * administrator sees here and what the individual can ask for cannot drift
+ * apart. Sign-ins are shown before the reports because the question that brings
+ * anyone to this screen is usually "when was this account last used, and by
+ * whom" rather than "what have they filed".
+ */
+function UserDetailModal({ user, onClose, onEdit, onDelete, canManage }) {
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ['admin-user-detail', user?.id],
+    queryFn: () => api.get(`/admin/users/${user.id}/detail`),
+    enabled: !!user,
+  })
+
+  if (!user) return null
+  const a = data?.account
+
+  return (
+    <Modal
+      open={!!user} onClose={onClose} size="lg"
+      title={
+        <span className="flex items-center gap-2.5">
+          <Avatar name={user.full_name} src={mediaUrl(user.avatar_url)} size={32} />
+          {user.full_name}
+        </span>
+      }
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Close</Button>
+          {canManage && (
+            <>
+              <Button variant="secondary" onClick={() => onEdit(user)}>Edit</Button>
+              <Button variant="danger" icon={Trash2}
+                      onClick={() => onDelete(user)}>Delete</Button>
+            </>
+          )}
+        </>
+      }
+    >
+      {isLoading ? <SkeletonRows rows={5} cols={2} />
+        : error ? <ErrorState error={error} onRetry={refetch} />
+        : (
+          <div className="space-y-5">
+            {data.can_hard_delete === false && canManage && (
+              <p className="flex gap-2 items-start text-body-sm text-ink-muted
+                            bg-surface-sunken rounded-xl px-3.5 py-2.5">
+                <AlertTriangle size={15} className="text-warning shrink-0 mt-0.5" />
+                This account is referenced by the campus record below, so it cannot be
+                deleted outright. Deleting offers to remove their name instead.
+              </p>
+            )}
+
+            <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3">
+              {[
+                ['Email', a.email],
+                ['Role', ROLE_LABEL[a.role] || a.role],
+                ['Status', a.status.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())],
+                ['Phone', a.phone],
+                [a.enrollment_no ? 'Enrollment number' : 'Employee ID',
+                 a.enrollment_no || a.employee_id],
+                ['Designation', a.designation],
+                ['Department', a.department],
+                ['Course', a.programme && `${a.programme}${a.academic_year ? `, year ${a.academic_year}` : ''}`],
+                ['Registered', a.created_at && `${dt(a.created_at, 'd MMM yyyy, HH:mm')} (${ago(a.created_at)})`],
+                ['Email verified', a.email_verified_at
+                  ? dt(a.email_verified_at, 'd MMM yyyy, HH:mm') : 'Not verified'],
+                ['Last sign-in', a.last_login_at
+                  ? `${dt(a.last_login_at, 'd MMM yyyy, HH:mm')} (${ago(a.last_login_at)})` : 'Never'],
+              ].filter(([, v]) => v).map(([label, value]) => (
+                <div key={label} className="min-w-0">
+                  <dt className="text-body-sm text-ink-faint">{label}</dt>
+                  <dd className="text-ink truncate">{value}</dd>
+                </div>
+              ))}
+            </dl>
+
+            <div className="flex flex-wrap gap-2">
+              {[
+                [ClipboardList, data.issues_reported.length, 'issues reported'],
+                [PackageSearch, data.lost_found_reports.length, 'lost & found reports'],
+                [Wrench, data.work_orders_assigned.length, 'work orders'],
+                [CalendarClock, data.inspections_assigned.length, 'inspections'],
+                [LogIn, data.sign_ins.length, 'recorded sign-ins'],
+              ].map(([Icon, n, label]) => (
+                <span key={label} className="pill bg-surface-sunken text-ink-muted gap-1.5">
+                  <Icon size={13} />{n} {label}
+                </span>
+              ))}
+            </div>
+
+            <DetailList
+              title="Sign-in history" icon={LogIn} rows={data.sign_ins}
+              empty="This account has never signed in."
+              render={(l, i) => (
+                <div key={i} className="flex items-baseline justify-between gap-3 py-1.5">
+                  <span className="text-ink whitespace-nowrap">
+                    {dt(l.at, 'd MMM yyyy, HH:mm')}
+                  </span>
+                  <span className="text-body-sm text-ink-faint truncate text-right">
+                    {l.succeeded ? (l.ip || 'signed in')
+                      : `failed — ${l.failure_reason || 'wrong credentials'}`}
+                  </span>
+                </div>
+              )}
+            />
+
+            <DetailList
+              title="Issues reported" icon={ClipboardList} rows={data.issues_reported}
+              empty="They have not reported anything."
+              render={(x) => (
+                <div key={x.reference} className="flex items-baseline justify-between gap-3 py-1.5">
+                  <span className="min-w-0">
+                    <span className="font-mono text-[11px] text-ink-faint mr-2">{x.reference}</span>
+                    <span className="text-ink">{x.title}</span>
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <StatusPill status={x.status} />
+                    <span className="text-body-sm text-ink-faint whitespace-nowrap">
+                      {dt(x.created_at, 'd MMM yy')}
+                    </span>
+                  </span>
+                </div>
+              )}
+            />
+
+            <DetailList
+              title="Lost & found" icon={PackageSearch} rows={data.lost_found_reports}
+              empty="No lost or found items reported."
+              render={(x) => (
+                <div key={x.reference} className="flex items-baseline justify-between gap-3 py-1.5">
+                  <span className="min-w-0">
+                    <span className="pill bg-brand-soft text-brand mr-2">{x.kind}</span>
+                    <span className="text-ink">{x.title}</span>
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <StatusPill status={x.status} />
+                    <span className="text-body-sm text-ink-faint whitespace-nowrap">
+                      {dt(x.created_at, 'd MMM yy')}
+                    </span>
+                  </span>
+                </div>
+              )}
+            />
+
+            {data.work_orders_assigned.length > 0 && (
+              <DetailList
+                title="Work orders assigned" icon={Wrench} rows={data.work_orders_assigned}
+                render={(x) => (
+                  <div key={x.reference} className="flex items-baseline justify-between gap-3 py-1.5">
+                    <span className="min-w-0">
+                      <span className="font-mono text-[11px] text-ink-faint mr-2">{x.reference}</span>
+                      <span className="text-ink">{x.title}</span>
+                    </span>
+                    <StatusPill status={x.status} />
+                  </div>
+                )}
+              />
+            )}
+          </div>
+        )}
+    </Modal>
+  )
+}
+
+/**
+ * A section showing its first few rows, expandable in place.
+ *
+ * The obvious approach — a fixed-height box with its own scrollbar — puts a
+ * scroll container inside a scrolling dialog, and an account with 75 sign-ins
+ * gets five of them. A wheel over the list then moves the list instead of the
+ * dialog, so scrolling past a section becomes impossible. Growing the section
+ * on request leaves the dialog as the only thing that scrolls.
+ */
+const PREVIEW_ROWS = 5
+
+function DetailList({ title, icon: Icon, rows, render, empty }) {
+  const [expanded, setExpanded] = useState(false)
+  const shown = expanded ? rows : rows.slice(0, PREVIEW_ROWS)
+
+  return (
+    <section>
+      <h4 className="flex items-center gap-2 text-body-sm font-medium text-ink-muted mb-1.5">
+        <Icon size={14} />{title}
+        {rows.length > 0 && <span className="text-ink-faint">({rows.length})</span>}
+      </h4>
+      {rows.length === 0 ? (
+        <p className="text-body-sm text-ink-faint">{empty}</p>
+      ) : (
+        <div className="rounded-xl border border-border-subtle divide-y divide-border-subtle px-3.5">
+          {shown.map(render)}
+          {rows.length > PREVIEW_ROWS && (
+            <button type="button" onClick={() => setExpanded((v) => !v)}
+                    className="w-full text-left text-body-sm text-brand py-2 hover:underline">
+              {expanded ? 'Show fewer'
+                : `Show all ${rows.length}`}
+            </button>
+          )}
+        </div>
+      )}
+    </section>
   )
 }
 

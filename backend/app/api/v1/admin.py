@@ -79,8 +79,20 @@ async def list_users(
     status_filter: Optional[UserStatus] = Query(None, alias="status"),
     department_id: Optional[uuid.UUID] = None,
     q: Optional[str] = None,
+    joined: Optional[str] = Query(
+        None, pattern="^(week|month|year)$",
+        description="Only accounts registered within the last week, month or year",
+    ),
 ):
     query = select(User).where(User.organization_id == user.organization_id)
+
+    if joined:
+        # Rolling windows rather than calendar ones: "this month" on the first
+        # of the month would show almost nobody, which is not what anyone means
+        # when they ask who signed up recently.
+        window = {"week": 7, "month": 31, "year": 365}[joined]
+        query = query.where(
+            User.created_at >= datetime.now(timezone.utc) - timedelta(days=window))
     if role:
         query = query.where(User.role == role)
     if status_filter:
@@ -1127,3 +1139,86 @@ async def _load_request(db, request_id, admin):
         raise HTTPException(status.HTTP_409_CONFLICT,
                             f"That request was already {row.status}.")
     return row, target
+
+
+@router.get("/users/{user_id}/detail", response_model=dict)
+async def user_detail(user_id: uuid.UUID, admin: RequireManager, db: DB):
+    """Everything held about one account, for the admin looking at them.
+
+    Reuses the same collector as the self-service data export: what an
+    administrator can see about a person should be what that person can ask
+    for, and keeping one implementation means the two cannot drift apart.
+    """
+    from app.services.data_export import collect
+
+    target = await db.scalar(
+        select(User).where(User.id == user_id,
+                           User.organization_id == admin.organization_id))
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    data = await collect(db, target)
+    data["can_hard_delete"] = not (
+        data["issues_reported"] or data["lost_found_reports"]
+    )
+    return data
+
+
+@router.delete("/users/{user_id}", response_model=dict)
+async def delete_user(
+    user_id: uuid.UUID, admin: RequireAdmin, db: DB, request: Request,
+    anonymise_instead: bool = Query(False, alias="anonymise"),
+):
+    """Remove an account outright, or strip the person from it.
+
+    A row can only truly go when nothing points at it. Issues and lost-property
+    reports reference their author under RESTRICT precisely so that a campus's
+    record cannot be erased by removing the person who filed it — so an account
+    with history is refused, and the caller is told what stands in the way and
+    offered the alternative.
+    """
+    from app.services.account_removal import anonymise, retained_counts
+
+    target = await db.scalar(
+        select(User).where(User.id == user_id,
+                           User.organization_id == admin.organization_id))
+    if target is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    if target.id == admin.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "You cannot delete your own account")
+
+    name, email = target.full_name, target.email
+    retained = await retained_counts(db, target.id)
+    blocking = retained["issues_reported"] + retained["lost_found_reports"]
+
+    if anonymise_instead:
+        result = await anonymise(db, target)
+        await record_audit(
+            db, action="user.anonymised", actor_id=admin.id,
+            organization_id=admin.organization_id, entity_type="user",
+            entity_id=target.id, ip_address=client_ip(request),
+            after={"handle": result["handle"]},
+        )
+        return {
+            "outcome": "anonymised",
+            "detail": f"{name} has been removed from the account. "
+                      f"Their reports stay on the record without their name.",
+        }
+
+    if blocking:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{name} filed {retained['issues_reported']} issue(s) and "
+            f"{retained['lost_found_reports']} lost & found report(s), which stay on "
+            f"the campus record.",
+        )
+
+    await db.delete(target)
+    await record_audit(
+        db, action="user.deleted", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="user",
+        entity_id=user_id, ip_address=client_ip(request),
+        before={"email": email, "full_name": name},
+    )
+    return {"outcome": "deleted", "detail": f"{name} deleted."}
