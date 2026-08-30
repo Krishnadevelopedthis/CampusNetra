@@ -12,11 +12,13 @@ import { TWIN_STATE } from '@/lib/format'
  * viewport without re-fetching. Rooms are polygons; assets are 24px nodes with
  * a 2px white ring, per the design spec.
  */
-const VB = 1000 // internal viewBox units
+const VB = 1000 // internal viewBox width; the height follows the plan's shape
 
 export function FloorPlan({
   rooms = [],
   planImage,
+  planWidth,
+  planHeight,
   selectedRoomId,
   selectedAssetId,
   recentlyChanged = new Set(),
@@ -24,6 +26,12 @@ export function FloorPlan({
   onSelectAsset,
   className,
 }) {
+  // The canvas takes the plan's proportions so the drawing fills it exactly.
+  // A fixed square viewBox letterboxed a wide plan inside itself while the room
+  // outlines were still drawn across the full square, so on a 1600x1000 plan
+  // every room sat about a fifth of the canvas above the walls it belonged to.
+  const vbH = planWidth && planHeight ? Math.round((VB * planHeight) / planWidth) : VB
+
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [hover, setHover] = useState(null)
@@ -48,23 +56,23 @@ export function FloorPlan({
       rooms.map((room) => ({
         room,
         points: (room.boundary || [])
-          .map(([x, y]) => `${x * VB},${y * VB}`)
+          .map(([x, y]) => `${x * VB},${y * vbH}`)
           .join(' '),
         // Label sits at the polygon's top-left corner, inset slightly.
         anchor: (room.boundary || []).length
           ? {
               x: Math.min(...room.boundary.map((p) => p[0])) * VB + 14,
-              y: Math.min(...room.boundary.map((p) => p[1])) * VB + 26,
+              y: Math.min(...room.boundary.map((p) => p[1])) * vbH + 26,
             }
           : null,
         centre: (room.boundary || []).length
           ? {
               x: (room.boundary.reduce((s, p) => s + p[0], 0) / room.boundary.length) * VB,
-              y: (room.boundary.reduce((s, p) => s + p[1], 0) / room.boundary.length) * VB,
+              y: (room.boundary.reduce((s, p) => s + p[1], 0) / room.boundary.length) * vbH,
             }
           : null,
       })),
-    [rooms],
+    [rooms, vbH],
   )
 
   return (
@@ -86,7 +94,7 @@ export function FloorPlan({
 
       <svg
         ref={svgRef}
-        viewBox={`0 0 ${VB} ${VB}`}
+        viewBox={`0 0 ${VB} ${vbH}`}
         className="w-full h-full cursor-grab active:cursor-grabbing"
         onMouseDown={startPan} onMouseMove={movePan}
         onMouseUp={endPan} onMouseLeave={endPan}
@@ -100,7 +108,7 @@ export function FloorPlan({
         </defs>
 
         {/* Level 0 — the physical base of the UI. */}
-        <rect width={VB} height={VB} fill="url(#grid)" />
+        <rect width={VB} height={vbH} fill="url(#grid)" />
 
         {/* The architectural drawing the rooms were traced from. Without it the
             twin is coloured polygons floating on a grid; with it, the state
@@ -108,8 +116,8 @@ export function FloorPlan({
             markers stay the thing you read first. */}
         {planImage && (
           <image
-            href={mediaUrl(planImage)} x="0" y="0" width={VB} height={VB}
-            preserveAspectRatio="xMidYMid meet" opacity="0.35"
+            href={mediaUrl(planImage)} x="0" y="0" width={VB} height={vbH}
+            preserveAspectRatio="none" opacity="0.35"
             className="pointer-events-none"
           />
         )}
@@ -166,7 +174,7 @@ export function FloorPlan({
             const xs = room.boundary.map((p) => p[0])
             const ys = room.boundary.map((p) => p[1])
             const x = (Math.min(...xs) + asset.pos_x * (Math.max(...xs) - Math.min(...xs))) * VB
-            const y = (Math.min(...ys) + asset.pos_y * (Math.max(...ys) - Math.min(...ys))) * VB
+            const y = (Math.min(...ys) + asset.pos_y * (Math.max(...ys) - Math.min(...ys))) * vbH
             const selected = asset.id === selectedAssetId
             const pulsing = recentlyChanged.has(asset.id)
 
