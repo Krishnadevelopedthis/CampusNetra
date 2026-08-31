@@ -12,16 +12,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <title>Campus Netra</title>
     <script>
-      // Runs before the first paint to prevent theme/color flash on load.
+      // Runs before the first paint to prevent theme flash on load.
+      // User color theme is intentionally NOT loaded from localStorage — it resets
+      // to default on each new session. User must re-select in Settings.
       (function () {
         try {
           var saved = localStorage.getItem('cn-theme')
           var mode = saved === 'light' || saved === 'dark' ? saved
             : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           document.documentElement.dataset.theme = mode
-
-          var savedColor = localStorage.getItem('cn-user-color-theme') || '#1e1b4b'
-          document.documentElement.dataset.userColorTheme = savedColor
+          document.documentElement.dataset.userColorTheme = '#1e1b4b'
 
           if (mode === 'dark') {
             document.querySelector('meta[name="theme-color"]').content = '#0b1220'
