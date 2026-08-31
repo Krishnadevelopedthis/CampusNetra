@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import { initColorTheme } from './colorTheme'
 
 const STORAGE_KEY = 'cn-theme'
 
@@ -74,9 +73,6 @@ export function initTheme() {
   const { mode } = useTheme.getState()
   const resolved = apply(mode, { animate: false })
   useTheme.setState({ resolved })
-
-  // Initialize color theme system
-  initColorTheme()
 
   const media = window.matchMedia?.('(prefers-color-scheme: dark)')
   media?.addEventListener?.('change', () => {

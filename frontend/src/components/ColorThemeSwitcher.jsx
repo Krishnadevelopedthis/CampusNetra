@@ -1,76 +1,135 @@
 import clsx from 'clsx'
-import { Check } from 'lucide-react'
+import { useRef, useState } from 'react'
 
-import { COLOR_THEMES, useColorTheme } from '@/lib/colorTheme'
+import { useColorTheme } from '@/lib/colorTheme'
 
 /**
- * Color theme switcher component.
- * Displays curated palette options with dual light/dark preview swatches.
+ * Professional color picker for per-user theme customization.
+ * Users can pick any color using a visual picker or enter hex codes.
+ * Color preference persists per user/browser via localStorage.
  */
-export function ColorThemeSwitcher({ className }) {
+export function ColorThemeSwitcher() {
   const colorTheme = useColorTheme((s) => s.colorTheme)
   const setColorTheme = useColorTheme((s) => s.setColorTheme)
 
+  const [showPicker, setShowPicker] = useState(false)
+  const [hexInput, setHexInput] = useState(colorTheme)
+  const pickerRef = useRef(null)
+  const inputRef = useRef(null)
+
+  // Preset colors for quick access
+  const presets = [
+    { name: 'Indigo', hex: '#1e1b4b' },
+    { name: 'Blue', hex: '#2563eb' },
+    { name: 'Purple', hex: '#7c3aed' },
+    { name: 'Pink', hex: '#db2777' },
+    { name: 'Red', hex: '#dc2626' },
+    { name: 'Orange', hex: '#ea580c' },
+    { name: 'Amber', hex: '#d97706' },
+    { name: 'Green', hex: '#059669' },
+    { name: 'Teal', hex: '#0d9488' },
+    { name: 'Cyan', hex: '#0891b2' },
+    { name: 'Slate', hex: '#475569' },
+    { name: 'Gray', hex: '#6b7280' },
+  ]
+
+  const handleColorChange = (hex) => {
+    setHexInput(hex)
+    setColorTheme(hex)
+  }
+
+  const handleHexInput = (e) => {
+    const value = e.target.value
+    setHexInput(value)
+    // Apply if valid hex
+    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+      setColorTheme(value)
+    }
+  }
+
+  const handlePickerChange = (e) => {
+    const hex = e.target.value
+    handleColorChange(hex)
+  }
+
   return (
-    <div className={clsx('space-y-3', className)}>
+    <div className="space-y-4">
       <div>
-        <p className="text-body-lg font-medium text-ink">Palette</p>
+        <p className="text-body-lg font-medium text-ink">Accent Color</p>
         <p className="text-body-md text-ink-muted mt-0.5">
-          Select an accent palette for navigation, active indicators, and highlights.
+          Choose your preferred accent color for buttons, links, and highlights.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
-        {Object.entries(COLOR_THEMES).map(([id, theme]) => {
-          const isActive = colorTheme === id
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setColorTheme(id)}
-              className={clsx(
-                'relative flex flex-col items-start gap-2.5 p-3 rounded-xl border text-left transition-all duration-150',
-                isActive
-                  ? 'border-secondary bg-surface shadow-level2 ring-2 ring-secondary/20'
-                  : 'border-border-subtle hover:border-border-strong bg-surface hover:bg-surface-sunken/40',
-              )}
-              aria-label={`Switch to ${theme.name} palette`}
-              aria-pressed={isActive}
-            >
-              {/* Dual preview pill */}
-              <div className="flex items-center gap-1.5 w-full">
-                <div
-                  className="h-6 flex-1 rounded-md shadow-sm border border-black/10"
-                  style={{ backgroundColor: theme.swatch.light }}
-                  title={`${theme.name} light mode`}
-                />
-                <div
-                  className="h-6 flex-1 rounded-md shadow-sm border border-white/10"
-                  style={{ backgroundColor: theme.swatch.dark }}
-                  title={`${theme.name} dark mode`}
-                />
-              </div>
+      {/* Current color display and native picker */}
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0">
+          <div
+            className="w-14 h-14 rounded-lg border-2 border-border shadow-sm cursor-pointer hover:shadow-level2 transition-shadow"
+            style={{ backgroundColor: colorTheme }}
+            title="Click to open color picker"
+            onClick={() => inputRef.current?.click()}
+          />
+          <input
+            ref={inputRef}
+            type="color"
+            value={colorTheme}
+            onChange={handlePickerChange}
+            className="hidden"
+            aria-label="Pick accent color"
+          />
+        </div>
 
-              {/* Theme info */}
-              <div className="min-w-0 w-full">
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-body-md font-semibold text-ink truncate">
-                    {theme.name}
-                  </span>
-                  {isActive && (
-                    <span className="w-4 h-4 rounded-full bg-secondary text-white grid place-items-center shrink-0">
-                      <Check size={11} strokeWidth={3} />
-                    </span>
-                  )}
-                </div>
-                <span className="text-body-sm text-ink-faint block truncate">
-                  {theme.description}
-                </span>
-              </div>
-            </button>
-          )
-        })}
+        <div className="flex-1 min-w-0">
+          <label className="block text-body-sm font-medium text-ink-muted mb-1.5">
+            Hex Code
+          </label>
+          <input
+            type="text"
+            value={hexInput}
+            onChange={handleHexInput}
+            placeholder="#1e1b4b"
+            maxLength="7"
+            className="input w-full font-mono text-body-md"
+            aria-label="Enter hex color code"
+          />
+        </div>
       </div>
+
+      {/* Preset colors */}
+      <div>
+        <p className="text-body-sm font-medium text-ink-muted mb-2.5">Quick presets</p>
+        <div className="grid grid-cols-6 gap-2">
+          {presets.map((preset) => (
+            <button
+              key={preset.hex}
+              type="button"
+              onClick={() => handleColorChange(preset.hex)}
+              className={clsx(
+                'relative w-full aspect-square rounded-lg border-2 transition-all hover:shadow-level2',
+                colorTheme === preset.hex
+                  ? 'border-secondary shadow-level2 ring-2 ring-secondary/30'
+                  : 'border-border-subtle hover:border-border-strong',
+              )}
+              style={{ backgroundColor: preset.hex }}
+              title={preset.name}
+              aria-label={`${preset.name} - ${preset.hex}`}
+              aria-pressed={colorTheme === preset.hex}
+            >
+              {colorTheme === preset.hex && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-white shadow-md" />
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Info message */}
+      <p className="text-body-sm text-ink-faint bg-surface-sunken p-3 rounded-lg">
+        Your color choice is saved to this browser and will persist when you return.
+      </p>
     </div>
   )
 }
