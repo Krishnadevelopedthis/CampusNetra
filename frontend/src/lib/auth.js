@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
+import { useColorTheme } from './colorTheme'
 
 /** Which modules each role may reach. Mirrors the backend's route guards. */
 export const ROLE_HOME = {
