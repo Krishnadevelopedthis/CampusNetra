@@ -5,8 +5,7 @@ import { COLOR_THEMES, useColorTheme } from '@/lib/colorTheme'
 
 /**
  * Color theme switcher component.
- * Displays color palette options as clickable swatches.
- * Works alongside the light/dark theme toggle.
+ * Displays curated palette options with dual light/dark preview swatches.
  */
 export function ColorThemeSwitcher({ className }) {
   const colorTheme = useColorTheme((s) => s.colorTheme)
@@ -14,55 +13,60 @@ export function ColorThemeSwitcher({ className }) {
 
   return (
     <div className={clsx('space-y-3', className)}>
-      <label className="block text-body-sm font-medium text-ink-muted">
-        Color Theme
-      </label>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div>
+        <p className="text-body-lg font-medium text-ink">Palette</p>
+        <p className="text-body-md text-ink-muted mt-0.5">
+          Select an accent palette for navigation, active indicators, and highlights.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
         {Object.entries(COLOR_THEMES).map(([id, theme]) => {
           const isActive = colorTheme === id
           return (
             <button
               key={id}
+              type="button"
               onClick={() => setColorTheme(id)}
               className={clsx(
-                'relative flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all',
+                'relative flex flex-col items-start gap-2.5 p-3 rounded-xl border text-left transition-all duration-150',
                 isActive
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border hover:border-border-strong bg-surface',
+                  ? 'border-secondary bg-surface shadow-level2 ring-2 ring-secondary/20'
+                  : 'border-border-subtle hover:border-border-strong bg-surface hover:bg-surface-sunken/40',
               )}
-              aria-label={`Switch to ${theme.name} theme`}
+              aria-label={`Switch to ${theme.name} palette`}
               aria-pressed={isActive}
             >
-              {/* Color preview swatch */}
-              <div className="flex gap-1.5">
+              {/* Dual preview pill */}
+              <div className="flex items-center gap-1.5 w-full">
                 <div
-                  className="w-7 h-7 rounded-md shadow-sm"
-                  style={{ backgroundColor: `rgb(${theme.light.primary})` }}
-                  title="Light mode preview"
+                  className="h-6 flex-1 rounded-md shadow-sm border border-black/10"
+                  style={{ backgroundColor: theme.swatch.light }}
+                  title={`${theme.name} light mode`}
                 />
                 <div
-                  className="w-7 h-7 rounded-md shadow-sm"
-                  style={{ backgroundColor: `rgb(${theme.dark.primary})` }}
-                  title="Dark mode preview"
+                  className="h-6 flex-1 rounded-md shadow-sm border border-white/10"
+                  style={{ backgroundColor: theme.swatch.dark }}
+                  title={`${theme.name} dark mode`}
                 />
               </div>
 
-              {/* Theme name */}
-              <span
-                className={clsx(
-                  'text-body-sm font-medium',
-                  isActive ? 'text-primary' : 'text-ink',
-                )}
-              >
-                {theme.name}
-              </span>
-
-              {/* Active indicator */}
-              {isActive && (
-                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-level2">
-                  <Check size={12} className="text-white" strokeWidth={3} />
+              {/* Theme info */}
+              <div className="min-w-0 w-full">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-body-md font-semibold text-ink truncate">
+                    {theme.name}
+                  </span>
+                  {isActive && (
+                    <span className="w-4 h-4 rounded-full bg-secondary text-white grid place-items-center shrink-0">
+                      <Check size={11} strokeWidth={3} />
+                    </span>
+                  )}
                 </div>
-              )}
+                <span className="text-body-sm text-ink-faint block truncate">
+                  {theme.description}
+                </span>
+              </div>
             </button>
           )
         })}

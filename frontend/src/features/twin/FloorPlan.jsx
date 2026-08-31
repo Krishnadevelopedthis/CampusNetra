@@ -144,12 +144,11 @@ export function FloorPlan({
               {anchor && (
                 <>
                   <text x={anchor.x} y={anchor.y}
-                        className="font-mono pointer-events-none"
-                        fontSize="19" className="fill-ink" fillOpacity="0.75">
+                        fontSize="19" className="font-mono pointer-events-none fill-ink" fillOpacity="0.75">
                     {room.code}
                   </text>
                   <text x={anchor.x} y={anchor.y + 20}
-                        className="pointer-events-none" fontSize="15" className="fill-ink-faint">
+                        fontSize="15" className="pointer-events-none fill-ink-faint">
                     {room.name}
                   </text>
                 </>

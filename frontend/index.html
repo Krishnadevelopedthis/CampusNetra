@@ -20,11 +20,14 @@
           var mode = saved === 'light' || saved === 'dark' ? saved
             : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           document.documentElement.dataset.theme = mode
+          var savedColor = localStorage.getItem('cn-color-theme') || 'indigo'
+          document.documentElement.dataset.colorTheme = savedColor
           if (mode === 'dark') {
             document.querySelector('meta[name="theme-color"]').content = '#0b1220'
           }
         } catch (e) {
           document.documentElement.dataset.theme = 'light'
+          document.documentElement.dataset.colorTheme = 'indigo'
         }
       })()
     </script>
