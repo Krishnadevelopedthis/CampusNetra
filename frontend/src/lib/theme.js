@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { refreshColorTheme, initColorTheme } from './colorTheme'
 
 const STORAGE_KEY = 'cn-theme'
 
@@ -34,10 +35,10 @@ function apply(mode, { animate = true } = {}) {
     window.setTimeout(() => root.classList.remove('theme-switching'), 220)
   }
   root.dataset.theme = resolved
-  // Keeps the browser chrome (address bar, pull-to-refresh) in step on mobile.
-  document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', resolved === 'dark' ? '#0b1220' : '#1e1b4b')
+
+  // Re-apply color theme with the new light/dark mode
+  refreshColorTheme(resolved === 'dark')
+
   return resolved
 }
 
@@ -69,7 +70,11 @@ export const useTheme = create((set, get) => ({
  */
 export function initTheme() {
   const { mode } = useTheme.getState()
-  useTheme.setState({ resolved: apply(mode, { animate: false }) })
+  const resolved = apply(mode, { animate: false })
+  useTheme.setState({ resolved })
+
+  // Initialize color theme system
+  initColorTheme(resolved === 'dark')
 
   const media = window.matchMedia?.('(prefers-color-scheme: dark)')
   media?.addEventListener?.('change', () => {
