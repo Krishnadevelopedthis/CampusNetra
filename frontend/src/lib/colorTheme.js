@@ -1,22 +1,12 @@
 import { create } from 'zustand'
 
-const STORAGE_KEY = 'cn-user-color-theme'
-
 /**
- * Per-user color theme management.
- * Each user's color preference is stored separately in localStorage.
- * Colors are stored as hex values and applied as CSS custom properties.
+ * Per-user color theme management (session-only).
+ * Colors are NOT persisted across sessions — resets to default indigo on each visit.
+ * Users must go to Settings and re-select their preferred color each time.
  */
 
-function storedColorTheme() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    // Return stored hex color or default indigo
-    return saved || '#1e1b4b'
-  } catch {
-    return '#1e1b4b'
-  }
-}
+const DEFAULT_COLOR = '#1e1b4b'
 
 /**
  * Convert hex color to RGB string format for CSS variables.
@@ -49,26 +39,25 @@ function applyColorTheme(hexColor) {
 }
 
 export const useColorTheme = create((set) => ({
-  colorTheme: storedColorTheme(),
+  colorTheme: DEFAULT_COLOR,
 
   setColorTheme(hexColor) {
     // Validate hex color format
     if (!/^#[0-9A-Fa-f]{6}$/.test(hexColor)) return
 
-    try {
-      localStorage.setItem(STORAGE_KEY, hexColor)
-    } catch {
-      // Ignore storage errors in private browsing
-    }
-
     applyColorTheme(hexColor)
     set({ colorTheme: hexColor })
+  },
+
+  resetColorTheme() {
+    applyColorTheme(DEFAULT_COLOR)
+    set({ colorTheme: DEFAULT_COLOR })
   },
 }))
 
 /**
  * Initialize color theme on application mount.
- * Called once during app initialization.
+ * Called once during app initialization — always starts with default.
  */
 export function initColorTheme() {
   const { colorTheme } = useColorTheme.getState()

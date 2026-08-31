@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
+import { useColorTheme } from './colorTheme'
 
 /** Which modules each role may reach. Mirrors the backend's route guards. */
 export const ROLE_HOME = {
@@ -76,6 +77,8 @@ export const useAuth = create((set, get) => ({
     try {
       const data = await api.post('/auth/login', { email, password, role: role || null })
       writeAuth({ ...data.tokens, user: data.user })
+      // Clear previous user's color theme on new login
+      useColorTheme.getState().clearUserColorTheme()
       set({ user: data.user })
       return data.user
     } finally {
@@ -105,6 +108,8 @@ export const useAuth = create((set, get) => ({
     } catch {
       /* signing out locally matters more than the server round trip */
     }
+    // Clear user's color theme choice on logout so next user starts fresh
+    useColorTheme.getState().clearUserColorTheme()
     writeAuth(null)
     set({ user: null })
   },
