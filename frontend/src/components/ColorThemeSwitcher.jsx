@@ -111,23 +111,31 @@ export function ColorThemeSwitcher() {
     handleColorChange('#1e1b4b') // Default indigo
   }
 
-  // Professional presets organized by category
-  const presetCategories = [
+  // Curated best color combinations (3 boxes) - each with background + optimal text color
+  const curatedCombinations = [
     {
-      name: 'Primary',
-      colors: ['#1e1b4b', '#2563eb', '#7c3aed', '#db2777', '#dc2626']
+      id: 'maroon-white',
+      name: 'Maroon & White',
+      description: 'Deep, authoritative red',
+      bgColor: '#7d100b',
+      textColor: '#ffffff',
+      textColorDark: '#f2f5fc'
     },
     {
-      name: 'Warm',
-      colors: ['#ea580c', '#d97706', '#f59e0b', '#eab308', '#84cc16']
+      id: 'navy-white',
+      name: 'Navy Blue & White',
+      description: 'Classic professional blue',
+      bgColor: '#0f172a',
+      textColor: '#ffffff',
+      textColorDark: '#f2f5fc'
     },
     {
-      name: 'Cool',
-      colors: ['#059669', '#0d9488', '#0891b2', '#06b6d4', '#0ea5e9']
-    },
-    {
-      name: 'Neutral',
-      colors: ['#475569', '#6b7280', '#78716c', '#57534e', '#3f3f46']
+      id: 'emerald-white',
+      name: 'Emerald & White',
+      description: 'Rich, confident green',
+      bgColor: '#065f46',
+      textColor: '#ffffff',
+      textColorDark: '#f2f5fc'
     }
   ]
 
@@ -275,39 +283,49 @@ export function ColorThemeSwitcher() {
         </div>
       </details>
 
-      {/* Professional preset palette grid */}
+      {/* Curated best color combinations - 3 boxes */}
       <div>
-        <p className="text-body-sm font-medium text-ink-muted mb-2.5">Quick presets</p>
-        <div className="space-y-3">
-          {presetCategories.map((category) => (
-            <div key={category.name} className="space-y-1.5">
-              <p className="text-body-sm text-ink-faint uppercase tracking-wider">{category.name}</p>
-              <div className="grid grid-cols-5 gap-2">
-                {category.colors.map((presetHex) => (
-                  <button
-                    key={presetHex}
-                    type="button"
-                    onClick={() => handleColorChange(presetHex)}
-                    className={clsx(
-                      'relative w-full aspect-square rounded-lg border-2 transition-all duration-150 hover:shadow-level2',
-                      currentHex === presetHex
-                        ? 'border-secondary shadow-level2 ring-2 ring-secondary/30 scale-105'
-                        : 'border-border-subtle hover:border-border-strong',
-                    )}
-                    style={{ backgroundColor: presetHex }}
-                    title={`Preset color: ${presetHex}`}
-                    aria-label={`Preset color ${presetHex}`}
-                    aria-pressed={currentHex === presetHex}
-                  >
-                    {currentHex === presetHex && (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-2.5 h-2.5 rounded-full bg-white shadow-md ring-1 ring-white/50" />
-                      </div>
-                    )}
-                  </button>
-                ))}
+        <p className="text-body-sm font-medium text-ink-muted mb-2.5">Recommended combinations</p>
+        <div className="grid grid-cols-3 gap-3">
+          {curatedCombinations.map((combo) => (
+            <button
+              key={combo.id}
+              type="button"
+              onClick={() => handleColorChange(combo.bgColor)}
+              className={clsx(
+                'relative rounded-xl border-3 p-4 transition-all duration-200 hover:shadow-level3',
+                currentHex === combo.bgColor
+                  ? 'border-secondary shadow-level3 ring-2 ring-secondary/30 scale-[1.02]'
+                  : 'border-border-subtle hover:border-border-strong',
+              )}
+              style={{ backgroundColor: combo.bgColor }}
+              title={`${combo.name}: ${combo.bgColor} with ${combo.textColor} text`}
+              aria-label={`${combo.name} - ${combo.description}`}
+              aria-pressed={currentHex === combo.bgColor}
+            >
+              <div className="relative z-10 flex flex-col items-start">
+                <span className="text-body-sm font-semibold" style={{ color: combo.textColor }}>
+                  {combo.name}
+                </span>
+                <span className="text-body-xs mt-1 opacity-90" style={{ color: combo.textColor }}>
+                  {combo.description}
+                </span>
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="w-6 h-6 rounded border-2" style={{
+                    backgroundColor: combo.bgColor,
+                    borderColor: combo.textColor
+                  }} />
+                  <div className="w-6 h-6 rounded border-2 bg-white" style={{ borderColor: combo.textColor }} />
+                </div>
               </div>
-            </div>
+              {currentHex === combo.bgColor && (
+                <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-md">
+                  <svg className="w-4 h-4" style={{ color: combo.bgColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+              )}
+            </button>
           ))}
         </div>
       </div>
