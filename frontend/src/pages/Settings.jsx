@@ -18,6 +18,7 @@ import {
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
+import { ColorThemeSwitcher } from '@/components/ColorThemeSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button, Field, Input, Select, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
@@ -139,20 +140,24 @@ export default function Settings() {
       {/* ---------------- Appearance ---------------- */}
       <Widget
         title={<span className="flex items-center gap-2"><Palette size={17} /> Appearance</span>}
-        subtitle="Applies on this device only"
+        subtitle=”Applies on this device only”
       >
-        <div className="space-y-5">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              <p className="text-body-lg font-medium text-ink">Theme</p>
-              <p className="text-body-md text-ink-muted mt-0.5">
+        <div className=”space-y-5”>
+          <div className=”flex items-start justify-between gap-4 flex-wrap”>
+            <div className=”min-w-0”>
+              <p className=”text-body-lg font-medium text-ink”>Theme</p>
+              <p className=”text-body-md text-ink-muted mt-0.5”>
                 “Match device” follows your system setting and switches with it.
               </p>
             </div>
-            <ThemeToggle variant="segmented" />
+            <ThemeToggle variant=”segmented” />
           </div>
 
-          <hr className="border-border-subtle" />
+          <hr className=”border-border-subtle” />
+
+          <ColorThemeSwitcher />
+
+          <hr className=”border-border-subtle” />
 
           <Row
             icon={Table2}
