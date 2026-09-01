@@ -1,6 +1,6 @@
 """Application settings, loaded from environment / .env."""
 from functools import lru_cache
-from typing import List, Literal
+from typing import Any, List, Literal
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "production"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: List[str] = []
+    BACKEND_CORS_ORIGINS: Any = []
 
     # Database
     DATABASE_URL: str = ""
