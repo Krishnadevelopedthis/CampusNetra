@@ -23,6 +23,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button, Field, Input, Select, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useColorTheme } from '@/lib/colorTheme'
 
 const SUPPORT_EMAIL = 'techcareit.in@gmail.com'
 
@@ -35,6 +36,10 @@ const SUPPORT_EMAIL = 'techcareit.in@gmail.com'
  * opt people out of notifications they never turned off.
  */
 const DEFAULTS = {
+  appearance: {
+    theme: 'auto',
+    accent_color: '#065f46', // Emerald
+  },
   notify: {
     channel_email: true,
     channel_inapp: true,
@@ -55,6 +60,7 @@ const DEFAULTS = {
 
 function merge(saved) {
   return {
+    appearance: { ...DEFAULTS.appearance, ...(saved?.appearance || {}) },
     notify: { ...DEFAULTS.notify, ...(saved?.notify || {}) },
     display: { ...DEFAULTS.display, ...(saved?.display || {}) },
   }
@@ -71,6 +77,7 @@ const NOTIFY_EVENTS = [
 
 export default function Settings() {
   const { user, setUser, logout } = useAuth()
+  const setColorTheme = useColorTheme((s) => s.setColorTheme)
   const navigate = useNavigate()
 
   const [prefs, setPrefs] = useState(() => merge(user?.preferences))
@@ -81,6 +88,13 @@ export default function Settings() {
   useEffect(() => {
     if (!dirty) setPrefs(merge(user?.preferences))
   }, [user?.preferences]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync accent color to ColorTheme store (for live preview)
+  useEffect(() => {
+    if (prefs.appearance?.accent_color) {
+      setColorTheme(prefs.appearance.accent_color)
+    }
+  }, [prefs.appearance?.accent_color, setColorTheme])
 
   // Sent to the address on the account, never one supplied here — an export
   // that takes a destination is a way to read someone else's data.
@@ -110,7 +124,15 @@ export default function Settings() {
 
   const save = useMutation({
     mutationFn: (next) => api.patch('/auth/me', { preferences: next }),
-    onSuccess: (u) => { setUser(u); setDirty(false); toast.success('Preferences saved.') },
+    onSuccess: (u) => {
+      setUser(u)
+      setDirty(false)
+      // Sync server preferences back to ColorTheme store
+      if (u?.preferences?.appearance?.accent_color) {
+        setColorTheme(u.preferences.appearance.accent_color)
+      }
+      toast.success('Preferences saved.')
+    },
     onError: (err) => toast.error(err.detail || 'Could not save your preferences.'),
   })
 

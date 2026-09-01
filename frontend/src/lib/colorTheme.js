@@ -1,13 +1,20 @@
 import { create } from 'zustand'
 
 /**
- * Per-user color theme management with localStorage persistence.
- * Color choice is saved to localStorage and restored on next login.
- * Users only need to set it once.
+ * Per-user appearance management with server-side persistence.
+ *
+ * Color theme and accent color are stored in the authenticated user's
+ * preferences on the backend (user.preferences.appearance).
+ *
+ * Flow:
+ * 1. User logs in → AuthResponse includes user.preferences.appearance
+ * 2. ColorTheme store loads from authenticated user's preferences
+ * 3. On color change → saves to backend via PATCH /auth/me
+ * 4. On logout → state cleared (next user gets their own preferences)
+ * 5. On page refresh → preferences reloaded from auth state
  */
 
-const DEFAULT_COLOR = '#1e1b4b'
-const STORAGE_KEY = 'user-color-theme'
+const DEFAULT_ACCENT_COLOR = '#065f46' // Emerald
 
 /**
  * Convert hex color to RGB string format for CSS variables.
@@ -15,23 +22,19 @@ const STORAGE_KEY = 'user-color-theme'
  */
 function hexToRgb(hex) {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-  if (!result) return '30 27 75' // fallback to indigo
+  if (!result) return '6 95 70' // fallback to emerald
   return `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}`
 }
 
 /**
- * Apply color theme by updating CSS custom properties.
- * Generates a full palette from the primary color.
+ * Apply accent color by updating CSS custom properties.
  */
 function applyColorTheme(hexColor) {
   const root = document.documentElement
   const rgb = hexToRgb(hexColor)
 
-  // Set primary color
+  // Set primary color (used as accent throughout the app)
   root.style.setProperty('--c-primary', rgb)
-
-  // Generate lighter shades for 50, 100
-  // Set secondary same as primary for now
   root.style.setProperty('--c-secondary', rgb)
   root.style.setProperty('--c-brand', rgb)
 
@@ -39,63 +42,70 @@ function applyColorTheme(hexColor) {
   root.dataset.userColorTheme = hexColor
 }
 
-/**
- * Load color theme from localStorage, falling back to default.
- */
-function loadColorThemeFromStorage() {
-  if (typeof window === 'undefined') return DEFAULT_COLOR
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) return stored
-  } catch (e) {
-    // localStorage not available, fall through to default
-  }
-  return DEFAULT_COLOR
-}
-
-/**
- * Save color theme to localStorage.
- */
-function saveColorThemeToStorage(hexColor) {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(STORAGE_KEY, hexColor)
-  } catch (e) {
-    // Ignore storage errors
-  }
-}
-
 export const useColorTheme = create((set) => ({
-  colorTheme: loadColorThemeFromStorage(),
+  // Authenticated user's accent color (from server preferences)
+  colorTheme: DEFAULT_ACCENT_COLOR,
 
+  /**
+   * Load color from authenticated user's preferences.
+   * Called after successful login.
+   */
+  loadFromUserPreferences(userPreferences) {
+    if (!userPreferences) return
+
+    const appearance = userPreferences.appearance || {}
+    const accentColor = appearance.accent_color || DEFAULT_ACCENT_COLOR
+
+    // Validate hex format
+    if (!/^#[0-9A-Fa-f]{6}$/.test(accentColor)) {
+      applyColorTheme(DEFAULT_ACCENT_COLOR)
+      set({ colorTheme: DEFAULT_ACCENT_COLOR })
+      return
+    }
+
+    applyColorTheme(accentColor)
+    set({ colorTheme: accentColor })
+  },
+
+  /**
+   * Set accent color locally and signal that it needs to be saved.
+   * The actual save happens in Settings via PATCH /auth/me.
+   */
   setColorTheme(hexColor) {
     // Validate hex color format
     if (!/^#[0-9A-Fa-f]{6}$/.test(hexColor)) return
 
     applyColorTheme(hexColor)
     set({ colorTheme: hexColor })
-    saveColorThemeToStorage(hexColor)
+
+    // NOTE: Actual persistence happens via Settings page
+    // when user clicks "Save preferences" button
   },
 
+  /**
+   * Reset to default color (local only).
+   * Actual persistence via Settings page.
+   */
   resetColorTheme() {
-    applyColorTheme(DEFAULT_COLOR)
-    set({ colorTheme: DEFAULT_COLOR })
-    saveColorThemeToStorage(DEFAULT_COLOR)
+    applyColorTheme(DEFAULT_ACCENT_COLOR)
+    set({ colorTheme: DEFAULT_ACCENT_COLOR })
   },
 
-  // Keeps user's color choice in localStorage on logout
-  // Next user login will load the saved color automatically
+  /**
+   * Called on logout to clear private user theme state.
+   */
   clearUserColorTheme() {
-    // NO-OP: We intentionally preserve the user's color choice across sessions
-    // The color is tied to the user's preference, not their session
+    // Reset to default (no user-specific theme applies on login page)
+    applyColorTheme(DEFAULT_ACCENT_COLOR)
+    set({ colorTheme: DEFAULT_ACCENT_COLOR })
   },
 }))
 
 /**
  * Initialize color theme on application mount.
- * Called once during app initialization — loads from localStorage.
+ * Called during app initialization (index.html / main.jsx).
+ * Applies default theme until authenticated user's preferences are loaded.
  */
 export function initColorTheme() {
-  const { colorTheme } = useColorTheme.getState()
-  applyColorTheme(colorTheme)
+  applyColorTheme(DEFAULT_ACCENT_COLOR)
 }
