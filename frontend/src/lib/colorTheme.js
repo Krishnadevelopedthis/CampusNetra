@@ -42,16 +42,22 @@ function applyColorTheme(hexColor) {
   root.dataset.userColorTheme = hexColor
 }
 
-export const useColorTheme = create((set) => ({
-  // Authenticated user's accent color (from server preferences)
+export const useColorTheme = create((set, get) => ({
+  // Start with DEFAULT - will be overridden by loadFromUserPreferences on login
   colorTheme: DEFAULT_ACCENT_COLOR,
+  isInitialized: false,  // ← NEW: Track if user preference has been loaded
 
   /**
    * Load color from authenticated user's preferences.
-   * Called after successful login.
+   * Called after successful login to restore user's saved appearance.
    */
   loadFromUserPreferences(userPreferences) {
-    if (!userPreferences) return
+    if (!userPreferences) {
+      // No preferences - use default and mark initialized
+      set({ colorTheme: DEFAULT_ACCENT_COLOR, isInitialized: true })
+      applyColorTheme(DEFAULT_ACCENT_COLOR)
+      return
+    }
 
     const appearance = userPreferences.appearance || {}
     const accentColor = appearance.accent_color || DEFAULT_ACCENT_COLOR
@@ -59,12 +65,13 @@ export const useColorTheme = create((set) => ({
     // Validate hex format
     if (!/^#[0-9A-Fa-f]{6}$/.test(accentColor)) {
       applyColorTheme(DEFAULT_ACCENT_COLOR)
-      set({ colorTheme: DEFAULT_ACCENT_COLOR })
+      set({ colorTheme: DEFAULT_ACCENT_COLOR, isInitialized: true })
       return
     }
 
+    // Apply the user's saved color
     applyColorTheme(accentColor)
-    set({ colorTheme: accentColor })
+    set({ colorTheme: accentColor, isInitialized: true })  // ← Mark initialized
   },
 
   /**
