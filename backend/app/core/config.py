@@ -16,10 +16,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "staging", "production"] = "production"
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
-    BACKEND_CORS_ORIGINS: List[str] = ["https://campus-netra-git-main-krishnadevelopedthis-projects.vercel.app,https://campus-netra-krishnadevelopedthis-projects.vercel.app"]
+    BACKEND_CORS_ORIGINS: List[str] = []
 
     # Database
-    DATABASE_URL: str = ( "postgresql+asyncpg://neondb_owner:npg_qlBDF9UfxM7Q@ep-icy-haze-aed0jzt7-pooler.c-2.us-east-2.aws.neon.tech/neondb?ssl=require")
+    DATABASE_URL: str = ""
     DB_ECHO: bool = False
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 10
@@ -65,9 +65,21 @@ class Settings(BaseSettings):
     @classmethod
     def _split_origins(cls, v):
         # Accept both a JSON array and a plain comma-separated string.
-        if isinstance(v, str) and not v.startswith("["):
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                return []
+            # If it looks like JSON array, try to parse it
+            if v.startswith("["):
+                try:
+                    import json
+                    return json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    # Fall through to comma-split
+                    pass
+            # Otherwise treat as comma-separated
             return [o.strip() for o in v.split(",") if o.strip()]
-        return v
+        return v if v else []
 
     @model_validator(mode="after")
     def _reject_default_secret_in_production(self) -> "Settings":
