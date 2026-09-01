@@ -54,6 +54,12 @@ export const useAuth = create((set, get) => ({
     try {
       const user = await api.get('/auth/me')
       writeAuth({ ...stored, user })
+
+      // Load authenticated user's appearance preferences
+      if (user?.preferences?.appearance) {
+        useColorTheme.getState().loadFromUserPreferences(user.preferences)
+      }
+
       set({ user, initialised: true })
     } catch (err) {
       // Only the server rejecting the session ends it. A network failure or a
@@ -77,7 +83,13 @@ export const useAuth = create((set, get) => ({
     try {
       const data = await api.post('/auth/login', { email, password, role: role || null })
       writeAuth({ ...data.tokens, user: data.user })
-      // Preserve user's color theme choice - it's stored in localStorage and will be auto-loaded
+
+      // Load authenticated user's appearance preferences from server
+      // This ensures the user sees their own saved theme, not the previous user's
+      if (data.user?.preferences?.appearance) {
+        useColorTheme.getState().loadFromUserPreferences(data.user.preferences)
+      }
+
       set({ user: data.user })
       return data.user
     } finally {
@@ -107,8 +119,9 @@ export const useAuth = create((set, get) => ({
     } catch {
       /* signing out locally matters more than the server round trip */
     }
-    // Preserve user's color theme choice across logout/login cycles
-    // The color is tied to user preference, not session
+    // Clear authenticated user's private appearance preferences
+    // Next user's login will load their own preferences from server
+    useColorTheme.getState().clearUserColorTheme()
     writeAuth(null)
     set({ user: null })
   },

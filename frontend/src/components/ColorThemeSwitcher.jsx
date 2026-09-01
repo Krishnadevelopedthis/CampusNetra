@@ -75,6 +75,8 @@ export function ColorThemeSwitcher() {
     setHue(h)
     setSaturation(s)
     setLightness(l)
+    // NOTE: Actual persistence happens when Settings page is saved
+    // via PATCH /auth/me with updated preferences.appearance.accent_color
   }
 
   const handleHexInput = (e) => {
