@@ -4,9 +4,9 @@ import { useRef, useState, useEffect } from 'react'
 import { useColorTheme } from '@/lib/colorTheme'
 
 /**
- * Professional color picker for per-user session-based accent customization.
- * Color is NOT persisted across sessions - resets to default on each visit.
- * Users must re-select their preferred color each time they return.
+ * Professional color picker for per-user accent customization.
+ * Color is persisted in localStorage and restored on next login.
+ * Users only need to set it once.
  */
 export function ColorThemeSwitcher() {
   const colorTheme = useColorTheme((s) => s.colorTheme)
@@ -146,7 +146,7 @@ export function ColorThemeSwitcher() {
       <div>
         <p className="text-body-lg font-medium text-ink">Accent Color</p>
         <p className="text-body-md text-ink-muted mt-0.5">
-          Choose your accent color for buttons, links, and highlights. Resets to default on next visit.
+          Choose your accent color for buttons, links, and highlights. Your choice is saved and restored on next login.
         </p>
       </div>
 
@@ -283,19 +283,20 @@ export function ColorThemeSwitcher() {
         </div>
       </details>
 
-      {/* Curated best color combinations - 3 boxes */}
+      {/* Curated best color combinations - 3 boxes with responsive design */}
       <div>
         <p className="text-body-sm font-medium text-ink-muted mb-2.5">Recommended combinations</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
           {curatedCombinations.map((combo) => (
             <button
               key={combo.id}
               type="button"
               onClick={() => handleColorChange(combo.bgColor)}
               className={clsx(
-                'relative rounded-xl border-3 p-4 transition-all duration-200 hover:shadow-level3',
+                'relative rounded-lg sm:rounded-xl border-2 p-3 sm:p-4 lg:p-5 transition-all duration-200 hover:shadow-level3',
+                'flex flex-col justify-between min-h-[90px] sm:min-h-[100px] lg:min-h-[120px]',
                 currentHex === combo.bgColor
-                  ? 'border-secondary shadow-level3 ring-2 ring-secondary/30 scale-[1.02]'
+                  ? 'border-secondary shadow-level3 ring-2 ring-secondary/30 scale-[1.01] sm:scale-[1.02]'
                   : 'border-border-subtle hover:border-border-strong',
               )}
               style={{ backgroundColor: combo.bgColor }}
@@ -304,24 +305,26 @@ export function ColorThemeSwitcher() {
               aria-pressed={currentHex === combo.bgColor}
             >
               <div className="relative z-10 flex flex-col items-start">
-                <span className="text-body-sm font-semibold" style={{ color: combo.textColor }}>
+                <span className="text-xs sm:text-sm lg:text-base font-semibold leading-tight" style={{ color: combo.textColor }}>
                   {combo.name}
                 </span>
-                <span className="text-body-xs mt-1 opacity-90" style={{ color: combo.textColor }}>
+                <span className="text-xs sm:text-xs lg:text-sm mt-1 sm:mt-1.5 opacity-90 line-clamp-2" style={{ color: combo.textColor }}>
                   {combo.description}
                 </span>
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="w-6 h-6 rounded border-2" style={{
-                    backgroundColor: combo.bgColor,
-                    borderColor: combo.textColor
-                  }} />
-                  <div className="w-6 h-6 rounded border-2 bg-white" style={{ borderColor: combo.textColor }} />
-                </div>
               </div>
+
+              <div className="mt-2.5 sm:mt-3 lg:mt-3 flex items-center gap-1.5 sm:gap-2 lg:gap-3">
+                <div className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 rounded border border-[1.5px]" style={{
+                  backgroundColor: combo.bgColor,
+                  borderColor: combo.textColor
+                }} />
+                <div className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 rounded border border-[1.5px] bg-white" style={{ borderColor: combo.textColor }} />
+              </div>
+
               {currentHex === combo.bgColor && (
-                <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/90 flex items-center justify-center shadow-md">
-                  <svg className="w-4 h-4" style={{ color: combo.bgColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 lg:top-3 lg:right-3 w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 rounded-full bg-white/90 flex items-center justify-center shadow-md">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" style={{ color: combo.bgColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
               )}
@@ -336,7 +339,7 @@ export function ColorThemeSwitcher() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p className="text-body-sm text-info-text flex-1">
-          Your color choice applies to this session only and will reset to the default indigo on your next visit.
+          Your color choice is saved and will be restored on your next login.
         </p>
       </div>
     </div>
