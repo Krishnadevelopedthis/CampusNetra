@@ -4,7 +4,10 @@ import { Logo } from '@/components/Logo'
 export function ErrorPage({ code, title, description, icon: Icon, action }) {
   return (
     <div className="min-h-screen bg-surface-base flex flex-col items-center justify-center p-6 text-center">
-      <div className="mb-10"><Logo subtitle={null} /></div>
+      {/* Dynamic Theme-Aware Logo */}
+      <div className="mb-10">
+        <Logo subtitle={null} size={56} isDynamic={true} />
+      </div>
 
       {Icon && (
         <div className="w-14 h-14 rounded-lg bg-surface border border-border-subtle grid place-items-center mb-6">
