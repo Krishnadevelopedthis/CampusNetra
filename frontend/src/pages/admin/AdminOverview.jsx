@@ -8,8 +8,8 @@ import { api } from '@/lib/api'
 export default function AdminOverview() {
   const health = useQuery({
     queryKey: ['system-health'],
-    // /health sits outside the versioned API, so call it directly.
-    queryFn: () => fetch('/health').then((r) => r.json()),
+    // /health sits outside the versioned API, so call it directly from the backend.
+    queryFn: () => fetch('https://campusnetra.onrender.com/health').then((r) => r.json()),
     refetchInterval: 30_000,
   })
   const dashboard = useQuery({ queryKey: ['dashboard'], queryFn: () => api.get('/dashboard') })
