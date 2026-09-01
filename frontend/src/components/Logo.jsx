@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 /**
  * Campus Netra mark with theme-aware dynamic logo support.
  * Switches between dark and light theme logos based on system preference or user theme setting.
+ * Logo container background adapts to the current theme for seamless integration.
  */
 export function LogoMark({ size = 40, className, isDynamic = true }) {
   const [theme, setTheme] = useState('light')
@@ -31,9 +32,13 @@ export function LogoMark({ size = 40, className, isDynamic = true }) {
 
   if (isDynamic) {
     const logoSrc = theme === 'dark' ? '/logo-dark.svg' : '/logo-light.svg'
+
+    // Theme-aware background: light theme gets white bg, dark theme gets dark bg
+    const bgClass = theme === 'dark' ? 'bg-surface-base' : 'bg-white'
+
     return (
       <div
-        className={clsx('shrink-0 rounded-lg overflow-hidden', className)}
+        className={clsx('shrink-0 rounded-lg overflow-hidden', bgClass, className)}
         style={{ width: size, height: size }}
         aria-hidden
       >
