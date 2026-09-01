@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+  <!-- Placeholder favicon. Replace with the Campus Netra mark when supplied;
+       see frontend/src/components/Logo.jsx for the in-app equivalent. -->
+  <rect width="40" height="40" rx="8" fill="#1e1b4b"/>
+  <path d="M6 21c4.5-6.5 9.8-9.5 14-9.5S30.5 14.5 34 21c-3.5 6.5-9.8 9.5-14 9.5S10.5 27.5 6 21Z"
+        fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle cx="20" cy="21" r="4" fill="#fff"/>
+</svg>
