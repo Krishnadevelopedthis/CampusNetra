@@ -77,7 +77,7 @@ const NOTIFY_EVENTS = [
 
 export default function Settings() {
   const { user, setUser, logout } = useAuth()
-  const setColorTheme = useColorTheme((s) => s.setColorTheme)
+  const colorTheme = useColorTheme((s) => s.colorTheme)
   const navigate = useNavigate()
 
   const [prefs, setPrefs] = useState(() => merge(user?.preferences))
@@ -89,12 +89,20 @@ export default function Settings() {
     if (!dirty) setPrefs(merge(user?.preferences))
   }, [user?.preferences]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync accent color to ColorTheme store (for live preview)
+  // Sync appearance.accent_color FROM ColorTheme store TO prefs (bidirectional)
+  // This captures changes made via ColorThemeSwitcher component
   useEffect(() => {
-    if (prefs.appearance?.accent_color) {
-      setColorTheme(prefs.appearance.accent_color)
+    if (colorTheme && colorTheme !== prefs.appearance?.accent_color) {
+      setPrefs((p) => ({
+        ...p,
+        appearance: {
+          ...p.appearance,
+          accent_color: colorTheme,
+        },
+      }))
+      setDirty(true)
     }
-  }, [prefs.appearance?.accent_color, setColorTheme])
+  }, [colorTheme])
 
   // Sent to the address on the account, never one supplied here — an export
   // that takes a destination is a way to read someone else's data.
@@ -127,10 +135,6 @@ export default function Settings() {
     onSuccess: (u) => {
       setUser(u)
       setDirty(false)
-      // Sync server preferences back to ColorTheme store
-      if (u?.preferences?.appearance?.accent_color) {
-        setColorTheme(u.preferences.appearance.accent_color)
-      }
       toast.success('Preferences saved.')
     },
     onError: (err) => toast.error(err.detail || 'Could not save your preferences.'),
