@@ -46,7 +46,7 @@ export function LogoMark({ size = 40, className, isDynamic = true }) {
         <img
           src={logoSrc}
           alt="Campus Netra"
-          className="w-full h-full object-contain"
+          className="w-full h-full object-cover"
           loading="lazy"
         />
       </div>
