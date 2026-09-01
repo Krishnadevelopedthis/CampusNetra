@@ -93,11 +93,16 @@ export const useColorTheme = create((set) => ({
 
   /**
    * Called on logout to clear private user theme state.
+   * NOTE: This should NOT delete saved preferences - only clears in-memory state
+   * if needed for security between user sessions.
+   * The actual saved preference remains in the database and will be restored
+   * when the user (or next user) logs in.
    */
   clearUserColorTheme() {
-    // Reset to default (no user-specific theme applies on login page)
-    applyColorTheme(DEFAULT_ACCENT_COLOR)
-    set({ colorTheme: DEFAULT_ACCENT_COLOR })
+    // NO-OP: Do not reset to default or clear anything
+    // Preferences are stored in user account on backend, not in-memory
+    // Next login will fetch preferences via GET /auth/me
+    // If this method is called, it's only to clear local state, not persistent data
   },
 }))
 

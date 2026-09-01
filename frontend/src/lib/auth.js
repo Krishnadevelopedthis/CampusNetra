@@ -119,9 +119,9 @@ export const useAuth = create((set, get) => ({
     } catch {
       /* signing out locally matters more than the server round trip */
     }
-    // Clear authenticated user's private appearance preferences
-    // Next user's login will load their own preferences from server
-    useColorTheme.getState().clearUserColorTheme()
+    // IMPORTANT: Do NOT clear appearance preferences on logout
+    // Logout only clears authentication/session state
+    // User's saved appearance preferences persist and will be restored on next login
     writeAuth(null)
     set({ user: null })
   },
