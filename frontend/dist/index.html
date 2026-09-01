@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e1b4b" />
+    <meta name="description" content="Campus Netra — AI-powered campus facility management and Lost & Found." />
+    <!-- Replace with the Campus Netra logo favicon when supplied. -->
+    <link rel="icon" href="/logo-placeholder.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <title>Campus Netra</title>
+    <script>
+      // Runs before the first paint to prevent theme flash on load.
+      // User color theme is intentionally NOT loaded from localStorage — it resets
+      // to default on each new session. User must re-select in Settings.
+      (function () {
+        try {
+          var saved = localStorage.getItem('cn-theme')
+          var mode = saved === 'light' || saved === 'dark' ? saved
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          document.documentElement.dataset.theme = mode
+          document.documentElement.dataset.userColorTheme = '#1e1b4b'
+
+          if (mode === 'dark') {
+            document.querySelector('meta[name="theme-color"]').content = '#0b1220'
+          }
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light'
+          document.documentElement.dataset.userColorTheme = '#1e1b4b'
+        }
+      })()
+    </script>
+    <script type="module" crossorigin src="/assets/index-ZCVKIPHg.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-DOLBGt8d.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

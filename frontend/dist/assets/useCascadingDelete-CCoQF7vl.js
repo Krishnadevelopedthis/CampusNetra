@@ -1,0 +1,3 @@
+import{u as c}from"./useMutation-lpejM20d.js";import{r as l,t as r,g as m}from"./index-ZCVKIPHg.js";function h({path:o,onDone:t}){const[i,s]=l.useState(null),u=c({mutationFn:({id:e,cascade:a})=>m.del(`${o}/${e}`,{params:a?{cascade:1}:void 0}),onMutate:({id:e})=>s(e),onSuccess:e=>{r.success(e.detail),t==null||t()},onSettled:()=>s(null)});return{remove:(e,a)=>{confirm(`Delete ${a}?`)&&u.mutate({id:e,cascade:!1},{onError:n=>{if(n.status!==409)return r.error(n.detail||"Could not delete that");confirm(`${n.detail}
+
+Delete it and everything inside? This cannot be undone.`)&&u.mutate({id:e,cascade:!0},{onError:d=>r.error(d.detail||"Could not delete that")})}})},pendingId:i}}export{h as u};
