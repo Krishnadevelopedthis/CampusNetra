@@ -11,7 +11,7 @@ export function ErrorPage({ code, title, description, icon: Icon, action }) {
 
       {Icon && (
         <div className="w-14 h-14 rounded-lg bg-surface border border-border-subtle grid place-items-center mb-6">
-          <Icon size={26} className="text-ink-faint" />
+          <Icon size={26} className="text-ink-faint " />
         </div>
       )}
 

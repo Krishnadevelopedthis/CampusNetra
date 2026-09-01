@@ -1,1 +1,0 @@
-import{j as t,ac as e}from"./index-ZCVKIPHg.js";import{E as o}from"./ErrorPage-BOdd677A.js";function a(){return t.jsx(o,{code:"403",icon:e,title:"You don't have access",description:"Your role doesn't permit this area. Contact your campus administrator if you believe this is a mistake."})}export{a as default};
