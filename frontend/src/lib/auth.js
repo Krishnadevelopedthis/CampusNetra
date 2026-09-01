@@ -77,8 +77,7 @@ export const useAuth = create((set, get) => ({
     try {
       const data = await api.post('/auth/login', { email, password, role: role || null })
       writeAuth({ ...data.tokens, user: data.user })
-      // Clear previous user's color theme on new login
-      useColorTheme.getState().clearUserColorTheme()
+      // Preserve user's color theme choice - it's stored in localStorage and will be auto-loaded
       set({ user: data.user })
       return data.user
     } finally {
@@ -108,8 +107,8 @@ export const useAuth = create((set, get) => ({
     } catch {
       /* signing out locally matters more than the server round trip */
     }
-    // Clear user's color theme choice on logout so next user starts fresh
-    useColorTheme.getState().clearUserColorTheme()
+    // Preserve user's color theme choice across logout/login cycles
+    // The color is tied to user preference, not session
     writeAuth(null)
     set({ user: null })
   },
