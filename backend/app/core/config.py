@@ -65,21 +65,21 @@ class Settings(BaseSettings):
     @classmethod
     def _split_origins(cls, v):
         # Accept both a JSON array and a plain comma-separated string.
+        if not v:
+            return []
+        if isinstance(v, list):
+            return v
         if isinstance(v, str):
             v = v.strip()
             if not v:
                 return []
-            # If it looks like JSON array, try to parse it
-            if v.startswith("["):
-                try:
-                    import json
-                    return json.loads(v)
-                except (json.JSONDecodeError, ValueError):
-                    # Fall through to comma-split
-                    pass
-            # Otherwise treat as comma-separated
-            return [o.strip() for o in v.split(",") if o.strip()]
-        return v if v else []
+            # Remove brackets if they exist
+            v = v.strip("[]").strip()
+            if not v:
+                return []
+            # Split by comma
+            return [o.strip().strip('"').strip("'") for o in v.split(",") if o.strip()]
+        return []
 
     @model_validator(mode="after")
     def _reject_default_secret_in_production(self) -> "Settings":
