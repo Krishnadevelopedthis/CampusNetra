@@ -31,7 +31,8 @@ export function LogoMark({ size = 40, className, isDynamic = true }) {
   }, [isDynamic])
 
   if (isDynamic) {
-    const logoSrc = theme === 'dark' ? '/logo-dark.svg' : '/logo-light.svg'
+    // Use dark theme logo for both light and dark modes
+    const logoSrc = '/logo-dark.svg'
 
     // Theme-aware background: light theme gets white bg, dark theme gets dark bg
     const bgClass = theme === 'dark' ? 'bg-surface-base' : 'bg-white'
