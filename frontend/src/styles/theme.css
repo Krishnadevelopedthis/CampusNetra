@@ -35,6 +35,16 @@
   --c-brand: 30 27 75;
   --c-brand-soft: 238 242 255;
 
+  /* Text that sits on a filled accent surface — one token per fill, because
+     the fills are different colours and a single pairing cannot serve them
+     all: white reaches 15.99:1 on --c-primary and only 3.68:1 on
+     --c-secondary. These are the defaults; lib/colorTheme.js recomputes them
+     whenever the theme or the user's accent changes. */
+  --c-on-primary: 255 255 255;
+  --c-on-secondary: 17 19 43;
+  --c-on-secondary-600: 255 255 255;
+  --c-on-brand: 255 255 255;
+
   --c-secondary: 59 130 246;
   --c-secondary-50: 239 246 255;
   --c-secondary-100: 219 234 254;
@@ -121,6 +131,12 @@
      separate token. */
   --c-brand: 165 180 252;
   --c-brand-soft: 38 36 82;
+  /* Dark mode moves two of the fills into light territory, so their labels
+     have to invert while the other two stay white. */
+  --c-on-primary: 255 255 255;
+  --c-on-secondary: 17 19 43;
+  --c-on-secondary-600: 255 255 255;
+  --c-on-brand: 17 19 43;
 
   /* Lifted one step: blue-500 on a dark ground sits at 4.0:1, under AA. */
   --c-secondary: 96 165 250;
