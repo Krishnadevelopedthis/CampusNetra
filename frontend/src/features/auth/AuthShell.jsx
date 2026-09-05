@@ -13,7 +13,7 @@ export function AuthShell({ title, subtitle, children, footer }) {
   return (
     <div className="min-h-screen md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] bg-surface-base">
       {/* Brand panel */}
-      <div className="relative overflow-hidden bg-primary text-white
+      <div className="relative overflow-hidden bg-primary text-on-primary
                       px-6 py-8 md:p-10 lg:p-12 md:flex md:flex-col md:justify-between">
         {/* Faint spatial grid — a nod to the digital twin. */}
         <div
@@ -33,7 +33,7 @@ export function AuthShell({ title, subtitle, children, footer }) {
         />
 
         <div className="relative flex items-center justify-between">
-          <Logo subtitle={null} size={40} className="[&_p]:text-white" />
+          <Logo subtitle={null} size={40} className="[&_p]:text-on-primary" />
           {/* Signed-out visitors need the theme control too, and on a phone the
               form panel's copy of it is below the fold. */}
           <div className="md:hidden"><ThemeToggle /></div>
@@ -43,7 +43,7 @@ export function AuthShell({ title, subtitle, children, footer }) {
           <h2 className="text-[clamp(22px,5vw,34px)] leading-[1.15] font-semibold tracking-tight">
             Every fault, every fix — on one live map of your campus.
           </h2>
-          <p className="mt-3 md:mt-4 text-body-md md:text-body-lg text-white/70">
+          <p className="mt-3 md:mt-4 text-body-md md:text-body-lg text-on-primary/70">
             Report an issue with a photo. Campus Netra classifies it, routes it to the
             right department, and turns the marker red on the digital twin until it&rsquo;s fixed.
           </p>
@@ -53,13 +53,13 @@ export function AuthShell({ title, subtitle, children, footer }) {
               .map(([k, v]) => (
                 <div key={v}>
                   <dt className="text-headline-md md:text-headline-lg font-semibold">{k}</dt>
-                  <dd className="text-body-sm text-white/60 mt-0.5 md:mt-1">{v}</dd>
+                  <dd className="text-body-sm text-on-primary/60 mt-0.5 md:mt-1">{v}</dd>
                 </div>
               ))}
           </dl>
         </div>
 
-        <p className="relative hidden md:block text-body-sm text-white/50">
+        <p className="relative hidden md:block text-body-sm text-on-primary/50">
           © {new Date().getFullYear()} Campus Netra · Precision Intelligence
         </p>
       </div>

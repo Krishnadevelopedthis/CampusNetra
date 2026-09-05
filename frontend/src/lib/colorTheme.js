@@ -31,6 +31,80 @@ function hexToRgb(hex) {
 
 const ACCENT_VARS = ['--c-primary', '--c-secondary', '--c-brand']
 
+/**
+ * Lightness targets for the generated shade ramp.
+ *
+ * 950 is deliberately absent. It is used as the scrim behind modals, drawers
+ * and the camera viewport, where the job is to darken what is underneath — a
+ * pale accent would turn every overlay into a white wash. It stays a fixed
+ * dark regardless of the accent, because it is not really a brand colour.
+ */
+const RAMP = {
+  50: 0.97, 100: 0.93, 200: 0.86, 300: 0.77, 400: 0.66,
+  500: 0.58, 600: 0.50, 700: 0.42, 800: 0.34, 900: 0.27,
+}
+
+/** Hue and saturation of a hex colour, for regenerating its ramp. */
+function hexToHsl(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (!m) return null
+  const [r, g, b] = m.slice(1).map((v) => parseInt(v, 16) / 255)
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  if (max === min) return { h: 0, s: 0, l }
+  const d = max - min
+  const sat = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+  const h = max === r
+    ? ((g - b) / d + (g < b ? 6 : 0))
+    : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return { h: (h * 60 + 360) % 360, s: sat, l }
+}
+
+function hslToRgbString(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = l - c / 2
+  const t = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h / 60) % 6]
+  return t.map((v) => Math.round((v + m) * 255)).join(' ')
+}
+
+/**
+ * Regenerate the numbered shades from the chosen accent.
+ *
+ * The picker set --c-primary, --c-secondary and --c-brand but left the numbered
+ * shades at their built-in blue, so the main button — filled with
+ * secondary-600, not secondary — never followed the accent at all.
+ *
+ * The chosen colour is placed at 600 unchanged, and the rest of the ramp is
+ * offset from it, rather than every step being forced onto a fixed lightness.
+ * Forcing it destroys the choice: a deep emerald at 50% lightness and full
+ * saturation comes back as neon mint, and a deep maroon as bright red. Someone
+ * picking "deep, authoritative red" should get it on the button they are
+ * looking at, not a brighter relative of it.
+ */
+const ANCHOR = 600
+
+function applyShadeRamp(root, hex, rgb) {
+  const hsl = hexToHsl(hex)
+  if (!hsl) return
+  for (const [step, lightness] of Object.entries(RAMP)) {
+    const shade = Number(step) === ANCHOR
+      ? rgb
+      : hslToRgbString(
+        hsl.h,
+        hsl.s,
+        Math.min(0.97, Math.max(0.06, hsl.l + (lightness - RAMP[ANCHOR]))),
+      )
+    root.style.setProperty(`--c-secondary-${step}`, shade)
+    root.style.setProperty(`--c-primary-${step}`, shade)
+  }
+}
+
+const RAMP_VARS = Object.keys(RAMP).flatMap((step) => [
+  `--c-secondary-${step}`, `--c-primary-${step}`,
+])
+
 /** Fill token → the token holding the text colour that rides on it. */
 const FOREGROUND_PAIRS = [
   ['--c-primary', '--c-on-primary'],
@@ -102,6 +176,7 @@ function applyColorTheme(hexColor) {
 
   if (!hexColor) {
     ACCENT_VARS.forEach((v) => root.style.removeProperty(v))
+    RAMP_VARS.forEach((v) => root.style.removeProperty(v))
     FOREGROUND_PAIRS.forEach(([, fg]) => root.style.removeProperty(fg))
     delete root.dataset.userColorTheme
     syncAccentForegrounds()
@@ -110,6 +185,7 @@ function applyColorTheme(hexColor) {
 
   const rgb = hexToRgb(hexColor)
   ACCENT_VARS.forEach((v) => root.style.setProperty(v, rgb))
+  applyShadeRamp(root, hexColor, rgb)
   root.dataset.userColorTheme = hexColor
   syncAccentForegrounds()
 }
