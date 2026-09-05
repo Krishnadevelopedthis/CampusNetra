@@ -14,7 +14,10 @@ import { create } from 'zustand'
  * 5. On page refresh → preferences reloaded from auth state
  */
 
-const DEFAULT_ACCENT_COLOR = '#065f46' // Emerald
+// `null` means "no accent chosen" — the stylesheet's own palette governs, which
+// is the only way light and dark can each keep their proper shade. A single hex
+// default cannot do that: it would pin both themes to the same colour.
+const NO_ACCENT = null
 
 /**
  * Convert hex color to RGB string format for CSS variables.
@@ -26,52 +29,50 @@ function hexToRgb(hex) {
   return `${parseInt(result[1], 16)} ${parseInt(result[2], 16)} ${parseInt(result[3], 16)}`
 }
 
+const ACCENT_VARS = ['--c-primary', '--c-secondary', '--c-brand']
+
 /**
- * Apply accent color by updating CSS custom properties.
+ * Apply an accent by overriding the palette tokens, or clear the override.
+ *
+ * Passing null removes the inline properties rather than writing a default
+ * colour over them, handing control back to theme.css — otherwise "no accent
+ * chosen" would look identical to "accent set to whatever we picked as the
+ * default", and light mode would inherit dark mode's shade.
  */
 function applyColorTheme(hexColor) {
   const root = document.documentElement
+
+  if (!hexColor) {
+    ACCENT_VARS.forEach((v) => root.style.removeProperty(v))
+    delete root.dataset.userColorTheme
+    return
+  }
+
   const rgb = hexToRgb(hexColor)
-
-  // Set primary color (used as accent throughout the app)
-  root.style.setProperty('--c-primary', rgb)
-  root.style.setProperty('--c-secondary', rgb)
-  root.style.setProperty('--c-brand', rgb)
-
-  // Store the hex for display purposes
+  ACCENT_VARS.forEach((v) => root.style.setProperty(v, rgb))
   root.dataset.userColorTheme = hexColor
 }
 
-export const useColorTheme = create((set, get) => ({
-  // Start with DEFAULT - will be overridden by loadFromUserPreferences on login
-  colorTheme: DEFAULT_ACCENT_COLOR,
-  isInitialized: false,  // ← NEW: Track if user preference has been loaded
+export const useColorTheme = create((set) => ({
+  // null until a signed-in user turns out to have chosen one.
+  colorTheme: NO_ACCENT,
+  isInitialized: false,
 
   /**
    * Load color from authenticated user's preferences.
    * Called after successful login to restore user's saved appearance.
    */
   loadFromUserPreferences(userPreferences) {
-    if (!userPreferences) {
-      // No preferences - use default and mark initialized
-      set({ colorTheme: DEFAULT_ACCENT_COLOR, isInitialized: true })
-      applyColorTheme(DEFAULT_ACCENT_COLOR)
-      return
-    }
+    const accentColor = userPreferences?.appearance?.accent_color
+    const valid = typeof accentColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(accentColor)
+    const next = valid ? accentColor : NO_ACCENT
 
-    const appearance = userPreferences.appearance || {}
-    const accentColor = appearance.accent_color || DEFAULT_ACCENT_COLOR
-
-    // Validate hex format
-    if (!/^#[0-9A-Fa-f]{6}$/.test(accentColor)) {
-      applyColorTheme(DEFAULT_ACCENT_COLOR)
-      set({ colorTheme: DEFAULT_ACCENT_COLOR, isInitialized: true })
-      return
-    }
-
-    // Apply the user's saved color
-    applyColorTheme(accentColor)
-    set({ colorTheme: accentColor, isInitialized: true })  // ← Mark initialized
+    // Always applied, including the null case: signing in as someone with no
+    // accent has to clear the previous account's override, and a fresh session
+    // has to end up somewhere definite rather than leaving the store claiming a
+    // colour the page never took.
+    applyColorTheme(next)
+    set({ colorTheme: next, isInitialized: true })
   },
 
   /**
@@ -94,8 +95,8 @@ export const useColorTheme = create((set, get) => ({
    * Actual persistence via Settings page.
    */
   resetColorTheme() {
-    applyColorTheme(DEFAULT_ACCENT_COLOR)
-    set({ colorTheme: DEFAULT_ACCENT_COLOR })
+    applyColorTheme(NO_ACCENT)
+    set({ colorTheme: NO_ACCENT })
   },
 
   /**
@@ -119,5 +120,5 @@ export const useColorTheme = create((set, get) => ({
  * Applies default theme until authenticated user's preferences are loaded.
  */
 export function initColorTheme() {
-  applyColorTheme(DEFAULT_ACCENT_COLOR)
+  applyColorTheme(NO_ACCENT)
 }

@@ -8,15 +8,32 @@ import { useColorTheme } from '@/lib/colorTheme'
  * Color is persisted in localStorage and restored on next login.
  * Users only need to set it once.
  */
+/**
+ * The accent actually in force, as hex.
+ *
+ * With no custom accent chosen the tokens come from theme.css and differ
+ * between light and dark, so the field has to report what is on the page rather
+ * than a hardcoded stand-in — otherwise it names a colour nothing is using.
+ */
+function liveAccentHex() {
+  if (typeof window === 'undefined') return '#3b82f6'
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue('--c-secondary').trim()
+  const parts = raw.split(/[\s,]+/).map(Number)
+  if (parts.length < 3 || parts.some(Number.isNaN)) return '#3b82f6'
+  return `#${parts.slice(0, 3).map((n) => n.toString(16).padStart(2, '0')).join('')}`
+}
+
 export function ColorThemeSwitcher() {
   const colorTheme = useColorTheme((s) => s.colorTheme)
   const setColorTheme = useColorTheme((s) => s.setColorTheme)
+  const resetColorTheme = useColorTheme((s) => s.resetColorTheme)
 
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [hue, setHue] = useState(235) // 0-360
   const [saturation, setSaturation] = useState(65) // 0-100
   const [lightness, setLightness] = useState(30) // 0-100
-  const [hexInput, setHexInput] = useState(colorTheme)
+  const [hexInput, setHexInput] = useState(() => colorTheme || liveAccentHex())
 
   const inputRef = useRef(null)
 
@@ -60,11 +77,12 @@ export function ColorThemeSwitcher() {
 
   // Sync HSL with current color on mount
   useEffect(() => {
-    const { h, s, l } = hexToHsl(colorTheme)
+    const shown = colorTheme || liveAccentHex()
+    const { h, s, l } = hexToHsl(shown)
     setHue(h)
     setSaturation(s)
     setLightness(l)
-    setHexInput(colorTheme)
+    setHexInput(shown)
   }, [colorTheme])
 
   const handleColorChange = (hex) => {
@@ -110,7 +128,10 @@ export function ColorThemeSwitcher() {
   }
 
   const handleReset = () => {
-    handleColorChange('#1e1b4b') // Default indigo
+    // Clear the override rather than writing a colour over it. Setting
+    // #1e1b4b here pinned both themes to one dark indigo, so "reset" produced
+    // a third appearance that was neither the user's pick nor the default.
+    resetColorTheme()
   }
 
   // Curated best color combinations (3 boxes) - each with background + optimal text color
