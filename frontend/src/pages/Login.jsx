@@ -1,29 +1,48 @@
-import { useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
+import { AuthShell } from '@/features/auth/AuthShell'
+import {
+  EmailField, ErrorSummary, ExpiredNotice, FormMeta, PasswordField, SubmitButton,
+} from '@/features/auth/LoginParts'
+import { RoleTabs } from '@/features/auth/RoleTabs'
 import { useLoginForm } from '@/features/auth/useLoginForm'
-import { CenteredCard } from '@/features/auth/variants/CenteredCard'
-import { CompactConsole } from '@/features/auth/variants/CompactConsole'
-import { SplitBrand } from '@/features/auth/variants/SplitBrand'
-
-/**
- * Sign-in.
- *
- * Three layouts are live at once behind `?v=` so they can be compared against
- * real behaviour rather than screenshots — same form logic, same states, same
- * accessibility, only the arrangement differs. `v=1` is the default because it
- * is the closest evolution of what shipped; once one is chosen the other two
- * come out and this collapses back to a single component.
- */
-const VARIANTS = {
-  1: SplitBrand,
-  2: CenteredCard,
-  3: CompactConsole,
-}
 
 export default function Login() {
-  const [params] = useSearchParams()
-  const form = useLoginForm()
+  const {
+    role, setRole, email, setEmail, password, setPassword,
+    remember, setRemember, errors, errorList, submitting, succeeded, expired,
+    submit, summaryRef, fieldRefs,
+  } = useLoginForm()
 
-  const Variant = VARIANTS[params.get('v')] || SplitBrand
-  return <Variant form={form} />
+  return (
+    <AuthShell
+      title="Sign in"
+      subtitle="Use the account your campus issued you."
+      footer={
+        <>
+          New to Campus Netra?{' '}
+          <Link to="/register" className="text-secondary font-medium hover:underline">
+            Create an account
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={submit} noValidate className="space-y-5">
+        <RoleTabs value={role} onChange={setRole} />
+        {expired && <ExpiredNotice />}
+        <ErrorSummary {...{ errors, errorList, summaryRef, fieldRefs }} />
+
+        <EmailField
+          value={email} onChange={setEmail}
+          error={errors.email} inputRef={fieldRefs.email}
+        />
+        <PasswordField
+          value={password} onChange={setPassword}
+          error={errors.password} inputRef={fieldRefs.password}
+        />
+        <FormMeta remember={remember} onRemember={setRemember} />
+        <SubmitButton submitting={submitting} succeeded={succeeded} />
+      </form>
+    </AuthShell>
+  )
 }
