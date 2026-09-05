@@ -27,6 +27,13 @@ export default {
           950: 'rgb(var(--c-primary-950) / <alpha-value>)',
         },
         // Brand as a text/label colour, as opposed to `primary` as a fill.
+        // Foregrounds for filled accent surfaces: text-on-primary, etc.
+        on: {
+          primary: 'rgb(var(--c-on-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--c-on-secondary) / <alpha-value>)',
+          'secondary-600': 'rgb(var(--c-on-secondary-600) / <alpha-value>)',
+          brand: 'rgb(var(--c-on-brand) / <alpha-value>)',
+        },
         brand: {
           DEFAULT: 'rgb(var(--c-brand) / <alpha-value>)',
           soft: 'rgb(var(--c-brand-soft) / <alpha-value>)',
@@ -123,6 +130,10 @@ export default {
         'body-md':         ['14px', { lineHeight: '20px' }],
         'body-sm':         ['12px', { lineHeight: '16px' }],
         'label-caps':      ['11px', { lineHeight: '16px', letterSpacing: '0.06em', fontWeight: '700' }],
+        // Form labels specifically. 11px is below the floor for text someone
+        // has to read to know what to type; the caps role stays 11px for the
+        // decorative metric captions it was designed for.
+        'label-form':      ['12px', { lineHeight: '16px', letterSpacing: '0.04em', fontWeight: '600' }],
         'mono-data':       ['13px', { lineHeight: '18px', fontWeight: '500' }],
       },
 

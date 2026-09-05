@@ -133,7 +133,7 @@ function ReporterBody({ data }) {
       </Widget>
 
       <div className="space-y-4">
-        <div className="widget bg-primary text-white p-widget border-primary">
+        <div className="widget bg-primary text-on-primary p-widget border-primary">
           <h3 className="text-headline-md text-white">Quick Actions</h3>
           <div className="mt-4 space-y-2">
             <QuickAction to="/issues/new" icon={PlusCircle} label="Report Issue" primary />

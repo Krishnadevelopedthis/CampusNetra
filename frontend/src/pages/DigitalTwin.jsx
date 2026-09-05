@@ -262,7 +262,7 @@ export default function DigitalTwin() {
                           key={f.id}
                           onClick={() => { setSelectedFloor(f.id); setSelectedRoom(null); setSelectedAsset(null) }}
                           className={`w-full flex items-center gap-2 h-9 px-2 rounded text-left text-body-md transition-colors
-                                      ${f.id === selectedFloor ? 'bg-secondary text-white' : 'hover:bg-surface-sunken text-ink-muted'}`}
+                                      ${f.id === selectedFloor ? 'bg-secondary text-on-secondary' : 'hover:bg-surface-sunken text-ink-muted'}`}
                         >
                           <Layers size={14} className="shrink-0" />
                           <span className="truncate">{f.name}</span>

@@ -268,7 +268,7 @@ export default function FloorPlanEditor() {
                       onClick={() => { setFloorId(f.id); setSelectedRoom(null); setDraft([]); setMode('select') }}
                       className={`flex items-center gap-2 h-9 px-3.5 rounded-lg text-body-md font-medium transition-colors ${
                         floorId === f.id
-                          ? 'bg-brand text-white'
+                          ? 'bg-brand text-on-brand'
                           : 'bg-surface-sunken text-ink-muted hover:text-ink'
                       }`}>
                 {f.name}

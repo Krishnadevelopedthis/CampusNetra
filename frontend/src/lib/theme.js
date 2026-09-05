@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { syncAccentForegrounds } from './colorTheme'
 
 const STORAGE_KEY = 'cn-theme'
 
@@ -34,6 +35,12 @@ function apply(mode, { animate = true } = {}) {
     window.setTimeout(() => root.classList.remove('theme-switching'), 220)
   }
   root.dataset.theme = resolved
+
+  // The stylesheet swaps the accent fills between themes, so the text colours
+  // paired with them have to be recomputed against the new values — otherwise
+  // dark mode inherits light mode's answer and a label ends up on a fill it was
+  // never measured against.
+  syncAccentForegrounds()
 
   // Keeps the browser chrome (address bar, pull-to-refresh) in step on mobile.
   document
