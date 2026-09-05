@@ -113,7 +113,7 @@ export function AssistantPanel({ open, onClose }) {
               )}
               <div className={clsx('max-w-[85%] rounded-xl px-3.5 py-2.5',
                 m.role === 'user'
-                  ? 'bg-secondary text-white'
+                  ? 'bg-secondary text-on-secondary'
                   : m.error
                     ? 'bg-danger-bg border border-danger-border text-danger-text'
                     : 'ai-surface text-ink')}>
@@ -158,7 +158,7 @@ export function AssistantPanel({ open, onClose }) {
             />
             <button
               type="submit" disabled={!input.trim() || busy}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center bg-secondary text-white disabled:opacity-40"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center bg-secondary text-on-secondary disabled:opacity-40"
               aria-label="Send"
             >
               <Send size={14} />

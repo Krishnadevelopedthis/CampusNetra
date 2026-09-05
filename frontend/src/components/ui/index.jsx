@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { createContext, forwardRef, useContext, useEffect, useId, useRef, useState } from 'react'
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 
 /* ---------------- Widget (Level 1: bordered, no shadow) ---------------- */
@@ -62,28 +62,75 @@ export function Button({
 }
 
 /* ---------------- Form fields ---------------- */
+
+/**
+ * Wires a field's label, error and hint to its control.
+ *
+ * Passed through context rather than cloned onto `children`, because a control
+ * is often wrapped — an icon needs a relative parent, a password needs a reveal
+ * button — and cloning would put the ids on the wrapper instead of the input.
+ * Context reaches the control at any depth.
+ */
+const FieldContext = createContext(null)
+
 export function Field({ label, error, hint, required, children, className }) {
+  const base = useId()
+  const controlId = `${base}-control`
+  const errorId = `${base}-error`
+  const hintId = `${base}-hint`
+  const showHint = hint && !error
+
   return (
-    <div className={className}>
-      {label && (
-        <label className="label">
-          {label}
-          {required && <span className="text-danger ml-0.5">*</span>}
-        </label>
-      )}
-      {children}
-      {error && (
-        <p className="field-error">
-          <AlertCircle size={13} /> {error}
-        </p>
-      )}
-      {hint && !error && <p className="hint">{hint}</p>}
-    </div>
+    <FieldContext.Provider
+      value={{
+        controlId,
+        invalid: !!error,
+        describedBy: [error && errorId, showHint && hintId].filter(Boolean).join(' ') || undefined,
+      }}
+    >
+      <div className={className}>
+        {label && (
+          <label className="label" htmlFor={controlId}>
+            {label}
+            {required && <span className="text-danger ml-0.5">*</span>}
+          </label>
+        )}
+        {children}
+        {error && (
+          // Announced on change: a validation message that only appears
+          // visually leaves a screen-reader user with a form that silently
+          // refuses to submit.
+          <p className="field-error" id={errorId} role="alert">
+            <AlertCircle size={13} aria-hidden="true" /> {error}
+          </p>
+        )}
+        {showHint && <p className="hint" id={hintId}>{hint}</p>}
+      </div>
+    </FieldContext.Provider>
   )
 }
 
-export const Input = forwardRef(function Input({ error, className, ...rest }, ref) {
-  return <input ref={ref} className={clsx('input', error && 'input-error', className)} {...rest} />
+/** Adopts the enclosing Field's id and error wiring unless given explicitly. */
+function useFieldProps({ id, invalid }) {
+  const field = useContext(FieldContext)
+  if (!field) return { id, 'aria-invalid': invalid || undefined }
+  return {
+    id: id ?? field.controlId,
+    'aria-invalid': (invalid ?? field.invalid) || undefined,
+    'aria-describedby': field.describedBy,
+  }
+}
+
+export const Input = forwardRef(function Input({ error, className, id, ...rest }, ref) {
+  const a11y = useFieldProps({ id, invalid: !!error })
+  return (
+    <input
+      ref={ref}
+      className={clsx('input', error && 'input-error', className)}
+      {...a11y}
+      {...rest}
+    />
+  )
 })
 
 export const Textarea = forwardRef(function Textarea({ error, className, ...rest }, ref) {

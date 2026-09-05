@@ -50,8 +50,8 @@
            text-body-md font-medium transition-colors duration-150
            disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap;
   }
-  .btn-primary   { @apply btn bg-secondary-600 text-white hover:bg-secondary-700; }
-  .btn-dark      { @apply btn bg-primary text-white hover:bg-primary-800; }
+  .btn-primary   { @apply btn bg-secondary-600 text-on-secondary-600 hover:bg-secondary-700; }
+  .btn-dark      { @apply btn bg-primary text-on-primary hover:bg-primary-800; }
   .btn-secondary { @apply btn bg-surface text-ink border border-border-subtle hover:bg-surface-sunken; }
   .btn-ghost     { @apply btn bg-transparent text-ink-muted hover:bg-surface-sunken; }
   .btn-danger    { @apply btn bg-danger text-white hover:bg-danger-strong; }
@@ -60,7 +60,7 @@
 
   /* ---- Forms ---- */
   .label {
-    @apply block text-label-caps uppercase text-ink-muted mb-1.5;
+    @apply block text-label-form uppercase text-ink-muted mb-1.5;
   }
   .input {
     @apply w-full h-10 px-3 bg-surface border border-border-subtle rounded
@@ -116,8 +116,10 @@
     @apply flex items-center gap-3 h-11 px-3 rounded-lg text-body-md font-medium
            text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors;
   }
+  /* bg-secondary is light enough that white fails AA on it in both themes —
+     2.54:1 in dark. The paired token carries the readable colour. */
   .sidebar-link-active {
-    @apply bg-secondary text-white hover:bg-secondary hover:text-white;
+    @apply bg-secondary text-on-secondary hover:bg-secondary hover:text-on-secondary;
   }
 
   .skeleton {

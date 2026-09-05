@@ -146,7 +146,7 @@ export function DateTimePicker({
                   disabled={outOfRange(d)}
                   onClick={() => { commit(d); setOpen(false) }}
                   className="px-2.5 h-7 rounded-lg bg-surface-sunken text-body-sm text-ink-muted
-                             hover:bg-secondary hover:text-white transition-colors
+                             hover:bg-secondary hover:text-on-secondary transition-colors
                              disabled:opacity-40 disabled:pointer-events-none"
                 >
                   {label}
@@ -195,7 +195,7 @@ export function DateTimePicker({
                   className={clsx(
                     'h-8 rounded-lg text-body-sm tabular transition-colors',
                     isSelected
-                      ? 'bg-secondary-600 text-white font-semibold'
+                      ? 'bg-secondary-600 text-on-secondary-600 font-semibold'
                       : disabled
                         ? 'text-ink-faint/40 cursor-not-allowed'
                         : otherMonth
