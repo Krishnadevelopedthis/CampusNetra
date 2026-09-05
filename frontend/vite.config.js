@@ -16,7 +16,9 @@ export default defineConfig(({ mode }) => {
       alias: { '@': path.resolve(process.cwd(), 'src') },
     },
     server: {
-      port: 5173,
+      // Honour an assigned PORT so the dev server can move when 5173 is taken
+      // by another project. Falls back to the conventional 5173 when unset.
+      port: Number(process.env.PORT) || 5173,
       proxy: {
         // Same-origin in dev, so no CORS handling is needed in the browser.
         // ws:true is required here too — the Digital Twin's live socket is
