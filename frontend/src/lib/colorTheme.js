@@ -31,6 +31,64 @@ function hexToRgb(hex) {
 
 const ACCENT_VARS = ['--c-primary', '--c-secondary', '--c-brand']
 
+/** Fill token → the token holding the text colour that rides on it. */
+const FOREGROUND_PAIRS = [
+  ['--c-primary', '--c-on-primary'],
+  ['--c-secondary', '--c-on-secondary'],
+  ['--c-secondary-600', '--c-on-secondary-600'],
+  ['--c-brand', '--c-on-brand'],
+]
+
+/** WCAG relative luminance of an "r g b" triple. */
+function luminance(rgb) {
+  const [r, g, b] = rgb.split(' ').map(Number).map((v) => {
+    const c = v / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+/**
+ * The label colour that stays legible on a given accent.
+ *
+ * The accent is chosen by the user at runtime, so no fixed pairing works:
+ * white on a pale accent and near-black on a deep one are both unreadable, and
+ * which one applies is not known until they pick. Whichever of the two has the
+ * better contrast wins, so a button's own label can never become the thing that
+ * fails the page.
+ */
+const INK_ON_LIGHT = '17 19 43'
+const INK_ON_DARK = '255 255 255'
+
+function foregroundFor(rgb) {
+  return contrast(rgb, INK_ON_DARK) >= contrast(rgb, INK_ON_LIGHT)
+    ? INK_ON_DARK
+    : INK_ON_LIGHT
+}
+
+/**
+ * Recompute every accent foreground from the fill actually in force.
+ *
+ * Read from the cascade rather than from a table, so this stays correct
+ * whichever way the fill got its value — the light/dark stylesheet, or the
+ * user's own accent. Called on both, since either can change the fill.
+ */
+export function syncAccentForegrounds() {
+  const root = document.documentElement
+  const computed = getComputedStyle(root)
+  for (const [fill, foreground] of FOREGROUND_PAIRS) {
+    const rgb = computed.getPropertyValue(fill).trim()
+    if (/^\d+\s+\d+\s+\d+$/.test(rgb)) {
+      root.style.setProperty(foreground, foregroundFor(rgb))
+    }
+  }
+}
+
 /**
  * Apply an accent by overriding the palette tokens, or clear the override.
  *
@@ -44,13 +102,16 @@ function applyColorTheme(hexColor) {
 
   if (!hexColor) {
     ACCENT_VARS.forEach((v) => root.style.removeProperty(v))
+    FOREGROUND_PAIRS.forEach(([, fg]) => root.style.removeProperty(fg))
     delete root.dataset.userColorTheme
+    syncAccentForegrounds()
     return
   }
 
   const rgb = hexToRgb(hexColor)
   ACCENT_VARS.forEach((v) => root.style.setProperty(v, rgb))
   root.dataset.userColorTheme = hexColor
+  syncAccentForegrounds()
 }
 
 export const useColorTheme = create((set) => ({

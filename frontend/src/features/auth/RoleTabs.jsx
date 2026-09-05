@@ -36,7 +36,7 @@ export function RoleTabs({ value, onChange, tabs = ROLE_TABS }) {
               'flex flex-1 basis-[108px] items-center justify-center gap-1.5 min-h-11 px-2',
               'rounded text-body-md font-medium transition-colors',
               active
-                ? 'bg-primary text-white shadow-level2'
+                ? 'bg-primary text-on-primary shadow-level2'
                 : 'text-ink-muted hover:text-ink hover:bg-surface/60',
             )}
           >
