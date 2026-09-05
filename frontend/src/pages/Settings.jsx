@@ -92,16 +92,16 @@ export default function Settings() {
   // Sync appearance.accent_color FROM ColorTheme store TO prefs (bidirectional)
   // This captures changes made via ColorThemeSwitcher component
   useEffect(() => {
-    if (colorTheme && colorTheme !== prefs.appearance?.accent_color) {
-      setPrefs((p) => ({
-        ...p,
-        appearance: {
-          ...p.appearance,
-          accent_color: colorTheme,
-        },
-      }))
-      setDirty(true)
-    }
+    const saved = prefs.appearance?.accent_color ?? null
+    const chosen = colorTheme ?? null
+    if (chosen === saved) return
+    // Includes clearing it: resetting to the default palette has to remove the
+    // stored accent, or the next sign-in restores the colour just discarded.
+    setPrefs((p) => ({
+      ...p,
+      appearance: { ...p.appearance, accent_color: chosen },
+    }))
+    setDirty(true)
   }, [colorTheme])
 
   // Sent to the address on the account, never one supplied here — an export
