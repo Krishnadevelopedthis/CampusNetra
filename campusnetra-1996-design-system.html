@@ -1,0 +1,1955 @@
+<title>CampusNetra 1996 Design System</title>
+<style>
+  /* -------------------------------------------------------------
+     CAMPUS NETRA 1996 DESIGN SYSTEM TOKENS & SYSTEM STYLES
+     Faithfully modeled on Dell's Dec 1996 Catalog-Era Web System
+     ------------------------------------------------------------- */
+  :root {
+    /* Brand & Accent Tokens */
+    --cn-red-primary: #e91d2a;
+    --cn-yellow-sticker: #fcc20f;
+    --cn-purple-stripe: #6a26a4;
+    --cn-link-blue: #0000ee;
+    --cn-link-visited: #551a8b;
+
+    /* Surface & Monochrome Tokens */
+    --cn-frame-ink: #000000;
+    --cn-canvas: #ffffff;
+    --cn-ink: #000000;
+    --cn-muted-gray: #767676;
+    --cn-hairline: #000000;
+    --cn-bevel-light: #ffffff;
+    --cn-bevel-shadow: #808080;
+    --cn-bevel-dark: #404040;
+    --cn-green-rule: #008000;
+    --cn-surface-bg: #ece9d8;
+
+    /* Eight Catalog Ribbon Tints */
+    --cn-tint-olive: #8e8a25;
+    --cn-tint-sage: #b3bd95;
+    --cn-tint-salmon: #d77a7a;
+    --cn-tint-peach: #e6915d;
+    --cn-tint-lime: #c0d4a7;
+    --cn-tint-sky: #9ab6c8;
+    --cn-tint-steel: #a5b8c0;
+    --cn-tint-periwinkle: #8c9ae0;
+
+    /* Typography Stacks */
+    --cn-font-display: 'Arial Black', 'Impact', -apple-system, BlinkMacSystemFont, sans-serif;
+    --cn-font-ui: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --cn-font-body: 'Times New Roman', Times, Georgia, serif;
+    --cn-font-mono: 'Courier New', Courier, monospace;
+
+    /* Spacing Scale */
+    --cn-space-xxs: 2px;
+    --cn-space-xs: 4px;
+    --cn-space-s: 6px;
+    --cn-space-sm: 8px;
+    --cn-space-m: 10px;
+    --cn-space-md: 12px;
+    --cn-space-lg: 16px;
+    --cn-space-xl: 20px;
+    --cn-space-xxl: 24px;
+    --cn-space-sec-sm: 32px;
+    --cn-space-sec: 40px;
+    --cn-space-sec-lg: 48px;
+
+    /* Radius: Strictly 0px except for award seals (full) */
+    --cn-radius-none: 0px;
+    --cn-radius-full: 9999px;
+  }
+
+  /* Theme Support */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --cn-surface-bg: #1c1c1f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --cn-surface-bg: #1c1c1f;
+  }
+
+  /* Reset & Container Baseline */
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    background-color: var(--cn-surface-bg);
+    color: var(--cn-ink);
+    font-family: var(--cn-font-body);
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Top App Navigation & Switcher */
+  .system-control-bar {
+    max-width: 1080px;
+    margin: 0 auto 16px auto;
+    background: #2b2b2b;
+    color: #ffffff;
+    padding: 10px 14px;
+    border: 2px solid #000000;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: var(--cn-font-ui);
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.5);
+  }
+
+  .system-title-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .system-title-badge h1 {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #fcc20f;
+  }
+
+  .nav-tabs-group {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .nav-tab-btn {
+    font-family: var(--cn-font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: #dfdfdf;
+    color: #000000;
+    border: 2px outset #ffffff;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: none;
+  }
+
+  .nav-tab-btn:active {
+    border-style: inset;
+    background: #cfcfcf;
+  }
+
+  .nav-tab-btn.active {
+    background: var(--cn-yellow-sticker);
+    color: #000000;
+    border: 2px inset #000000;
+  }
+
+  /* Main Workspace Container */
+  .system-main-workspace {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  .tab-pane {
+    display: none;
+  }
+
+  .tab-pane.active {
+    display: block;
+  }
+
+  /* -------------------------------------------------------------
+     CORE RETRO FOUNDATIONS & SPECIFICATION STYLES
+     ------------------------------------------------------------- */
+  .spec-card {
+    background: #ffffff;
+    border: 1px solid #000000;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 3px 3px 0px rgba(0,0,0,0.25);
+  }
+
+  .spec-header-band {
+    background: #000000;
+    color: #ffffff;
+    padding: 8px 14px;
+    margin: -20px -20px 16px -20px;
+    font-family: var(--cn-font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .spec-tag {
+    background: var(--cn-yellow-sticker);
+    color: #000000;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 900;
+  }
+
+  /* Palette Grid */
+  .color-swatches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+
+  .swatch-card {
+    border: 1px solid #000000;
+    background: #ffffff;
+    padding: 8px;
+  }
+
+  .swatch-preview {
+    height: 52px;
+    border: 1px solid #000000;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--cn-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .swatch-meta {
+    font-family: var(--cn-font-mono);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .swatch-meta strong {
+    font-family: var(--cn-font-ui);
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  /* Typography Matrix */
+  .type-spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 13px;
+  }
+
+  .type-spec-table th,
+  .type-spec-table td {
+    border: 1px solid #000000;
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .type-spec-table th {
+    background: #f0f0f0;
+    font-family: var(--cn-font-ui);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 11px;
+  }
+
+  /* Do / Don't Grid */
+  .guideline-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  @media (max-width: 768px) {
+    .guideline-columns {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .rule-box {
+    border: 2px solid #000000;
+    padding: 14px;
+    background: #ffffff;
+  }
+
+  .rule-box.do-rule {
+    border-top: 6px solid #2e7d32;
+  }
+
+  .rule-box.dont-rule {
+    border-top: 6px solid #d32f2f;
+  }
+
+  .rule-box h3 {
+    font-family: var(--cn-font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .rule-box ul {
+    list-style-type: square;
+    padding-left: 18px;
+    font-size: 13px;
+  }
+
+  .rule-box li {
+    margin-bottom: 6px;
+  }
+
+  /* -------------------------------------------------------------
+     1996 AUTHENTIC COMPONENT LIBRARY IMPLEMENTATION
+     ------------------------------------------------------------- */
+  /* 1. Page Frame */
+  .cn-page-frame {
+    border: 8px solid var(--cn-frame-ink);
+    background: var(--cn-canvas);
+    padding: 0;
+    position: relative;
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.3);
+  }
+
+  /* 2. Top Banner */
+  .cn-top-banner {
+    background: var(--cn-frame-ink);
+    color: var(--cn-canvas);
+    padding: 10px 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 2px solid #333333;
+  }
+
+  .cn-top-headline-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .cn-top-headline-group .cn-headline {
+    font-family: var(--cn-font-ui);
+    font-size: 15px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #ffffff;
+  }
+
+  .cn-top-headline-group .cn-subline {
+    font-family: var(--cn-font-body);
+    font-size: 13px;
+    color: #dddddd;
+    font-style: italic;
+  }
+
+  .cn-top-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* 3. Phone Callout */
+  .cn-phone-callout {
+    font-family: var(--cn-font-ui);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--cn-red-primary);
+    background: #000000;
+    padding: 2px 8px;
+    border: 1px solid #333333;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  /* 4. Stickers & Overlays */
+  .cn-sticker-buy {
+    display: inline-flex;
+    align-items: center;
+    background: var(--cn-yellow-sticker);
+    color: #000000;
+    font-family: var(--cn-font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border: 1px solid #000000;
+    box-shadow: 1px 1px 0px #000000;
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+  }
+
+  .cn-sticker-buy .cn-purple-a {
+    background: var(--cn-purple-stripe);
+    color: #ffffff;
+    padding: 0 4px;
+    margin: 0 3px;
+    font-weight: 900;
+    font-size: 11px;
+  }
+
+  .cn-sticker-new {
+    display: inline-block;
+    background: var(--cn-yellow-sticker);
+    color: #000000;
+    font-family: var(--cn-font-ui);
+    font-size: 12px;
+    font-weight: 900;
+    padding: 2px 7px;
+    border: 1px solid #000000;
+    transform: rotate(-14deg);
+    box-shadow: 2px 2px 0px #000000;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .cn-cert-seal {
+    width: 76px;
+    height: 76px;
+    border-radius: var(--cn-radius-full);
+    background: var(--cn-red-primary);
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 0 1px #000000, 2px 2px 4px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #ffffff;
+    font-family: var(--cn-font-ui);
+    padding: 4px;
+    user-select: none;
+  }
+
+  .cn-cert-seal .seal-outer-ring {
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.1;
+  }
+
+  .cn-cert-seal .seal-inner-core {
+    background: #ffffff;
+    color: #000000;
+    font-weight: 900;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 2px;
+    margin: 2px 0;
+    border: 1px solid #000000;
+    text-transform: uppercase;
+  }
+
+  .cn-cert-seal .seal-subtext {
+    font-size: 7px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  /* 5. Section Eyebrows */
+  .cn-section-eyebrow {
+    font-family: var(--cn-font-display);
+    font-size: 30px;
+    font-weight: 900;
+    line-height: 1.0;
+    text-transform: uppercase;
+    padding: 16px 14px;
+    color: #000000;
+    border: 1px solid #000000;
+    margin-bottom: 12px;
+    letter-spacing: -0.5px;
+  }
+
+  .cn-eyebrow-olive { background: var(--cn-tint-olive); }
+  .cn-eyebrow-salmon { background: var(--cn-tint-salmon); }
+  .cn-eyebrow-peach { background: var(--cn-tint-peach); }
+  .cn-eyebrow-sage { background: var(--cn-tint-sage); }
+  .cn-eyebrow-periwinkle { background: var(--cn-tint-periwinkle); }
+
+  /* 6. Signature Ribbon Cards */
+  .cn-ribbon-card {
+    border: 1px solid var(--cn-hairline);
+    margin-bottom: 16px;
+    background: #ffffff;
+    position: relative;
+  }
+
+  .cn-ribbon-card-title {
+    background: var(--cn-canvas);
+    color: var(--cn-ink);
+    font-family: var(--cn-font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--cn-hairline);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cn-ribbon-card-body {
+    padding: 12px 16px;
+    font-family: var(--cn-font-body);
+    font-size: 14px;
+    line-height: 1.4;
+    color: #000000;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    align-items: center;
+  }
+
+  @media (max-width: 600px) {
+    .cn-ribbon-card-body {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .cn-ribbon-card-body.tint-sage { background-color: var(--cn-tint-sage); }
+  .cn-ribbon-card-body.tint-salmon { background-color: var(--cn-tint-salmon); }
+  .cn-ribbon-card-body.tint-peach { background-color: var(--cn-tint-peach); }
+  .cn-ribbon-card-body.tint-lime { background-color: var(--cn-tint-lime); }
+  .cn-ribbon-card-body.tint-sky { background-color: var(--cn-tint-sky); }
+  .cn-ribbon-card-body.tint-steel { background-color: var(--cn-tint-steel); }
+  .cn-ribbon-card-body.tint-periwinkle { background-color: var(--cn-tint-periwinkle); }
+  .cn-ribbon-card-body.tint-olive { background-color: var(--cn-tint-olive); }
+
+  .cn-photo-notch {
+    width: 130px;
+    background: #e8e8e8;
+    border: 2px solid #000000;
+    box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #808080, 2px 2px 0px #000000;
+    padding: 6px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .cn-photo-notch .crt-bezel {
+    background: #111822;
+    border: 2px inset #555555;
+    padding: 6px 4px;
+    color: #38ef7d;
+    font-family: var(--cn-font-mono);
+    font-size: 10px;
+    text-align: center;
+  }
+
+  /* 7. Dell-Red CTA Block */
+  .cn-cta-block-red {
+    background: var(--cn-red-primary);
+    color: #ffffff;
+    border: 1px solid #000000;
+    padding: 16px;
+    font-family: var(--cn-font-body);
+    font-size: 14px;
+    line-height: 1.45;
+    margin-bottom: 16px;
+    box-shadow: 2px 2px 0px #000000;
+  }
+
+  .cn-cta-block-red strong {
+    font-family: var(--cn-font-ui);
+    display: block;
+    font-size: 15px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+  }
+
+  .cn-cta-block-red a {
+    color: #ffff00;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  /* 8. Icon Label Navigation & Footer */
+  .cn-icon-nav-bar {
+    background: var(--cn-canvas);
+    border-top: 1px solid #000000;
+    padding: 16px 12px;
+    position: relative;
+    margin-top: 24px;
+  }
+
+  .cn-green-connecting-line {
+    height: 3px;
+    background: var(--cn-green-rule);
+    width: 85%;
+    margin: 0 auto;
+    position: relative;
+    top: 22px;
+    z-index: 1;
+    border-top: 1px solid #004d00;
+  }
+
+  .cn-icon-nav-row {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-around;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .cn-icon-nav-item {
+    background: #ffffff;
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-decoration: none;
+    color: #000000;
+  }
+
+  .cn-icon-box {
+    width: 36px;
+    height: 36px;
+    background: #f4f4f4;
+    border: 1px solid #000000;
+    box-shadow: inset 1px 1px 0 #ffffff, inset -1px -1px 0 #777777;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cn-icon-label {
+    font-family: var(--cn-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #000000;
+  }
+
+  .cn-footer-legal {
+    text-align: center;
+    font-family: var(--cn-font-body);
+    font-size: 12px;
+    padding: 12px 10px;
+    border-top: 1px solid #000000;
+    background: #fafafa;
+    color: #000000;
+  }
+
+  .cn-footer-legal a {
+    color: var(--cn-link-blue);
+    text-decoration: underline;
+  }
+
+  /* 9. HTML 3.2 Era Inputs & Controls */
+  .cn-input-text {
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid #000000;
+    font-family: var(--cn-font-body);
+    font-size: 14px;
+    padding: 4px 6px;
+    outline: none;
+    border-radius: 0;
+  }
+
+  .cn-btn-primary {
+    background: var(--cn-frame-ink);
+    color: #ffffff;
+    font-family: var(--cn-font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid #000000;
+    padding: 5px 14px;
+    cursor: pointer;
+    box-shadow: inset 1px 1px 0 #888888, 1px 1px 0 #000000;
+  }
+
+  .cn-btn-secondary {
+    background: #ffffff;
+    color: #000000;
+    font-family: var(--cn-font-ui);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid #000000;
+    padding: 5px 14px;
+    cursor: pointer;
+    box-shadow: inset 1px 1px 0 #ffffff, 1px 1px 0 #000000;
+  }
+
+  .cn-btn-link {
+    color: var(--cn-link-blue);
+    font-family: var(--cn-font-body);
+    font-size: 14px;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  /* -------------------------------------------------------------
+     1996 HOMEPAGE DEMO LAYOUT (TWO-COLUMN ARCHITECTURE)
+     ------------------------------------------------------------- */
+  .cn-catalog-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    border-top: 1px solid #000000;
+  }
+
+  @media (max-width: 820px) {
+    .cn-catalog-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .cn-left-rail {
+    background: #f4f4f4;
+    border-right: 1px solid #000000;
+    padding: 12px;
+  }
+
+  .cn-right-main {
+    background: #ffffff;
+    padding: 14px 16px;
+  }
+
+  .cn-rail-icon-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .cn-rail-link-card {
+    background: #ffffff;
+    border: 1px solid #000000;
+    padding: 6px 4px;
+    text-align: center;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .cn-rail-link-card span {
+    font-family: var(--cn-font-ui);
+    font-size: 10px;
+    font-weight: 700;
+    color: #000000;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+
+  /* -------------------------------------------------------------
+     SaaS / 10 VERTICAL SPECIFICATION SURFACES
+     ------------------------------------------------------------- */
+  .archetype-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .archetype-card {
+    border: 1px solid #000000;
+    background: #ffffff;
+    padding: 12px;
+    box-shadow: 2px 2px 0px rgba(0,0,0,0.15);
+  }
+
+  .archetype-title-bar {
+    background: #000000;
+    color: #ffffff;
+    font-family: var(--cn-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    margin: -12px -12px 10px -12px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* Code export box */
+  .code-token-box {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    font-family: var(--cn-font-mono);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 16px;
+    border: 1px solid #000000;
+    overflow-x: auto;
+    white-space: pre;
+    max-height: 480px;
+  }
+
+  .copy-banner-btn {
+    background: var(--cn-yellow-sticker);
+    color: #000000;
+    border: 1px solid #000000;
+    padding: 4px 10px;
+    font-family: var(--cn-font-ui);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+  }
+</style>
+
+<!-- =============================================================
+     CONTROL BAR / VIEW SWITCHER
+     ============================================================= -->
+<div class="system-control-bar">
+  <div class="system-title-badge">
+    <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+      <path d="M4 22c5-7 11-10 16-10s11 3 16 10c-5 7-11 10-16 10S9 29 4 22Z" stroke="#fcc20f" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="20" cy="22" r="4.5" fill="#fcc20f"/>
+      <path d="M12 12V6h16v6" stroke="#fcc20f" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>CampusNetra '96 Design System</h1>
+      <span style="font-size: 10px; color: #a0a0a0;">December 1996 Catalog-Era Enterprise Standard</span>
+    </div>
+  </div>
+
+  <div class="nav-tabs-group" role="tablist">
+    <button class="nav-tab-btn active" onclick="switchTab('tab-live-demo')" role="tab" id="btn-demo">1996 Live Experience</button>
+    <button class="nav-tab-btn" onclick="switchTab('tab-components')" role="tab" id="btn-components">Component Library</button>
+    <button class="nav-tab-btn" onclick="switchTab('tab-tokens')" role="tab" id="btn-tokens">Design Tokens &amp; Rules</button>
+    <button class="nav-tab-btn" onclick="switchTab('tab-archetypes')" role="tab" id="btn-archetypes">10 Modern SaaS Surfaces</button>
+    <button class="nav-tab-btn" onclick="switchTab('tab-code')" role="tab" id="btn-code">CSS &amp; Token Export</button>
+  </div>
+</div>
+
+<div class="system-main-workspace">
+
+  <!-- =============================================================
+       TAB 1: 1996 LIVE CATALOG HOMEPAGE EXPERIENCE
+       ============================================================= -->
+  <div id="tab-live-demo" class="tab-pane active">
+    <!-- Outer 8px Black Picture Frame -->
+    <div class="cn-page-frame">
+
+      <!-- Top Banner Strip -->
+      <header class="cn-top-banner">
+        <div class="cn-top-headline-group">
+          <!-- CampusNetra Eye Mark 1996 Edition -->
+          <div style="width: 32px; height: 32px; background: #ffffff; border: 1px solid #000000; padding: 2px; display: grid; place-items: center;">
+            <svg viewBox="0 0 40 40" width="26" height="26" fill="none">
+              <path d="M4 22c5-7 11-10 16-10s11 3 16 10c-5 7-11 10-16 10S9 29 4 22Z" stroke="#e91d2a" stroke-width="3" stroke-linejoin="round"/>
+              <circle cx="20" cy="22" r="4.5" fill="#000000"/>
+              <path d="M12 12V6h16v6" stroke="#000000" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="cn-headline">BUILD YOUR OWN CAMPUS INTELLIGENCE. ONLINE.</div>
+            <div class="cn-subline">Real-Time Facility Telemetry &amp; AI Security Infrastructure</div>
+          </div>
+        </div>
+
+        <div class="cn-top-actions">
+          <a href="#buy" class="cn-sticker-buy">
+            BUY <span class="cn-purple-a">a</span> NETRA
+          </a>
+          <a href="tel:18002133355" class="cn-phone-callout">1-800-NETRA-96</a>
+        </div>
+      </header>
+
+      <!-- Two Column Classic Grid -->
+      <div class="cn-catalog-layout">
+
+        <!-- Left Rail (~28%) -->
+        <aside class="cn-left-rail">
+          <!-- 2x4 Fast Link Grid -->
+          <nav class="cn-rail-icon-grid" aria-label="Campus Quick Navigation">
+            <a href="#store" class="cn-rail-link-card">
+              <div style="font-size: 16px;">🛒</div>
+              <span>Online Store</span>
+            </a>
+            <a href="#service" class="cn-rail-link-card">
+              <div style="font-size: 16px;">🔧</div>
+              <span>Service &amp; Ops</span>
+            </a>
+            <a href="#why" class="cn-rail-link-card">
+              <div style="font-size: 16px;">💡</div>
+              <span>Why Netra?</span>
+            </a>
+            <a href="#gov" class="cn-rail-link-card">
+              <div style="font-size: 16px;">🏛️</div>
+              <span>University / Gov</span>
+            </a>
+            <a href="#status" class="cn-rail-link-card">
+              <div style="font-size: 16px;">📡</div>
+              <span>Node Status</span>
+            </a>
+            <a href="#twin" class="cn-rail-link-card">
+              <div style="font-size: 16px;">🏢</div>
+              <span>Digital Twin</span>
+            </a>
+            <a href="#lostfound" class="cn-rail-link-card">
+              <div style="font-size: 16px;">🔍</div>
+              <span>Lost &amp; Found</span>
+            </a>
+            <a href="#careers" class="cn-rail-link-card">
+              <div style="font-size: 16px;">💼</div>
+              <span>Careers</span>
+            </a>
+          </nav>
+
+          <!-- Signature Red CTA Block -->
+          <div class="cn-cta-block-red">
+            <strong>AT CAMPUSNETRA.COM,</strong>
+            We will help you locate your facility assets, configure telemetry sensors, price work orders, and dispatch response teams directly online.
+            <div style="margin-top: 10px;">
+              <a href="#configurator">&raquo; Configure &amp; Deploy Now</a>
+            </div>
+          </div>
+
+          <!-- Award Seal Badge -->
+          <div style="display: flex; justify-content: center; margin: 16px 0;">
+            <div class="cn-cert-seal">
+              <div class="seal-outer-ring">SERVICE &amp; RELIABILITY</div>
+              <div class="seal-inner-core">CAMPUS AI</div>
+              <div class="seal-subtext">READERS' CHOICE</div>
+            </div>
+          </div>
+
+          <!-- Quick Telemetry Form -->
+          <div style="background: #ffffff; border: 1px solid #000000; padding: 10px; margin-top: 12px;">
+            <p style="font-family: var(--cn-font-ui); font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">
+              Direct Asset Lookup:
+            </p>
+            <input type="text" class="cn-input-text" placeholder="e.g. BLDG-A-SERVER-01" style="width: 100%; margin-bottom: 6px;">
+            <button class="cn-btn-primary" style="width: 100%;">Inspect Asset</button>
+          </div>
+        </aside>
+
+        <!-- Right Main Column (~72%) -->
+        <main class="cn-right-main">
+
+          <!-- Section Eyebrow Olive: DIMENSION DESKTOPS / CAMPUS DIGITAL TWINS -->
+          <section style="margin-bottom: 24px;">
+            <div class="cn-section-eyebrow cn-eyebrow-olive">
+              DIMENSION INFRASTRUCTURE
+            </div>
+
+            <!-- Ribbon Card 1: Dimension XPS Pro (Steel Tint) -->
+            <article class="cn-ribbon-card">
+              <div class="cn-ribbon-card-title">
+                <span>CAMPUS DIMENSION XPS PRO 200n</span>
+                <span class="cn-sticker-new">NEW!</span>
+              </div>
+              <div class="cn-ribbon-card-body tint-steel">
+                <div>
+                  <p>
+                    <strong>High-Performance 200MHz Pentiums with Dual-Channel Video Ingestion.</strong> Built specifically for automated gate recognition and campus-wide occupancy profiling. Includes 64MB EDO RAM, 3.2GB Hard Drive, and 8X CD-ROM telemetry matrix.
+                  </p>
+                  <p style="margin-top: 8px;">
+                    <a href="#xps" style="color: var(--cn-link-blue); font-weight: bold; text-decoration: underline;">
+                      Learn more about Dimension XPS Pro telemetry models &raquo;
+                    </a>
+                  </p>
+                </div>
+
+                <!-- Beveled Hardware CRT Notch with Netra Logo -->
+                <div class="cn-photo-notch">
+                  <div class="crt-bezel">
+                    <svg viewBox="0 0 40 40" width="48" height="48" fill="none" style="margin: 0 auto 4px auto; display: block;">
+                      <path d="M4 22c5-7 11-10 16-10s11 3 16 10c-5 7-11 10-16 10S9 29 4 22Z" stroke="#38ef7d" stroke-width="2.5"/>
+                      <circle cx="20" cy="22" r="4.5" fill="#38ef7d"/>
+                      <path d="M12 12V6h16v6" stroke="#38ef7d" stroke-width="2.5"/>
+                    </svg>
+                    <span>NETRA-XPS<br>LIVE 200MHz</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Ribbon Card 2: Dimension Standard (Peach Tint) -->
+            <article class="cn-ribbon-card">
+              <div class="cn-ribbon-card-title">
+                <span>CAMPUS DIMENSION P133v DESKTOP</span>
+              </div>
+              <div class="cn-ribbon-card-body tint-peach">
+                <div>
+                  <p>
+                    <strong>Reliable Facility Workstations for Daily Operations.</strong> Standard-issue departmental terminals with integrated 10Base-T Ethernet, 15-inch Trinitron monitor, and direct tie-in to the CampusNetra Central Dispatch registry.
+                  </p>
+                  <p style="margin-top: 8px;">
+                    <a href="#p133" style="color: var(--cn-link-blue); font-weight: bold; text-decoration: underline;">
+                      Review full technical specifications &amp; order forms &raquo;
+                    </a>
+                  </p>
+                </div>
+
+                <div class="cn-photo-notch">
+                  <div class="crt-bezel">
+                    <div style="font-size: 24px; margin-bottom: 2px;">🖥️</div>
+                    <span>DIMENSION<br>P133v NODE</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <!-- Section Eyebrow Salmon: OPTIPLEX / LATITUDE SENSORS -->
+          <section style="margin-bottom: 24px;">
+            <div class="cn-section-eyebrow cn-eyebrow-salmon">
+              OPTIPLEX MANAGED NODES
+            </div>
+
+            <!-- Ribbon Card 3: OptiPlex GX Pro (Salmon Tint) -->
+            <article class="cn-ribbon-card">
+              <div class="cn-ribbon-card-title">
+                <span>OPTIPLEX GX PRO MANAGEMENT CONTROLLER</span>
+                <span class="cn-sticker-new">NEW!</span>
+              </div>
+              <div class="cn-ribbon-card-body tint-salmon">
+                <div>
+                  <p>
+                    <strong>Network-Ready Enterprise Desktop for Facilities Control.</strong> Designed for 3Com network environments with Desktop Management Interface (DMI) compliance. Allows central IT to diagnose field sensors remotely over 28.8k dial-up or local LAN.
+                  </p>
+                  <p style="margin-top: 8px;">
+                    <a href="#optiplex" style="color: var(--cn-link-blue); font-weight: bold; text-decoration: underline;">
+                      Explore OptiPlex network management capabilities &raquo;
+                    </a>
+                  </p>
+                </div>
+
+                <div class="cn-photo-notch">
+                  <div class="crt-bezel">
+                    <div style="font-size: 24px; margin-bottom: 2px;">⚡</div>
+                    <span>OPTIPLEX<br>DMI READY</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Ribbon Card 4: Latitude Notebooks (Sage Tint) -->
+            <article class="cn-ribbon-card">
+              <div class="cn-ribbon-card-title">
+                <span>LATITUDE LM 133ST FIELD PATROL NOTEBOOK</span>
+              </div>
+              <div class="cn-ribbon-card-body tint-sage">
+                <div>
+                  <p>
+                    <strong>Rugged 12.1-Inch Active Matrix Display for Mobile Campus Inspectors.</strong> Features 128-bit graphic accelerator, dual lithium-ion batteries with 6-hour endurance, and built-in Infrared port for instant barcode sync.
+                  </p>
+                  <p style="margin-top: 8px;">
+                    <a href="#latitude" style="color: var(--cn-link-blue); font-weight: bold; text-decoration: underline;">
+                      See field inspector reviews &amp; test results &raquo;
+                    </a>
+                  </p>
+                </div>
+
+                <div class="cn-photo-notch">
+                  <div class="crt-bezel">
+                    <div style="font-size: 24px; margin-bottom: 2px;">💻</div>
+                    <span>LATITUDE<br>LM-133 PATROL</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Ribbon Card 5: PowerEdge Servers (Periwinkle Tint) -->
+            <article class="cn-ribbon-card">
+              <div class="cn-ribbon-card-title">
+                <span>POWEREDGE 2100 DUAL-PROCESSOR CAMPUS SERVER</span>
+              </div>
+              <div class="cn-ribbon-card-body tint-periwinkle">
+                <div>
+                  <p>
+                    <strong>Mission-Critical Telemetry Hub &amp; SQL Database Engine.</strong> Hot-pluggable SCSI hard drives, ECC memory expansion to 512MB, and redundant power supplies to keep campus security feeds operational 24 hours a day, 365 days a year.
+                  </p>
+                  <p style="margin-top: 8px;">
+                    <a href="#poweredge" style="color: var(--cn-link-blue); font-weight: bold; text-decoration: underline;">
+                      Configure high-availability server racks online &raquo;
+                    </a>
+                  </p>
+                </div>
+
+                <div class="cn-photo-notch">
+                  <div class="crt-bezel">
+                    <div style="font-size: 24px; margin-bottom: 2px;">🗄️</div>
+                    <span>POWEREDGE<br>SQL SERVER</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <!-- Ribbon Card 6: Dellware / NetraSoft (Sky Tint) -->
+            <article class="cn-ribbon-card">
+              <div class="cn-ribbon-card-title">
+                <span>DELLWARE CAMPUS APPLICATION SUITE 3.0</span>
+              </div>
+              <div class="cn-ribbon-card-body tint-sky">
+                <div>
+                  <p>
+                    <strong>Over 2,000 Software &amp; Peripheral Items Ready for Immediate Delivery.</strong> Including Windows NT 4.0 Server, Microsoft BackOffice, Netscape Enterprise Server, and CampusNetra Floor Plan Vector Editor.
+                  </p>
+                  <p style="margin-top: 8px;">
+                    <a href="#dellware" style="color: var(--cn-link-blue); font-weight: bold; text-decoration: underline;">
+                      Browse the full Dellware software catalog &raquo;
+                    </a>
+                  </p>
+                </div>
+
+                <div class="cn-photo-notch">
+                  <div class="crt-bezel">
+                    <div style="font-size: 24px; margin-bottom: 2px;">💾</div>
+                    <span>DELLWARE<br>APPS 3.0</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+
+        </main>
+      </div>
+
+      <!-- Icon-Nav Row with Connecting Green Rule -->
+      <footer class="cn-icon-nav-bar">
+        <div class="cn-green-connecting-line"></div>
+        <div class="cn-icon-nav-row">
+          <a href="#find" class="cn-icon-nav-item">
+            <div class="cn-icon-box">👓</div>
+            <span class="cn-icon-label">FIND</span>
+          </a>
+          <a href="#home" class="cn-icon-nav-item">
+            <div class="cn-icon-box">🏠</div>
+            <span class="cn-icon-label">HOME</span>
+          </a>
+          <a href="#store" class="cn-icon-nav-item">
+            <div class="cn-icon-box">🏷️</div>
+            <span class="cn-icon-label">ONLINE STORE</span>
+          </a>
+          <a href="#support" class="cn-icon-nav-item">
+            <div class="cn-icon-box">🔧</div>
+            <span class="cn-icon-label">SERVICE &amp; SUPPORT</span>
+          </a>
+        </div>
+      </footer>
+
+      <!-- Bottom Legal Small Print -->
+      <div class="cn-footer-legal">
+        <p>
+          <a href="#copyright">Copyright &copy; 1996 Campus Netra Computer Corporation.</a> All rights reserved.
+          (<a href="#terms">Terms of Use</a>) &bull; (<a href="#privacy">Privacy Statement</a>)
+        </p>
+        <p style="margin-top: 4px; font-size: 11px; color: #555555;">
+          This site is best viewed with browser versions 3.0 and higher (Netscape Navigator 3.0 or Microsoft Internet Explorer 3.0) at 800&times;600 resolution with 256 colors.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =============================================================
+       TAB 2: COMPONENT LIBRARY & ATOMIC SPECIMENS
+       ============================================================= -->
+  <div id="tab-components" class="tab-pane">
+
+    <!-- 1. Page Frame & Banner -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>1. Frame &amp; Header Banner Chrome</span>
+        <span class="spec-tag">CONTAINER</span>
+      </div>
+      <p style="margin-bottom: 12px;">
+        Every page sits strictly inside a solid black frame (<code>8px solid #000000</code>). The top banner holds the bold white headline, the red phone callout, and the yellow tab sticker.
+      </p>
+
+      <div class="cn-top-banner" style="margin-bottom: 12px;">
+        <div class="cn-top-headline-group">
+          <span class="cn-headline">BUILD YOUR OWN COMPUTER. ONLINE.</span>
+          <span class="cn-subline">Custom Configured High-Performance Systems</span>
+        </div>
+        <div class="cn-top-actions">
+          <span class="cn-sticker-buy">BUY <span class="cn-purple-a">a</span> DELL</span>
+          <span class="cn-phone-callout">1-800-213-DELL</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Stickers & GIF Overlays -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>2. Hand-Cut GIF Stickers &amp; Overlays</span>
+        <span class="spec-tag">GRAPHICS</span>
+      </div>
+      <p style="margin-bottom: 12px;">
+        Stickers replicate hand-cut GIF graphics pinned onto catalog pages. Depth is achieved strictly via 1px bevels or hard 2px drop-shadows — never soft CSS box-shadows.
+      </p>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; padding: 12px; background: #f0f0f0; border: 1px solid #000000;">
+        <div>
+          <p style="font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold; margin-bottom: 6px;">BUY a DELL / NETRA TAB:</p>
+          <div class="cn-sticker-buy">BUY <span class="cn-purple-a">a</span> NETRA</div>
+        </div>
+
+        <div>
+          <p style="font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold; margin-bottom: 6px;">ANGLED "NEW!" BURST (15&deg; ROTATION):</p>
+          <div style="padding: 10px 0;">
+            <span class="cn-sticker-new">NEW!</span>
+          </div>
+        </div>
+
+        <div>
+          <p style="font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold; margin-bottom: 6px;">PC MAGAZINE AWARD SEAL (ROUND):</p>
+          <div class="cn-cert-seal">
+            <div class="seal-outer-ring">SERVICE &amp; RELIABILITY</div>
+            <div class="seal-inner-core">PC MAG</div>
+            <div class="seal-subtext">READERS' CHOICE</div>
+          </div>
+        </div>
+
+        <div>
+          <p style="font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold; margin-bottom: 6px;">CAMPUSNETRA EYE MARK BADGE:</p>
+          <div style="background: #000000; padding: 4px 8px; border: 1px solid #ffffff; display: inline-flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 40 40" width="20" height="20" fill="none">
+              <path d="M4 22c5-7 11-10 16-10s11 3 16 10c-5 7-11 10-16 10S9 29 4 22Z" stroke="#fcc20f" stroke-width="3"/>
+              <circle cx="20" cy="22" r="4.5" fill="#ffffff"/>
+            </svg>
+            <span style="color: #ffffff; font-family: var(--cn-font-ui); font-size: 11px; font-weight: 700;">NETRA MARK</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. All 8 Ribbon Card Tints -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>3. Catalog Ribbon Cards (The 8 Dedicated Family Tints)</span>
+        <span class="spec-tag">SIGNATURE</span>
+      </div>
+      <p style="margin-bottom: 12px;">
+        Each product family gets a dedicated 8-bit quantized catalog tint. The structure is unvaried: White title bar + 1px black underline + Tinted body + Beveled photo notch.
+      </p>
+
+      <!-- Sage: Latitude -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">LATITUDE NOTEBOOKS &mdash; SAGE TINT (#B3BD95)</div>
+        <div class="cn-ribbon-card-body tint-sage">
+          <div>Times Roman 14pt body text inside Sage body. High portability and rugged construction for field staff.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">SAGE 133</div></div>
+        </div>
+      </div>
+
+      <!-- Salmon: OptiPlex GX -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">OPTIPLEX GX SERIES &mdash; SALMON TINT (#D77A7A)</div>
+        <div class="cn-ribbon-card-body tint-salmon">
+          <div>Times Roman 14pt body text inside Salmon body. Network-managed corporate PCs for enterprise stability.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">GX PRO</div></div>
+        </div>
+      </div>
+
+      <!-- Peach: Dimension Standard -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">DIMENSION DESKTOPS &mdash; PEACH TINT (#E6915D)</div>
+        <div class="cn-ribbon-card-body tint-peach">
+          <div>Times Roman 14pt body text inside Peach body. Consumer and small business high-value Pentium workstations.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">P133v</div></div>
+        </div>
+      </div>
+
+      <!-- Lime: OptiPlex G -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">OPTIPLEX G SERIES &mdash; LIME TINT (#C0D4A7)</div>
+        <div class="cn-ribbon-card-body tint-lime">
+          <div>Times Roman 14pt body text inside Lime body. Cost-effective mainstream business desktop solutions.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">OPT-G</div></div>
+        </div>
+      </div>
+
+      <!-- Sky: Dellware -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">DELLWARE SOFTWARE &mdash; SKY TINT (#9AB6C8)</div>
+        <div class="cn-ribbon-card-body tint-sky">
+          <div>Times Roman 14pt body text inside Sky body. Peripherals, tape drives, modems, and enterprise operating systems.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">APPS 3.0</div></div>
+        </div>
+      </div>
+
+      <!-- Steel: Dimension XPS Pro -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">DIMENSION XPS PRO &mdash; STEEL TINT (#A5B8C0)</div>
+        <div class="cn-ribbon-card-body tint-steel">
+          <div>Times Roman 14pt body text inside Steel body. Peak performance 200MHz computing for CAD and video ingestion.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">XPS 200</div></div>
+        </div>
+      </div>
+
+      <!-- Periwinkle: PowerEdge -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">POWEREDGE SERVERS &mdash; PERIWINKLE TINT (#8C9AE0)</div>
+        <div class="cn-ribbon-card-body tint-periwinkle">
+          <div>Times Roman 14pt body text inside Periwinkle body. Dual SMP multiprocessor servers for campus databases.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">PE-2100</div></div>
+        </div>
+      </div>
+
+      <!-- Olive: Eyebrow Standard -->
+      <div class="cn-ribbon-card">
+        <div class="cn-ribbon-card-title">DIMENSION EYEBROW FAMILY &mdash; OLIVE TINT (#8E8A25)</div>
+        <div class="cn-ribbon-card-body tint-olive">
+          <div>Times Roman 14pt body text inside Olive body. Used for bold display section headers and catalog breaks.</div>
+          <div class="cn-photo-notch"><div class="crt-bezel">OLIVE 96</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. HTML 3.2 Form Controls & Buttons -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>4. Forms, Buttons &amp; Interactive Controls</span>
+        <span class="spec-tag">INTERACTION</span>
+      </div>
+      <p style="margin-bottom: 12px;">
+        1996 button hierarchy: Black filled button for primary actions; white outlined button for secondary actions; underlined classic blue (#0000ee) text link for navigation.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+        <div style="border: 1px solid #000000; padding: 12px;">
+          <h4 style="font-family: var(--cn-font-ui); font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">Standard Button Tiers:</h4>
+          <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start;">
+            <button class="cn-btn-primary">SUBMIT ORDER (PRIMARY BLACK)</button>
+            <button class="cn-btn-secondary">RESET CONFIGURATION (SECONDARY WHITE)</button>
+            <button class="cn-btn-link">&raquo; View Detailed Diagnostic Logs</button>
+          </div>
+        </div>
+
+        <div style="border: 1px solid #000000; padding: 12px;">
+          <h4 style="font-family: var(--cn-font-ui); font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 8px;">HTML 3.2 Form Controls:</h4>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div>
+              <label style="display: block; font-size: 12px; margin-bottom: 2px;">Campus Node Tag:</label>
+              <input type="text" class="cn-input-text" value="SRV-BLDG-B2" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 12px; margin-bottom: 2px;">Telemetry Resolution:</label>
+              <select class="cn-input-text" style="width: 100%;">
+                <option>High Bandwidth (100Base-TX)</option>
+                <option selected>Standard Ethernet (10Base-T)</option>
+                <option>Dial-Up Remote (28.8k Modem)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =============================================================
+       TAB 3: DESIGN TOKENS & SYSTEM SPECIFICATION
+       ============================================================= -->
+  <div id="tab-tokens" class="tab-pane">
+
+    <!-- Color System -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>Color Architecture &amp; Quantized Swatches</span>
+        <span class="spec-tag">PALETTE</span>
+      </div>
+      <p>
+        The color system consists of 3 brand anchors (Dell Red, Yellow, Purple), pure monochrome surfaces (Frame Ink, Canvas), classic web Link Blue, and 8 dedicated catalog tints.
+      </p>
+
+      <div class="color-swatches-grid">
+        <!-- Red -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-red-primary); color: #ffffff;">#E91D2A</div>
+          <div class="swatch-meta">
+            <strong>Dell Red (Primary)</strong>
+            <span>Token: <code>--cn-red-primary</code></span><br>
+            <span>Role: Red CTA &amp; Phone ONLY</span>
+          </div>
+        </div>
+
+        <!-- Yellow -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-yellow-sticker); color: #000000;">#FCC20F</div>
+          <div class="swatch-meta">
+            <strong>Sticker Yellow</strong>
+            <span>Token: <code>--cn-yellow-sticker</code></span><br>
+            <span>Role: "BUY a DELL", "NEW!" Bursts</span>
+          </div>
+        </div>
+
+        <!-- Purple -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-purple-stripe); color: #ffffff;">#6A26A4</div>
+          <div class="swatch-meta">
+            <strong>Sticker Purple</strong>
+            <span>Token: <code>--cn-purple-stripe</code></span><br>
+            <span>Role: "BUY a DELL" 'a' Stripe</span>
+          </div>
+        </div>
+
+        <!-- Link Blue -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-link-blue); color: #ffffff;">#0000EE</div>
+          <div class="swatch-meta">
+            <strong>Mosaic Link Blue</strong>
+            <span>Token: <code>--cn-link-blue</code></span><br>
+            <span>Role: Underlined text links</span>
+          </div>
+        </div>
+
+        <!-- Frame Ink -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: #000000; color: #ffffff;">#000000</div>
+          <div class="swatch-meta">
+            <strong>Frame Ink</strong>
+            <span>Token: <code>--cn-frame-ink</code></span><br>
+            <span>Role: 8px Frame, Text, Hairlines</span>
+          </div>
+        </div>
+
+        <!-- Sage Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-sage); color: #000000;">#B3BD95</div>
+          <div class="swatch-meta">
+            <strong>Sage Tint</strong>
+            <span>Token: <code>--cn-tint-sage</code></span><br>
+            <span>Role: Latitude Notebooks Body</span>
+          </div>
+        </div>
+
+        <!-- Salmon Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-salmon); color: #000000;">#D77A7A</div>
+          <div class="swatch-meta">
+            <strong>Salmon Tint</strong>
+            <span>Token: <code>--cn-tint-salmon</code></span><br>
+            <span>Role: OptiPlex GX Series Body</span>
+          </div>
+        </div>
+
+        <!-- Peach Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-peach); color: #000000;">#E6915D</div>
+          <div class="swatch-meta">
+            <strong>Peach Tint</strong>
+            <span>Token: <code>--cn-tint-peach</code></span><br>
+            <span>Role: Dimension &amp; OptiPlex Gs</span>
+          </div>
+        </div>
+
+        <!-- Lime Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-lime); color: #000000;">#C0D4A7</div>
+          <div class="swatch-meta">
+            <strong>Lime Tint</strong>
+            <span>Token: <code>--cn-tint-lime</code></span><br>
+            <span>Role: OptiPlex G Series Body</span>
+          </div>
+        </div>
+
+        <!-- Sky Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-sky); color: #000000;">#9AB6C8</div>
+          <div class="swatch-meta">
+            <strong>Sky Tint</strong>
+            <span>Token: <code>--cn-tint-sky</code></span><br>
+            <span>Role: Dellware Software Body</span>
+          </div>
+        </div>
+
+        <!-- Steel Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-steel); color: #000000;">#A5B8C0</div>
+          <div class="swatch-meta">
+            <strong>Steel Tint</strong>
+            <span>Token: <code>--cn-tint-steel</code></span><br>
+            <span>Role: Dimension XPS Pro Body</span>
+          </div>
+        </div>
+
+        <!-- Periwinkle Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-periwinkle); color: #000000;">#8C9AE0</div>
+          <div class="swatch-meta">
+            <strong>Periwinkle Tint</strong>
+            <span>Token: <code>--cn-tint-periwinkle</code></span><br>
+            <span>Role: PowerEdge Server Body</span>
+          </div>
+        </div>
+
+        <!-- Olive Tint -->
+        <div class="swatch-card">
+          <div class="swatch-preview" style="background: var(--cn-tint-olive); color: #000000;">#8E8A25</div>
+          <div class="swatch-meta">
+            <strong>Olive Tint</strong>
+            <span>Token: <code>--cn-tint-olive</code></span><br>
+            <span>Role: Section Eyebrow Banners</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Typography Hierarchy -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>Typographic Scale &amp; Font Stacks</span>
+        <span class="spec-tag">TYPOGRAPHY</span>
+      </div>
+      <p>
+        <strong>1996 Inverse Rule:</strong> Sans-serif (Arial Black / Helvetica Bold) for UI, stickers, and headlines; Serif (Times New Roman 14pt) for paragraphs, body descriptions, and small print!
+      </p>
+
+      <div style="overflow-x: auto;">
+        <table class="type-spec-table">
+          <thead>
+            <tr>
+              <th>Role / Token</th>
+              <th>Font Family</th>
+              <th>Size / Weight</th>
+              <th>Line Ht</th>
+              <th>Live Specimen</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Display</strong><br><code>display</code></td>
+              <td>Arial Black, Impact</td>
+              <td>36px / 900</td>
+              <td>1.0</td>
+              <td style="font-family: var(--cn-font-display); font-size: 24px; font-weight: 900; text-transform: uppercase;">
+                DIMENSION DESKTOPS
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Heading 1</strong><br><code>heading-1</code></td>
+              <td>Arial Black</td>
+              <td>24px / 900</td>
+              <td>1.05</td>
+              <td style="font-family: var(--cn-font-display); font-size: 18px; font-weight: 900; text-transform: uppercase;">
+                HIGH PERFORMANCE COMPUTING
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Heading 2</strong><br><code>heading-2</code></td>
+              <td>Helvetica, Arial</td>
+              <td>16px / 700</td>
+              <td>1.2</td>
+              <td style="font-family: var(--cn-font-ui); font-size: 16px; font-weight: 700; text-transform: uppercase;">
+                BUILD YOUR OWN COMPUTER. ONLINE.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Heading 3</strong><br><code>heading-3</code></td>
+              <td>Helvetica, Arial</td>
+              <td>14px / 700</td>
+              <td>1.2</td>
+              <td style="font-family: var(--cn-font-ui); font-size: 14px; font-weight: 700; text-transform: uppercase;">
+                OPTIPLEX GX PRO MANAGEMENT CONTROLLER
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Body</strong><br><code>body</code></td>
+              <td>Times New Roman, serif</td>
+              <td>14px / 400</td>
+              <td>1.4</td>
+              <td style="font-family: var(--cn-font-body); font-size: 14px;">
+                At Dell.com, we'll help you find the right system, configure it, price it, and order it online.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Body Small</strong><br><code>body-sm</code></td>
+              <td>Times New Roman, serif</td>
+              <td>12px / 400</td>
+              <td>1.4</td>
+              <td style="font-family: var(--cn-font-body); font-size: 12px;">
+                This site is best viewed with browser versions 3.0 and higher.
+              </td>
+            </tr>
+            <tr>
+              <td><strong>UI Label / Button</strong><br><code>button</code></td>
+              <td>Helvetica, Arial</td>
+              <td>12px / 700</td>
+              <td>1.0</td>
+              <td style="font-family: var(--cn-font-ui); font-size: 12px; font-weight: 700; text-transform: uppercase;">
+                SUBMIT ORDER &bull; BUY A DELL
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Do's and Don'ts -->
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>System Rules: Do's and Don'ts</span>
+        <span class="spec-tag">INTEGRITY</span>
+      </div>
+
+      <div class="guideline-columns">
+        <div class="rule-box do-rule">
+          <h3 style="color: #2e7d32;">✓ MANDATORY PRACTICES</h3>
+          <ul>
+            <li><strong>Page Frame:</strong> Keep the literal 8px black border on every page container.</li>
+            <li><strong>Dell Red Constraint:</strong> Reserve <code>#e91d2a</code> strictly for the single Red CTA block and top phone callout.</li>
+            <li><strong>Catalog Family Tints:</strong> Use the 8 flat tints (Sage, Salmon, Peach, etc.) across product ribbon cards.</li>
+            <li><strong>Display Weight:</strong> Set all primary section headers in Arial Black 900 all-caps.</li>
+            <li><strong>Body Serifs:</strong> Keep all descriptive copy in Times New Roman 14px.</li>
+            <li><strong>Hard Bevels:</strong> Use 1px highlight/shadow borders and hard drop-shadows on stickers &amp; photos.</li>
+          </ul>
+        </div>
+
+        <div class="rule-box dont-rule">
+          <h3 style="color: #d32f2f;">✗ STRICTLY FORBIDDEN</h3>
+          <ul>
+            <li><strong>No Modern Radii:</strong> Never add <code>border-radius: 4px/8px/12px</code> (everything is 0px except circular award seals).</li>
+            <li><strong>No Soft CSS Shadows:</strong> Never use blurry <code>box-shadow: 0 4px 20px rgba(...)</code> or atmospheric gradients.</li>
+            <li><strong>No Sans-Serif Body:</strong> Never replace Times Roman body with modern sans (Inter, Roboto, Arial).</li>
+            <li><strong>No Extra Chromatics:</strong> Do not introduce colors outside the 8 catalog tints + Red + Yellow + Blue.</li>
+            <li><strong>No Multiple Red CTAs:</strong> Never place more than one Red CTA block on a page.</li>
+            <li><strong>No Touch-First Micro-Sizing:</strong> Preserve 1996 dense table layouts while meeting touch accessibility on mobile.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- =============================================================
+       TAB 4: 10 MODERN SAAS VERTICAL SURFACES
+       ============================================================= -->
+  <div id="tab-archetypes" class="tab-pane">
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>10 Modern SaaS Surfaces Re-Skinned with 1996 Catalog Chrome</span>
+        <span class="spec-tag">APPLICATION PATTERNS</span>
+      </div>
+      <p>
+        The exact primitives (Ribbon cards, 1px hairlines, 0px radius, Times Roman copy, and catalog tints) applied to modern SaaS &amp; Cloud Facilities workflows.
+      </p>
+
+      <div class="archetype-grid">
+
+        <!-- Surface 1: Pricing Tier Standard -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-1: STANDARD PRICING TIER</span>
+            <span>$499 / MO</span>
+          </div>
+          <div style="background: var(--cn-tint-peach); padding: 8px; border: 1px solid #000000; margin-bottom: 8px;">
+            <p style="font-family: var(--cn-font-ui); font-size: 13px; font-weight: bold; text-transform: uppercase;">
+              FACILITY BASELINE TIER
+            </p>
+            <p style="font-size: 13px;">Up to 25 sensor nodes, 10Base-T telemetry sync, and 8X CD-ROM monthly backup logs.</p>
+          </div>
+          <ul style="font-size: 12px; list-style: square; padding-left: 16px; margin-bottom: 10px;">
+            <li>Real-time asset telemetry</li>
+            <li>Work order dispatch</li>
+            <li>DMI standard integration</li>
+          </ul>
+          <button class="cn-btn-primary" style="width: 100%;">Select Baseline Plan</button>
+        </div>
+
+        <!-- Surface 2: Pricing Tier Featured -->
+        <div class="archetype-card" style="border: 2px solid var(--cn-red-primary);">
+          <div class="archetype-title-bar" style="background: var(--cn-red-primary);">
+            <span>EX-2: FEATURED TIER</span>
+            <span class="cn-sticker-new" style="transform: none; padding: 1px 4px;">RECOMMENDED</span>
+          </div>
+          <div style="background: var(--cn-tint-salmon); padding: 8px; border: 1px solid #000000; margin-bottom: 8px;">
+            <p style="font-family: var(--cn-font-ui); font-size: 13px; font-weight: bold; text-transform: uppercase;">
+              ENTERPRISE TWIN 200n
+            </p>
+            <p style="font-size: 13px;">Unlimited nodes, sub-second telemetry, 24/7 dedicated telephone dispatch.</p>
+          </div>
+          <ul style="font-size: 12px; list-style: square; padding-left: 16px; margin-bottom: 10px;">
+            <li>Full 3D digital floor plans</li>
+            <li>Predictive maintenance AI</li>
+            <li>Priority 1-800 phone support</li>
+          </ul>
+          <button class="cn-btn-primary" style="width: 100%; background: var(--cn-red-primary);">Order Enterprise Tier</button>
+        </div>
+
+        <!-- Surface 3: Product Selector -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-3: WHAT'S INCLUDED SELECTOR</span>
+            <span>SUMMARY</span>
+          </div>
+          <div style="background: var(--cn-tint-sage); padding: 8px; border: 1px solid #000000; margin-bottom: 8px;">
+            <p style="font-family: var(--cn-font-ui); font-size: 12px; font-weight: bold; text-transform: uppercase;">
+              INSPECTION BUNDLE LM-133
+            </p>
+          </div>
+          <table style="width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 8px;">
+            <tr style="border-bottom: 1px solid #000000;">
+              <td style="padding: 4px;">Gate Telemetry Core:</td>
+              <td style="text-align: right; font-weight: bold;">Included</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #000000;">
+              <td style="padding: 4px;">Lost &amp; Found Index:</td>
+              <td style="text-align: right; font-weight: bold;">Included</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px;">SQL Server License:</td>
+              <td style="text-align: right; font-weight: bold;">+$120/mo</td>
+            </tr>
+          </table>
+          <button class="cn-btn-secondary" style="width: 100%;">Modify Module Add-ons</button>
+        </div>
+
+        <!-- Surface 4: Cart / Subscription Summary -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-4: SUBSCRIPTION DRAWER</span>
+            <span>CART</span>
+          </div>
+          <div style="background: #f9f9f9; border: 1px solid #000000; padding: 6px; font-size: 12px; margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #777; padding-bottom: 4px; margin-bottom: 4px;">
+              <span>Netra Dimension Node (x4)</span>
+              <strong>$1,996.00</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #777; padding-bottom: 4px; margin-bottom: 4px;">
+              <span>10Base-T Ethernet Transceivers</span>
+              <strong>$180.00</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 13px;">
+              <span>TOTAL (F.O.B. Austin):</span>
+              <span>$2,176.00</span>
+            </div>
+          </div>
+          <button class="cn-btn-primary" style="width: 100%;">Proceed to Checkout &raquo;</button>
+        </div>
+
+        <!-- Surface 5: App Shell Navigation Row -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-5: APP SHELL SIDEBAR ROW</span>
+            <span>ACTIVE INDICATOR</span>
+          </div>
+          <div style="border: 1px solid #000000;">
+            <div style="background: #ffffff; padding: 6px 10px; border-bottom: 1px solid #000000; font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold;">
+              📁 01. CAMPUS OVERVIEW
+            </div>
+            <div style="background: var(--cn-tint-periwinkle); padding: 6px 10px; border-bottom: 1px solid #000000; font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold; border-left: 6px solid #000000;">
+              ► 02. DIGITAL TWIN MAP (ACTIVE)
+            </div>
+            <div style="background: #ffffff; padding: 6px 10px; font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold;">
+              📁 03. DISPATCH BOARD
+            </div>
+          </div>
+        </div>
+
+        <!-- Surface 6: Data Table Cell -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-6: DATA TABLE VIEW</span>
+            <span>RECORDS</span>
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr style="background: #000000; color: #ffffff; font-family: var(--cn-font-ui); font-size: 10px; text-transform: uppercase;">
+                <th style="padding: 4px; border: 1px solid #000;">Node ID</th>
+                <th style="padding: 4px; border: 1px solid #000;">Status</th>
+                <th style="padding: 4px; border: 1px solid #000;">Load</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="padding: 4px; border: 1px solid #000; font-family: var(--cn-font-mono);">ND-200-A</td>
+                <td style="padding: 4px; border: 1px solid #000; background: var(--cn-tint-lime); font-weight: bold;">ONLINE</td>
+                <td style="padding: 4px; border: 1px solid #000;">14.2%</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px; border: 1px solid #000; font-family: var(--cn-font-mono);">ND-200-B</td>
+                <td style="padding: 4px; border: 1px solid #000; background: var(--cn-tint-salmon); font-weight: bold;">WARN</td>
+                <td style="padding: 4px; border: 1px solid #000;">91.8%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Surface 7: Auth Form Card -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-7: AUTH / SIGN-IN CARD</span>
+            <span>SECURE</span>
+          </div>
+          <div style="background: #f4f4f4; border: 1px solid #000000; padding: 10px;">
+            <label style="display: block; font-size: 11px; font-weight: bold; margin-bottom: 2px;">Campus ID / Email:</label>
+            <input type="text" class="cn-input-text" value="admin@campus.edu" style="width: 100%; margin-bottom: 6px;">
+            <label style="display: block; font-size: 11px; font-weight: bold; margin-bottom: 2px;">Dial-In Access Key:</label>
+            <input type="password" class="cn-input-text" value="••••••••" style="width: 100%; margin-bottom: 8px;">
+            <button class="cn-btn-primary" style="width: 100%;">Authenticate Session</button>
+          </div>
+        </div>
+
+        <!-- Surface 8: Modal Dialog Card -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar" style="background: var(--cn-frame-ink);">
+            <span>EX-8: MODAL CONFIRMATION</span>
+            <span>[X]</span>
+          </div>
+          <div style="background: var(--cn-canvas); border: 2px solid #000000; padding: 10px; box-shadow: 3px 3px 0 #000000;">
+            <p style="font-family: var(--cn-font-ui); font-size: 12px; font-weight: bold; margin-bottom: 4px;">CONFIRM DISPATCH REPAIR</p>
+            <p style="font-size: 13px; margin-bottom: 8px;">Are you sure you want to broadcast Work Order #1996-04 to Zone 3 field inspectors?</p>
+            <div style="display: flex; gap: 8px;">
+              <button class="cn-btn-primary">Dispatch</button>
+              <button class="cn-btn-secondary">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Surface 9: Empty State Card -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-9: EMPTY STATE FRAME</span>
+            <span>ZERO STATE</span>
+          </div>
+          <div style="border: 2px dashed #000000; background: #fafafa; padding: 16px; text-align: center;">
+            <div style="font-size: 28px; margin-bottom: 4px;">📭</div>
+            <p style="font-family: var(--cn-font-ui); font-size: 12px; font-weight: bold; text-transform: uppercase;">NO ACTIVE WORK ORDERS</p>
+            <p style="font-size: 13px; color: #555555; margin-top: 4px;">All campus facility telemetry sensors are reporting nominal operation.</p>
+          </div>
+        </div>
+
+        <!-- Surface 10: Toast Notification -->
+        <div class="archetype-card">
+          <div class="archetype-title-bar">
+            <span>EX-10: SYSTEM TOAST</span>
+            <span>ALERT</span>
+          </div>
+          <div style="background: var(--cn-yellow-sticker); border: 2px solid #000000; padding: 8px; box-shadow: 2px 2px 0px #000000; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">🔔</span>
+            <div>
+              <p style="font-family: var(--cn-font-ui); font-size: 11px; font-weight: bold; text-transform: uppercase;">TELEMETRY SYNCED</p>
+              <p style="font-size: 12px;">Sensor Node #BLDG-A updated 14 seconds ago.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================================
+       TAB 5: CODE & EXPORT TOKENS
+       ============================================================= -->
+  <div id="tab-code" class="tab-pane">
+    <div class="spec-card">
+      <div class="spec-header-band">
+        <span>CSS Variables &amp; Tailwind Config Exporter</span>
+        <button class="copy-banner-btn" onclick="copyTokenCode()">Copy Tokens</button>
+      </div>
+      <p style="margin-bottom: 12px;">
+        Directly copy the CSS custom properties or token dictionary into your build pipeline:
+      </p>
+
+      <div class="code-token-box" id="tokenCodeContent">/* =============================================================
+   CAMPUS NETRA 1996 DESIGN SYSTEM TOKENS (DECEMBER 1996 SPEC)
+   ============================================================= */
+
+:root {
+  /* Brand Anchors */
+  --color-primary: #e91d2a;       /* Dell / Netra Signature Red */
+  --color-sticker-yellow: #fcc20f;/* "BUY a DELL" / "NEW!" yellow */
+  --color-purple-stripe: #6a26a4; /* Wordmark accent purple */
+  --color-link: #0000ee;          /* Classic Netscape / Mosaic link blue */
+
+  /* Surfaces & Ink */
+  --color-frame-ink: #000000;     /* 8px Page frame, hairlines */
+  --color-canvas: #ffffff;        /* True white canvas */
+  --color-ink: #000000;           /* Pure black text */
+  --color-green-rule: #008000;    /* Footer connecting rule */
+
+  /* The Eight Catalog Family Tints */
+  --color-tint-olive: #8e8a25;     /* Section eyebrows */
+  --color-tint-sage: #b3bd95;      /* Latitude Notebooks */
+  --color-tint-salmon: #d77a7a;    /* OptiPlex GX Series */
+  --color-tint-peach: #e6915d;     /* Dimension Desktops */
+  --color-tint-lime: #c0d4a7;      /* OptiPlex G Series */
+  --color-tint-sky: #9ab6c8;       /* Dellware Applications */
+  --color-tint-steel: #a5b8c0;     /* Dimension XPS Pro */
+  --color-tint-periwinkle: #8c9ae0;/* PowerEdge Servers */
+
+  /* Typography Stacks */
+  --font-display: 'Arial Black', 'Impact', sans-serif;
+  --font-ui: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-body: 'Times New Roman', Times, serif;
+  --font-mono: 'Courier New', monospace;
+
+  /* Spacing */
+  --spacing-xxs: 2px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-section: 40px;
+
+  /* Geometry & Depth */
+  --radius-none: 0px;
+  --radius-full: 9999px;
+  --border-hairline: 1px solid #000000;
+  --border-frame: 8px solid #000000;
+}</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function switchTab(tabId) {
+    // Hide all panes
+    document.querySelectorAll('.tab-pane').forEach(function(pane) {
+      pane.classList.remove('active');
+    });
+    // Unmark all buttons
+    document.querySelectorAll('.nav-tab-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+
+    // Activate selected
+    var targetPane = document.getElementById(tabId);
+    if (targetPane) {
+      targetPane.classList.add('active');
+    }
+
+    if (tabId === 'tab-live-demo') document.getElementById('btn-demo').classList.add('active');
+    if (tabId === 'tab-components') document.getElementById('btn-components').classList.add('active');
+    if (tabId === 'tab-tokens') document.getElementById('btn-tokens').classList.add('active');
+    if (tabId === 'tab-archetypes') document.getElementById('btn-archetypes').classList.add('active');
+    if (tabId === 'tab-code') document.getElementById('btn-code').classList.add('active');
+  }
+
+  function copyTokenCode() {
+    var text = document.getElementById('tokenCodeContent').innerText;
+    try {
+      navigator.clipboard.writeText(text);
+      var btn = document.querySelector('.copy-banner-btn');
+      var orig = btn.innerText;
+      btn.innerText = 'COPIED TO CLIPBOARD!';
+      setTimeout(function() {
+        btn.innerText = orig;
+      }, 2000);
+    } catch (e) {
+      alert('Token code selected for copy.');
+    }
+  }
+</script>

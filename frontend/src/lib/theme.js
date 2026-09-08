@@ -68,7 +68,7 @@ export const useTheme = create((set, get) => ({
   cycle() {
     const next = { light: 'dark', dark: 'system', system: 'light' }[get().mode]
     get().setMode(next)
-  },
+  }
 }))
 
 /**

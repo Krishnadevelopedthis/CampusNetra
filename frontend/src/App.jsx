@@ -8,6 +8,7 @@ import { ROLE_HOME, useAuth } from '@/lib/auth'
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
+import LandingPage from '@/pages/LandingPage'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ResetPassword from '@/pages/ResetPassword'
@@ -92,6 +93,7 @@ export default function App() {
       <Suspense fallback={<Spinner className="min-h-screen" />}>
         <Routes>
           {/* Public */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
           <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
           <Route path="/verify-email" element={<VerifyEmail />} />
@@ -100,7 +102,6 @@ export default function App() {
 
           {/* Authenticated shell */}
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
 
             <Route path="/issues" element={<IssueList />} />
