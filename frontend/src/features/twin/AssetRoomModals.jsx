@@ -266,7 +266,7 @@ export function AssetModal({ open, asset, roomId, campusId, categories, onClose,
             <Select value={form.category_id} onChange={set('category_id')}
                     error={errors.category_id}>
               <option value="">Select category</option>
-              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {(categories || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </Field>
         </div>
