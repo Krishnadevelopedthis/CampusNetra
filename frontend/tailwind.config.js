@@ -173,14 +173,13 @@ export default {
       },
 
       borderRadius: {
-        // Soft(2) profile. Structural elements stay grid-aligned but carry a
-        // visible radius, which reads as finished rather than wireframed.
-        DEFAULT: '0.5rem',   // widgets, inputs, tables
-        sm: '0.25rem',
-        md: '0.5rem',
-        lg: '0.625rem',      // buttons
-        xl: '0.875rem',      // AI bubbles, status pills
-        '2xl': '1rem',       // page-level panels and modals
+        // Sharp corners for all elements
+        DEFAULT: '0',        // widgets, inputs, tables
+        sm: '0',
+        md: '0',
+        lg: '0',             // buttons
+        xl: '0',             // AI bubbles, status pills
+        '2xl': '0',          // page-level panels and modals
       },
 
       spacing: {

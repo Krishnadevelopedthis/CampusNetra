@@ -83,8 +83,12 @@ const ADMIN = ['admin', 'super_admin']
 export default function App() {
   const init = useAuth((s) => s.init)
   const location = useLocation()
+  const { user, initialised } = useAuth()
 
   useEffect(() => { init() }, [init])
+
+  // Show Toaster only on authenticated routes (not landing, login, register, etc.)
+  const showToaster = initialised && user
 
   return (
     <>
@@ -172,7 +176,7 @@ export default function App() {
         </Routes>
       </Suspense>
       </ErrorBoundary>
-      <Toaster />
+      {showToaster && <Toaster />}
     </>
   )
 }
