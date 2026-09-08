@@ -12,6 +12,7 @@ import LandingPage from '@/pages/LandingPage'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ResetPassword from '@/pages/ResetPassword'
+import Search from '@/pages/Search'
 import VerifyEmail from '@/pages/VerifyEmail'
 
 // Everything behind the app shell is split out of the initial bundle.
@@ -137,6 +138,7 @@ export default function App() {
 
             <Route path="/help" element={<Help />} />
 
+            <Route path="/search" element={<Search />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
 
