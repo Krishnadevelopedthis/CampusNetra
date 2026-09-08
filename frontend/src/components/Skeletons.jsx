@@ -85,6 +85,9 @@ export function SkeletonTable({ rows = 8, cols = 5, className }) {
   )
 }
 
+/* Alias for pages that call it SkeletonRows */
+export { SkeletonTable as SkeletonRows }
+
 export function SkeletonCards({ count = 6, className }) {
   return (
     <div className={clsx('grid sm:grid-cols-2 lg:grid-cols-3 gap-3', className)}>

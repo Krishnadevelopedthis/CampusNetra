@@ -55,7 +55,7 @@ export default function Profile() {
           </p>
         </div>
         <Link to="/settings" className="btn-secondary">
-          Preferences &amp; security
+          Preferences & security
         </Link>
       </header>
 
@@ -189,7 +189,7 @@ function AvatarPicker({ user, setUser }) {
         onClick={() => inputRef.current?.click()}
         disabled={busy}
         aria-label="Change profile photo"
-        className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-secondary-600 text-on-secondary-600
+        className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-secondary-600 text-white
                    grid place-items-center ring-2 ring-surface hover:bg-secondary-700
                    transition-colors disabled:opacity-70"
       >

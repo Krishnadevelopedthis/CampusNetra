@@ -55,10 +55,10 @@ export const useAuth = create((set, get) => ({
       const user = await api.get('/auth/me')
       writeAuth({ ...stored, user })
 
-      // Unconditionally: a user with no saved accent still needs the store and
-      // the page settled on "no accent". Guarding on appearance existing left
-      // the switcher showing a colour that had never been applied to anything.
-      useColorTheme.getState().loadFromUserPreferences(user?.preferences)
+      // Load authenticated user's appearance preferences
+      if (user?.preferences?.appearance) {
+        useColorTheme.getState().loadFromUserPreferences(user.preferences)
+      }
 
       set({ user, initialised: true })
     } catch (err) {
@@ -84,9 +84,11 @@ export const useAuth = create((set, get) => ({
       const data = await api.post('/auth/login', { email, password, role: role || null })
       writeAuth({ ...data.tokens, user: data.user })
 
-      // Unconditionally — see init(). This is also what clears the previous
-      // account's accent when someone else signs in on the same browser.
-      useColorTheme.getState().loadFromUserPreferences(data.user?.preferences)
+      // Load authenticated user's appearance preferences from server
+      // This ensures the user sees their own saved theme, not the previous user's
+      if (data.user?.preferences?.appearance) {
+        useColorTheme.getState().loadFromUserPreferences(data.user.preferences)
+      }
 
       set({ user: data.user })
       return data.user

@@ -1,5 +1,8 @@
 /**
- * Palette tokens.
+ * Palette tokens — CampusNetra × Aceternity Proactiv Design System.
+ *
+ * Deep Obsidian ground, Electric Indigo, Vivid Violet, Cyber Cyan, Emerald Glow.
+ * Radial spotlight glows, grid beam masks, moving border shimmer utilities.
  *
  * Every colour in tailwind.config.js resolves to one of these variables, so a
  * theme is a value swap and nothing else — no component knows which theme is
@@ -15,8 +18,43 @@
 :root {
   color-scheme: light;
 
+  /* ============================================================
+   * ACETERNITY PROACTIV BRAND PALETTE
+   * ============================================================ */
+
+  /* Deep Obsidian — primary dark ground */
+  --c-obsidian-950: 3 7 18;
+  --c-obsidian-900: 6 9 19;
+  --c-obsidian-800: 11 15 25;
+  --c-obsidian-700: 15 20 35;
+
+  /* Electric Indigo — primary brand */
+  --c-indigo-400: 129 140 248;
+  --c-indigo-500: 99 102 241;
+  --c-indigo-600: 79 70 229;
+  --c-indigo-700: 67 56 202;
+
+  /* Vivid Violet — secondary brand gradient */
+  --c-violet-400: 167 139 250;
+  --c-violet-500: 139 92 246;
+  --c-violet-600: 124 58 237;
+
+  /* Cyber Cyan — highlight / tech accent */
+  --c-cyan-400: 34 211 238;
+  --c-cyan-500: 6 182 212;
+  --c-cyan-600: 8 145 178;
+
+  /* Emerald Glow — success / status accent */
+  --c-emerald-400: 52 211 153;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 5 150 105;
+
+  /* ============================================================
+   * SEMANTIC BRAND TOKENS (mapped to above for Tailwind)
+   * ============================================================ */
+
   /* Brand: solid fills that always carry white text. */
-  --c-primary: 30 27 75;
+  --c-primary: 55 48 163;
   --c-primary-50: 238 242 255;
   --c-primary-100: 224 231 255;
   --c-primary-200: 199 210 254;
@@ -34,16 +72,6 @@
      out: the fill stays dark, the label has to become light. */
   --c-brand: 30 27 75;
   --c-brand-soft: 238 242 255;
-
-  /* Text that sits on a filled accent surface — one token per fill, because
-     the fills are different colours and a single pairing cannot serve them
-     all: white reaches 15.99:1 on --c-primary and only 3.68:1 on
-     --c-secondary. These are the defaults; lib/colorTheme.js recomputes them
-     whenever the theme or the user's accent changes. */
-  --c-on-primary: 255 255 255;
-  --c-on-secondary: 17 19 43;
-  --c-on-secondary-600: 255 255 255;
-  --c-on-brand: 255 255 255;
 
   --c-secondary: 59 130 246;
   --c-secondary-50: 239 246 255;
@@ -115,10 +143,102 @@
   --shadow-level3: 0 4px 12px -1px rgb(15 23 42 / 0.10), 0 2px 6px -2px rgb(15 23 42 / 0.06);
   --shadow-popover: 0 8px 24px -4px rgb(15 23 42 / 0.14);
   --skeleton-sheen: 255 255 255;
+
+  /* ============================================================
+   * ACETERNITY PROACTIV VISUAL EFFECTS
+   * ============================================================ */
+
+  /* Radial spotlight glow — top center ambient illumination */
+  --spotlight-primary: radial-gradient(ellipse at top center, rgba(99, 102, 241, 0.18), transparent 60%);
+  --spotlight-secondary: radial-gradient(ellipse at top center, rgba(139, 92, 246, 0.15), transparent 55%);
+  --spotlight-cyan: radial-gradient(ellipse at top center, rgba(6, 182, 212, 0.12), transparent 50%);
+  --spotlight-emerald: radial-gradient(ellipse at top center, rgba(16, 185, 129, 0.1), transparent 50%);
+
+  /* Grid beam — high-tech architectural dot/grid matrix with radial alpha mask */
+  --grid-beam-mask: radial-gradient(ellipse 60% 50% at 50% 0%, #000 70%, transparent 100%);
+  --grid-pattern: linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+                  linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
+
+  /* Moving border shimmer — conic gradient rotation for action buttons */
+  --shimmer-gradient: conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,0.4) 25%, transparent 50%,
+                                         rgba(129,140,248,0.4) 60%, transparent 75%, transparent 100%);
+  --shimmer-stops: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.15) 20%,
+    rgba(129,140,248,0.25) 40%,
+    rgba(167,139,250,0.25) 60%,
+    rgba(34,211,238,0.2) 80%,
+    transparent 100%
+  );
+
+  /* Multi-stop gradient text — for headlines */
+  --gradient-text-primary: linear-gradient(135deg,
+    rgb(255,255,255) 0%,
+    rgb(229,231,235) 25%,
+    rgb(199,210,254) 50%,
+    rgb(165,180,252) 75%,
+    rgb(129,140,248) 100%
+  );
+  --gradient-text-electric: linear-gradient(135deg,
+    rgb(129,140,248) 0%,
+    rgb(167,139,250) 50%,
+    rgb(244,114,182) 100%
+  );
+  --gradient-text-cyber: linear-gradient(135deg,
+    rgb(34,211,238) 0%,
+    rgb(129,140,248) 50%,
+    rgb(167,139,250) 100%
+  );
+  --gradient-text-emerald: linear-gradient(135deg,
+    rgb(52,211,153) 0%,
+    rgb(16,185,129) 50%,
+    rgb(34,197,94) 100%
+  );
+
+  /* Frosted glass panels */
+  --glass-bg: rgba(19, 28, 46, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-blur: blur(20px);
+
+  /* Avatar stack social proof */
+  --avatar-ring: 2px solid rgb(99 102 241 / 0.6);
+  --avatar-overlap: -12px;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
+
+  /* ============================================================
+   * ACETERNITY PROACTIV DARK MODE PALETTE
+   * Deep Obsidian ground with Electric Indigo / Vivid Violet / Cyber Cyan / Emerald Glow accents
+   * ============================================================ */
+
+  /* Deep Obsidian — stays as ground */
+  --c-obsidian-950: 3 7 18;
+  --c-obsidian-900: 6 9 19;
+  --c-obsidian-800: 11 15 25;
+  --c-obsidian-700: 15 20 35;
+
+  /* Electric Indigo — lifted for dark ground AA contrast */
+  --c-indigo-400: 129 140 248;
+  --c-indigo-500: 99 102 241;
+  --c-indigo-600: 120 124 248;
+  --c-indigo-700: 140 143 250;
+
+  /* Vivid Violet — lifted */
+  --c-violet-400: 196 181 253;
+  --c-violet-500: 167 139 250;
+  --c-violet-600: 196 181 253;
+
+  /* Cyber Cyan — lifted */
+  --c-cyan-400: 103 232 249;
+  --c-cyan-500: 34 211 238;
+  --c-cyan-600: 56 189 248;
+
+  /* Emerald Glow — lifted */
+  --c-emerald-400: 110 231 183;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 52 211 153;
 
   /* The fill stays saturated indigo so white text still clears AA on it. */
   --c-primary: 55 48 163;
@@ -131,12 +251,6 @@
      separate token. */
   --c-brand: 165 180 252;
   --c-brand-soft: 38 36 82;
-  /* Dark mode moves two of the fills into light territory, so their labels
-     have to invert while the other two stay white. */
-  --c-on-primary: 255 255 255;
-  --c-on-secondary: 17 19 43;
-  --c-on-secondary-600: 255 255 255;
-  --c-on-brand: 17 19 43;
 
   /* Lifted one step: blue-500 on a dark ground sits at 4.0:1, under AA. */
   --c-secondary: 96 165 250;
@@ -160,31 +274,92 @@
 
   --c-twin-decommissioned: 100 116 139;
 
-  --c-surface-base: 11 18 32;
-  --c-surface: 19 28 46;
-  --c-surface-sunken: 27 37 55;
-  --c-surface-raised: 28 39 57;
+  /* Deep Obsidian surfaces */
+  --c-surface-base: 3 7 18;
+  --c-surface: 6 9 19;
+  --c-surface-sunken: 11 15 25;
+  --c-surface-raised: 15 20 35;
   --c-surface-inverse: 248 250 252;
 
-  --c-border-subtle: 36 48 74;
-  --c-border: 51 65 85;
-  --c-border-strong: 71 85 105;
+  --c-border-subtle: 20 26 42;
+  --c-border: 30 40 60;
+  --c-border-strong: 45 55 80;
 
   --c-ink: 230 237 247;
   --c-ink-muted: 163 176 196;
   --c-ink-faint: 124 138 160;
   --c-ink-inverse: 11 28 48;
 
-  --c-ai-bg: 19 31 51;
-  --c-ai-border: 30 58 95;
+  --c-ai-bg: 11 18 35;
+  --c-ai-border: 25 35 60;
 
-  --c-neutral-bg: 30 41 59;
+  --c-neutral-bg: 15 22 38;
   --c-neutral-text: 203 213 225;
 
   --shadow-level2: 0 1px 4px 0 rgb(0 0 0 / 0.40);
   --shadow-level3: 0 4px 12px -1px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.40);
   --shadow-popover: 0 8px 24px -4px rgb(0 0 0 / 0.60);
   --skeleton-sheen: 148 163 184;
+
+  /* ============================================================
+   * ACETERNITY PROACTIV DARK MODE VISUAL EFFECTS
+   * ============================================================ */
+
+  /* Radial spotlight glow — more pronounced on dark ground */
+  --spotlight-primary: radial-gradient(ellipse at top center, rgba(99, 102, 241, 0.25), transparent 60%);
+  --spotlight-secondary: radial-gradient(ellipse at top center, rgba(139, 92, 246, 0.22), transparent 55%);
+  --spotlight-cyan: radial-gradient(ellipse at top center, rgba(6, 182, 212, 0.18), transparent 50%);
+  --spotlight-emerald: radial-gradient(ellipse at top center, rgba(16, 185, 129, 0.15), transparent 50%);
+
+  /* Grid beam — inverted for dark */
+  --grid-beam-mask: radial-gradient(ellipse 60% 50% at 50% 0%, #fff 70%, transparent 100%);
+  --grid-pattern: linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
+                  linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+
+  /* Moving border shimmer — brighter on dark */
+  --shimmer-gradient: conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,0.5) 25%, transparent 50%,
+                                         rgba(129,140,248,0.5) 60%, transparent 75%, transparent 100%);
+  --shimmer-stops: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255,255,255,0.2) 20%,
+    rgba(129,140,248,0.35) 40%,
+    rgba(196,181,253,0.35) 60%,
+    rgba(103,232,249,0.3) 80%,
+    transparent 100%
+  );
+
+  /* Multi-stop gradient text — brighter on dark ground */
+  --gradient-text-primary: linear-gradient(135deg,
+    rgb(248,250,252) 0%,
+    rgb(226,232,240) 25%,
+    rgb(199,210,254) 50%,
+    rgb(165,180,252) 75%,
+    rgb(129,140,248) 100%
+  );
+  --gradient-text-electric: linear-gradient(135deg,
+    rgb(129,140,248) 0%,
+    rgb(196,181,253) 50%,
+    rgb(251,207,232) 100%
+  );
+  --gradient-text-cyber: linear-gradient(135deg,
+    rgb(103,232,249) 0%,
+    rgb(129,140,248) 50%,
+    rgb(196,181,253) 100%
+  );
+  --gradient-text-emerald: linear-gradient(135deg,
+    rgb(110,231,183) 0%,
+    rgb(52,211,153) 50%,
+    rgb(74,222,128) 100%
+  );
+
+  /* Frosted glass panels — darker on dark ground */
+  --glass-bg: rgba(6, 9, 19, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-blur: blur(24px);
+
+  /* Avatar stack social proof */
+  --avatar-ring: 2px solid rgb(129 140 248 / 0.7);
+  --avatar-overlap: -12px;
 }
 
 /* Theme changes repaint every surface at once; without this the swap reads as
@@ -195,4 +370,78 @@
 :root.theme-switching *::after {
   transition: background-color 180ms ease, border-color 180ms ease,
               color 180ms ease, fill 180ms ease, stroke 180ms ease !important;
+}
+
+/* ============================================================
+ * UTILITY CLASSES FOR ACETERNITY EFFECTS
+ * These can be used directly in components or via @apply
+ * ============================================================ */
+
+/* Spotlight glow backgrounds */
+.bg-spotlight-primary { background-image: var(--spotlight-primary); }
+.bg-spotlight-secondary { background-image: var(--spotlight-secondary); }
+.bg-spotlight-cyan { background-image: var(--spotlight-cyan); }
+.bg-spotlight-emerald { background-image: var(--spotlight-emerald); }
+
+/* Grid beam background with radial mask */
+.bg-grid-beam {
+  background-image: var(--grid-pattern);
+  background-size: 48px 48px;
+  -webkit-mask-image: var(--grid-beam-mask);
+  mask-image: var(--grid-beam-mask);
+}
+
+/* Moving border shimmer */
+.border-shimmer {
+  position: relative;
+  isolation: isolate;
+}
+.border-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: var(--shimmer-stops);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
+}
+
+/* Gradient text utilities */
+.text-gradient-primary { background: var(--gradient-text-primary); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-gradient-electric { background: var(--gradient-text-electric); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-gradient-cyber { background: var(--gradient-text-cyber); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-gradient-emerald { background: var(--gradient-text-emerald); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Frosted glass panels */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}
+
+/* Avatar stack social proof */
+.avatar-stack > * {
+  margin-left: var(--avatar-overlap);
+  border: var(--avatar-ring);
+  border-radius: 9999px;
+}
+.avatar-stack > *:first-child { margin-left: 0; }
+
+/* Status beacon pulse ring */
+.status-beacon {
+  position: relative;
+}
+.status-beacon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  animation: pulse-ring 2s cubic-bezier(0.24,0,0.38,1) infinite;
+  opacity: 0;
 }

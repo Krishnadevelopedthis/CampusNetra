@@ -1,14 +1,6 @@
 import { Logo } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
-/**
- * Split layout shared by every signed-out page: brand narrative, then the form.
- *
- * The brand half is the trust signal for a platform people hand credentials to,
- * so it appears from `md` rather than `lg` — a tablet is not a phone — and
- * phones get a condensed band rather than the old behaviour of dropping the
- * narrative entirely and showing a bare logo.
- */
 export function AuthShell({ title, subtitle, children, footer }) {
   return (
     <div className="min-h-screen md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] bg-surface-base">
@@ -23,7 +15,7 @@ export function AuthShell({ title, subtitle, children, footer }) {
               'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
             backgroundSize: '48px 48px',
           }}
-          aria-hidden="true"
+          aria-hidden
         />
         {/* One light source, so the grid reads as depth rather than paper. */}
         <div
@@ -60,7 +52,6 @@ export function AuthShell({ title, subtitle, children, footer }) {
         </div>
 
         <p className="relative hidden md:block text-body-sm text-on-primary/50">
-          © {new Date().getFullYear()} Campus Netra · Precision Intelligence
         </p>
       </div>
 

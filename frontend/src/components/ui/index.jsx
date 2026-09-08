@@ -1,7 +1,83 @@
 import clsx from 'clsx'
-import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
-import { createContext, forwardRef, useContext, useEffect, useId, useRef, useState } from 'react'
+import { AlertCircle,Bell, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
+
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
+import { SkeletonRows } from '@/components/Skeletons'
+export { SkeletonRows }
+
+import { AssetModal as Modal, RoomModal } from '@/features/twin/AssetRoomModals'
+export { Modal, RoomModal }
+
+/* ---------------- Toaster ---------------- */
+export function Toaster({onOpen, onClose}) {
+  const [open, setOpen] = useState(false)
+  return ( 
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="btn-ghost h-8 w-8 p-0 rounded flex items-center justify-center gap-1"
+        aria-label="Notifications"
+      >
+        <Bell size={16} />
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-40 bg-black/40 animate-fade-in" onClick={onClose}>
+          <div className="absolute inset-0 bg-surface rounded-xl shadow-popover p-4 w-64 shadow-level3">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-headline-sm font-medium text-ink">Notifications</span>
+              <button onClick={() => setOpen(false)} className="btn-ghost h-5 w-5 p-0 rounded" aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="max-h-80 overflow-y-auto space-y-2">
+              {/* Toasts will be rendered here */}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ---------------- Toast ---------------- */
+function createToast(title, description, variant = 'default') {
+  const container = document.createElement('div')
+  container.className = 'toast-overlay fixed top-4 right-4 z-50 flex gap-2'
+  container.innerHTML = `
+    <div class="toast p-4 rounded-lg shadow-level2 transition-opacity duration-500 ${
+      variant === 'danger'
+        ? 'bg-danger-bg text-danger-text'
+        : 'bg-surface text-ink'
+    }">
+      <div class="flex items-start gap-2">
+        <span class="w-2 h-2 rounded-full shrink-0 ${
+          variant === 'danger' ? 'bg-danger' : 'bg-secondary'
+        }" />
+        <div>
+          <p class="font-medium">${title}</p>
+          ${description ? `<p class="text-body-sm text-ink-muted mt-0.5">${description}</p>` : ''}
+        </div>
+      </div>
+    </div>
+  `
+  document.body.appendChild(container)
+
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    container.style.opacity = '0'
+    setTimeout(() => container.remove(), 300)
+  }, 5000)
+}
+
+export const toast = {
+  info: (title, description) => createToast(title, description, 'default'),
+  success: (title, description) => createToast(title, description, 'success'),
+  danger: (title, description) => createToast(title, description, 'danger'),
+  warning: (title, description) => createToast(title, description, 'warning'),
+  error: (title, description) => createToast(title, description, 'danger'),
+}
 
 /* ---------------- Widget (Level 1: bordered, no shadow) ---------------- */
 export function Widget({ title, subtitle, action, children, className, bodyClass, ...rest }) {
@@ -62,72 +138,31 @@ export function Button({
 }
 
 /* ---------------- Form fields ---------------- */
-
-/**
- * Wires a field's label, error and hint to its control.
- *
- * Passed through context rather than cloned onto `children`, because a control
- * is often wrapped — an icon needs a relative parent, a password needs a reveal
- * button — and cloning would put the ids on the wrapper instead of the input.
- * Context reaches the control at any depth.
- */
-const FieldContext = createContext(null)
-
 export function Field({ label, error, hint, required, children, className }) {
-  const base = useId()
-  const controlId = `${base}-control`
-  const errorId = `${base}-error`
-  const hintId = `${base}-hint`
-  const showHint = hint && !error
-
   return (
-    <FieldContext.Provider
-      value={{
-        controlId,
-        invalid: !!error,
-        describedBy: [error && errorId, showHint && hintId].filter(Boolean).join(' ') || undefined,
-      }}
-    >
-      <div className={className}>
-        {label && (
-          <label className="label" htmlFor={controlId}>
-            {label}
-            {required && <span className="text-danger ml-0.5">*</span>}
-          </label>
-        )}
-        {children}
-        {error && (
-          // Announced on change: a validation message that only appears
-          // visually leaves a screen-reader user with a form that silently
-          // refuses to submit.
-          <p className="field-error" id={errorId} role="alert">
-            <AlertCircle size={13} aria-hidden="true" /> {error}
-          </p>
-        )}
-        {showHint && <p className="hint" id={hintId}>{hint}</p>}
-      </div>
-    </FieldContext.Provider>
+    <div className={className}>
+      {label && (
+        <label className="label">
+          {label}
+          {required && <span className="text-danger ml-0.5">*</span>}
+        </label>
+      )}
+      {children}
+      {error && (
+        <p className="field-error">
+          <AlertCircle size={13} /> {error}
+        </p>
+      )}
+      {hint && !error && <p className="hint">{hint}</p>}
+    </div>
   )
 }
 
-/** Adopts the enclosing Field's id and error wiring unless given explicitly. */
-function useFieldProps({ id, invalid }) {
-  const field = useContext(FieldContext)
-  if (!field) return { id, 'aria-invalid': invalid || undefined }
-  return {
-    id: id ?? field.controlId,
-    'aria-invalid': (invalid ?? field.invalid) || undefined,
-    'aria-describedby': field.describedBy,
-  }
-}
-
 export const Input = forwardRef(function Input({ error, className, id, ...rest }, ref) {
-  const a11y = useFieldProps({ id, invalid: !!error })
   return (
     <input
       ref={ref}
       className={clsx('input', error && 'input-error', className)}
-      {...a11y}
       {...rest}
     />
   )
@@ -252,118 +287,6 @@ export function ErrorState({ error, onRetry }) {
           <Button variant="secondary" onClick={onRetry}>Retry</Button>
         </div>
       )}
-    </div>
-  )
-}
-
-export function SkeletonRows({ rows = 5, cols = 4 }) {
-  return (
-    <div className="space-y-2 p-widget">
-      {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} className="flex gap-3">
-          {Array.from({ length: cols }).map((_, c) => (
-            <div key={c} className="skeleton h-5 flex-1" />
-          ))}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-/* ---------------- Modal ---------------- */
-export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
-  const ref = useRef(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose?.()
-    document.addEventListener('keydown', onKey)
-    // Prevent the page behind the overlay from scrolling.
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prev
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-  const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
-      <div
-        ref={ref} role="dialog" aria-modal="true" aria-label={title}
-        className={clsx(
-          'relative w-full bg-surface rounded-2xl border border-border-subtle shadow-level3 animate-slide-up',
-          'max-h-[90vh] flex flex-col', widths[size],
-        )}
-      >
-        <header className="flex items-center justify-between px-5 py-4 border-b border-border-subtle shrink-0">
-          <h2 className="text-headline-md">{title}</h2>
-          <button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded-lg" aria-label="Close">
-            <X size={18} />
-          </button>
-        </header>
-        <div className="p-5 overflow-y-auto">{children}</div>
-        {footer && (
-          <footer className="px-5 py-4 border-t border-border-subtle flex justify-end gap-2 shrink-0">
-            {footer}
-          </footer>
-        )}
-      </div>
-    </div>
-  )
-}
-
-/* ---------------- Toasts ---------------- */
-let pushToast = null
-export const toast = {
-  success: (m) => pushToast?.({ kind: 'success', message: m }),
-  error: (m) => pushToast?.({ kind: 'error', message: m }),
-  info: (m) => pushToast?.({ kind: 'info', message: m }),
-}
-
-export function Toaster() {
-  const [items, setItems] = useState([])
-
-  useEffect(() => {
-    pushToast = (t) => {
-      const id = Math.random().toString(36).slice(2)
-      setItems((prev) => [...prev, { ...t, id }])
-      setTimeout(() => setItems((prev) => prev.filter((i) => i.id !== id)), 5000)
-    }
-    return () => { pushToast = null }
-  }, [])
-
-  const styles = {
-    success: 'bg-success-bg border-success-border text-success-text',
-    error: 'bg-danger-bg border-danger-border text-danger-text',
-    info: 'bg-info-bg border-info-border text-info-text',
-  }
-  const Icons = { success: Check, error: AlertCircle, info: AlertCircle }
-
-  return (
-    <div className="fixed bottom-5 right-5 z-[60] flex flex-col gap-2 max-w-sm no-print">
-      {items.map((t) => {
-        const Icon = Icons[t.kind]
-        return (
-          <div
-            key={t.id} role="status"
-            className={clsx(
-              'flex items-start gap-2.5 px-4 py-3 rounded-xl border shadow-level3 animate-slide-up',
-              styles[t.kind],
-            )}
-          >
-            <Icon size={16} className="mt-0.5 shrink-0" />
-            <p className="text-body-md">{t.message}</p>
-          </div>
-        )
-      })}
     </div>
   )
 }

@@ -50,17 +50,42 @@
            text-body-md font-medium transition-colors duration-150
            disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap;
   }
-  .btn-primary   { @apply btn bg-secondary-600 text-on-secondary-600 hover:bg-secondary-700; }
-  .btn-dark      { @apply btn bg-primary text-on-primary hover:bg-primary-800; }
-  .btn-secondary { @apply btn bg-surface text-ink border border-border-subtle hover:bg-surface-sunken; }
-  .btn-ghost     { @apply btn bg-transparent text-ink-muted hover:bg-surface-sunken; }
-  .btn-danger    { @apply btn bg-danger text-white hover:bg-danger-strong; }
+  .btn-primary {
+    @apply btn bg-secondary-600 text-white;
+  }
+  .btn-primary:hover {
+    @apply bg-secondary-700;
+  }
+  .btn-dark {
+    @apply btn bg-primary text-white;
+  }
+  .btn-dark:hover {
+    @apply bg-primary-800;
+  }
+  .btn-secondary {
+    @apply btn bg-surface text-ink border border-border-subtle;
+  }
+  .btn-secondary:hover {
+    @apply bg-surface-sunken;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink-muted;
+  }
+  .btn-ghost:hover {
+    @apply bg-surface-sunken;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white;
+  }
+  .btn-danger:hover {
+    @apply bg-danger-strong;
+  }
   .btn-sm        { @apply h-8 px-3 text-body-sm; }
   .btn-lg        { @apply h-11 px-5 text-body-lg; }
 
   /* ---- Forms ---- */
   .label {
-    @apply block text-label-form uppercase text-ink-muted mb-1.5;
+    @apply block text-label-caps uppercase text-ink-muted mb-1.5;
   }
   .input {
     @apply w-full h-10 px-3 bg-surface border border-border-subtle rounded
@@ -116,10 +141,8 @@
     @apply flex items-center gap-3 h-11 px-3 rounded-lg text-body-md font-medium
            text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors;
   }
-  /* bg-secondary is light enough that white fails AA on it in both themes —
-     2.54:1 in dark. The paired token carries the readable colour. */
   .sidebar-link-active {
-    @apply bg-secondary text-on-secondary hover:bg-secondary hover:text-on-secondary;
+    @apply bg-secondary text-white hover:bg-secondary hover:text-white;
   }
 
   .skeleton {
@@ -155,4 +178,77 @@
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; }
+}
+
+/* ============================================================
+ * ACETERNITY PROACTIV VISUAL EFFECTS
+ * ============================================================ */
+
+/* Radial spotlight glow — top center ambient illumination */
+.bg-spotlight-primary { background-image: var(--spotlight-primary); }
+.bg-spotlight-secondary { background-image: var(--spotlight-secondary); }
+.bg-spotlight-cyan { background-image: var(--spotlight-cyan); }
+.bg-spotlight-emerald { background-image: var(--spotlight-emerald); }
+
+/* Grid beam background with radial mask */
+.bg-grid-beam {
+  background-image: var(--grid-pattern);
+  background-size: 48px 48px;
+  -webkit-mask-image: var(--grid-beam-mask);
+  mask-image: var(--grid-beam-mask);
+}
+
+/* Moving border shimmer */
+.border-shimmer {
+  position: relative;
+  isolation: isolate;
+}
+.border-shimmer::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: var(--shimmer-stops);
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: -1;
+}
+
+/* Gradient text utilities */
+.text-gradient-primary { background: var(--gradient-text-primary); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-gradient-electric { background: var(--gradient-text-electric); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-gradient-cyber { background: var(--gradient-text-cyber); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.text-gradient-emerald { background: var(--gradient-text-emerald); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* Frosted glass panels */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}
+
+/* Avatar stack social proof */
+.avatar-stack > * {
+  margin-left: var(--avatar-overlap);
+  border: var(--avatar-ring);
+  border-radius: 9999px;
+}
+.avatar-stack > *:first-child { margin-left: 0; }
+
+/* Status beacon pulse ring */
+.status-beacon {
+  position: relative;
+}
+.status-beacon::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  border: 2px solid currentColor;
+  animation: pulse-ring 2s cubic-bezier(0.24,0,0.38,1) infinite;
+  opacity: 0;
 }

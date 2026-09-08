@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 
-import { useColorTheme } from '@/lib/colorTheme'
 import { useTheme } from '@/lib/theme'
 
 /** Reads a palette token off the document and returns it as `rgb(r g b)`. */
@@ -17,11 +16,7 @@ function token(name, fallback) {
  */
 export function useChartTheme() {
   const resolved = useTheme((s) => s.resolved)
-  // Charts read --c-secondary, so they have to recompute when the accent moves
-  // as well as when light/dark does. Without this the bars kept the old colour
-  // until something else forced a re-read, which made the accent look like it
-  // did not apply to the largest coloured thing on the page.
-  const accent = useColorTheme((s) => s.colorTheme)
+
   const [palette, setPalette] = useState(() => read())
 
   useEffect(() => {
@@ -29,7 +24,7 @@ export function useChartTheme() {
     // class is still settling; a frame's delay reads the final values.
     const id = requestAnimationFrame(() => setPalette(read()))
     return () => cancelAnimationFrame(id)
-  }, [resolved, accent])
+  }, [resolved])
 
   return palette
 }
