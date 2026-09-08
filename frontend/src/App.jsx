@@ -109,14 +109,17 @@ export default function App() {
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route path="/dashboard" element={<Dashboard />} />
 
-            <Route path="/issues" element={<IssueList />} />
-            <Route path="/issues/new" element={<ReportIssue />} />
-            <Route path="/issues/map" element={<IssueMap />} />
-            <Route path="/issues/:id" element={<IssueDetail />} />
+            {/* Reporter (student/teacher) + Manager/Admin can see issues */}
+            <Route path="/issues" element={<RequireAuth roles={['student', 'teacher', 'facility_manager', 'admin', 'super_admin']}><IssueList /></RequireAuth>} />
+            <Route path="/issues/new" element={<RequireAuth roles={['student', 'teacher']}><ReportIssue /></RequireAuth>} />
+            <Route path="/issues/map" element={<RequireAuth roles={['facility_manager', 'admin', 'super_admin']}><IssueMap /></RequireAuth>} />
+            <Route path="/issues/:id" element={<RequireAuth roles={['student', 'teacher', 'technician', 'facility_manager', 'admin', 'super_admin']}><IssueDetail /></RequireAuth>} />
 
-            <Route path="/map" element={<CampusMap />} />
-            <Route path="/twin" element={<DigitalTwin />} />
-            <Route path="/twin/:floorId" element={<DigitalTwin />} />
+            {/* Campus Map - student/teacher + manager/admin */}
+            <Route path="/map" element={<RequireAuth roles={['student', 'teacher', 'facility_manager', 'admin', 'super_admin']}><CampusMap /></RequireAuth>} />
+            {/* Digital Twin - technician + manager/admin */}
+            <Route path="/twin" element={<RequireAuth roles={['technician', 'facility_manager', 'admin', 'super_admin']}><DigitalTwin /></RequireAuth>} />
+            <Route path="/twin/:floorId" element={<RequireAuth roles={['technician', 'facility_manager', 'admin', 'super_admin']}><DigitalTwin /></RequireAuth>} />
             <Route path="/replay" element={<RequireAuth roles={STAFF}><EventReplay /></RequireAuth>} />
             <Route path="/assets" element={<RequireAuth roles={STAFF}><AssetList /></RequireAuth>} />
             <Route path="/assets/:id" element={<RequireAuth roles={STAFF}><AssetDetail /></RequireAuth>} />
