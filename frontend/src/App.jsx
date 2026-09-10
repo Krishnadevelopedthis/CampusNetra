@@ -4,7 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Spinner, Toaster } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
-import { useAuth,addGlobalSessionRese } from '@/lib/auth'
+import { useAuth,addGlobalSessionReset } from '@/lib/auth'
 
 
 
