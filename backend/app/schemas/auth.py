@@ -75,8 +75,8 @@ class RegisterRequest(BaseModel):
         if value is None or not value.strip():
             return None
         cleaned = value.strip()
-        if not re.fullmatch(r"\d{6}", cleaned):
-            raise ValueError("Enrollment number must be exactly 6 digits")
+        if not re.fullmatch(r"\d{7}", cleaned):
+            raise ValueError("Enrollment number must be exactly 7 digits")
         return cleaned
 
     @field_validator("role")
@@ -85,6 +85,16 @@ class RegisterRequest(BaseModel):
         if v == UserRole.SUPER_ADMIN:
             raise ValueError("super_admin cannot be self-registered")
         return v
+
+    @field_validator("employee_id")
+    @classmethod
+    def _v_employee_id(cls, value: Optional[str]) -> Optional[str]:
+        if value is None or not value.strip():
+            return None
+        cleaned = value.strip()
+        if not re.fullmatch(r"\d{7}", cleaned):
+            raise ValueError("Employee ID must be exactly 7 digits")
+        return cleaned
 
 
 class LoginRequest(BaseModel):
@@ -170,3 +180,12 @@ class UpdateProfileRequest(BaseModel):
     avatar_url: Optional[str] = None
     designation: Optional[str] = None
     preferences: Optional[dict] = None
+
+
+class ChangeEmailRequest(BaseModel):
+    new_email: EmailStr
+    otp_code: str = Field(min_length=4, max_length=10)
+
+
+class RequestEmailChangeRequest(BaseModel):
+    new_email: EmailStr

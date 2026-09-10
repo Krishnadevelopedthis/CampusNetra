@@ -10,6 +10,7 @@ import {
   GraduationCap,
   IdCard,
   Loader2,
+  Mail,
   Pencil,
   Phone,
   ShieldCheck,
@@ -19,7 +20,7 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Avatar, Input, Widget, toast } from '@/components/ui'
+import { Avatar, Button, Input, Widget, toast } from '@/components/ui'
 import { api, mediaUrl, upload } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { dt } from '@/lib/format'
@@ -213,10 +214,32 @@ function AvatarPicker({ user, setUser }) {
  * ------------------------------------------------------------------ */
 
 function ContactCard({ user, setUser }) {
+  const [pendingEmailChange, setPendingEmailChange] = useState(null)
+
   const save = useMutation({
     mutationFn: (patch) => api.patch('/auth/me', patch),
     onSuccess: (u) => { setUser(u); toast.success('Saved.') },
     onError: (err) => toast.error(err.detail || 'Could not save that change.'),
+  })
+
+  const changeEmail = useMutation({
+    mutationFn: async ({ new_email, otp_code }) => {
+      const data = await api.post('/auth/me/verify-email-change', { new_email, otp_code })
+      setUser(data.user)
+      toast.success('Email updated and verified.')
+      setPendingEmailChange(null)
+    },
+    onError: (err) => toast.error(err.detail || 'Could not change your email.'),
+  })
+
+  const requestEmailChange = useMutation({
+    mutationFn: async (new_email) => {
+      const data = await api.post('/auth/me/change-email', { new_email })
+      // Store the pending change so we can show OTP verification UI
+      setPendingEmailChange({ new_email, otp: '' })
+      toast.info('A 6-digit OTP has been sent to your current email. Enter it below to verify.')
+    },
+    onError: (err) => toast.error(err.detail || 'Could not request email change.'),
   })
 
   const fields = [
@@ -237,7 +260,7 @@ function ContactCard({ user, setUser }) {
       placeholder: 'e.g. 9867943963',
       empty: 'Add a number so technicians can reach you about a report',
       validate: (v) =>
-        v && !/^[+\d][\d\s-]{6,19}$/.test(v.trim()) ? 'That does not look like a phone number.' : null,
+        v && !/^[+\d]?\d{10}$/.test(v.replace(/\D/g, '')) ? 'Phone must be exactly 10 digits.' : null,
     },
     {
       key: 'designation',
@@ -246,6 +269,20 @@ function ContactCard({ user, setUser }) {
       value: user?.designation,
       placeholder: 'e.g. Lab Assistant',
       empty: 'Not set',
+    },
+    {
+      key: 'email',
+      icon: Mail,
+      label: 'Email',
+      value: user?.email,
+      placeholder: user?.email || '',
+      type: 'email',
+      empty: 'Not set',
+      // Show OTP verification UI when there's a pending email change
+      isPendingEmailChange: !!pendingEmailChange,
+      onRequestChange: (new_email) => requestEmailChange.mutate(new_email),
+      onVerifyChange: (otp) => changeEmail.mutate({ new_email: pendingEmailChange.new_email, otp_code: otp }),
+      pendingEmailChange,
     },
   ]
 
@@ -261,6 +298,9 @@ function ContactCard({ user, setUser }) {
           />
         ))}
       </div>
+      {requestEmailChange.isPending && (
+        <p className="text-body-sm text-ink-muted mt-2">Requesting email change...</p>
+      )}
     </Widget>
   )
 }
@@ -268,10 +308,16 @@ function ContactCard({ user, setUser }) {
 function EditableRow({
   icon: Icon, label, value, type = 'text', placeholder, empty = 'Not set',
   validate, onSave, saving,
+  // Email change OTP props
+  isPendingEmailChange = false,
+  onRequestChange,
+  onVerifyChange,
+  pendingEmailChange = null,
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value || '')
   const [error, setError] = useState(null)
+  const [otpDraft, setOtpDraft] = useState(pendingEmailChange?.otp || '')
   const inputRef = useRef(null)
 
   useEffect(() => { if (!editing) setDraft(value || '') }, [value, editing])
@@ -291,6 +337,67 @@ function EditableRow({
       // The mutation already surfaced the failure; keep the draft so the
       // user's typing is not thrown away by a network blip.
     }
+  }
+
+  // Handle email change flow
+  if (label === 'Email' && isPendingEmailChange && pendingEmailChange) {
+    return (
+      <div className="py-3">
+        <div className="flex items-center gap-3">
+          <Icon size={16} className="text-ink-faint shrink-0" />
+
+          <div className="min-w-0 flex-1">
+            <p className="text-label-caps uppercase text-ink-muted">{label}</p>
+
+            <div className="mt-1.5 flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <Input
+                  type="text"
+                  placeholder="Enter 6-digit OTP sent to your email"
+                  value={otpDraft}
+                  onChange={(e) => {
+                    setOtpDraft(e.target.value.trim())
+                    setError(null)
+                  }}
+                  maxLength={6}
+                  error={error}
+                />
+                {error && <p className="field-error">{error}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (otpDraft.length === 6 && onVerifyChange) {
+                    onVerifyChange(otpDraft)
+                  } else {
+                    setError('Please enter the 6-digit OTP')
+                  }
+                }}
+                disabled={onVerifyChange && otpDraft.length < 6}
+                className="btn-primary h-10 w-10 p-0"
+                aria-label="Verify and update email"
+              >
+                <Check size={16} />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRequestChange) {
+                    // Cancel and allow new email entry
+                    setPendingEmailChange(null)
+                    setEditing(true)
+                  }
+                }}
+                className="btn-secondary h-10 w-10 p-0"
+                aria-label="Cancel email change"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -338,9 +445,16 @@ function EditableRow({
           )}
         </div>
 
-        {!editing && (
+        {!editing && !isPendingEmailChange && (
           <button
-            type="button" onClick={() => setEditing(true)}
+            type="button" onClick={() => {
+              if (label === 'Email' && onRequestChange) {
+                // For email, open edit mode to enter new email
+                setEditing(true)
+              } else {
+                setEditing(true)
+              }
+            }}
             className="btn-ghost btn-sm shrink-0" aria-label={`Edit ${label}`}
           >
             <Pencil size={14} /> Edit

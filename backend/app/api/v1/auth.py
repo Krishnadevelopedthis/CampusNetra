@@ -15,8 +15,8 @@ from app.core.enums import UserRole, UserStatus
 from app.core.security import hash_password, verify_password
 from app.models.identity import User
 from app.schemas.auth import (
-    AuthResponse, ChangePasswordRequest, ForgotPasswordRequest, LoginRequest,
-    RefreshRequest, RegisterRequest, ResendCodeRequest, ResetPasswordRequest,
+    AuthResponse, ChangeEmailRequest, ChangePasswordRequest, ForgotPasswordRequest, LoginRequest,
+    RefreshRequest, RegisterRequest, RequestEmailChangeRequest, ResendCodeRequest, ResetPasswordRequest,
     TokenPair, UpdateProfileRequest, UserOut, VerifyEmailRequest,
 )
 from app.schemas.common import Message
@@ -188,6 +188,48 @@ async def update_me(payload: UpdateProfileRequest, user: CurrentUser, db: DB):
         setattr(user, field, value)
     await db.flush()
     return UserOut.model_validate(user)
+
+
+@router.post("/me/change-email", response_model=Message)
+async def request_email_change(
+    payload: RequestEmailChangeRequest, user: CurrentUser, db: DB
+):
+    """Request an email change. Sends a 6-digit OTP to the current email.
+    The OTP is tied to the user's session, not the new email address."""
+    generic = Message(detail="If that address is eligible, a 6-digit OTP has been sent to your current email.")
+    # Create a one-time OTP for email change tied to the user
+    code = await auth_service.create_verification_code(db, user, "email_change")
+    sent = await send_otp(user.email, user.full_name, code, "email_change")
+    if not sent.delivered and settings.expose_dev_codes:
+        return Message(
+            detail="Email is not configured on this server; your code is shown below.",
+            dev_code=code,
+        )
+    return generic
+
+
+@router.post("/auth/me/verify-email-change", response_model=AuthResponse)
+async def verify_email_change(
+    payload: ChangeEmailRequest, user: CurrentUser, db: DB, request: Request
+):
+    """Verify the OTP and update the user's email address."""
+    user_row = await db.scalar(select(User).where(User.id == user.id))
+    if user_row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    await auth_service.consume_verification_code(db, user_row, "email_change", payload.otp_code)
+
+    now = datetime.now(timezone.utc)
+    user_row.email = payload.new_email
+    user_row.email_verified_at = now
+    user_row.last_login_at = now
+    await db.flush()
+
+    tokens, raw = auth_service.issue_tokens(user_row)
+    await auth_service.persist_refresh_token(
+        db, user_row, raw, client_ip(request), request.headers.get("user-agent")
+    )
+    return AuthResponse(user=UserOut.model_validate(user_row), tokens=tokens)
 
 
 @router.post("/me/export", response_model=Message)

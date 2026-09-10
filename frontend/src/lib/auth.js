@@ -2,6 +2,44 @@ import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
 import { useColorTheme } from './colorTheme'
 
+/** Session timeout: 2 minutes of inactivity before auto-logout. */
+const SESSION_TIMEOUT_MS = 2 * 60 * 1000
+
+// Global activity listeners to reset the session timeout on any user interaction.
+const activityListenersAdded = new Set()
+
+export function addGlobalSessionReset() {
+  if (activityListenersAdded.has('auth')) return () => {}
+  activityListenersAdded.add('auth')
+
+  const handlers = {
+    mousedown: () => useAuth.getState().resetSessionTimer(),
+    keydown: (e) => {
+      if (e.key !== 'Tab' && e.key !== 'Shift' && e.ctrlKey === false && e.metaKey === false) {
+        useAuth.getState().resetSessionTimer()
+      }
+    },
+    touchstart: () => useAuth.getState().resetSessionTimer(),
+    scroll: () => useAuth.getState().resetSessionTimer(),
+    visibilitychange: () => {
+      if (document.hidden) return
+      useAuth.getState().resetSessionTimer()
+    },
+  }
+
+  Object.entries(handlers).forEach(([event, handler]) => {
+    document.addEventListener(event, handler, { passive: true })
+  })
+
+  // Clean up on store unmount / module reload
+  return () => {
+    Object.entries(handlers).forEach(([event, handler]) => {
+      document.removeEventListener(event, handler)
+    })
+    activityListenersAdded.delete('auth')
+  }
+}
+
 /** Which modules each role may reach. Mirrors the backend's route guards. */
 export const ROLE_HOME = {
   student: '/dashboard',
@@ -39,10 +77,30 @@ export const useAuth = create((set, get) => ({
   user: readAuth()?.user || null,
   loading: false,
   initialised: false,
+  sessionTimer: null,
 
   isStaff: () => STAFF.has(get().user?.role),
   isManager: () => MANAGER.has(get().user?.role),
   isAdmin: () => ADMIN.has(get().user?.role),
+
+  /** Reset the inactivity timer. */
+  resetSessionTimer: () => {
+    const timer = get().sessionTimer
+    if (timer) clearTimeout(timer)
+    const newTimer = setTimeout(() => {
+      get().logout()
+    }, SESSION_TIMEOUT_MS)
+    set({ sessionTimer: newTimer })
+  },
+
+  /** Clear the inactivity timer. */
+  clearSessionTimer: () => {
+    const timer = get().sessionTimer
+    if (timer) {
+      clearTimeout(timer)
+      set({ sessionTimer: null })
+    }
+  },
 
   /** Revalidate the stored session against the server on boot. */
   async init() {
@@ -61,6 +119,8 @@ export const useAuth = create((set, get) => ({
       }
 
       set({ user, initialised: true })
+      // Start session timer after successful init
+      get().resetSessionTimer()
     } catch (err) {
       // Only the server rejecting the session ends it. A network failure or a
       // server error means we could not find out — and a sleeping free-tier
@@ -91,6 +151,8 @@ export const useAuth = create((set, get) => ({
       }
 
       set({ user: data.user })
+      // Reset session timer on successful login
+      get().resetSessionTimer()
       return data.user
     } finally {
       set({ loading: false })
