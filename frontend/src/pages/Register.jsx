@@ -53,8 +53,11 @@ export default function Register() {
 
     // Checked here as well as on the server so the answer arrives while the
     // field is still in front of you, rather than after a round trip.
-    if (form.enrollment_no?.trim() && !/^\d{6}$/.test(form.enrollment_no.trim())) {
-      next.enrollment_no = 'Six digits, e.g. 214321'
+    if (form.enrollment_no?.trim() && !/^\d{7}$/.test(form.enrollment_no.trim())) {
+      next.enrollment_no = 'Seven digits, e.g. 2143210'
+    }
+    if (form.employee_id?.trim() && !/^\d{7}$/.test(form.employee_id.trim())) {
+      next.employee_id = 'Seven digits, e.g. 2143210'
     }
     if (form.phone?.trim()) {
       // Spaces, dashes and +91 are all ways of writing the same number.
@@ -134,14 +137,14 @@ export default function Register() {
           </Field>
         ))}
 
-        {role === 'technician' && (
-          <Field label="Department" hint="Work orders in this department will route to you">
-            <Select value={form.department_code || ''} onChange={set('department_code')}>
-              <option value="">Select a department</option>
-              {DEPARTMENTS.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
-            </Select>
-          </Field>
-        )}
+        {/* Department is required for ALL roles - work orders and issues are
+            routed to the right department based on this assignment */}
+        <Field label="Department" hint="Work orders and issues will route to this department">
+          <Select value={form.department_code || ''} onChange={set('department_code')}>
+            <option value="">Select a department</option>
+            {DEPARTMENTS.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+          </Select>
+        </Field>
 
         <Field label="Phone" error={errors.phone}
                hint="Optional — used for urgent notifications">

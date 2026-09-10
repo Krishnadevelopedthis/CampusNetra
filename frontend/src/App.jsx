@@ -4,7 +4,8 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Spinner, Toaster } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
-import { ROLE_HOME, useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth'
+import { useEffect } from 'react'
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -86,6 +87,12 @@ export default function App() {
   const { user, initialised } = useAuth()
 
   useEffect(() => { init() }, [init])
+
+  // Register global activity listeners to reset the 2-minute session timeout
+  useEffect(() => {
+    const cleanup = addGlobalSessionReset()
+    return cleanup
+  }, [init])
 
   // Show Toaster only on authenticated routes (not landing, login, register, etc.)
   const showToaster = initialised && user

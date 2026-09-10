@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell,
+  AlertCircle,
   Clock,
   Contrast,
   Download,
@@ -14,6 +14,7 @@ import {
   Table2,
   Trash2,
   Type,
+  Bell,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -238,15 +239,15 @@ export default function Settings() {
 
       {/* ---------------- Notifications ---------------- */}
       <Widget
-        title={<span className="flex items-center gap-2"><Bell size={17} /> Notifications</span>}
+        title={<span className="flex items-center gap-2"><AlertCircle size={17} /> Notifications</span>}
         subtitle="What you are told about, and where"
       >
         <div className="space-y-5">
           <div className="grid sm:grid-cols-2 gap-3">
             <ChannelCard
-              icon={Bell}
+              icon={AlertCircle}
               title="In-app"
-              desc="The bell in the header."
+              desc="Notifications appear in the app."
               checked={prefs.notify.channel_inapp}
               onChange={(v) => update('notify', 'channel_inapp', v)}
             />
