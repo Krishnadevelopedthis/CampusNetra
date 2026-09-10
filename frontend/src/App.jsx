@@ -4,8 +4,9 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Spinner, Toaster } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
-import { useAuth } from '@/lib/auth'
-import { useEffect } from 'react'
+import { useAuth,addGlobalSessionRese } from '@/lib/auth'
+
+
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -68,6 +69,15 @@ function RequireAuth({ children, roles }) {
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/403" replace />
   return children
+}
+
+const ROLE_HOME = {
+  student: '/dashboard',
+  teacher: '/dashboard',
+  technician: '/work-orders',
+  facility_manager: '/dashboard',
+  admin: '/admin',
+  super_admin: '/admin',
 }
 
 function PublicOnly({ children }) {
