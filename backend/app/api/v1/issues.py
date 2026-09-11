@@ -236,12 +236,12 @@ async def get_issue(issue_id: uuid.UUID, user: CurrentUser, db: DB):
         flush=True,
     )
 
-    print("[ISSUE_DETAIL] before _get_issue_or_404", flush=True)
+    print("[ISSUE_DETAIL] get_issue_or_404 START", flush=True)
 
     issue = await _get_issue_or_404(db, issue_id, user)
 
     print(
-        f"[ISSUE_DETAIL] after _get_issue_or_404 "
+        f"[ISSUE_DETAIL] get_issue_or_404 DONE "
         f"elapsed={time.perf_counter() - started:.2f}s",
         flush=True,
     )
@@ -252,12 +252,12 @@ async def get_issue(issue_id: uuid.UUID, user: CurrentUser, db: DB):
             "You can only view issues you reported",
         )
 
-    print("[ISSUE_DETAIL] before to_detail", flush=True)
+    print("[ISSUE_DETAIL] to_detail START", flush=True)
 
     detail = await issue_views.to_detail(db, issue)
 
     print(
-        f"[ISSUE_DETAIL] after to_detail "
+        f"[ISSUE_DETAIL] to_detail DONE "
         f"elapsed={time.perf_counter() - started:.2f}s",
         flush=True,
     )
