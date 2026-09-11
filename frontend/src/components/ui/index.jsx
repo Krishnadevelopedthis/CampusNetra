@@ -89,26 +89,33 @@ export function Toaster({onOpen, onClose}) {
 }
 
 /* ---------------- Toast ---------------- */
+// Built from nodes with textContent, never innerHTML: titles and descriptions
+// carry user names, file names and server messages, and parsing those as
+// markup let any of them run script in the browser of whoever saw the toast.
+function el(tag, className, text) {
+  const node = document.createElement(tag)
+  node.className = className
+  if (text != null) node.textContent = String(text)
+  return node
+}
+
 function createToast(title, description, variant = 'default') {
-  const container = document.createElement('div')
-  container.className = 'toast-overlay fixed top-4 right-4 z-50 flex gap-2'
-  container.innerHTML = `
-    <div class="toast p-4 rounded-lg shadow-level2 transition-opacity duration-500 ${
-      variant === 'danger'
-        ? 'bg-danger-bg text-danger-text'
-        : 'bg-surface text-ink'
-    }">
-      <div class="flex items-start gap-2">
-        <span class="w-2 h-2 rounded-full shrink-0 ${
-          variant === 'danger' ? 'bg-danger' : 'bg-secondary'
-        }" />
-        <div>
-          <p class="font-medium">${title}</p>
-          ${description ? `<p class="text-body-sm text-ink-muted mt-0.5">${description}</p>` : ''}
-        </div>
-      </div>
-    </div>
-  `
+  const danger = variant === 'danger'
+  const container = el('div', 'toast-overlay fixed top-4 right-4 z-50 flex gap-2')
+  const card = el('div', clsx(
+    'toast p-4 rounded-lg shadow-level2 transition-opacity duration-500',
+    danger ? 'bg-danger-bg text-danger-text' : 'bg-surface text-ink',
+  ))
+  card.setAttribute('role', danger ? 'alert' : 'status')
+
+  const body = el('div', '')
+  body.append(el('p', 'font-medium', title))
+  if (description) body.append(el('p', 'text-body-sm text-ink-muted mt-0.5', description))
+
+  const row = el('div', 'flex items-start gap-2')
+  row.append(el('span', clsx('w-2 h-2 rounded-full shrink-0 mt-1.5', danger ? 'bg-danger' : 'bg-secondary')), body)
+  card.append(row)
+  container.append(card)
   document.body.appendChild(container)
 
   // Auto-remove after 5 seconds
