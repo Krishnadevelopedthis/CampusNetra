@@ -31,7 +31,9 @@ export default function IssueDetail() {
 
   const { data: issue, isLoading, error, refetch } = useQuery({
     queryKey: ['issue', id],
-    queryFn: () => api.get(`/issues/${id}`),
+    queryFn: ({ signal }) =>
+    api.get(`/issues/${id}`, { signal }),
+    retry: false,
   })
 
   const invalidate = () => {
