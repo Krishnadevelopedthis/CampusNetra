@@ -32,30 +32,34 @@ export default function IssueDetail() {
   const {
     data: issue,
     isLoading,
-    isFetching,
     error,
     refetch,
   } = useQuery({
     queryKey: ['issue', id],
 
-    // React Query provides an AbortSignal. Our api.js now supports it.
-    // This means navigating away from the page cancels the request cleanly.
-    queryFn: ({ signal }) =>
-      api.get(`/issues/${id}`, { signal }),
+    /*
+     * IMPORTANT:
+     *
+     * Do not pass React Query's AbortSignal here.
+     *
+     * The issue detail request is handled by api.js and has its
+     * own timeout/error handling. Keeping this request independent
+     * of React Query's observer cancellation prevents the detail
+     * request from being aborted/restarted during component
+     * lifecycle changes.
+     */
+    queryFn: () => api.get(`/issues/${id}`),
 
-    // Never run the request with an undefined/empty issue ID.
+    // Never request an issue when the route does not contain an ID.
     enabled: Boolean(id),
 
-    // Do not repeatedly hammer the API when the detail endpoint returns
-    // an actual error. The user can explicitly retry using ErrorState.
+    // The user can explicitly retry from ErrorState.
     retry: false,
 
-    // Keep the successfully loaded issue available briefly when React
-    // revalidates it, avoiding unnecessary loading flashes.
+    // Keep successfully loaded issue data available briefly.
     staleTime: 30000,
 
-    // Prevent an accidental infinite "fetching" state caused by an
-    // immediately repeated refetch cycle.
+    // Prevent unnecessary refetches when the browser regains focus.
     refetchOnWindowFocus: false,
   })
 
@@ -99,8 +103,8 @@ export default function IssueDetail() {
         title: issue.title,
         description: issue.description,
         issue_id: id,
-        room_id: issue.location.room_id,
-        asset_id: issue.location.asset_id,
+        room_id: issue.location?.room_id,
+        asset_id: issue.location?.asset_id,
         priority: issue.priority,
       }),
 
@@ -116,11 +120,12 @@ export default function IssueDetail() {
   })
 
   /*
-   * Keep the original loading behaviour.
+   * Full-page loading is only shown while the initial query
+   * has no data yet.
    *
-   * isFetching is intentionally NOT used here because background
-   * revalidation must not replace the already-rendered issue with
-   * a full-page spinner.
+   * Background fetching is intentionally not used here because
+   * an already-loaded issue should remain visible during
+   * revalidation.
    */
   if (isLoading) {
     return <Spinner label="Loading issue…" />
@@ -136,9 +141,10 @@ export default function IssueDetail() {
   }
 
   /*
-   * If the query was disabled because the route contained no ID,
-   * or if an unexpected empty response reached this component,
-   * don't attempt to access issue.title / issue.location etc.
+   * Defensive fallback.
+   *
+   * This prevents the page from trying to access properties on
+   * an undefined issue object.
    */
   if (!issue) {
     return (
@@ -154,6 +160,8 @@ export default function IssueDetail() {
   const overdue =
     issue.sla_minutes_remaining != null &&
     issue.sla_minutes_remaining < 0
+
+  const timeline = issue.timeline || []
 
   return (
     <div className="space-y-5 max-w-6xl">
@@ -349,12 +357,11 @@ export default function IssueDetail() {
             bodyClass="p-0"
           >
             <ol className="p-widget space-y-0">
-              {(issue.timeline || []).map(
+              {timeline.map(
                 (e, i) => {
                   const last =
                     i ===
-                    issue.timeline.length -
-                      1
+                    timeline.length - 1
 
                   return (
                     <li
@@ -813,7 +820,7 @@ function DuplicatePanel({
 
               <p className="text-body-sm text-ink-faint mt-0.5">
                 {Object.entries(
-                  c.signals,
+                  c.signals || {},
                 )
                   .filter(
                     ([k]) =>
