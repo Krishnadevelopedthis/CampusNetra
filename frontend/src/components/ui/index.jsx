@@ -6,8 +6,55 @@ import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
 export { SkeletonRows }
 
-import { AssetModal as Modal, RoomModal } from '@/features/twin/AssetRoomModals'
-export { Modal, RoomModal }
+/* ---------------- Modal ---------------- */
+export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => e.key === 'Escape' && onClose?.()
+    document.addEventListener('keydown', onKey)
+    // Prevent the page behind the overlay from scrolling.
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [open, onClose])
+
+  if (!open) return null
+  const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+      />
+      <div
+        ref={ref} role="dialog" aria-modal="true" aria-label={title}
+        className={clsx(
+          'relative w-full bg-surface rounded-2xl border border-border-subtle shadow-level3 animate-slide-up',
+          'max-h-[90vh] flex flex-col', widths[size],
+        )}
+      >
+        <header className="flex items-center justify-between px-5 py-4 border-b border-border-subtle shrink-0">
+          <h2 className="text-headline-md">{title}</h2>
+          <button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded-lg" aria-label="Close">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="p-5 overflow-y-auto">{children}</div>
+        {footer && (
+          <footer className="px-5 py-4 border-t border-border-subtle flex justify-end gap-2 shrink-0">
+            {footer}
+          </footer>
+        )}
+      </div>
+    </div>
+  )
+}
 
 /* ---------------- Toaster ---------------- */
 export function Toaster({onOpen, onClose}) {
