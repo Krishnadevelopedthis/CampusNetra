@@ -4,9 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Spinner, Toaster } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
-import { useAuth,addGlobalSessionReset } from '@/lib/auth'
-
-
+import { useAuth } from '@/lib/auth'
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -18,59 +16,130 @@ import Search from '@/pages/Search'
 import VerifyEmail from '@/pages/VerifyEmail'
 
 // Everything behind the app shell is split out of the initial bundle.
-const Dashboard      = lazy(() => import('@/pages/Dashboard'))
-const ReportIssue    = lazy(() => import('@/pages/ReportIssue'))
-const IssueList      = lazy(() => import('@/pages/IssueList'))
-const IssueDetail    = lazy(() => import('@/pages/IssueDetail'))
-const IssueMap       = lazy(() => import('@/pages/IssueMap'))
-const DigitalTwin    = lazy(() => import('@/pages/DigitalTwin'))
-const CampusMap      = lazy(() => import('@/pages/CampusMap'))
-const FloorPlanEditor= lazy(() => import('@/pages/FloorPlanEditor'))
-const AssetList      = lazy(() => import('@/pages/AssetList'))
-const AssetDetail    = lazy(() => import('@/pages/AssetDetail'))
-const EventReplay    = lazy(() => import('@/pages/EventReplay'))
-const WorkOrderList  = lazy(() => import('@/pages/WorkOrderList'))
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const ReportIssue = lazy(() => import('@/pages/ReportIssue'))
+const IssueList = lazy(() => import('@/pages/IssueList'))
+const IssueDetail = lazy(() => import('@/pages/IssueDetail'))
+const IssueMap = lazy(() => import('@/pages/IssueMap'))
+const DigitalTwin = lazy(() => import('@/pages/DigitalTwin'))
+const CampusMap = lazy(() => import('@/pages/CampusMap'))
+const FloorPlanEditor = lazy(() => import('@/pages/FloorPlanEditor'))
+const AssetList = lazy(() => import('@/pages/AssetList'))
+const AssetDetail = lazy(() => import('@/pages/AssetDetail'))
+const EventReplay = lazy(() => import('@/pages/EventReplay'))
+const WorkOrderList = lazy(() => import('@/pages/WorkOrderList'))
 const WorkOrderBoard = lazy(() => import('@/pages/WorkOrderBoard'))
-const WorkOrderDetail= lazy(() => import('@/pages/WorkOrderDetail'))
-const Inspections    = lazy(() => import('@/pages/Inspections'))
+const WorkOrderDetail = lazy(() => import('@/pages/WorkOrderDetail'))
+const Inspections = lazy(() => import('@/pages/Inspections'))
 const InspectionDetail = lazy(() => import('@/pages/InspectionDetail'))
-const LostFound      = lazy(() => import('@/pages/LostFound'))
-const LostFoundItem  = lazy(() => import('@/pages/LostFoundItem'))
-const ReportItem     = lazy(() => import('@/pages/ReportItem'))
-const Help           = lazy(() => import('@/pages/Help'))
-const Settings       = lazy(() => import('@/pages/Settings'))
-const Analytics      = lazy(() => import('@/pages/Analytics'))
-const Profile        = lazy(() => import('@/pages/Profile'))
-const AdminLayout    = lazy(() => import('@/pages/admin/AdminLayout'))
-const AdminOverview  = lazy(() => import('@/pages/admin/AdminOverview'))
-const AdminUsers     = lazy(() => import('@/pages/admin/AdminUsers'))
-const AdminPredictive= lazy(() => import('@/pages/admin/AdminPredictive'))
-const AdminAI        = lazy(() => import('@/pages/admin/AdminAI'))
-const AdminAssets    = lazy(() => import('@/pages/admin/AdminAssets'))
-const AdminCosts     = lazy(() => import('@/pages/admin/AdminCosts'))
-const AdminCampus    = lazy(() => import('@/pages/admin/AdminCampus'))
-const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
-const AdminInspectionConfig = lazy(() => import('@/pages/admin/AdminTemplates').then((m) => ({ default: m.AdminInspectionConfig })))
-const AdminNotifications = lazy(() => import('@/pages/admin/AdminTemplates').then((m) => ({ default: m.AdminNotifications })))
-const AdminWorkOrderConfig = lazy(() => import('@/pages/admin/AdminSystem').then((m) => ({ default: m.AdminWorkOrderConfig })))
-const AdminTwinConfig = lazy(() => import('@/pages/admin/AdminSystem').then((m) => ({ default: m.AdminTwinConfig })))
-const AdminIssueConfig = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminIssueConfig })))
-const AdminSLA       = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminSLA })))
-const AdminAudit     = lazy(() => import('@/pages/admin/AdminConfig').then((m) => ({ default: m.AdminAudit })))
-const NotFound       = lazy(() => import('@/pages/errors/NotFound'))
-const Forbidden      = lazy(() => import('@/pages/errors/Forbidden'))
-const ServerError    = lazy(() => import('@/pages/errors/ServerError'))
+const LostFound = lazy(() => import('@/pages/LostFound'))
+const LostFoundItem = lazy(() => import('@/pages/LostFoundItem'))
+const ReportItem = lazy(() => import('@/pages/ReportItem'))
+const Help = lazy(() => import('@/pages/Help'))
+const Settings = lazy(() => import('@/pages/Settings'))
+const Analytics = lazy(() => import('@/pages/Analytics'))
+const Profile = lazy(() => import('@/pages/Profile'))
 
+const AdminLayout = lazy(() => import('@/pages/admin/AdminLayout'))
+const AdminOverview = lazy(() => import('@/pages/admin/AdminOverview'))
+const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
+const AdminPredictive = lazy(() => import('@/pages/admin/AdminPredictive'))
+const AdminAI = lazy(() => import('@/pages/admin/AdminAI'))
+const AdminAssets = lazy(() => import('@/pages/admin/AdminAssets'))
+const AdminCosts = lazy(() => import('@/pages/admin/AdminCosts'))
+const AdminCampus = lazy(() => import('@/pages/admin/AdminCampus'))
+const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
+
+const AdminInspectionConfig = lazy(() =>
+  import('@/pages/admin/AdminTemplates').then((m) => ({
+    default: m.AdminInspectionConfig,
+  }))
+)
+
+const AdminNotifications = lazy(() =>
+  import('@/pages/admin/AdminTemplates').then((m) => ({
+    default: m.AdminNotifications,
+  }))
+)
+
+const AdminWorkOrderConfig = lazy(() =>
+  import('@/pages/admin/AdminSystem').then((m) => ({
+    default: m.AdminWorkOrderConfig,
+  }))
+)
+
+const AdminTwinConfig = lazy(() =>
+  import('@/pages/admin/AdminSystem').then((m) => ({
+    default: m.AdminTwinConfig,
+  }))
+)
+
+const AdminIssueConfig = lazy(() =>
+  import('@/pages/admin/AdminConfig').then((m) => ({
+    default: m.AdminIssueConfig,
+  }))
+)
+
+const AdminSLA = lazy(() =>
+  import('@/pages/admin/AdminConfig').then((m) => ({
+    default: m.AdminSLA,
+  }))
+)
+
+const AdminAudit = lazy(() =>
+  import('@/pages/admin/AdminConfig').then((m) => ({
+    default: m.AdminAudit,
+  }))
+)
+
+const NotFound = lazy(() => import('@/pages/errors/NotFound'))
+const Forbidden = lazy(() => import('@/pages/errors/Forbidden'))
+const ServerError = lazy(() => import('@/pages/errors/ServerError'))
+
+/**
+ * Protect authenticated routes.
+ *
+ * IMPORTANT:
+ * This is a frontend navigation guard only.
+ * Actual authorization/security must still be enforced by
+ * the FastAPI backend.
+ */
 function RequireAuth({ children, roles }) {
   const { user, initialised } = useAuth()
   const location = useLocation()
 
-  if (!initialised) return <Spinner label="Restoring your session…" className="min-h-screen" />
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />
-  if (roles && !roles.includes(user.role)) return <Navigate to="/403" replace />
+  if (!initialised) {
+    return (
+      <Spinner
+        label="Restoring your session…"
+        className="min-h-screen"
+      />
+    )
+  }
+
+  if (!user) {
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location }}
+        replace
+      />
+    )
+  }
+
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/403" replace />
+  }
+
   return children
 }
 
+/**
+ * Where authenticated users are redirected when they attempt
+ * to visit a public-only page.
+ *
+ * Kept exactly according to the existing application behavior.
+ */
 const ROLE_HOME = {
   student: '/dashboard',
   teacher: '/dashboard',
@@ -80,122 +149,592 @@ const ROLE_HOME = {
   super_admin: '/admin',
 }
 
+/**
+ * Prevent already-authenticated users from visiting pages such
+ * as login/register/forgot-password.
+ */
 function PublicOnly({ children }) {
   const { user, initialised } = useAuth()
-  if (!initialised) return <Spinner label="Loading…" className="min-h-screen" />
-  if (user) return <Navigate to={ROLE_HOME[user.role] || '/dashboard'} replace />
+
+  if (!initialised) {
+    return (
+      <Spinner
+        label="Loading…"
+        className="min-h-screen"
+      />
+    )
+  }
+
+  if (user) {
+    return (
+      <Navigate
+        to={ROLE_HOME[user.role] || '/dashboard'}
+        replace
+      />
+    )
+  }
+
   return children
 }
 
-const STAFF = ['technician', 'facility_manager', 'admin', 'super_admin']
-const MANAGER = ['facility_manager', 'admin', 'super_admin']
-const ADMIN = ['admin', 'super_admin']
+/**
+ * Existing role groups.
+ *
+ * These are intentionally preserved exactly.
+ */
+const STAFF = [
+  'technician',
+  'facility_manager',
+  'admin',
+  'super_admin',
+]
+
+const MANAGER = [
+  'facility_manager',
+  'admin',
+  'super_admin',
+]
+
+const ADMIN = [
+  'admin',
+  'super_admin',
+]
 
 export default function App() {
   const init = useAuth((s) => s.init)
   const location = useLocation()
   const { user, initialised } = useAuth()
 
-  useEffect(() => { init() }, [init])
-
-  // Register global activity listeners to reset the 2-minute session timeout
+  /**
+   * Restore and validate the authentication session once when
+   * the application starts.
+   */
   useEffect(() => {
-    const cleanup = addGlobalSessionReset()
-    return cleanup
+    init()
   }, [init])
 
-  // Show Toaster only on authenticated routes (not landing, login, register, etc.)
+  /**
+   * IMPORTANT:
+   *
+   * The old global activity listener that reset a 2-minute
+   * inactivity logout has intentionally been removed.
+   *
+   * auth.js still exports addGlobalSessionReset() for compatibility
+   * with any other existing code, but App no longer needs to
+   * register unnecessary global listeners.
+   *
+   * Backend authentication/token expiration remains responsible
+   * for session validity.
+   */
+
+  // Show Toaster only on authenticated routes
+  // (not landing, login, register, etc.)
   const showToaster = initialised && user
 
   return (
     <>
-      {/* Keyed on the path so a crash on one page clears when you navigate
-          away, instead of wedging the whole app until a reload. */}
+      {/*
+        Keyed on the path so a crash on one page clears when you
+        navigate away, instead of wedging the whole app until
+        a reload.
+      */}
       <ErrorBoundary resetKey={location.pathname}>
-      <Suspense fallback={<Spinner className="min-h-screen" />}>
-        <Routes>
-          {/* Public */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-          <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+        <Suspense fallback={<Spinner className="min-h-screen" />}>
+          <Routes>
 
-          {/* Authenticated shell */}
-          <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-            <Route path="/dashboard" element={<Dashboard />} />
+            {/* =====================================================
+                PUBLIC
+            ====================================================== */}
 
-            {/* Reporter (student/teacher) + Manager/Admin can see issues */}
-            <Route path="/issues" element={<RequireAuth roles={['student', 'teacher', 'facility_manager', 'admin', 'super_admin']}><IssueList /></RequireAuth>} />
-            <Route path="/issues/new" element={<RequireAuth roles={['student', 'teacher']}><ReportIssue /></RequireAuth>} />
-            <Route path="/issues/map" element={<RequireAuth roles={['facility_manager', 'admin', 'super_admin']}><IssueMap /></RequireAuth>} />
-            <Route path="/issues/:id" element={<RequireAuth roles={['student', 'teacher', 'technician', 'facility_manager', 'admin', 'super_admin']}><IssueDetail /></RequireAuth>} />
-
-            {/* Campus Map - student/teacher + manager/admin */}
-            <Route path="/map" element={<RequireAuth roles={['student', 'teacher', 'facility_manager', 'admin', 'super_admin']}><CampusMap /></RequireAuth>} />
-            {/* Digital Twin - technician + manager/admin */}
-            <Route path="/twin" element={<RequireAuth roles={['technician', 'facility_manager', 'admin', 'super_admin']}><DigitalTwin /></RequireAuth>} />
-            <Route path="/twin/:floorId" element={<RequireAuth roles={['technician', 'facility_manager', 'admin', 'super_admin']}><DigitalTwin /></RequireAuth>} />
-            <Route path="/replay" element={<RequireAuth roles={STAFF}><EventReplay /></RequireAuth>} />
-            <Route path="/assets" element={<RequireAuth roles={STAFF}><AssetList /></RequireAuth>} />
-            <Route path="/assets/:id" element={<RequireAuth roles={STAFF}><AssetDetail /></RequireAuth>} />
-
-            <Route path="/work-orders" element={<RequireAuth roles={STAFF}><WorkOrderList /></RequireAuth>} />
-            <Route path="/work-orders/board" element={<RequireAuth roles={STAFF}><WorkOrderBoard /></RequireAuth>} />
-            <Route path="/work-orders/:id" element={<RequireAuth roles={STAFF}><WorkOrderDetail /></RequireAuth>} />
-
-            <Route path="/inspections" element={<RequireAuth roles={STAFF}><Inspections /></RequireAuth>} />
-            <Route path="/inspections/:id" element={<RequireAuth roles={STAFF}><InspectionDetail /></RequireAuth>} />
-
-            <Route path="/lost-found" element={<LostFound />} />
-            <Route path="/lost-found/report" element={<ReportItem />} />
-            <Route path="/lost-found/items/:id" element={<LostFoundItem />} />
-
-            <Route path="/analytics" element={<RequireAuth roles={MANAGER}><Analytics /></RequireAuth>} />
-            {/* The sidebar lists Simulation separately, so it needs a path of
-                its own — sharing /analytics would light up both nav entries. */}
             <Route
-              path="/simulation"
-              element={<RequireAuth roles={MANAGER}><Analytics defaultTab="simulation" /></RequireAuth>}
+              path="/"
+              element={<LandingPage />}
             />
 
-            <Route path="/help" element={<Help />} />
+            <Route
+              path="/login"
+              element={
+                <PublicOnly>
+                  <Login />
+                </PublicOnly>
+              }
+            />
 
-            <Route path="/search" element={<Search />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route
+              path="/register"
+              element={
+                <PublicOnly>
+                  <Register />
+                </PublicOnly>
+              }
+            />
 
-            {/* Role landing aliases */}
-            <Route path="/technician" element={<Navigate to="/work-orders" replace />} />
-            <Route path="/facility" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/admin" element={<RequireAuth roles={MANAGER}><AdminLayout /></RequireAuth>}>
-              <Route index element={<AdminOverview />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="predictive" element={<AdminPredictive />} />
-              <Route path="floor-plans" element={<FloorPlanEditor />} />
-              <Route path="ai" element={<AdminAI />} />
-              <Route path="campus" element={<AdminCampus />} />
-              <Route path="assets" element={<AdminAssets />} />
-              <Route path="costs" element={<AdminCosts />} />
-              <Route path="lost-found" element={<AdminLostFound />} />
-              <Route path="inspection-config" element={<AdminInspectionConfig />} />
-              <Route path="notifications" element={<AdminNotifications />} />
-              <Route path="workorder-config" element={<AdminWorkOrderConfig />} />
-              <Route path="twin-config" element={<AdminTwinConfig />} />
-              <Route path="issue-config" element={<AdminIssueConfig />} />
-              <Route path="sla" element={<AdminSLA />} />
-              <Route path="audit" element={<RequireAuth roles={ADMIN}><AdminAudit /></RequireAuth>} />
+            <Route
+              path="/verify-email"
+              element={<VerifyEmail />}
+            />
+
+            <Route
+              path="/forgot-password"
+              element={
+                <PublicOnly>
+                  <ForgotPassword />
+                </PublicOnly>
+              }
+            />
+
+            <Route
+              path="/reset-password"
+              element={<ResetPassword />}
+            />
+
+            {/* =====================================================
+                AUTHENTICATED SHELL
+            ====================================================== */}
+
+            <Route
+              element={
+                <RequireAuth>
+                  <AppLayout />
+                </RequireAuth>
+              }
+            >
+
+              {/* Dashboard */}
+
+              <Route
+                path="/dashboard"
+                element={<Dashboard />}
+              />
+
+              {/* =================================================
+                  ISSUES
+              ================================================== */}
+
+              {/* Reporter (student/teacher) + Manager/Admin */}
+              <Route
+                path="/issues"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'student',
+                      'teacher',
+                      'facility_manager',
+                      'admin',
+                      'super_admin',
+                    ]}
+                  >
+                    <IssueList />
+                  </RequireAuth>
+                }
+              />
+
+              {/* Student/Teacher issue reporting */}
+              <Route
+                path="/issues/new"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'student',
+                      'teacher',
+                    ]}
+                  >
+                    <ReportIssue />
+                  </RequireAuth>
+                }
+              />
+
+              {/* Issue map */}
+              <Route
+                path="/issues/map"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'facility_manager',
+                      'admin',
+                      'super_admin',
+                    ]}
+                  >
+                    <IssueMap />
+                  </RequireAuth>
+                }
+              />
+
+              {/* Issue detail */}
+              <Route
+                path="/issues/:id"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'student',
+                      'teacher',
+                      'technician',
+                      'facility_manager',
+                      'admin',
+                      'super_admin',
+                    ]}
+                  >
+                    <IssueDetail />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  CAMPUS MAP
+              ================================================== */}
+
+              <Route
+                path="/map"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'student',
+                      'teacher',
+                      'facility_manager',
+                      'admin',
+                      'super_admin',
+                    ]}
+                  >
+                    <CampusMap />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  DIGITAL TWIN
+              ================================================== */}
+
+              <Route
+                path="/twin"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'technician',
+                      'facility_manager',
+                      'admin',
+                      'super_admin',
+                    ]}
+                  >
+                    <DigitalTwin />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/twin/:floorId"
+                element={
+                  <RequireAuth
+                    roles={[
+                      'technician',
+                      'facility_manager',
+                      'admin',
+                      'super_admin',
+                    ]}
+                  >
+                    <DigitalTwin />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  STAFF
+              ================================================== */}
+
+              <Route
+                path="/replay"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <EventReplay />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/assets"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <AssetList />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/assets/:id"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <AssetDetail />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  WORK ORDERS
+              ================================================== */}
+
+              <Route
+                path="/work-orders"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <WorkOrderList />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/work-orders/board"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <WorkOrderBoard />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/work-orders/:id"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <WorkOrderDetail />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  INSPECTIONS
+              ================================================== */}
+
+              <Route
+                path="/inspections"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <Inspections />
+                  </RequireAuth>
+                }
+              />
+
+              <Route
+                path="/inspections/:id"
+                element={
+                  <RequireAuth roles={STAFF}>
+                    <InspectionDetail />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  LOST & FOUND
+              ================================================== */}
+
+              <Route
+                path="/lost-found"
+                element={<LostFound />}
+              />
+
+              <Route
+                path="/lost-found/report"
+                element={<ReportItem />}
+              />
+
+              <Route
+                path="/lost-found/items/:id"
+                element={<LostFoundItem />}
+              />
+
+              {/* =================================================
+                  ANALYTICS
+              ================================================== */}
+
+              <Route
+                path="/analytics"
+                element={
+                  <RequireAuth roles={MANAGER}>
+                    <Analytics />
+                  </RequireAuth>
+                }
+              />
+
+              {/*
+                The sidebar lists Simulation separately, so it
+                needs a path of its own — sharing /analytics would
+                light up both nav entries.
+              */}
+              <Route
+                path="/simulation"
+                element={
+                  <RequireAuth roles={MANAGER}>
+                    <Analytics defaultTab="simulation" />
+                  </RequireAuth>
+                }
+              />
+
+              {/* =================================================
+                  GENERAL
+              ================================================== */}
+
+              <Route
+                path="/help"
+                element={<Help />}
+              />
+
+              <Route
+                path="/search"
+                element={<Search />}
+              />
+
+              <Route
+                path="/profile"
+                element={<Profile />}
+              />
+
+              <Route
+                path="/settings"
+                element={<Settings />}
+              />
+
+              {/* =================================================
+                  ROLE LANDING ALIASES
+              ================================================== */}
+
+              <Route
+                path="/technician"
+                element={
+                  <Navigate
+                    to="/work-orders"
+                    replace
+                  />
+                }
+              />
+
+              <Route
+                path="/facility"
+                element={
+                  <Navigate
+                    to="/dashboard"
+                    replace
+                  />
+                }
+              />
+
+              {/* =================================================
+                  ADMIN
+              ================================================== */}
+
+              <Route
+                path="/admin"
+                element={
+                  <RequireAuth roles={MANAGER}>
+                    <AdminLayout />
+                  </RequireAuth>
+                }
+              >
+                <Route
+                  index
+                  element={<AdminOverview />}
+                />
+
+                <Route
+                  path="users"
+                  element={<AdminUsers />}
+                />
+
+                <Route
+                  path="predictive"
+                  element={<AdminPredictive />}
+                />
+
+                <Route
+                  path="floor-plans"
+                  element={<FloorPlanEditor />}
+                />
+
+                <Route
+                  path="ai"
+                  element={<AdminAI />}
+                />
+
+                <Route
+                  path="campus"
+                  element={<AdminCampus />}
+                />
+
+                <Route
+                  path="assets"
+                  element={<AdminAssets />}
+                />
+
+                <Route
+                  path="costs"
+                  element={<AdminCosts />}
+                />
+
+                <Route
+                  path="lost-found"
+                  element={<AdminLostFound />}
+                />
+
+                <Route
+                  path="inspection-config"
+                  element={<AdminInspectionConfig />}
+                />
+
+                <Route
+                  path="notifications"
+                  element={<AdminNotifications />}
+                />
+
+                <Route
+                  path="workorder-config"
+                  element={<AdminWorkOrderConfig />}
+                />
+
+                <Route
+                  path="twin-config"
+                  element={<AdminTwinConfig />}
+                />
+
+                <Route
+                  path="issue-config"
+                  element={<AdminIssueConfig />}
+                />
+
+                <Route
+                  path="sla"
+                  element={<AdminSLA />}
+                />
+
+                <Route
+                  path="audit"
+                  element={
+                    <RequireAuth roles={ADMIN}>
+                      <AdminAudit />
+                    </RequireAuth>
+                  }
+                />
+              </Route>
             </Route>
-          </Route>
 
-          {/* Errors */}
-          <Route path="/403" element={<Forbidden />} />
-          <Route path="/500" element={<ServerError />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+            {/* =====================================================
+                ERRORS
+            ====================================================== */}
+
+            <Route
+              path="/403"
+              element={<Forbidden />}
+            />
+
+            <Route
+              path="/500"
+              element={<ServerError />}
+            />
+
+            <Route
+              path="*"
+              element={<NotFound />}
+            />
+
+          </Routes>
+        </Suspense>
       </ErrorBoundary>
+
       {showToaster && <Toaster />}
     </>
   )
