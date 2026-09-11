@@ -23,7 +23,7 @@ from app.schemas.common import Message
 from app.services import auth as auth_service
 from app.services import notifications as notify_svc
 from app.services.audit import record_audit
-from app.services.email import send_otp
+from app.services.email import send_email, send_otp
 
 router = APIRouter(route_class=CommitRoute, prefix="/auth", tags=["Authentication"])
 
@@ -190,46 +190,78 @@ async def update_me(payload: UpdateProfileRequest, user: CurrentUser, db: DB):
     return UserOut.model_validate(user)
 
 
+async def _ensure_email_free(db: DB, email: str, user: User) -> None:
+    # users.email is CITEXT, so this comparison already ignores case.
+    taken = await db.scalar(select(User.id).where(User.email == email, User.id != user.id))
+    if taken is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That email address is already in use")
+
+
 @router.post("/me/change-email", response_model=Message)
-async def request_email_change(
-    payload: RequestEmailChangeRequest, user: CurrentUser, db: DB
-):
-    """Request an email change. Sends a 6-digit OTP to the current email.
-    The OTP is tied to the user's session, not the new email address."""
-    generic = Message(detail="If that address is eligible, a 6-digit OTP has been sent to your current email.")
-    # Create a one-time OTP for email change tied to the user
-    code = await auth_service.create_verification_code(db, user, "email_change")
-    sent = await send_otp(user.email, user.full_name, code, "email_change")
-    if not sent.delivered and settings.expose_dev_codes:
+async def request_email_change(payload: RequestEmailChangeRequest, user: CurrentUser, db: DB):
+    """Sends a code to the new address; nothing changes until it is entered.
+
+    The code goes to the address being claimed, because that is what needs
+    proving — a code sent to the old one shows only that the requester can read
+    mail they already had. It is also bound to that address, so it cannot be
+    redeemed for a different one.
+    """
+    new_email = str(payload.new_email)
+    if new_email.lower() == user.email.lower():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That is already your email address")
+    await _ensure_email_free(db, new_email, user)
+
+    code = await auth_service.create_verification_code(
+        db, user, "email_change", bind=new_email.lower()
+    )
+    sent = await send_otp(new_email, user.full_name, code, "email_change")
+    if sent.delivered:
+        return Message(detail=f"A verification code has been sent to {new_email}.")
+    if settings.expose_dev_codes:
         return Message(
             detail="Email is not configured on this server; your code is shown below.",
             dev_code=code,
         )
-    return generic
+    raise HTTPException(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        f"The verification email could not be sent. {sent.error or ''}".strip(),
+    )
 
 
-@router.post("/auth/me/verify-email-change", response_model=AuthResponse)
+@router.post("/me/verify-email-change", response_model=UserOut)
 async def verify_email_change(
     payload: ChangeEmailRequest, user: CurrentUser, db: DB, request: Request
 ):
-    """Verify the OTP and update the user's email address."""
-    user_row = await db.scalar(select(User).where(User.id == user.id))
-    if user_row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
-
-    await auth_service.consume_verification_code(db, user_row, "email_change", payload.otp_code)
-
-    now = datetime.now(timezone.utc)
-    user_row.email = payload.new_email
-    user_row.email_verified_at = now
-    user_row.last_login_at = now
-    await db.flush()
-
-    tokens, raw = auth_service.issue_tokens(user_row)
-    await auth_service.persist_refresh_token(
-        db, user_row, raw, client_ip(request), request.headers.get("user-agent")
+    """Redeems the code sent to the new address and moves the account onto it."""
+    new_email = str(payload.new_email)
+    # Checked again: the address may have been claimed since the code went out.
+    await _ensure_email_free(db, new_email, user)
+    await auth_service.consume_verification_code(
+        db, user, "email_change", payload.otp_code, bind=new_email.lower()
     )
-    return AuthResponse(user=UserOut.model_validate(user_row), tokens=tokens)
+
+    old_email = user.email
+    user.email = new_email
+    user.email_verified_at = datetime.now(timezone.utc)
+    await db.flush()
+    await record_audit(
+        db, action="user.change_email", actor_id=user.id,
+        organization_id=user.organization_id, entity_type="user", entity_id=user.id,
+        ip_address=client_ip(request), before={"email": old_email}, after={"email": new_email},
+    )
+
+    # The old mailbox is the only place the real owner would hear about a change
+    # they did not make, so it is told either way.
+    await send_email(
+        old_email,
+        "Your Campus Netra email address was changed",
+        f"Hello {user.full_name},\n\n"
+        f"The email address on your Campus Netra account was changed to {new_email}.\n\n"
+        f"If you made this change, there is nothing more to do. If you did not, "
+        f"contact your campus administrator straight away.\n\n"
+        f"— Campus Netra",
+    )
+    return UserOut.model_validate(user)
 
 
 @router.post("/me/export", response_model=Message)

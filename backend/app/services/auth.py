@@ -53,7 +53,15 @@ async def persist_refresh_token(
     ))
 
 
-async def create_verification_code(db: AsyncSession, user: User, purpose: str) -> str:
+def _code_hash(code: str, bind: Optional[str]) -> str:
+    # A bound code has its target folded into the hash, so a code issued for
+    # one address cannot be redeemed for another.
+    return sha256(f"{bind}:{code}" if bind else code)
+
+
+async def create_verification_code(
+    db: AsyncSession, user: User, purpose: str, bind: Optional[str] = None
+) -> str:
     """Invalidates any outstanding code for the same purpose, then issues a fresh one."""
     await db.execute(
         update(VerificationCode)
@@ -66,14 +74,14 @@ async def create_verification_code(db: AsyncSession, user: User, purpose: str) -
     )
     code = generate_otp()
     db.add(VerificationCode(
-        user_id=user.id, purpose=purpose, code_hash=sha256(code),
+        user_id=user.id, purpose=purpose, code_hash=_code_hash(code, bind),
         expires_at=_now() + timedelta(minutes=settings.OTP_EXPIRE_MINUTES),
     ))
     return code
 
 
 async def consume_verification_code(
-    db: AsyncSession, user: User, purpose: str, code: str
+    db: AsyncSession, user: User, purpose: str, code: str, bind: Optional[str] = None
 ) -> None:
     """Raises 400 on any failure. Attempts are counted to blunt brute force."""
     record = await db.scalar(
@@ -93,7 +101,7 @@ async def consume_verification_code(
     if record.attempts >= 5:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many incorrect attempts; request a new code")
 
-    if record.code_hash != sha256(code):
+    if record.code_hash != _code_hash(code, bind):
         record.attempts += 1
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Incorrect verification code")
 
