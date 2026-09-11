@@ -225,14 +225,44 @@ async def issue_map(
         "legend": [{"priority": p, "colour": c} for p, c in PRIORITY_COLOUR.items()],
     }
 
-
 @router.get("/{issue_id}", response_model=IssueDetail)
 async def get_issue(issue_id: uuid.UUID, user: CurrentUser, db: DB):
+    import time
+
+    started = time.perf_counter()
+
+    print(
+        f"[ISSUE_DETAIL] START issue_id={issue_id} user={user.id}",
+        flush=True,
+    )
+
+    print("[ISSUE_DETAIL] before _get_issue_or_404", flush=True)
+
     issue = await _get_issue_or_404(db, issue_id, user)
-    # A reporter may always read their own issue; others need staff rights.
+
+    print(
+        f"[ISSUE_DETAIL] after _get_issue_or_404 "
+        f"elapsed={time.perf_counter() - started:.2f}s",
+        flush=True,
+    )
+
     if user.role in (UserRole.STUDENT, UserRole.TEACHER) and issue.reported_by != user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "You can only view issues you reported")
-    return await issue_views.to_detail(db, issue)
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "You can only view issues you reported",
+        )
+
+    print("[ISSUE_DETAIL] before to_detail", flush=True)
+
+    detail = await issue_views.to_detail(db, issue)
+
+    print(
+        f"[ISSUE_DETAIL] after to_detail "
+        f"elapsed={time.perf_counter() - started:.2f}s",
+        flush=True,
+    )
+
+    return detail
 
 
 @router.post("/{issue_id}/transition", response_model=IssueDetail)
