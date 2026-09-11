@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { AlertCircle,Bell, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
 import { forwardRef, useEffect, useRef, useState } from 'react'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
@@ -53,38 +53,6 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
         )}
       </div>
     </div>
-  )
-}
-
-/* ---------------- Toaster ---------------- */
-export function Toaster({onOpen, onClose}) {
-  const [open, setOpen] = useState(false)
-  return ( 
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="btn-ghost h-8 w-8 p-0 rounded flex items-center justify-center gap-1"
-        aria-label="Notifications"
-      >
-        <Bell size={16} />
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-40 bg-black/40 animate-fade-in" onClick={onClose}>
-          <div className="absolute inset-0 bg-surface rounded-xl shadow-popover p-4 w-64 shadow-level3">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-headline-sm font-medium text-ink">Notifications</span>
-              <button onClick={() => setOpen(false)} className="btn-ghost h-5 w-5 p-0 rounded" aria-label="Close">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="max-h-80 overflow-y-auto space-y-2">
-              {/* Toasts will be rendered here */}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   )
 }
 
