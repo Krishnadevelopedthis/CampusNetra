@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import {
-  ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
+  Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
   PlusCircle, Search, Settings, Sparkles, User as UserIcon, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -313,6 +313,7 @@ export default function AppLayout() {
 
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
+            <NotificationBell />
             <UserMenu />
           </div>
         </header>

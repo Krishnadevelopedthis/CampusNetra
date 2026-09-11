@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Spinner, Toaster } from '@/components/ui'
+import { Spinner } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
 
@@ -203,7 +203,6 @@ const ADMIN = [
 export default function App() {
   const init = useAuth((s) => s.init)
   const location = useLocation()
-  const { user, initialised } = useAuth()
 
   /**
    * Restore and validate the authentication session once when
@@ -226,10 +225,6 @@ export default function App() {
    * Backend authentication/token expiration remains responsible
    * for session validity.
    */
-
-  // Show Toaster only on authenticated routes
-  // (not landing, login, register, etc.)
-  const showToaster = initialised && user
 
   return (
     <>
@@ -734,8 +729,6 @@ export default function App() {
           </Routes>
         </Suspense>
       </ErrorBoundary>
-
-      {showToaster && <Toaster />}
     </>
   )
 }
