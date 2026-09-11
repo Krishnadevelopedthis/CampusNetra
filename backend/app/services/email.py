@@ -278,11 +278,19 @@ async def send_email(
 
 
 # ---------------------------------------------------------------- templates
+# What each code is for, as (sentence fragment, heading). Anything unlisted gets
+# neutral wording: telling someone a code resets their password when it does
+# something else teaches them to distrust these emails.
+_OTP_COPY = {
+    "email_verify": ("verify your email address", "Verify your email"),
+    "password_reset": ("reset your password", "Reset your password"),
+    "email_change": ("confirm this as your new email address", "Confirm your new email"),
+}
+_OTP_DEFAULT = ("confirm this request", "Your verification code")
+
+
 def _otp_html(name: str, code: str, purpose: str) -> str:
-    action = ("verify your email address" if purpose == "email_verify"
-              else "reset your password")
-    heading = ("Verify your email" if purpose == "email_verify"
-               else "Reset your password")
+    action, heading = _OTP_COPY.get(purpose, _OTP_DEFAULT)
 
     # Inlined styles and a table layout — email clients strip <style> blocks and
     # have no reliable flexbox support.
@@ -337,8 +345,7 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 
 
 async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
-    action = ("verify your email address" if purpose == "email_verify"
-              else "reset your password")
+    action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
     subject = f"{code} is your Campus Netra verification code"
 
     text = (
