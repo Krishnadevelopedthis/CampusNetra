@@ -4,8 +4,8 @@ Kept out of the router so the same projection can be reused by exports,
 the AI assistant and the analytics endpoints.
 """
 from __future__ import annotations
-
 import uuid
+import time
 from datetime import datetime, timezone
 from typing import Optional, Sequence
 
@@ -32,11 +32,16 @@ def _minutes_remaining(due: Optional[datetime]) -> Optional[int]:
 
 
 async def _lookup_maps(db: AsyncSession, issues: Sequence[Issue]) -> dict:
-    """Batch-load every related label in one round trip per table.
+    """Batch-load related labels for issue list/detail responses."""
+    started = time.perf_counter()
 
-    Building these maps up front is what keeps the list endpoint free of
-    N+1 queries as the issue count grows.
-    """
+    def log(step: str) -> None:
+        print(
+            f"[ISSUE_MAPS] {step} "
+            f"elapsed={time.perf_counter() - started:.2f}s",
+            flush=True,
+        )
+
     def ids(attr: str) -> set:
         return {getattr(i, attr) for i in issues if getattr(i, attr)}
 
@@ -46,47 +51,144 @@ async def _lookup_maps(db: AsyncSession, issues: Sequence[Issue]) -> dict:
     user_ids = ids("reported_by")
     issue_ids = [i.id for i in issues]
 
-    categories = {c.id: c for c in (await db.scalars(
-        select(IssueCategory).where(IssueCategory.id.in_(cat_ids)))).all()} if cat_ids else {}
-    departments = {d.id: d for d in (await db.scalars(
-        select(Department).where(Department.id.in_(dept_ids)))).all()} if dept_ids else {}
-    rooms = {r.id: r for r in (await db.scalars(
-        select(Room).where(Room.id.in_(room_ids)))).all()} if room_ids else {}
-    assets = {a.id: a for a in (await db.scalars(
-        select(Asset).where(Asset.id.in_(asset_ids)))).all()} if asset_ids else {}
-    buildings = {b.id: b for b in (await db.scalars(
-        select(Building).where(Building.id.in_(bldg_ids)))).all()} if bldg_ids else {}
-    floors = {f.id: f for f in (await db.scalars(
-        select(Floor).where(Floor.id.in_(floor_ids)))).all()} if floor_ids else {}
-    users = {u.id: u for u in (await db.scalars(
-        select(User).where(User.id.in_(user_ids)))).all()} if user_ids else {}
+    log("categories START")
+    categories = {
+        c.id: c
+        for c in (
+            await db.scalars(
+                select(IssueCategory).where(IssueCategory.id.in_(cat_ids))
+            )
+        ).all()
+    } if cat_ids else {}
+    log("categories DONE")
 
-    # Most recent work order per issue, plus its assignee's name.
+    log("departments START")
+    departments = {
+        d.id: d
+        for d in (
+            await db.scalars(
+                select(Department).where(Department.id.in_(dept_ids))
+            )
+        ).all()
+    } if dept_ids else {}
+    log("departments DONE")
+
+    log("rooms START")
+    rooms = {
+        r.id: r
+        for r in (
+            await db.scalars(
+                select(Room).where(Room.id.in_(room_ids))
+            )
+        ).all()
+    } if room_ids else {}
+    log("rooms DONE")
+
+    log("assets START")
+    assets = {
+        a.id: a
+        for a in (
+            await db.scalars(
+                select(Asset).where(Asset.id.in_(asset_ids))
+            )
+        ).all()
+    } if asset_ids else {}
+    log("assets DONE")
+
+    log("buildings START")
+    buildings = {
+        b.id: b
+        for b in (
+            await db.scalars(
+                select(Building).where(Building.id.in_(bldg_ids))
+            )
+        ).all()
+    } if bldg_ids else {}
+    log("buildings DONE")
+
+    log("floors START")
+    floors = {
+        f.id: f
+        for f in (
+            await db.scalars(
+                select(Floor).where(Floor.id.in_(floor_ids))
+            )
+        ).all()
+    } if floor_ids else {}
+    log("floors DONE")
+
+    log("users START")
+    users = {
+        u.id: u
+        for u in (
+            await db.scalars(
+                select(User).where(User.id.in_(user_ids))
+            )
+        ).all()
+    } if user_ids else {}
+    log("users DONE")
+
     work_orders: dict[uuid.UUID, tuple[str, Optional[str]]] = {}
+
     if issue_ids:
-        rows = (await db.execute(
-            select(WorkOrder.issue_id, WorkOrder.reference, User.full_name)
-            .join(User, User.id == WorkOrder.assigned_to, isouter=True)
-            .where(WorkOrder.issue_id.in_(issue_ids))
-            .order_by(WorkOrder.created_at.desc())
-        )).all()
+        log("work_orders START")
+
+        rows = (
+            await db.execute(
+                select(
+                    WorkOrder.issue_id,
+                    WorkOrder.reference,
+                    User.full_name,
+                )
+                .join(
+                    User,
+                    User.id == WorkOrder.assigned_to,
+                    isouter=True,
+                )
+                .where(WorkOrder.issue_id.in_(issue_ids))
+                .order_by(WorkOrder.created_at.desc())
+            )
+        ).all()
+
         for issue_id, ref, name in rows:
             work_orders.setdefault(issue_id, (ref, name))
 
+        log("work_orders DONE")
+
     attachment_counts: dict[uuid.UUID, int] = {}
+
     if issue_ids:
         from app.models.issues import IssueAttachment
-        rows = (await db.execute(
-            select(IssueAttachment.issue_id, func.count())
-            .where(IssueAttachment.issue_id.in_(issue_ids))
-            .group_by(IssueAttachment.issue_id)
-        )).all()
+
+        log("attachment_counts START")
+
+        rows = (
+            await db.execute(
+                select(
+                    IssueAttachment.issue_id,
+                    func.count(),
+                )
+                .where(IssueAttachment.issue_id.in_(issue_ids))
+                .group_by(IssueAttachment.issue_id)
+            )
+        ).all()
+
         attachment_counts = dict(rows)
 
+        log("attachment_counts DONE")
+
+    log("COMPLETE")
+
     return dict(
-        categories=categories, departments=departments, rooms=rooms, assets=assets,
-        buildings=buildings, floors=floors, users=users,
-        work_orders=work_orders, attachment_counts=attachment_counts,
+        categories=categories,
+        departments=departments,
+        rooms=rooms,
+        assets=assets,
+        buildings=buildings,
+        floors=floors,
+        users=users,
+        work_orders=work_orders,
+        attachment_counts=attachment_counts,
     )
 
 
@@ -151,7 +253,20 @@ async def to_list_items(db: AsyncSession, issues: Sequence[Issue]) -> list[Issue
 
 
 async def to_detail(db: AsyncSession, issue: Issue) -> IssueDetail:
+    started = time.perf_counter()
+    print(
+        f"[ISSUE_DETAIL_SERVICE] START issue={issue.id}",
+        flush=True,
+    )
+
+    print("[ISSUE_DETAIL_SERVICE] lookup_maps START", flush=True)
+    
     m = await _lookup_maps(db, [issue])
+    print(
+        f"[ISSUE_DETAIL_SERVICE] lookup_maps DONE "
+        f"elapsed={time.perf_counter() - started:.2f}s",
+        flush=True,
+    )
     base = _to_list_item(issue, m)
 
     building = m["buildings"].get(issue.building_id)
@@ -182,11 +297,15 @@ async def to_detail(db: AsyncSession, issue: Issue) -> IssueDetail:
             model=issue.ai_model, classified_at=issue.ai_classified_at,
             was_overridden=issue.was_reclassified,
         )
-
+    print("[ISSUE_DETAIL_SERVICE] events START", flush=True)
     events = (await db.scalars(
         select(IssueEvent).where(IssueEvent.issue_id == issue.id)
         .order_by(IssueEvent.created_at.asc())
     )).all()
+    print(
+    f"[ISSUE_DETAIL_SERVICE] events DONE count={len(events)}",
+    flush=True,
+        )
     actor_ids = {e.actor_id for e in events if e.actor_id}
     actors = {u.id: u for u in (await db.scalars(
         select(User).where(User.id.in_(actor_ids)))).all()} if actor_ids else {}
@@ -200,12 +319,21 @@ async def to_detail(db: AsyncSession, issue: Issue) -> IssueDetail:
         for e in events
     ]
 
+    print(
+    "[ISSUE_DETAIL_SERVICE] duplicate_candidates START",
+    flush=True,
+    )
     cand_rows = (await db.scalars(
         select(IssueDuplicateCandidate)
         .where(IssueDuplicateCandidate.issue_id == issue.id,
                IssueDuplicateCandidate.resolution == "pending")
         .order_by(IssueDuplicateCandidate.score.desc())
     )).all()
+    print(
+    f"[ISSUE_DETAIL_SERVICE] duplicate_candidates DONE "
+    f"count={len(cand_rows)}",
+    flush=True,
+    )
     cand_issue_ids = [c.candidate_id for c in cand_rows]
     cand_issues = {i.id: i for i in (await db.scalars(
         select(Issue).where(Issue.id.in_(cand_issue_ids)))).all()} if cand_issue_ids else {}
@@ -229,6 +357,11 @@ async def to_detail(db: AsyncSession, issue: Issue) -> IssueDetail:
 
     attachments = [AttachmentOut.model_validate(a) for a in issue.attachments]
 
+    print(
+    f"[ISSUE_DETAIL_SERVICE] RETURN elapsed="
+    f"{time.perf_counter() - started:.2f}s",
+    flush=True,
+    )
     return IssueDetail(
         **base.model_dump(),
         description=issue.description,
