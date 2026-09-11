@@ -4,7 +4,6 @@
     {
       "name": "campus-netra-web",
       "runtimeExecutable": "npm",
-<<<<<<< HEAD
       "runtimeArgs": [
         "run",
         "dev",
@@ -12,10 +11,6 @@
         "frontend"
       ],
       "autoPort": true
-=======
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend"],
-      "port": 5173
->>>>>>> 749f38c (fixed the tracking)
     }
   ]
 }
