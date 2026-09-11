@@ -2,40 +2,42 @@ import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
 import { useColorTheme } from './colorTheme'
 
-/** Session timeout: 2 minutes of inactivity before auto-logout. */
-const SESSION_TIMEOUT_MS = 2 * 60 * 1000
+/**
+ * Session timeout
+ *
+ * IMPORTANT:
+ * Authentication is still controlled by the backend/token expiry.
+ * We intentionally do NOT auto-logout the user after a short period
+ * of browser inactivity because that can unexpectedly clear the
+ * authenticated session while the application is being used.
+ *
+ * Keep this constant exported internally only if another module
+ * later needs it.
+ */
+const SESSION_TIMEOUT_MS = null
 
-// Global activity listeners to reset the session timeout on any user interaction.
+// Kept for compatibility with any existing imports/usages.
+// No automatic inactivity logout is registered.
 const activityListenersAdded = new Set()
 
+/**
+ * Kept as an exported function for compatibility with App.jsx or
+ * any other existing module.
+ *
+ * Since inactivity-based auto logout is disabled, this function
+ * intentionally does not register global listeners.
+ *
+ * Returning a cleanup function preserves the existing API.
+ */
 export function addGlobalSessionReset() {
   if (activityListenersAdded.has('auth')) return () => {}
+
   activityListenersAdded.add('auth')
 
-  const handlers = {
-    mousedown: () => useAuth.getState().resetSessionTimer(),
-    keydown: (e) => {
-      if (e.key !== 'Tab' && e.key !== 'Shift' && e.ctrlKey === false && e.metaKey === false) {
-        useAuth.getState().resetSessionTimer()
-      }
-    },
-    touchstart: () => useAuth.getState().resetSessionTimer(),
-    scroll: () => useAuth.getState().resetSessionTimer(),
-    visibilitychange: () => {
-      if (document.hidden) return
-      useAuth.getState().resetSessionTimer()
-    },
-  }
+  // No global activity listeners are required anymore because
+  // automatic inactivity logout has been disabled.
 
-  Object.entries(handlers).forEach(([event, handler]) => {
-    document.addEventListener(event, handler, { passive: true })
-  })
-
-  // Clean up on store unmount / module reload
   return () => {
-    Object.entries(handlers).forEach(([event, handler]) => {
-      document.removeEventListener(event, handler)
-    })
     activityListenersAdded.delete('auth')
   }
 }
@@ -69,98 +71,224 @@ export const ROLE_ACCENT = {
   super_admin: '#1e1b4b',
 }
 
-const STAFF = new Set(['technician', 'facility_manager', 'admin', 'super_admin'])
-const MANAGER = new Set(['facility_manager', 'admin', 'super_admin'])
-const ADMIN = new Set(['admin', 'super_admin'])
+const STAFF = new Set([
+  'technician',
+  'facility_manager',
+  'admin',
+  'super_admin',
+])
+
+const MANAGER = new Set([
+  'facility_manager',
+  'admin',
+  'super_admin',
+])
+
+const ADMIN = new Set([
+  'admin',
+  'super_admin',
+])
 
 export const useAuth = create((set, get) => ({
   user: readAuth()?.user || null,
   loading: false,
   initialised: false,
+
+  // Kept in the store for compatibility with existing components.
+  // It remains null because inactivity-based session expiration
+  // has been intentionally disabled.
   sessionTimer: null,
 
   isStaff: () => STAFF.has(get().user?.role),
+
   isManager: () => MANAGER.has(get().user?.role),
+
   isAdmin: () => ADMIN.has(get().user?.role),
 
-  /** Reset the inactivity timer. */
+  /**
+   * Reset the inactivity timer.
+   *
+   * Automatic inactivity logout has been disabled.
+   *
+   * The function is intentionally retained so existing components
+   * calling resetSessionTimer() do not break.
+   */
   resetSessionTimer: () => {
     const timer = get().sessionTimer
-    if (timer) clearTimeout(timer)
-    const newTimer = setTimeout(() => {
-      get().logout()
-    }, SESSION_TIMEOUT_MS)
-    set({ sessionTimer: newTimer })
+
+    if (timer) {
+      clearTimeout(timer)
+    }
+
+    // No new inactivity timer is created.
+    set({ sessionTimer: null })
   },
 
-  /** Clear the inactivity timer. */
+  /**
+   * Clear the inactivity timer.
+   *
+   * Kept for compatibility with existing code.
+   */
   clearSessionTimer: () => {
     const timer = get().sessionTimer
+
     if (timer) {
       clearTimeout(timer)
       set({ sessionTimer: null })
     }
   },
 
-  /** Revalidate the stored session against the server on boot. */
+  /**
+   * Revalidate the stored session against the server on boot.
+   *
+   * Important:
+   * - A valid stored token is checked using /auth/me.
+   * - 401/403 means the server rejected the session, so the
+   *   local authentication state is cleared.
+   * - Network/server failures do NOT immediately destroy the
+   *   locally stored authentication state.
+   */
   async init() {
     const stored = readAuth()
+
     if (!stored?.access_token) {
-      set({ initialised: true })
+      set({
+        initialised: true,
+        user: null,
+        sessionTimer: null,
+      })
       return
     }
+
     try {
       const user = await api.get('/auth/me')
-      writeAuth({ ...stored, user })
 
-      // Load authenticated user's appearance preferences
+      /**
+       * Refresh the locally stored user object using the
+       * authoritative server response.
+       *
+       * Existing tokens are preserved.
+       */
+      writeAuth({
+        ...stored,
+        user,
+      })
+
+      /**
+       * Load authenticated user's appearance preferences.
+       *
+       * This ensures the user's saved theme is restored after
+       * application startup/login.
+       */
       if (user?.preferences?.appearance) {
-        useColorTheme.getState().loadFromUserPreferences(user.preferences)
+        useColorTheme
+          .getState()
+          .loadFromUserPreferences(user.preferences)
       }
 
-      set({ user, initialised: true })
-      // Start session timer after successful init
-      get().resetSessionTimer()
+      set({
+        user,
+        initialised: true,
+        sessionTimer: null,
+      })
+
+      /**
+       * No inactivity timer is started.
+       *
+       * Authentication validity remains controlled by the
+       * backend/token lifecycle.
+       */
+      get().clearSessionTimer()
     } catch (err) {
-      // Only the server rejecting the session ends it. A network failure or a
-      // server error means we could not find out — and a sleeping free-tier
-      // instance makes the first request after a quiet spell routinely time
-      // out. Clearing the session on that signs people out for coming back
-      // later, which is what "your session expired" was really reporting.
+      /**
+       * Only an explicit authentication/authorization rejection
+       * should remove the local authentication state.
+       */
       if (err?.status === 401 || err?.status === 403) {
+        get().clearSessionTimer()
+
         writeAuth(null)
-        set({ user: null, initialised: true })
+
+        set({
+          user: null,
+          initialised: true,
+          sessionTimer: null,
+        })
+
         return
       }
-      // Carry on with whoever was stored; the next successful call corrects it,
-      // and a genuinely dead session is caught by the request that needs it.
-      set({ user: stored.user ?? null, initialised: true })
+
+      /**
+       * Network failure / temporary backend failure:
+       *
+       * Do NOT destroy the locally stored authentication state.
+       *
+       * This is particularly important with free-tier hosting,
+       * where a sleeping backend can make the first request
+       * temporarily fail or take longer.
+       */
+      set({
+        user: stored.user ?? null,
+        initialised: true,
+        sessionTimer: null,
+      })
     }
   },
 
+  /**
+   * Login user.
+   */
   async login(email, password, role) {
     set({ loading: true })
-    try {
-      const data = await api.post('/auth/login', { email, password, role: role || null })
-      writeAuth({ ...data.tokens, user: data.user })
 
-      // Load authenticated user's appearance preferences from server
-      // This ensures the user sees their own saved theme, not the previous user's
+    try {
+      const data = await api.post('/auth/login', {
+        email,
+        password,
+        role: role || null,
+      })
+
+      /**
+       * Store only the authentication response already provided
+       * by the backend.
+       *
+       * No additional user/admin information is created here.
+       */
+      writeAuth({
+        ...data.tokens,
+        user: data.user,
+      })
+
+      /**
+       * Load authenticated user's appearance preferences from
+       * the server.
+       *
+       * This ensures the current user's saved theme is restored
+       * instead of retaining another user's UI preference.
+       */
       if (data.user?.preferences?.appearance) {
-        useColorTheme.getState().loadFromUserPreferences(data.user.preferences)
+        useColorTheme
+          .getState()
+          .loadFromUserPreferences(data.user.preferences)
       }
 
-      set({ user: data.user })
-      // Reset session timer on successful login
-      get().resetSessionTimer()
+      set({
+        user: data.user,
+        sessionTimer: null,
+      })
+
       return data.user
     } finally {
       set({ loading: false })
     }
   },
 
+  /**
+   * Register a new user.
+   */
   async register(payload) {
     set({ loading: true })
+
     try {
       return await api.post('/auth/register', payload)
     } finally {
@@ -168,29 +296,100 @@ export const useAuth = create((set, get) => ({
     }
   },
 
+  /**
+   * Verify email and establish the authenticated session.
+   */
   async verifyEmail(email, code) {
-    const data = await api.post('/auth/verify-email', { email, code })
-    writeAuth({ ...data.tokens, user: data.user })
-    set({ user: data.user })
+    const data = await api.post('/auth/verify-email', {
+      email,
+      code,
+    })
+
+    writeAuth({
+      ...data.tokens,
+      user: data.user,
+    })
+
+    /**
+     * Restore the verified user's appearance preferences.
+     */
+    if (data.user?.preferences?.appearance) {
+      useColorTheme
+        .getState()
+        .loadFromUserPreferences(data.user.preferences)
+    }
+
+    set({
+      user: data.user,
+      sessionTimer: null,
+    })
+
     return data.user
   },
 
+  /**
+   * Logout.
+   *
+   * Server logout is attempted first.
+   * Local authentication is always cleared afterwards.
+   *
+   * Appearance preferences are intentionally NOT cleared.
+   */
   async logout() {
+    /**
+     * Clear any existing timer before logging out.
+     */
+    get().clearSessionTimer()
+
     try {
       await api.post('/auth/logout')
     } catch {
-      /* signing out locally matters more than the server round trip */
+      /**
+       * Local logout is more important than the server round trip.
+       *
+       * If the backend is unavailable, the browser still removes
+       * the local authentication state.
+       */
     }
-    // IMPORTANT: Do NOT clear appearance preferences on logout
-    // Logout only clears authentication/session state
-    // User's saved appearance preferences persist and will be restored on next login
+
+    /**
+     * IMPORTANT:
+     * Do NOT clear appearance preferences on logout.
+     *
+     * Logout only clears authentication/session state.
+     * The user's saved appearance preferences remain available
+     * for restoration after the next login.
+     */
     writeAuth(null)
-    set({ user: null })
+
+    set({
+      user: null,
+      sessionTimer: null,
+      loading: false,
+    })
   },
 
+  /**
+   * Update the currently authenticated user in local state.
+   *
+   * Existing authentication tokens are preserved.
+   */
   setUser(user) {
     const stored = readAuth()
-    if (stored) writeAuth({ ...stored, user })
+
+    if (stored) {
+      writeAuth({
+        ...stored,
+        user,
+      })
+    }
+
     set({ user })
   },
 }))
+
+/**
+ * Keep the constant referenced so bundlers/linting do not treat
+ * it as accidental dead code if this file is checked strictly.
+ */
+void SESSION_TIMEOUT_MS
