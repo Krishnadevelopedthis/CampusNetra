@@ -238,7 +238,7 @@ export const useAuth = create((set, get) => ({
   /**
    * Login user.
    */
-  async login(email, password, role) {
+  async login(email, password, role, captcha) {
     set({ loading: true })
 
     try {
@@ -246,6 +246,10 @@ export const useAuth = create((set, get) => ({
         email,
         password,
         role: role || null,
+        // The server requires both, and rejects the request outright without
+        // them — see features/auth/useCaptcha.js for where they come from.
+        captcha_token: captcha?.token || '',
+        captcha_answer: captcha?.answer || '',
       })
 
       /**

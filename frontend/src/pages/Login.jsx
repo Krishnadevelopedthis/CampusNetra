@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AuthShell } from '@/features/auth/AuthShell'
+import { CaptchaField } from '@/features/auth/LoginParts'
 import { RoleTabs } from '@/features/auth/RoleTabs'
+import { useCaptcha } from '@/features/auth/useCaptcha'
 import { Button, Field, Input, toast } from '@/components/ui'
 import { ROLE_HOME, useAuth } from '@/lib/auth'
 
@@ -15,6 +17,7 @@ export default function Login() {
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
 
+  const captcha = useCaptcha()
   const { login } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -27,18 +30,28 @@ export default function Login() {
     const next = {}
     if (!email.trim()) next.email = 'Enter your email address'
     if (!password) next.password = 'Enter your password'
+    if (!captcha.answer.trim()) next.captcha = 'Enter the characters shown'
     if (Object.keys(next).length) return setErrors(next)
 
     setSubmitting(true)
     try {
       // The admin tab covers both admin and facility_manager accounts, so it
       // authenticates without a role constraint and routes on the result.
-      const user = await login(email.trim(), password, role === 'admin' ? null : role)
+      const user = await login(email.trim(), password, role === 'admin' ? null : role, captcha)
       toast.success(`Welcome back, ${user.full_name.split(' ')[0]}.`)
       navigate(ROLE_HOME[user.role] || '/dashboard', { replace: true })
     } catch (err) {
-      if (err.fields) setErrors(err.fields)
-      else setErrors({ _: err.detail || 'Unable to sign in. Please try again.' })
+      const fields = err.fields
+      if (fields) {
+        // The server validates the challenge as two separate inputs; the form
+        // shows one, so either complaint lands on it.
+        const captchaProblem = fields.captcha_answer || fields.captcha_token
+        setErrors({ ...fields, ...(captchaProblem ? { captcha: captchaProblem } : {}) })
+      } else {
+        setErrors({ _: err.detail || 'Unable to sign in. Please try again.' })
+      }
+      // A refused attempt gets a new puzzle rather than the one just rejected.
+      captcha.refresh()
     } finally {
       setSubmitting(false)
     }
@@ -99,6 +112,8 @@ export default function Login() {
             </button>
           </div>
         </Field>
+
+        <CaptchaField captcha={captcha} error={errors.captcha} />
 
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 text-body-md text-ink-muted cursor-pointer">

@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
+import { AlertCircle, Check, Eye, EyeOff, Loader2, Lock, Mail, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -109,6 +109,60 @@ export function PasswordField({ value, onChange, error, inputRef }) {
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>
       </div>
+    </Field>
+  )
+}
+
+/**
+ * The image challenge, its answer, and a way to ask for a different one.
+ *
+ * The characters in the image are the entire point, so they cannot be
+ * described to a screen reader — the alt text says what to do instead, and
+ * the "different image" control is an ordinary button so it can be reached
+ * without a mouse. Autocomplete and spellcheck are off: there is nothing here
+ * a browser could usefully remember or correct.
+ */
+export function CaptchaField({ captcha, error, inputRef }) {
+  const { image, answer, setAnswer, loading, failed, refresh } = captcha
+
+  return (
+    <Field label="Type the characters shown" error={error} required>
+      <div className="flex items-center gap-2">
+        <div
+          className="grid place-items-center w-[140px] h-12 shrink-0 overflow-hidden
+                     rounded-lg border border-border bg-surface-sunken"
+        >
+          {image ? (
+            <img
+              src={image} className="h-full w-full object-contain"
+              alt="Type the characters from this image into the box beside it"
+            />
+          ) : (
+            <span className="text-body-sm text-ink-faint">
+              {loading ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : 'Unavailable'}
+            </span>
+          )}
+        </div>
+        <button
+          type="button" onClick={refresh} disabled={loading}
+          className="btn-secondary h-10 w-10 p-0 shrink-0"
+          aria-label="Show a different image"
+        >
+          <RefreshCw size={15} className={loading ? 'animate-spin' : undefined} />
+        </button>
+        <Input
+          ref={inputRef} value={answer} error={error}
+          onChange={(e) => setAnswer(e.target.value)}
+          autoComplete="off" autoCapitalize="characters" spellCheck="false"
+          maxLength={16} placeholder="Characters above"
+          aria-label="Characters shown in the image"
+        />
+      </div>
+      {failed && (
+        <p className="hint">
+          The image could not be loaded. Use the refresh button to try again.
+        </p>
+      )}
     </Field>
   )
 }
