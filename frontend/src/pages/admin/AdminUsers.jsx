@@ -345,9 +345,15 @@ function CreateUserModal({ open, onClose, departments, programmes, onDone }) {
               {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
             </Select>
           </Field>
-          <Field label={isStudent ? 'Enrollment number' : 'Employee ID'}>
+          <Field
+            label={isStudent ? 'Enrollment number' : 'Employee ID'}
+            hint="Seven digits."
+            error={isStudent ? errors.enrollment_no : errors.employee_id}
+          >
             <Input value={(isStudent ? form.enrollment_no : form.employee_id) || ''}
-                   onChange={set(isStudent ? 'enrollment_no' : 'employee_id')} />
+                   onChange={set(isStudent ? 'enrollment_no' : 'employee_id')}
+                   inputMode="numeric" placeholder="2143210"
+                   error={isStudent ? errors.enrollment_no : errors.employee_id} />
           </Field>
         </div>
 
