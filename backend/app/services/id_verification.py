@@ -54,6 +54,27 @@ def _tokens(text: str) -> set[str]:
     return {w for w in words if len(w) > 1 and w not in _STOPWORDS}
 
 
+def _alnum(text: str) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", text).upper()
+
+
+def contains_identifier(ocr_text: str, identifier: str) -> bool:
+    """Whether the card shows the number the account already carries.
+
+    A name match says nothing about whose card it is — a photo of somebody
+    else's ID carries their name just as plainly as their own. The enrolment
+    or employee number on the account is what ties the document to the person
+    asking, so it has to be on the card too.
+
+    Punctuation and spacing come off both sides first: OCR routinely reads
+    "21/43210" or "2143 210" for what is printed as 2143210.
+    """
+    wanted = _alnum(identifier)
+    if not wanted:
+        return False
+    return wanted in _alnum(ocr_text)
+
+
 @dataclass
 class NameMatchResult:
     score: float  # 0.0–1.0: fraction of the claimed name's tokens found on the ID

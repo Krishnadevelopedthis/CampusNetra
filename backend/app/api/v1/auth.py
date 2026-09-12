@@ -364,7 +364,9 @@ async def request_name_change(
     found on it with enough confidence the change applies immediately,
     otherwise it's queued for an administrator to look at.
     """
-    from app.services.id_verification import OcrUnavailable, extract_text, match_name
+    from app.services.id_verification import (
+        OcrUnavailable, contains_identifier, extract_text, match_name,
+    )
     from app.services.storage import StoredImage, UploadError, store_image
 
     new_full_name = new_full_name.strip()
@@ -389,10 +391,16 @@ async def request_name_change(
 
     ocr_excerpt: Optional[str] = None
     score: Optional[float] = None
+    id_on_document = False
+    # The number the account already carries. Without it on the card there is
+    # nothing connecting the document to the person asking, so an account that
+    # has none can never be decided automatically.
+    account_id = (user.enrollment_no or user.employee_id or "").strip()
     try:
         ocr_text = extract_text(data)
         result = match_name(new_full_name, ocr_text)
         score, ocr_excerpt = result.score, result.ocr_excerpt
+        id_on_document = contains_identifier(ocr_text, account_id)
     except OcrUnavailable:
         # No Tesseract on this server — fall through with score=None, which
         # always queues for manual review rather than auto-deciding blind.
@@ -407,10 +415,17 @@ async def request_name_change(
         match_score=score,
     )
 
-    if score is not None and score >= settings.NAME_MATCH_THRESHOLD:
+    name_matches = score is not None and score >= settings.NAME_MATCH_THRESHOLD
+
+    # Both halves, or a person decides: the name proves what the card says, the
+    # account's own number proves the card is this person's.
+    if name_matches and id_on_document:
         row.status = "auto_approved"
         row.decided_at = datetime.now(timezone.utc)
-        row.decision_note = f"Auto-approved: {int(score * 100)}% of name tokens matched the ID."
+        row.decision_note = (
+            f"Auto-approved: {int(score * 100)}% of name tokens matched the ID, "
+            f"which also carries the account's own number."
+        )
         old_name = user.full_name
         user.full_name = new_full_name
         db.add(row)
@@ -440,11 +455,21 @@ async def request_name_change(
         link="/admin/users", kind="account",
         entity_type="user", entity_id=user.id,
     )
-    return {
-        "status": "pending",
-        "detail": "Your ID could not be confidently matched, so an administrator will review it.",
-        "match_score": score,
-    }
+    if name_matches and account_id:
+        detail = (
+            "Your ID shows that name but not your own "
+            f"{'enrolment' if user.enrollment_no else 'employee'} number, "
+            "so an administrator will check it."
+        )
+    elif name_matches:
+        detail = (
+            "Your account has no enrolment or employee number on file to check the ID "
+            "against, so an administrator will review it."
+        )
+    else:
+        detail = "Your ID could not be confidently matched, so an administrator will review it."
+
+    return {"status": "pending", "detail": detail, "match_score": score}
 
 
 @router.get("/me/name-change-request", response_model=Optional[NameChangeRequestOut])

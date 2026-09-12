@@ -561,7 +561,9 @@ function NameRow({ icon: Icon, label, value, pending, submitting, onSubmit }) {
                   <IdCard size={14} /> {file ? 'Change ID photo' : 'Add ID photo'}
                 </button>
                 <span className="text-body-sm text-ink-faint truncate">
-                  {file ? file.name : 'A photo of your ID card, to prove the new name'}
+                  {file
+                    ? file.name
+                    : 'An ID card showing the new name and your enrolment or employee number'}
                 </span>
                 <input
                   ref={fileRef} type="file" accept="image/*" className="hidden"
