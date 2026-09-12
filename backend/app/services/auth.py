@@ -10,6 +10,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.database import engine
 from app.core.enums import UserRole, UserStatus
 from app.core.security import (
     create_access_token, create_refresh_token, decode_token, generate_opaque_token,
@@ -83,7 +84,13 @@ async def create_verification_code(
 async def consume_verification_code(
     db: AsyncSession, user: User, purpose: str, code: str, bind: Optional[str] = None
 ) -> None:
-    """Raises 400 on any failure. Attempts are counted to blunt brute force."""
+    """Raises 400 on any failure. Attempts are counted to blunt brute force.
+
+    The count is written on its own connection, because the exception raised
+    straight after it rolls this request's transaction back. That is exactly
+    why the counter never moved before: every wrong guess undid its own
+    record, leaving a six-digit code open to unlimited attempts.
+    """
     record = await db.scalar(
         select(VerificationCode)
         .where(
@@ -102,7 +109,15 @@ async def consume_verification_code(
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many incorrect attempts; request a new code")
 
     if record.code_hash != _code_hash(code, bind):
-        record.attempts += 1
+        # Committed on its own connection so it survives the rollback that the
+        # 400 below triggers. The increment is expressed in SQL rather than
+        # read here and written back, so guesses arriving together each count.
+        async with engine.begin() as conn:
+            await conn.execute(
+                update(VerificationCode)
+                .where(VerificationCode.id == record.id)
+                .values(attempts=VerificationCode.attempts + 1)
+            )
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Incorrect verification code")
 
     record.consumed_at = _now()
