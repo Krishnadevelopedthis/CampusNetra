@@ -29,6 +29,16 @@ anthropic>=0.42.0
 pillow>=11.0.0
 numpy>=2.2.1
 
+# --- Identity verification (name-change ID upload) ---
+# Requires the Tesseract *binary* too — install it separately:
+#   Debian/Ubuntu:  apt-get install tesseract-ocr
+#   macOS:          brew install tesseract
+#   Docker:         add the apt-get line to the image build
+# Absence of either the package or the binary is handled gracefully — see
+# app/services/id_verification.py — by queuing name changes for manual
+# admin review instead of failing the request.
+pytesseract>=0.3.13
+
 # --- Utility ---
 httpx>=0.28.1
 python-dotenv>=1.0.1

@@ -79,6 +79,33 @@ class AccountDeletionRequest(UpdatedMixin, Base):
     decision_note: Mapped[Optional[str]] = mapped_column(Text)
 
 
+class NameChangeRequest(UpdatedMixin, Base):
+    """A person asking to change the name on their account, and the evidence for it.
+
+    Unlike email/phone, a name has no OTP to prove — so the person instead
+    uploads an ID card and an OCR pass checks whether the claimed name appears
+    on it. A confident match auto-applies; anything less is queued here for a
+    human to decide, same shape as AccountDeletionRequest.
+    """
+    __tablename__ = "name_change_requests"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    previous_name: Mapped[str] = mapped_column(Text, nullable=False)
+    requested_name: Mapped[str] = mapped_column(Text, nullable=False)
+    id_document_url: Mapped[str] = mapped_column(Text, nullable=False)
+    ocr_excerpt: Mapped[Optional[str]] = mapped_column(Text)
+    match_score: Mapped[Optional[Decimal]] = mapped_column(Numeric(3, 2))
+    status: Mapped[str] = mapped_column(Text, default="pending", nullable=False)
+    decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[Optional[str]] = mapped_column(Text)
+
+
 class AcademicProgramme(TimestampMixin, Base):
     """A course a student is enrolled on — BSc IT, AI & DS, BCom.
 

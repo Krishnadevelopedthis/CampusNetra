@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip
@@ -16,13 +16,14 @@ from app.core.config import settings
 from app.core.enums import Priority, UserRole, UserStatus
 from app.core.security import hash_password
 from app.models.identity import (
-    AcademicProgramme, Department, Organization, Permission, RolePermission, User,
+    AcademicProgramme, Department, NameChangeRequest, Organization, Permission, RolePermission,
+    User,
 )
 from app.models.issues import Issue, IssueCategory
 from app.models.platform import AuditLog, LoginActivity, MaintenancePrediction
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.models.work import SLAPolicy, WorkOrder
-from app.schemas.auth import UserOut, validate_password
+from app.schemas.auth import NameChangeDecisionRequest, UserOut, validate_password, validate_seven_digit_id
 from app.schemas.common import Message, Page, UserBrief
 from app.services import predictive
 from app.services.audit import record_audit
@@ -47,13 +48,22 @@ class UserCreate(BaseModel):
     programme_id: Optional[uuid.UUID] = None
     academic_year: Optional[int] = Field(None, ge=1, le=10)
 
+    @field_validator("enrollment_no")
     @classmethod
-    def __get_validators__(cls):  # pragma: no cover - pydantic v2 uses field_validator
-        yield from ()
+    def _v_enrollment(cls, value: Optional[str]) -> Optional[str]:
+        return validate_seven_digit_id(value, "Enrollment number")
+
+    @field_validator("employee_id")
+    @classmethod
+    def _v_employee_id(cls, value: Optional[str]) -> Optional[str]:
+        return validate_seven_digit_id(value, "Employee ID")
 
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
+    phone: Optional[str] = None
+    employee_id: Optional[str] = None
+    enrollment_no: Optional[str] = None
     role: Optional[UserRole] = None
     status: Optional[UserStatus] = None
     department_id: Optional[uuid.UUID] = None
@@ -62,6 +72,16 @@ class UserUpdate(BaseModel):
     # A student's course, distinct from the maintenance department above.
     programme_id: Optional[uuid.UUID] = None
     academic_year: Optional[int] = Field(None, ge=1, le=10)
+
+    @field_validator("enrollment_no")
+    @classmethod
+    def _v_enrollment(cls, value: Optional[str]) -> Optional[str]:
+        return validate_seven_digit_id(value, "Enrollment number")
+
+    @field_validator("employee_id")
+    @classmethod
+    def _v_employee_id(cls, value: Optional[str]) -> Optional[str]:
+        return validate_seven_digit_id(value, "Employee ID")
 
 
 class ProgrammeUpsert(BaseModel):
@@ -1128,6 +1148,106 @@ async def reject_deletion(
         ip_address=client_ip(request),
     )
     return Message(detail=f"Request from {target.full_name} declined.")
+
+
+@router.get("/name-change-requests", response_model=list[dict])
+async def list_name_change_requests(
+    admin: RequireAdmin, db: DB, status_filter: str = Query("pending", alias="status")
+):
+    """Name changes OCR couldn't confidently confirm on its own."""
+    query = (
+        select(NameChangeRequest, User)
+        .join(User, User.id == NameChangeRequest.user_id)
+        .where(User.organization_id == admin.organization_id)
+        .order_by(NameChangeRequest.created_at.desc())
+    )
+    if status_filter != "all":
+        query = query.where(NameChangeRequest.status == status_filter)
+
+    out = []
+    for row, user in (await db.execute(query)).all():
+        out.append({
+            "id": str(row.id),
+            "status": row.status,
+            "previous_name": row.previous_name,
+            "requested_name": row.requested_name,
+            "id_document_url": row.id_document_url,
+            "ocr_excerpt": row.ocr_excerpt,
+            "match_score": float(row.match_score) if row.match_score is not None else None,
+            "requested_at": row.created_at.isoformat(),
+            "decided_at": row.decided_at.isoformat() if row.decided_at else None,
+            "decision_note": row.decision_note,
+            "user": {"id": str(user.id), "email": user.email, "role": user.role.value},
+        })
+    return out
+
+
+async def _load_name_request(db, request_id, admin):
+    found = (await db.execute(
+        select(NameChangeRequest, User)
+        .join(User, User.id == NameChangeRequest.user_id)
+        .where(
+            NameChangeRequest.id == request_id,
+            User.organization_id == admin.organization_id,
+        )
+    )).first()
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found")
+    row, target = found
+    if row.status != "pending":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This request has already been decided")
+    return row, target
+
+
+@router.post("/name-change-requests/{request_id}/approve", response_model=Message)
+async def approve_name_change(
+    request_id: uuid.UUID, payload: NameChangeDecisionRequest, admin: RequireAdmin,
+    db: DB, request: Request,
+):
+    row, target = await _load_name_request(db, request_id, admin)
+
+    old_name = target.full_name
+    target.full_name = row.requested_name
+    row.status = "approved"
+    row.decided_by = admin.id
+    row.decided_at = datetime.now(timezone.utc)
+    row.decision_note = payload.note
+
+    await record_audit(
+        db, action="user.change_name", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="user", entity_id=target.id,
+        ip_address=client_ip(request),
+        before={"full_name": old_name}, after={"full_name": row.requested_name},
+    )
+    return Message(detail=f"Name updated to \"{row.requested_name}\".")
+
+
+@router.post("/name-change-requests/{request_id}/reject", response_model=Message)
+async def reject_name_change(
+    request_id: uuid.UUID, payload: NameChangeDecisionRequest, admin: RequireAdmin,
+    db: DB, request: Request,
+):
+    from app.services import notifications as notify_svc
+
+    row, target = await _load_name_request(db, request_id, admin)
+    row.status = "rejected"
+    row.decided_by = admin.id
+    row.decided_at = datetime.now(timezone.utc)
+    row.decision_note = payload.note
+
+    await notify_svc.notify(
+        db, [target.id],
+        title="Your name change request was declined",
+        body=payload.note or "Contact your campus administrator for details.",
+        link="/settings", kind="account",
+        entity_type="user", entity_id=target.id,
+    )
+    await record_audit(
+        db, action="user.name_change_rejected", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="user", entity_id=target.id,
+        ip_address=client_ip(request),
+    )
+    return Message(detail=f"Name change for {target.full_name} declined.")
 
 
 async def _load_request(db, request_id, admin):

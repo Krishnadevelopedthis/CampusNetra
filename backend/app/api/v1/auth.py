@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, status
+import base64
+
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
@@ -12,20 +14,47 @@ from app.api.deps import DB, CurrentUser, client_ip
 from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.core.enums import UserRole, UserStatus
-from app.core.security import hash_password, verify_password
-from app.models.identity import User
+from app.core.security import (
+    create_captcha_token, generate_captcha_text, hash_password, verify_captcha_token,
+    verify_password,
+)
+from app.models.identity import NameChangeRequest, User
 from app.schemas.auth import (
-    AuthResponse, ChangeEmailRequest, ChangePasswordRequest, ForgotPasswordRequest, LoginRequest,
-    RefreshRequest, RegisterRequest, RequestEmailChangeRequest, ResendCodeRequest, ResetPasswordRequest,
+    AuthResponse, CaptchaOut, ChangeEmailRequest, ChangePasswordRequest, ChangePhoneRequest,
+    ForgotPasswordRequest, LoginRequest, NameChangeRequestOut, RefreshRequest, RegisterRequest,
+    RequestEmailChangeRequest, RequestPhoneChangeRequest, ResendCodeRequest, ResetPasswordRequest,
     TokenPair, UpdateProfileRequest, UserOut, VerifyEmailRequest,
 )
 from app.schemas.common import Message
 from app.services import auth as auth_service
 from app.services import notifications as notify_svc
 from app.services.audit import record_audit
+from app.services.captcha import render_captcha_png
 from app.services.email import send_email, send_otp
 
 router = APIRouter(route_class=CommitRoute, prefix="/auth", tags=["Authentication"])
+
+
+def _require_captcha(token: str, answer: str) -> None:
+    if not verify_captcha_token(token, answer):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Incorrect captcha. Please try again with a new one.",
+        )
+
+
+@router.get("/captcha", response_model=CaptchaOut)
+async def get_captcha():
+    """A fresh challenge for the login and forgot-password forms.
+
+    Stateless — the answer never touches the database, so this needs no
+    cleanup job and works identically across multiple app instances.
+    """
+    text = generate_captcha_text()
+    token = create_captcha_token(text)
+    png = render_captcha_png(text)
+    image = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+    return CaptchaOut(captcha_token=token, image=image)
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
@@ -97,6 +126,7 @@ async def resend_code(payload: ResendCodeRequest, db: DB):
 
 @router.post("/login", response_model=AuthResponse)
 async def login(payload: LoginRequest, db: DB, request: Request):
+    _require_captcha(payload.captcha_token, payload.captcha_answer)
     user = await auth_service.authenticate(
         db, payload.email, payload.password, payload.role,
         client_ip(request), request.headers.get("user-agent"),
@@ -126,6 +156,7 @@ async def logout(user: CurrentUser, db: DB):
 @router.post("/forgot-password", response_model=Message)
 async def forgot_password(payload: ForgotPasswordRequest, db: DB):
     """Enumeration-safe: the response is identical for unknown addresses."""
+    _require_captcha(payload.captcha_token, payload.captcha_answer)
     generic = Message(detail="If that address is registered, a reset code has been sent.")
     user = await db.scalar(select(User).where(User.email == payload.email))
     if user is None:
@@ -262,6 +293,170 @@ async def verify_email_change(
         f"— Campus Netra",
     )
     return UserOut.model_validate(user)
+
+
+async def _ensure_phone_free(db: DB, phone: str, user: User) -> None:
+    other = await db.scalar(select(User).where(User.phone == phone, User.id != user.id))
+    if other is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "That phone number is already in use")
+
+
+@router.post("/me/change-phone", response_model=Message)
+async def request_phone_change(payload: RequestPhoneChangeRequest, user: CurrentUser, db: DB):
+    """Sends an OTP to the new number to prove it's reachable, same shape as
+    the email-change flow. Reuses the existing 'phone_verify' OTP purpose,
+    bound to the new number so a code cannot be redeemed for a different one.
+    """
+    if payload.new_phone == user.phone:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That is already your phone number")
+    await _ensure_phone_free(db, payload.new_phone, user)
+
+    code = await auth_service.create_verification_code(
+        db, user, "phone_verify", bind=payload.new_phone
+    )
+
+    # No SMS gateway is configured yet (see Settings.SMS_PROVIDER) — until one
+    # is wired up in services/sms.py, the code is shown in the response
+    # outside production, exactly like the email OTP fallback.
+    if settings.sms_delivers:
+        # Placeholder for the day a provider is plugged in.
+        return Message(detail=f"A verification code has been sent to {payload.new_phone}.")
+    if settings.expose_dev_phone_codes:
+        return Message(
+            detail="No SMS provider is configured on this server; your code is shown below.",
+            dev_code=code,
+        )
+    raise HTTPException(
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "No SMS provider is configured on this server, so the code could not be sent. "
+        "Contact your administrator.",
+    )
+
+
+@router.post("/me/verify-phone-change", response_model=UserOut)
+async def verify_phone_change(payload: ChangePhoneRequest, user: CurrentUser, db: DB, request: Request):
+    await _ensure_phone_free(db, payload.new_phone, user)
+    await auth_service.consume_verification_code(
+        db, user, "phone_verify", payload.otp_code, bind=payload.new_phone
+    )
+
+    old_phone = user.phone
+    user.phone = payload.new_phone
+    user.phone_verified_at = datetime.now(timezone.utc)
+    await db.flush()
+    await record_audit(
+        db, action="user.change_phone", actor_id=user.id,
+        organization_id=user.organization_id, entity_type="user", entity_id=user.id,
+        ip_address=client_ip(request),
+        before={"phone": old_phone}, after={"phone": payload.new_phone},
+    )
+    return UserOut.model_validate(user)
+
+
+@router.post("/me/change-name", response_model=dict)
+async def request_name_change(
+    user: CurrentUser, db: DB, request: Request,
+    new_full_name: str = Form(..., min_length=2, max_length=120),
+    id_document: UploadFile = File(...),
+):
+    """Changing your name needs proof, since it's what everyone else on the
+    campus sees you as. Upload a photo of an ID card; if the claimed name is
+    found on it with enough confidence the change applies immediately,
+    otherwise it's queued for an administrator to look at.
+    """
+    from app.services.id_verification import OcrUnavailable, extract_text, match_name
+    from app.services.storage import StoredImage, UploadError, store_image
+
+    new_full_name = new_full_name.strip()
+    if new_full_name == user.full_name:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That is already your name")
+
+    existing = await db.scalar(
+        select(NameChangeRequest).where(
+            NameChangeRequest.user_id == user.id, NameChangeRequest.status == "pending",
+        )
+    )
+    if existing is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "You already have a name-change request awaiting review",
+        )
+
+    data = await id_document.read()
+    try:
+        stored: StoredImage = store_image(data, id_document.filename, subdir="identity_verification")
+    except UploadError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+
+    ocr_excerpt: Optional[str] = None
+    score: Optional[float] = None
+    try:
+        ocr_text = extract_text(data)
+        result = match_name(new_full_name, ocr_text)
+        score, ocr_excerpt = result.score, result.ocr_excerpt
+    except OcrUnavailable:
+        # No Tesseract on this server — fall through with score=None, which
+        # always queues for manual review rather than auto-deciding blind.
+        pass
+
+    row = NameChangeRequest(
+        user_id=user.id,
+        previous_name=user.full_name,
+        requested_name=new_full_name,
+        id_document_url=stored.url,
+        ocr_excerpt=ocr_excerpt,
+        match_score=score,
+    )
+
+    if score is not None and score >= settings.NAME_MATCH_THRESHOLD:
+        row.status = "auto_approved"
+        row.decided_at = datetime.now(timezone.utc)
+        row.decision_note = f"Auto-approved: {int(score * 100)}% of name tokens matched the ID."
+        old_name = user.full_name
+        user.full_name = new_full_name
+        db.add(row)
+        await db.flush()
+        await record_audit(
+            db, action="user.change_name", actor_id=user.id,
+            organization_id=user.organization_id, entity_type="user", entity_id=user.id,
+            ip_address=client_ip(request), before={"full_name": old_name},
+            after={"full_name": new_full_name},
+        )
+        return {"status": "auto_approved", "full_name": user.full_name, "match_score": score}
+
+    db.add(row)
+    await db.flush()
+
+    admins = await db.scalars(
+        select(User.id).where(
+            User.organization_id == user.organization_id,
+            User.role.in_([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+            User.status == UserStatus.ACTIVE,
+        )
+    )
+    await notify_svc.notify(
+        db, list(admins),
+        title=f"Name change requested by {user.full_name}",
+        body=f"Wants to change their name to \"{new_full_name}\".",
+        link="/admin/users", kind="account",
+        entity_type="user", entity_id=user.id,
+    )
+    return {
+        "status": "pending",
+        "detail": "Your ID could not be confidently matched, so an administrator will review it.",
+        "match_score": score,
+    }
+
+
+@router.get("/me/name-change-request", response_model=Optional[NameChangeRequestOut])
+async def my_name_change_request(user: CurrentUser, db: DB):
+    row = await db.scalar(
+        select(NameChangeRequest)
+        .where(NameChangeRequest.user_id == user.id)
+        .order_by(NameChangeRequest.created_at.desc())
+    )
+    if row is None:
+        return None
+    return NameChangeRequestOut.model_validate(row, from_attributes=True)
 
 
 @router.post("/me/export", response_model=Message)
