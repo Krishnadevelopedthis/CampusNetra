@@ -8,11 +8,13 @@ import { useAuth } from '@/lib/auth'
 
 /** Extra fields each account type needs beyond name/email/password. */
 const EXTRA_FIELDS = {
-  student:    [{ name: 'enrollment_no', label: 'Enrollment number', placeholder: '214321',
-                 required: true, numeric: true, hint: 'Six digits.' }],
-  teacher:    [{ name: 'employee_id', label: 'Employee ID', placeholder: 'EMP-2041', required: true },
+  student:    [{ name: 'enrollment_no', label: 'Enrollment number', placeholder: '2143210',
+                 required: true, numeric: true, hint: 'Seven digits.' }],
+  teacher:    [{ name: 'employee_id', label: 'Employee ID', placeholder: '2143210',
+                 required: true, numeric: true, hint: 'Seven digits.' },
                { name: 'designation', label: 'Designation', placeholder: 'Assistant Professor' }],
-  technician: [{ name: 'employee_id', label: 'Employee ID', placeholder: 'TECH-118', required: true }],
+  technician: [{ name: 'employee_id', label: 'Employee ID', placeholder: '2143210',
+                 required: true, numeric: true, hint: 'Seven digits.' }],
   enterprise: [{ name: 'organization_name', label: 'Institution name', placeholder: 'Main Campus Institute of Technology', required: true },
                { name: 'designation', label: 'Your designation', placeholder: 'Facilities Director' }],
 }
