@@ -86,10 +86,43 @@ def generate_opaque_token() -> str:
 
 
 # ---------- captcha ----------
-# Stateless: the answer is never stored server-side. It travels to the client
-# as a JWT whose only claim is the hash of the correct answer, so verifying it
-# needs no DB table and survives a server restart or a second app instance.
+# The answer never touches the server's storage: it travels to the client as a
+# JWT carrying only a hash of itself, so checking one needs no DB table.
+#
+# What the server does keep is which challenges have been spent. A token that
+# can be answered once and then replayed for the rest of its life puts no limit
+# on anything — one solved image would cover every password guess made in the
+# next five minutes — so each is retired the first time it is checked.
+#
+# A small map pruned as it goes, not a table: nothing to migrate, nothing to
+# clean up, and a restart at worst lets a token be reused within the minutes it
+# had left. Across several instances a token could be spent once per instance;
+# a shared cache is the next step if it is ever deployed that way.
 CAPTCHA_TOKEN = "captcha"
+
+_spent_captchas: dict[str, float] = {}
+_SPENT_CAPTCHA_LIMIT = 20_000
+
+
+def _spend_captcha(jti: str, expires_at: float) -> bool:
+    """True the first time a challenge is presented, False every time after."""
+    now = datetime.now(timezone.utc).timestamp()
+
+    if len(_spent_captchas) >= _SPENT_CAPTCHA_LIMIT:
+        for key in [k for k, exp in _spent_captchas.items() if exp <= now]:
+            _spent_captchas.pop(key, None)
+        if len(_spent_captchas) >= _SPENT_CAPTCHA_LIMIT:
+            # Nothing had expired, so forget the oldest rather than grow without
+            # bound. Those tokens outlive their record, which costs a replay at
+            # most — the alternative is unbounded memory.
+            oldest = sorted(_spent_captchas.items(), key=lambda kv: kv[1])
+            for key, _ in oldest[: _SPENT_CAPTCHA_LIMIT // 2]:
+                _spent_captchas.pop(key, None)
+
+    if jti in _spent_captchas:
+        return False
+    _spent_captchas[jti] = expires_at
+    return True
 
 # Excludes visually ambiguous characters (0/O, 1/I/l) so a person reading the
 # distorted image isn't fighting the font as well as the noise.
@@ -117,7 +150,8 @@ def create_captcha_token(answer: str) -> str:
 
 
 def verify_captcha_token(token: str, answer: str) -> bool:
-    """False on anything wrong — expired, malformed, wrong type, wrong answer.
+    """False on anything wrong — expired, malformed, wrong type, wrong answer,
+    or a challenge that has already been answered once.
 
     Never raises: a captcha is a UX gate, not an auth boundary, so the caller
     always gets a clean yes/no to turn into "incorrect, try again".
@@ -128,4 +162,14 @@ def verify_captcha_token(token: str, answer: str) -> bool:
         return False
     if payload.get("type") != CAPTCHA_TOKEN:
         return False
+
+    jti, expires_at = payload.get("jti"), payload.get("exp")
+    if not jti or not expires_at:
+        return False
+
+    # Spent before the answer is compared, so a wrong guess burns the challenge
+    # too — otherwise a single image could be guessed at until it gave way.
+    if not _spend_captcha(str(jti), float(expires_at)):
+        return False
+
     return payload.get("ans") == _captcha_answer_hash(answer)
