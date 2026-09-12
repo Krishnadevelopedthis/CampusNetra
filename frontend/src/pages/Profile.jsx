@@ -214,8 +214,9 @@ function AvatarPicker({ user, setUser }) {
  * ------------------------------------------------------------------ */
 
 function ContactCard({ user, setUser }) {
-  // The address a code has gone to, while it waits to be confirmed.
+  // The address and number a code has gone to, while they wait to be confirmed.
   const [pendingEmail, setPendingEmail] = useState(null)
+  const [pendingPhone, setPendingPhone] = useState(null)
 
   const save = useMutation({
     mutationFn: (patch) => api.patch('/auth/me', patch),
@@ -243,15 +244,61 @@ function ContactCard({ user, setUser }) {
     onError: (err) => toast.error(err.detail || 'Could not confirm that code.'),
   })
 
-  const fields = [
-    {
-      key: 'full_name',
-      icon: UserIcon,
-      label: 'Full name',
-      value: user?.full_name,
-      placeholder: 'Your name',
-      validate: (v) => (v.trim().length < 2 ? 'Enter at least two characters.' : null),
+  // The number goes the same way as the address: a code proves it can be
+  // reached before anything moves. PATCH /auth/me stopped accepting phone at
+  // all, so the old inline save reported success and changed nothing.
+  const requestPhoneChange = useMutation({
+    mutationFn: (new_phone) => api.post('/auth/me/change-phone', { new_phone }),
+    onSuccess: (res, new_phone) => {
+      setPendingPhone(new_phone)
+      if (res?.dev_code) {
+        toast.info('No SMS provider is configured on this server.', `Your code is ${res.dev_code}`)
+      } else {
+        toast.info(`A 6-digit code has been sent to ${new_phone}.`)
+      }
     },
+    onError: (err) => toast.error(err.detail || 'Could not send a code to that number.'),
+  })
+
+  const confirmPhoneChange = useMutation({
+    mutationFn: (otp_code) =>
+      api.post('/auth/me/verify-phone-change', { new_phone: pendingPhone, otp_code }),
+    onSuccess: (u) => { setUser(u); setPendingPhone(null); toast.success('Phone number updated.') },
+    onError: (err) => toast.error(err.detail || 'Could not confirm that code.'),
+  })
+
+  // A name has nothing to send a code to, so it is proved with an ID card:
+  // either the upload matches well enough to apply at once, or it waits for
+  // an administrator. An error here is not worth surfacing — the row simply
+  // shows no pending request.
+  const nameRequest = useQuery({
+    queryKey: ['my-name-change'],
+    queryFn: () => api.get('/auth/me/name-change-request'),
+    retry: false,
+  })
+
+  const requestNameChange = useMutation({
+    mutationFn: ({ name, file }) => {
+      const body = new FormData()
+      body.append('new_full_name', name)
+      body.append('id_document', file)
+      return upload('/auth/me/change-name', body)
+    },
+    onSuccess: async (res) => {
+      if (res?.status === 'auto_approved') {
+        // The endpoint answers with the decision, not the user, so the stored
+        // profile is refreshed from the server rather than patched by hand.
+        setUser(await api.get('/auth/me'))
+        toast.success('Name updated.')
+      } else {
+        toast.info('Sent for review.', res?.detail || 'An administrator will check your ID.')
+      }
+      nameRequest.refetch()
+    },
+    onError: (err) => toast.error(err.detail || err.message || 'Could not submit that change.'),
+  })
+
+  const fields = [
     {
       key: 'phone',
       icon: Phone,
@@ -260,8 +307,22 @@ function ContactCard({ user, setUser }) {
       type: 'tel',
       placeholder: 'e.g. 9867943963',
       empty: 'Add a number so technicians can reach you about a report',
-      validate: (v) =>
-        v && !/^[+\d]?\d{10}$/.test(v.replace(/\D/g, '')) ? 'Phone must be exactly 10 digits.' : null,
+      // Matches what the server accepts: +91 and a leading 0 are allowed and
+      // stripped, which the old check rejected outright.
+      validate: (v) => {
+        const digits = (v || '').replace(/\D/g, '')
+          .replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '')
+        return digits.length === 10 ? null : 'Enter a 10-digit mobile number.'
+      },
+      saving: requestPhoneChange.isPending,
+      onSave: (v) => requestPhoneChange.mutateAsync(v),
+      pending: pendingPhone && {
+        to: pendingPhone,
+        confirming: confirmPhoneChange.isPending,
+        onConfirm: (code) => confirmPhoneChange.mutateAsync(code),
+        onResend: () => requestPhoneChange.mutate(pendingPhone),
+        onCancel: () => setPendingPhone(null),
+      },
     },
     {
       key: 'designation',
@@ -280,6 +341,7 @@ function ContactCard({ user, setUser }) {
       placeholder: 'you@campus.edu',
       validate: (v) =>
         (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? 'Enter a valid email address.' : null),
+      saving: requestEmailChange.isPending,
       onSave: (v) => requestEmailChange.mutateAsync(v),
       pending: pendingEmail && {
         to: pendingEmail,
@@ -292,15 +354,19 @@ function ContactCard({ user, setUser }) {
   ]
 
   return (
-    <Widget title="Details" subtitle="Everything here is editable">
+    <Widget title="Details" subtitle="Your name, number and address need verifying when they change">
       <div className="divide-y divide-border-subtle -my-2">
-        {fields.map(({ key, onSave, ...field }) => (
+        <NameRow
+          icon={UserIcon} label="Full name" value={user?.full_name}
+          pending={nameRequest.data?.status === 'pending' ? nameRequest.data : null}
+          submitting={requestNameChange.isPending}
+          onSubmit={(payload) => requestNameChange.mutateAsync(payload)}
+        />
+        {fields.map(({ key, onSave, saving, ...field }) => (
           <EditableRow
             key={key}
             {...field}
-            saving={onSave
-              ? requestEmailChange.isPending
-              : save.isPending && save.variables && key in save.variables}
+            saving={saving ?? (save.isPending && save.variables && key in save.variables)}
             onSave={onSave || ((v) => save.mutateAsync({ [key]: v }))}
           />
         ))}
@@ -397,6 +463,136 @@ function EditableRow({
   )
 }
 
+/**
+ * The name row, which needs evidence rather than a code.
+ *
+ * Your name is what everyone else on the campus sees you as, so the server
+ * wants a photo of an ID card alongside it. A confident match applies at
+ * once; anything less waits for an administrator, and while it waits the row
+ * says so rather than offering an edit that would be refused as a duplicate.
+ */
+function NameRow({ icon: Icon, label, value, pending, submitting, onSubmit }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value || '')
+  const [file, setFile] = useState(null)
+  const [error, setError] = useState(null)
+  const inputRef = useRef(null)
+  const fileRef = useRef(null)
+
+  useEffect(() => { if (!editing) setDraft(value || '') }, [value, editing])
+  useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
+
+  const cancel = () => { setEditing(false); setFile(null); setError(null); setDraft(value || '') }
+
+  const submit = async () => {
+    const name = draft.trim()
+    if (name.length < 2) { setError('Enter at least two characters.'); return }
+    if (name === (value || '')) { cancel(); return }
+    if (!file) { setError('Add a photo of your ID card to prove the new name.'); return }
+    try {
+      await onSubmit({ name, file })
+      cancel()
+    } catch {
+      // The mutation already surfaced the failure; keep what was typed.
+    }
+  }
+
+  if (pending) {
+    return (
+      <div className="py-3">
+        <div className="flex items-center gap-3">
+          <Icon size={16} className="text-ink-faint shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-label-caps uppercase text-ink-muted">{label}</p>
+            <p className="text-body-lg text-ink mt-0.5 truncate">{value}</p>
+            <p className="text-body-sm text-ink-muted mt-1">
+              Waiting for an administrator to approve{' '}
+              <span className="text-ink font-medium">{pending.requested_name}</span>.
+            </p>
+          </div>
+          <span className="pill bg-info-bg text-info-text shrink-0">In review</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="py-3">
+      <div className="flex items-center gap-3">
+        <Icon size={16} className="text-ink-faint shrink-0" />
+
+        <div className="min-w-0 flex-1">
+          <p className="text-label-caps uppercase text-ink-muted">{label}</p>
+
+          {editing ? (
+            <>
+              <div className="mt-1.5 flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <Input
+                    ref={inputRef} value={draft} placeholder="Your name" error={error}
+                    aria-label="New full name"
+                    onChange={(e) => { setDraft(e.target.value); setError(null) }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); submit() }
+                      if (e.key === 'Escape') cancel()
+                    }}
+                  />
+                  {error && <p className="field-error">{error}</p>}
+                </div>
+                <button
+                  type="button" onClick={submit} disabled={submitting}
+                  className="btn-primary h-10 w-10 p-0" aria-label="Submit name change"
+                >
+                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                </button>
+                <button
+                  type="button" onClick={cancel}
+                  className="btn-secondary h-10 w-10 p-0" aria-label="Cancel"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button" onClick={() => fileRef.current?.click()}
+                  className="btn-secondary btn-sm" aria-label="Choose a photo of your ID card"
+                >
+                  <IdCard size={14} /> {file ? 'Change ID photo' : 'Add ID photo'}
+                </button>
+                <span className="text-body-sm text-ink-faint truncate">
+                  {file ? file.name : 'A photo of your ID card, to prove the new name'}
+                </span>
+                <input
+                  ref={fileRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => {
+                    setFile(e.target.files?.[0] || null)
+                    setError(null)
+                    e.target.value = ''
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <p className={clsx('text-body-lg mt-0.5 truncate', value ? 'text-ink' : 'text-ink-faint')}>
+              {value || 'Not set'}
+            </p>
+          )}
+        </div>
+
+        {!editing && (
+          <button
+            type="button" onClick={() => setEditing(true)}
+            className="btn-ghost btn-sm shrink-0" aria-label={`Edit ${label}`}
+          >
+            <Pencil size={14} /> Edit
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /** Second step of changing an address: the code sent to it, or a way back. */
 function CodeEntryRow({ icon: Icon, label, to, confirming, onConfirm, onResend, onCancel }) {
   const [code, setCode] = useState('')
@@ -444,13 +640,15 @@ function CodeEntryRow({ icon: Icon, label, to, confirming, onConfirm, onResend, 
             </div>
             <button
               type="button" onClick={submit} disabled={confirming}
-              className="btn-primary h-10 w-10 p-0" aria-label="Confirm new email"
+              className="btn-primary h-10 w-10 p-0"
+              aria-label={`Confirm new ${label.toLowerCase()}`}
             >
               {confirming ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
             </button>
             <button
               type="button" onClick={onCancel}
-              className="btn-secondary h-10 w-10 p-0" aria-label="Cancel email change"
+              className="btn-secondary h-10 w-10 p-0"
+              aria-label={`Cancel ${label.toLowerCase()} change`}
             >
               <X size={16} />
             </button>
