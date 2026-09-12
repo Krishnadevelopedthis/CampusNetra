@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, or_, select
 
@@ -1171,7 +1172,10 @@ async def list_name_change_requests(
             "status": row.status,
             "previous_name": row.previous_name,
             "requested_name": row.requested_name,
-            "id_document_url": row.id_document_url,
+            # Not a link to the file itself: the document is fetched through
+            # the route below, which checks the caller every time.
+            "id_document_url":
+                f"{settings.API_V1_PREFIX}/admin/name-change-requests/{row.id}/document",
             "ocr_excerpt": row.ocr_excerpt,
             "match_score": float(row.match_score) if row.match_score is not None else None,
             "requested_at": row.created_at.isoformat(),
@@ -1180,6 +1184,43 @@ async def list_name_change_requests(
             "user": {"id": str(user.id), "email": user.email, "role": user.role.value},
         })
     return out
+
+
+@router.get("/name-change-requests/{request_id}/document")
+async def name_change_document(request_id: uuid.UUID, admin: RequireAdmin, db: DB):
+    """The uploaded ID, for the administrator deciding on it.
+
+    ID cards are not served from the public media mount: an unguessable URL is
+    still only a URL, and one that leaks keeps working for anyone holding it,
+    forever. Here the caller is checked to be an administrator of the same
+    organisation on every fetch.
+
+    Unlike the approve/reject loader this accepts a decided request too — the
+    evidence for a decision should stay visible after it is made.
+    """
+    from app.services.storage import UploadError, private_file
+
+    found = (await db.execute(
+        select(NameChangeRequest, User)
+        .join(User, User.id == NameChangeRequest.user_id)
+        .where(
+            NameChangeRequest.id == request_id,
+            User.organization_id == admin.organization_id,
+        )
+    )).first()
+    if found is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found")
+
+    try:
+        path = private_file(found[0].id_document_url)
+    except UploadError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
+
+    # Somebody's identity document: no shared cache should keep a copy.
+    return FileResponse(
+        path, media_type="image/jpeg",
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 async def _load_name_request(db, request_id, admin):

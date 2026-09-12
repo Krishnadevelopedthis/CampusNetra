@@ -385,7 +385,12 @@ async def request_name_change(
 
     data = await id_document.read()
     try:
-        stored: StoredImage = store_image(data, id_document.filename, subdir="identity_verification")
+        # private=True: an ID card must not be reachable from the public media
+        # mount, so this is stored outside it and fetched through an
+        # administrator-only route instead.
+        stored: StoredImage = store_image(
+            data, id_document.filename, subdir="identity_verification", private=True,
+        )
     except UploadError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
 

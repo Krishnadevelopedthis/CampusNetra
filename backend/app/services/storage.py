@@ -48,6 +48,33 @@ def _upload_root() -> Path:
     return root
 
 
+def _private_root() -> Path:
+    """Where files that must never be served as static content live.
+
+    The whole upload directory is mounted at /media with no authentication,
+    which is right for a photo of a broken tap and wrong for a photo of
+    somebody's ID card. This is a sibling of that directory rather than a
+    folder inside it, so there is no arrangement of the mount that reaches it.
+    """
+    root = _upload_root().parent / "private-uploads"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def private_file(relative_path: str) -> Path:
+    """Turn a stored private path into a file on disk, or raise UploadError.
+
+    The value comes from our own database, which is still not a reason to open
+    whatever it names: it is resolved and checked to sit inside the private
+    root before anything is read.
+    """
+    root = _private_root()
+    candidate = (root / relative_path).resolve()
+    if not candidate.is_relative_to(root) or not candidate.is_file():
+        raise UploadError("That document is no longer available.")
+    return candidate
+
+
 def compute_phash(image: Image.Image, hash_size: int = 8) -> str:
     """Perceptual hash (DCT-based).
 
@@ -76,9 +103,15 @@ def compute_phash(image: Image.Image, hash_size: int = 8) -> str:
 
 
 def store_image(
-    data: bytes, original_name: Optional[str] = None, subdir: str = "issues"
+    data: bytes, original_name: Optional[str] = None, subdir: str = "issues",
+    private: bool = False,
 ) -> StoredImage:
-    """Validate, normalise and persist one image. Raises UploadError on bad input."""
+    """Validate, normalise and persist one image. Raises UploadError on bad input.
+
+    A private image is written outside the directory served at /media, and its
+    url/thumb_url come back as bare relative paths rather than links — there is
+    no address that serves them, only a route that checks who is asking.
+    """
     max_bytes = settings.MAX_UPLOAD_MB * 1024 * 1024
     if not data:
         raise UploadError("The uploaded file is empty.")
@@ -126,7 +159,7 @@ def store_image(
     # Random name: the client's filename is untrusted and could traverse paths.
     stamp = datetime.now(timezone.utc).strftime("%Y/%m")
     stem = f"{uuid.uuid4().hex}{secrets.token_hex(4)}"
-    folder = _upload_root() / subdir / stamp
+    folder = (_private_root() if private else _upload_root()) / subdir / stamp
     folder.mkdir(parents=True, exist_ok=True)
 
     full_path = folder / f"{stem}.jpg"
@@ -138,8 +171,8 @@ def store_image(
 
     rel = f"{subdir}/{stamp}/{stem}"
     return StoredImage(
-        url=f"/media/{rel}.jpg",
-        thumb_url=f"/media/{rel}_thumb.jpg",
+        url=f"{rel}.jpg" if private else f"/media/{rel}.jpg",
+        thumb_url=f"{rel}_thumb.jpg" if private else f"/media/{rel}_thumb.jpg",
         filename=original_name or f"{stem}.jpg",
         mime_type="image/jpeg",
         size_bytes=full_path.stat().st_size,
