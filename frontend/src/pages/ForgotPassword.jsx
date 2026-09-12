@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { AuthShell } from '@/features/auth/AuthShell'
+import { CaptchaField } from '@/features/auth/LoginParts'
+import { useCaptcha } from '@/features/auth/useCaptcha'
 import { Button, Field, Input } from '@/components/ui'
 import { api } from '@/lib/api'
 
@@ -10,19 +12,31 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState(null)
+  const [captchaError, setCaptchaError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const captcha = useCaptcha()
   const navigate = useNavigate()
 
   const submit = async (e) => {
     e.preventDefault()
     if (!email.trim()) return setError('Enter your email address')
+    if (!captcha.answer.trim()) return setCaptchaError('Enter the characters shown')
     setSubmitting(true)
     setError(null)
+    setCaptchaError(null)
     try {
-      await api.post('/auth/forgot-password', { email: email.trim() })
+      await api.post('/auth/forgot-password', {
+        email: email.trim(),
+        captcha_token: captcha.token,
+        captcha_answer: captcha.answer,
+      })
       setSent(true)
     } catch (err) {
-      setError(err.detail || 'Something went wrong')
+      const captchaProblem = err.fields?.captcha_answer || err.fields?.captcha_token
+      if (captchaProblem) setCaptchaError(captchaProblem)
+      else setError(err.detail || 'Something went wrong')
+      // A refused attempt gets a new puzzle rather than the one just rejected.
+      captcha.refresh()
     } finally {
       setSubmitting(false)
     }
@@ -75,6 +89,7 @@ export default function ForgotPassword() {
             />
           </div>
         </Field>
+        <CaptchaField captcha={captcha} error={captchaError} />
         <Button type="submit" size="lg" loading={submitting} className="w-full">
           Send reset code
         </Button>

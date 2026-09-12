@@ -4,6 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from '@/components/ui'
 import { ROLE_HOME, useAuth } from '@/lib/auth'
 
+import { useCaptcha } from './useCaptcha'
+
 /**
  * Everything the sign-in form does, minus how it looks.
  *
@@ -31,13 +33,15 @@ export function useLoginForm() {
   const summaryRef = useRef(null)
   const emailRef = useRef(null)
   const passwordRef = useRef(null)
+  const captchaRef = useRef(null)
 
+  const captcha = useCaptcha()
   const { login } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const expired = params.get('expired')
 
-  const fieldRefs = { email: emailRef, password: passwordRef }
+  const fieldRefs = { email: emailRef, password: passwordRef, captcha: captchaRef }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -46,6 +50,7 @@ export function useLoginForm() {
     const next = {}
     if (!email.trim()) next.email = 'Enter your email address'
     if (!password) next.password = 'Enter your password'
+    if (!captcha.answer.trim()) next.captcha = 'Enter the characters shown'
     if (Object.keys(next).length) {
       setErrors(next)
       setStatus('failed')
@@ -60,20 +65,29 @@ export function useLoginForm() {
     try {
       // The admin tab covers both admin and facility_manager accounts, so it
       // authenticates without a role constraint and routes on the result.
-      const user = await login(email.trim(), password, role === 'admin' ? null : role)
+      const user = await login(email.trim(), password, role === 'admin' ? null : role, captcha)
       setStatus('succeeded')
       toast.success(`Welcome back, ${user.full_name.split(' ')[0]}.`)
       navigate(ROLE_HOME[user.role] || '/dashboard', { replace: true })
     } catch (err) {
       setStatus('failed')
-      if (err.fields) setErrors(err.fields)
-      else setErrors({ _: err.detail || 'Unable to sign in. Please try again.' })
+      const fields = err.fields
+      if (fields) {
+        // The server validates the challenge as two separate inputs; the form
+        // shows one, so either complaint lands on it.
+        const captchaProblem = fields.captcha_answer || fields.captcha_token
+        setErrors({ ...fields, ...(captchaProblem ? { captcha: captchaProblem } : {}) })
+      } else {
+        setErrors({ _: err.detail || 'Unable to sign in. Please try again.' })
+      }
+      // A refused attempt gets a new puzzle rather than the one just rejected.
+      captcha.refresh()
       requestAnimationFrame(() => summaryRef.current?.focus())
     }
   }
 
   /** Field errors in form order, for the summary's jump links. */
-  const errorList = ['email', 'password']
+  const errorList = ['email', 'password', 'captcha']
     .filter((k) => errors[k])
     .map((k) => ({ field: k, message: errors[k] }))
 
@@ -83,6 +97,7 @@ export function useLoginForm() {
     email, setEmail,
     password, setPassword,
     errors, errorList,
+    captcha,
     status,
     submitting: status === 'submitting',
     succeeded: status === 'succeeded',
