@@ -31,6 +31,20 @@ def validate_password(v: str) -> str:
     return v
 
 
+def validate_seven_digit_id(value: Optional[str], label: str) -> Optional[str]:
+    """Shared check for enrollment/employee/staff IDs: exactly 7 digits.
+
+    Used everywhere one of these IDs is set or edited — self-registration and
+    every admin panel alike — so the rule can't drift between the two paths.
+    """
+    if value is None or not str(value).strip():
+        return None
+    cleaned = str(value).strip()
+    if not re.fullmatch(r"\d{7}", cleaned):
+        raise ValueError(f"{label} must be exactly 7 digits")
+    return cleaned
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -72,12 +86,7 @@ class RegisterRequest(BaseModel):
     @field_validator("enrollment_no")
     @classmethod
     def _v_enrollment(cls, value: Optional[str]) -> Optional[str]:
-        if value is None or not value.strip():
-            return None
-        cleaned = value.strip()
-        if not re.fullmatch(r"\d{7}", cleaned):
-            raise ValueError("Enrollment number must be exactly 7 digits")
-        return cleaned
+        return validate_seven_digit_id(value, "Enrollment number")
 
     @field_validator("role")
     @classmethod
@@ -89,12 +98,7 @@ class RegisterRequest(BaseModel):
     @field_validator("employee_id")
     @classmethod
     def _v_employee_id(cls, value: Optional[str]) -> Optional[str]:
-        if value is None or not value.strip():
-            return None
-        cleaned = value.strip()
-        if not re.fullmatch(r"\d{7}", cleaned):
-            raise ValueError("Employee ID must be exactly 7 digits")
-        return cleaned
+        return validate_seven_digit_id(value, "Employee ID")
 
 
 class LoginRequest(BaseModel):
@@ -103,6 +107,8 @@ class LoginRequest(BaseModel):
     # The login screen's role tab. When supplied it must match the stored role,
     # so a student cannot sign in through the Admin tab.
     role: Optional[UserRole] = None
+    captcha_token: str
+    captcha_answer: str = Field(min_length=1, max_length=16)
 
 
 class TokenPair(BaseModel):
@@ -118,6 +124,14 @@ class RefreshRequest(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
+    captcha_token: str
+    captcha_answer: str = Field(min_length=1, max_length=16)
+
+
+class CaptchaOut(BaseModel):
+    captcha_token: str
+    # data: URI PNG — no separate static-file route needed.
+    image: str
 
 
 class ResetPasswordRequest(BaseModel):
@@ -162,6 +176,7 @@ class UserOut(ORMModel):
     programme_id: Optional[uuid.UUID] = None
     academic_year: Optional[int] = None
     email_verified_at: Optional[datetime] = None
+    phone_verified_at: Optional[datetime] = None
     last_login_at: Optional[datetime] = None
     created_at: datetime
     # Client-owned settings (theme, notification channels, locale). Returned so
@@ -175,8 +190,12 @@ class AuthResponse(BaseModel):
 
 
 class UpdateProfileRequest(BaseModel):
-    full_name: Optional[str] = Field(None, min_length=2, max_length=120)
-    phone: Optional[str] = None
+    """Direct-edit profile fields.
+
+    full_name and phone are deliberately absent: changing either now goes
+    through a verified flow (ID upload for the name, OTP for the phone) rather
+    than a plain PATCH, so this model no longer accepts them at all.
+    """
     avatar_url: Optional[str] = None
     designation: Optional[str] = None
     preferences: Optional[dict] = None
@@ -189,3 +208,48 @@ class ChangeEmailRequest(BaseModel):
 
 class RequestEmailChangeRequest(BaseModel):
     new_email: EmailStr
+
+
+def _v_new_phone(value: str) -> str:
+    """Same normalisation as RegisterRequest.phone — see there for why."""
+    digits = re.sub(r"\D", "", value)
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    elif digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+    if len(digits) != 10:
+        raise ValueError("Enter a 10-digit mobile number")
+    return digits
+
+
+class RequestPhoneChangeRequest(BaseModel):
+    new_phone: str
+
+    @field_validator("new_phone")
+    @classmethod
+    def _v_new_phone(cls, value: str) -> str:
+        return _v_new_phone(value)
+
+
+class ChangePhoneRequest(BaseModel):
+    new_phone: str
+    otp_code: str = Field(min_length=4, max_length=10)
+
+    @field_validator("new_phone")
+    @classmethod
+    def _v_new_phone(cls, value: str) -> str:
+        return _v_new_phone(value)
+
+
+class NameChangeRequestOut(BaseModel):
+    id: uuid.UUID
+    status: str
+    previous_name: str
+    requested_name: str
+    match_score: Optional[float] = None
+    decision_note: Optional[str] = None
+    created_at: datetime
+
+
+class NameChangeDecisionRequest(BaseModel):
+    note: Optional[str] = Field(None, max_length=500)

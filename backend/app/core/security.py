@@ -83,3 +83,49 @@ def generate_otp(length: int = 6) -> str:
 
 def generate_opaque_token() -> str:
     return secrets.token_urlsafe(48)
+
+
+# ---------- captcha ----------
+# Stateless: the answer is never stored server-side. It travels to the client
+# as a JWT whose only claim is the hash of the correct answer, so verifying it
+# needs no DB table and survives a server restart or a second app instance.
+CAPTCHA_TOKEN = "captcha"
+
+# Excludes visually ambiguous characters (0/O, 1/I/l) so a person reading the
+# distorted image isn't fighting the font as well as the noise.
+_CAPTCHA_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+
+def generate_captcha_text(length: int = 5) -> str:
+    return "".join(secrets.choice(_CAPTCHA_ALPHABET) for _ in range(length))
+
+
+def _captcha_answer_hash(answer: str) -> str:
+    return sha256(answer.strip().upper())
+
+
+def create_captcha_token(answer: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "type": CAPTCHA_TOKEN,
+        "ans": _captcha_answer_hash(answer),
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.CAPTCHA_EXPIRE_MINUTES),
+        "jti": secrets.token_urlsafe(8),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def verify_captcha_token(token: str, answer: str) -> bool:
+    """False on anything wrong — expired, malformed, wrong type, wrong answer.
+
+    Never raises: a captcha is a UX gate, not an auth boundary, so the caller
+    always gets a clean yes/no to turn into "incorrect, try again".
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except jwt.PyJWTError:
+        return False
+    if payload.get("type") != CAPTCHA_TOKEN:
+        return False
+    return payload.get("ans") == _captcha_answer_hash(answer)

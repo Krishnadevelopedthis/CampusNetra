@@ -35,6 +35,22 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
+    # Captcha (login + forgot-password). Stateless JWT-backed image challenge —
+    # no DB table, no third-party service, reuses SECRET_KEY.
+    CAPTCHA_EXPIRE_MINUTES: int = 5
+
+    # SMS — no gateway wired in yet. Kept as a settings slot so a real provider
+    # (Twilio, MSG91, ...) can be dropped in behind services/sms.py without
+    # touching callers. Until then phone-change OTPs cannot actually be
+    # delivered by text.
+    SMS_PROVIDER: Literal["none"] = "none"
+
+    # Identity verification (name-change ID upload). The fraction of the
+    # claimed name's tokens that must appear in the OCR'd ID text for the
+    # change to auto-apply; below this it is queued for admin review instead
+    # of being rejected outright, since OCR on a photographed card is noisy.
+    NAME_MATCH_THRESHOLD: float = 0.6
+
     # AI
     ANTHROPIC_API_KEY: str = ""
     AI_MODEL: str = "claude-sonnet-5"
@@ -121,6 +137,21 @@ class Settings(BaseSettings):
     def ai_available(self) -> bool:
         """AI calls only go out when a key is present; otherwise heuristics run."""
         return self.AI_ENABLED and bool(self.ANTHROPIC_API_KEY)
+
+    @property
+    def sms_delivers(self) -> bool:
+        """True once a real SMS provider is configured. Always False today."""
+        return self.SMS_PROVIDER != "none"
+
+    @property
+    def expose_dev_phone_codes(self) -> bool:
+        """Mirrors expose_dev_codes for the phone-change OTP.
+
+        With no SMS provider, a code that only reaches the server console makes
+        the flow impossible to complete from a device — so outside production
+        the code is returned in the response instead.
+        """
+        return self.ENVIRONMENT != "production" and not self.sms_delivers
 
 
 @lru_cache
