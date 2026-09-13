@@ -102,6 +102,38 @@ export function mediaUrl(url) {
   return url
 }
 
+/**
+ * Fetch a resource that only an authenticated request can reach — an
+ * uploaded ID document, for instance — and hand back a local object URL for
+ * it. Unlike a /media asset, a plain `<img src="...">` cannot reach one of
+ * these: the browser's own image fetch carries no Authorization header.
+ *
+ * `path` is an origin-relative path already including the API prefix (what
+ * the server itself returns, e.g. "/api/v1/admin/.../document"), resolved
+ * the same way mediaUrl() resolves a /media path — against BASE's origin in
+ * production, or used as-is in dev where BASE is already a relative prefix
+ * the Vite proxy forwards.
+ *
+ * Does not retry on an expired token the way request() does: by the time
+ * something calls this, whatever query populated the surrounding list has
+ * already gone through that refresh path. The caller owns the object URL and
+ * must revoke it (e.g. in a `useEffect` cleanup) once it is no longer shown.
+ */
+export async function fetchAuthedBlob(path) {
+  const stored = readAuth()
+  const url = BASE.startsWith('http')
+    ? new URL(path, BASE.replace(/\/api\/v\d+\/?$/, '')).toString()
+    : path
+
+  const res = await fetch(url, {
+    headers: stored?.access_token ? { Authorization: `Bearer ${stored.access_token}` } : {},
+  })
+
+  if (!res.ok) throw await parseError(res)
+
+  return URL.createObjectURL(await res.blob())
+}
+
 export function readAuth() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')

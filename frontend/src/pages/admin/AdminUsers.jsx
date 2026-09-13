@@ -1,15 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, CalendarClock, ClipboardList, LogIn, PackageSearch, Search,
-  Trash2, UserMinus, UserPlus, UserX, Wrench,
+  AlertTriangle, CalendarClock, ClipboardList, IdCard, LogIn, PackageSearch,
+  Search, Trash2, UserMinus, UserPlus, UserX, Wrench,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   Avatar, Button, EmptyState, ErrorState, Field, Input, Modal, Select,
   SkeletonRows, StatusPill, Widget, toast,
 } from '@/components/ui'
-import { api, mediaUrl } from '@/lib/api'
+import { api, fetchAuthedBlob, mediaUrl } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago, dt } from '@/lib/format'
 
@@ -120,6 +120,7 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-5">
+      <NameChangeRequests onDecided={invalidate} />
       <DeletionRequests onDecided={invalidate} />
 
       <Widget bodyClass="p-0">
@@ -397,14 +398,26 @@ function CreateUserModal({ open, onClose, departments, programmes, onDone }) {
 
 function EditUserModal({ user, onClose, departments, programmes, onDone }) {
   const [form, setForm] = useState({})
+  const [errors, setErrors] = useState({})
 
   const update = useMutation({
     mutationFn: () => api.patch(`/admin/users/${user.id}`, form),
-    onSuccess: (u) => { toast.success(`${u.full_name} updated.`); setForm({}); onClose(); onDone() },
-    onError: (err) => toast.error(err.detail || 'Could not update'),
+    onSuccess: (u) => {
+      toast.success(`${u.full_name} updated.`)
+      setForm({}); setErrors({}); onClose(); onDone()
+    },
+    onError: (err) => {
+      if (err.fields) setErrors(err.fields)
+      else toast.error(err.detail || 'Could not update')
+    },
   })
 
   if (!user) return null
+
+  // Only 'student' gets "Enrollment number" — teacher/technician/facility
+  // manager/admin all carry an "Employee ID" instead, same split as the
+  // create form.
+  const isStudent = (form.role ?? user.role) === 'student'
 
   return (
     <Modal
@@ -432,6 +445,31 @@ function EditUserModal({ user, onClose, departments, programmes, onDone }) {
             ))}
           </Select>
         </Field>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Phone" error={errors.phone}>
+            <Input
+              value={form.phone ?? user.phone ?? ''}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              error={errors.phone} placeholder="e.g. 9867943963"
+            />
+          </Field>
+          <Field
+            label={isStudent ? 'Enrollment number' : 'Employee ID'}
+            hint="Seven digits."
+            error={isStudent ? errors.enrollment_no : errors.employee_id}
+          >
+            <Input
+              value={(isStudent
+                ? (form.enrollment_no ?? user.enrollment_no)
+                : (form.employee_id ?? user.employee_id)) || ''}
+              onChange={(e) => setForm((f) => ({
+                ...f, [isStudent ? 'enrollment_no' : 'employee_id']: e.target.value,
+              }))}
+              inputMode="numeric" maxLength={7} placeholder="2143210"
+              error={isStudent ? errors.enrollment_no : errors.employee_id}
+            />
+          </Field>
+        </div>
         {/* Which field applies depends on the role. A student has a course; a
             technician belongs to a maintenance team that work is routed to.
             Offering both to everyone invites filing a student under
@@ -684,6 +722,144 @@ function DetailList({ title, icon: Icon, rows, render, empty }) {
   )
 }
 
+
+/* ================== Name change requests ================== */
+
+/**
+ * Only rendered when somebody is waiting on a decision — same reasoning as
+ * DeletionRequests below: a queue that is usually empty still has to be
+ * noticed on the day it is not.
+ */
+function NameChangeRequests({ onDecided }) {
+  const qc = useQueryClient()
+  const requests = useQuery({
+    queryKey: ['name-change-requests'],
+    queryFn: () => api.get('/admin/name-change-requests'),
+    retry: false,
+  })
+
+  const decide = useMutation({
+    mutationFn: ({ id, action, note }) =>
+      api.post(`/admin/name-change-requests/${id}/${action}`, { note }),
+    onSuccess: (d) => {
+      toast.success(d.detail || 'Decision recorded.')
+      qc.invalidateQueries({ queryKey: ['name-change-requests'] })
+      onDecided?.()
+    },
+    onError: (err) => toast.error(err.detail || 'Could not record that decision.'),
+  })
+
+  // The endpoint returns every request for the audit trail, not just the open
+  // ones — this is the one screen that has to single out what still needs a
+  // human, same as the deletion queue below.
+  const pending = (requests.data || []).filter((r) => r.status === 'pending')
+  if (!pending.length) return null
+
+  return (
+    <Widget
+      title={
+        <span className="flex items-center gap-2">
+          <IdCard size={17} className="text-warning" />
+          Name change requests
+        </span>
+      }
+      subtitle={`${pending.length} awaiting a decision`}
+      bodyClass="p-0"
+    >
+      <div className="divide-y divide-border-subtle">
+        {pending.map((r) => (
+          <NameChangeRow key={r.id} request={r} decide={decide} />
+        ))}
+      </div>
+    </Widget>
+  )
+}
+
+/**
+ * One request, with the submitted ID photo loaded through an authenticated
+ * fetch — this document never gets a public /media URL, so a plain <img src>
+ * cannot reach it.
+ */
+function NameChangeRow({ request: r, decide }) {
+  const [photoUrl, setPhotoUrl] = useState(null)
+
+  useEffect(() => {
+    let url = null
+    let cancelled = false
+    fetchAuthedBlob(r.id_document_url)
+      .then((u) => {
+        if (cancelled) { URL.revokeObjectURL(u); return }
+        url = u
+        setPhotoUrl(u)
+      })
+      .catch(() => { /* Thumbnail just stays a placeholder icon. */ })
+    return () => {
+      cancelled = true
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [r.id_document_url])
+
+  const busy = decide.isPending && decide.variables?.id === r.id
+
+  return (
+    <div className="p-widget flex flex-wrap items-start gap-4">
+      <div
+        className="w-24 h-16 shrink-0 rounded-lg overflow-hidden border border-border-subtle
+                   bg-surface-sunken grid place-items-center"
+      >
+        {photoUrl ? (
+          <img
+            src={photoUrl} className="w-full h-full object-cover"
+            alt={`ID card submitted by ${r.previous_name}`}
+          />
+        ) : (
+          <IdCard size={18} className="text-ink-faint" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-body-lg font-medium text-ink">
+          {r.previous_name} <span className="text-ink-faint">→</span> {r.requested_name}
+        </p>
+        <p className="text-body-sm text-ink-faint mt-0.5 flex items-center gap-2 flex-wrap">
+          Requested {ago(r.requested_at)}
+          {r.match_score != null && (
+            <span className="pill bg-surface-sunken text-ink-muted">
+              {Math.round(r.match_score * 100)}% name match
+            </span>
+          )}
+        </p>
+        {r.ocr_excerpt && (
+          <p className="text-body-sm text-ink-faint mt-1 line-clamp-2">
+            ID text read: “{r.ocr_excerpt}”
+          </p>
+        )}
+      </div>
+
+      <div className="flex gap-2 shrink-0">
+        <Button
+          size="sm" variant="ghost" loading={busy}
+          onClick={() => {
+            const note = prompt(`Why is ${r.previous_name}'s request being declined?`)
+            if (note === null) return
+            decide.mutate({ id: r.id, action: 'reject', note })
+          }}
+        >
+          Decline
+        </Button>
+        <Button
+          size="sm" loading={busy}
+          onClick={() => {
+            if (!confirm(`Rename ${r.previous_name} to "${r.requested_name}"?`)) return
+            decide.mutate({ id: r.id, action: 'approve', note: null })
+          }}
+        >
+          Approve
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 /* ================== Account deletion requests ================== */
 
