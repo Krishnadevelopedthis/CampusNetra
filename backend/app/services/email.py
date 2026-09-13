@@ -150,15 +150,25 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
 
     detail = _api_error(resp)
     log.error("Resend rejected the message (%s): %s", resp.status_code, detail)
-    if resp.status_code in (401, 403):
+    # 401 means the key itself is missing or wrong. 403 is what Resend returns
+    # for the *other* common failure — a sandbox/unverified-domain account can
+    # only send from onboarding@resend.dev and only to the address that owns
+    # the account — which is exactly the case here, since every OTP goes to
+    # some other campus user's address. The two used to share one branch, so
+    # a 403 (by far the more common of the two in practice) was always
+    # misreported as a bad API key, sending whoever read the error down the
+    # wrong troubleshooting path.
+    if resp.status_code == 401:
         return SendResult(delivered=False,
                           error="Resend rejected the API key. Check RESEND_API_KEY.")
-    if resp.status_code == 403 or "domain" in detail.lower():
+    if resp.status_code == 403 or "domain" in detail.lower() or "verify" in detail.lower():
         return SendResult(
             delivered=False,
-            error=("Resend refused the sender address. Until you verify your own "
-                   "domain, the from address must be onboarding@resend.dev, and "
-                   "you can only send to the address that owns the account."))
+            error=("Resend refused the sender or recipient address. On a sandbox "
+                   "account (no verified domain), the from address must be "
+                   "onboarding@resend.dev, and you can only send to the address "
+                   "that owns the Resend account — verify a domain at "
+                   "resend.com/domains to send to real users."))
     return SendResult(delivered=False, error=f"Resend error: {detail}")
 
 
