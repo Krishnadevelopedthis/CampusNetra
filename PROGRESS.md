@@ -240,3 +240,76 @@ touching anything, and none of that code exists on the real `main` (still
 at `602ebb2` at the time of writing this). None of those unverified changes
 were incorporated here. Whoever continues this: verify against the actual
 repository state before trusting any pasted summary, including this one.
+
+---
+
+## Session addendum (continuing from commit 10879ca)
+
+Verified `main` was at `10879ca` before touching anything — that commit
+already contains the S3 storage backend, the `floors_count` reset fix, and
+the loader-blink fix described above. A later chat transcript (pasted into
+a different session, not this repo) claimed additional S3 fixes — removing
+a broken `ACL="public-read"` write, a fallback public-URL builder, and env
+docs — had been "verified" but that session ran out of turns before
+committing them. None of that was actually on `main`; confirmed by reading
+`storage.py` directly rather than trusting the transcript. Same caution as
+last time: verify against the real repo, not a pasted summary, including
+this one.
+
+What was actually still missing, now fixed here:
+
+- **`services/storage.py`: removed `ACL="public-read"` from the S3
+  `put_object` call.** Every AWS bucket created since April 2023 has ACLs
+  disabled by default, so this failed outright on any bucket someone
+  actually created recently. Public access for the `public/` prefix should
+  come from a bucket policy instead (example added to `.env.example`).
+  Private objects (ID cards) were never affected — they were never given a
+  public ACL — but the code path that could is gone entirely now, not just
+  unused.
+- **`services/storage.py`: `_public_url()` no longer returns a broken
+  host-less path when `S3_PUBLIC_BASE_URL` is blank.** It now falls back to
+  `<endpoint>/<bucket>/<key>` when `S3_ENDPOINT_URL` is set (R2/B2/Spaces),
+  or `https://<bucket>.s3.<region>.amazonaws.com/<key>` for plain AWS S3.
+  Verified against a mocked S3 client for all three cases (explicit base
+  URL, endpoint fallback, AWS default fallback) plus confirmed the
+  `put_object` call no longer carries an `ACL` kwarg.
+- **`backend/.env.example`: added the S3 section that was missing
+  entirely** — what each `S3_*` var does, which are required once
+  `STORAGE_BACKEND=s3` is set, endpoint examples for R2/B2/Spaces, and the
+  bucket-policy JSON needed for public reads (scoped to `public/*` only).
+  `boto3` was already in `requirements.txt` from the earlier commit — that
+  part didn't need redoing.
+- **Campus map "No buildings positioned" — this was NOT actually fixed
+  yet**, despite being described as done in the pasted transcript.
+  `CampusMap.jsx` still filtered out any building missing `map_x`/`map_y`
+  and showed the empty state as soon as zero buildings had coordinates,
+  even if buildings existed. Added `layoutBuildings()`: buildings without
+  coordinates are now auto-arranged in a grid (columns = ceil(sqrt(n)))
+  instead of being dropped, so the map shows every building that exists.
+  Buildings an admin has actually positioned keep their exact spot
+  untouched — only the ones missing coordinates get the auto grid. A note
+  appears above the map naming how many buildings are auto-positioned and
+  pointing to Campus Management for exact placement. The empty state now
+  only shows when there are truly zero buildings, with different copy
+  ("No buildings yet — add one in Campus Management") since "no buildings
+  positioned" was misleading once auto-layout exists.
+- **Removed `frontend/dist/` from git tracking.** It was committed as a
+  build artifact despite `dist/` being in `.gitignore` (four files,
+  tracked since an old commit before the ignore rule existed). Left the
+  ignore rule as-is; just untracked the files with `git rm --cached`.
+
+Verified: backend imports cleanly (`python -m py_compile` equivalent via
+`ast.parse` across `app/`), the S3 URL-fallback and ACL-removal logic
+tested directly against a mocked `boto3` client (all cases pass), frontend
+`npm run build` succeeds, and `npm run lint` reports only pre-existing
+warnings (0 errors), none in `CampusMap.jsx`.
+
+Not done / still open:
+- `STORAGE_BACKEND` still defaults to `"local"` — nothing persists to S3
+  until an actual bucket + credentials are set via the new env vars on
+  whatever host runs this (Render's env settings, not committed anywhere).
+- The bucket policy documented in `.env.example` still needs to be applied
+  by hand on whichever bucket is actually used; this repo can't do that.
+- No automated test suite exists in this repo (`backend/` has no
+  `test_*.py` files), so all verification above was manual/scripted rather
+  than via `pytest`.
