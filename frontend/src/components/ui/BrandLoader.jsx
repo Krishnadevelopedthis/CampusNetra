@@ -63,16 +63,21 @@ export function BrandLoader({ label = 'Loading…', size = 150, className }) {
           ))}
         </g>
 
-        {/* Centre: an eye, in place of the original loader's two hand ticks —
-            fitting, for an app called Campus Netra ("netra" = eye). */}
+        {/* Centre: an eye styled after the actual Campus Netra logo mark
+            (almond outline + pupil, with the logo's little roofline above
+            it) rather than a generic eye — "netra" is Sanskrit/Hindi for
+            "eye", so this is the one glyph that gets to be literal. */}
         <g transform="translate(80,80)">
-          <path
-            d="M-26,0 C-17,-16 17,-16 26,0 C17,16 -17,16 -26,0 Z"
-            fill="none" stroke="url(#pl-grad)" strokeWidth="3"
-          />
+          {/* The logo's roofline sits above the eye and doesn't blink with
+              it, the way an eyebrow doesn't close with the eye beneath it. */}
+          <path d="M-13,-16 V-26 H13 V-16" fill="none" stroke="url(#pl-grad)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           <g className="pl__eye-lid">
-            <circle r="8" fill="url(#pl-grad)" />
-            <circle r="2.6" cx="-2.6" cy="-2.6" fill="white" />
+            <path
+              d="M-26,0 C-18,-11 -9,-16 0,-16 S18,-11 26,0 C18,11 9,16 0,16 S-18,11 -26,0 Z"
+              fill="none" stroke="url(#pl-grad)" strokeWidth="3"
+            />
+            <circle r="7.5" fill="url(#pl-grad)" />
+            <circle r="2.4" cx="-2.5" cy="-2.5" fill="white" />
           </g>
         </g>
       </svg>
