@@ -7,11 +7,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Field, Input, Modal, RefreshButton, Spinner,
+  Button, EmptyState, ErrorState, RefreshButton, Spinner,
   StatusPill, Widget, toast,
 } from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
-import { AssetModal, RoomModal } from '@/features/twin/AssetRoomModals'
+import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import { useRefresh } from '@/hooks/useRefresh'
 import { useAuth } from '@/lib/auth'
 import { api, connectTwin } from '@/lib/api'
@@ -559,94 +559,5 @@ function Row({ label, children }) {
       <p className="text-label-caps uppercase text-ink-muted">{label}</p>
       <div className="text-body-md text-ink mt-1">{children}</div>
     </div>
-  )
-}
-
-
-/**
- * The three levels above a room: campus, building, floor.
- *
- * One dialog for all three because they differ only in which fields apply, and
- * because the point of the panel that opens it is that the whole chain is one
- * flow — a person mapping a new site should not be sent to three screens to
- * describe one building.
- */
-const PLACE_TITLES = {
-  campus: 'Add a campus',
-  building: 'Add a building',
-  floor: 'Add a floor',
-}
-
-function PlaceModal({ form, onClose, onSave, saving }) {
-  const [draft, setDraft] = useState({})
-
-  // Reset when a different level is opened, so a building's code does not
-  // arrive prefilled in the floor dialog.
-  useEffect(() => { setDraft(form || {}) }, [form])
-
-  if (!form) return null
-  const kind = form.kind
-  const set = (k) => (e) => setDraft((f) => ({ ...f, [k]: e.target.value }))
-  const complete = kind === 'floor'
-    ? !!draft.name
-    : !!draft.name && !!draft.code
-
-  return (
-    <Modal
-      open onClose={onClose} title={PLACE_TITLES[kind]} size="sm"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button loading={saving} disabled={!complete}
-                  onClick={() => onSave({
-                    kind,
-                    body: kind === 'campus'
-                      ? { name: draft.name, code: draft.code, address: draft.address || null }
-                      : kind === 'building'
-                        ? {
-                          name: draft.name, code: draft.code,
-                          floors_count: Math.max(1, Number(draft.floors_count) || 1),
-                        }
-                        : { name: draft.name, level: Number(draft.level) || 0 },
-                  })}>
-            {PLACE_TITLES[kind]}
-          </Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Name" required className={kind === 'floor' ? '' : undefined}>
-            <Input value={draft.name || ''} onChange={set('name')}
-                   placeholder={kind === 'campus' ? 'Main Campus'
-                     : kind === 'building' ? 'Science Block' : 'Second Floor'} />
-          </Field>
-          {kind === 'floor' ? (
-            <Field label="Level" hint="0 is ground">
-              <Input type="number" value={draft.level ?? ''} onChange={set('level')} />
-            </Field>
-          ) : (
-            <Field label="Code" required hint="Short and unique">
-              <Input value={draft.code || ''} onChange={set('code')}
-                     placeholder={kind === 'campus' ? 'MAIN' : 'SCI'} />
-            </Field>
-          )}
-        </div>
-
-        {kind === 'campus' && (
-          <Field label="Address">
-            <Input value={draft.address || ''} onChange={set('address')} />
-          </Field>
-        )}
-
-        {kind === 'building' && (
-          <Field label="How many floors?"
-                 hint="Created with the building — a building with no floors cannot hold rooms. More can be added later.">
-            <Input type="number" min="1" max="100" value={draft.floors_count ?? 1}
-                   onChange={set('floors_count')} />
-          </Field>
-        )}
-      </div>
-    </Modal>
   )
 }

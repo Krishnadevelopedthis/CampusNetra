@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Download, Flame, MapPinned } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  Boxes, ChevronLeft, ChevronRight, CircleDot, DoorOpen, Download, Flame,
+  Landmark, Layers, Plus, X,
+} from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -10,17 +12,18 @@ import {
   Metric,
   RefreshButton,
   Select,
+  Spinner,
+  StatusPill,
   Widget,
 } from '@/components/ui'
+import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
+import { CampusScene3D } from '@/features/twin/Scene3D'
 import { TwinLegend } from '@/features/twin/FloorPlan'
 import { SkeletonMetrics } from '@/components/Skeletons'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { TWIN_STATE } from '@/lib/format'
-
-const VB = 1000
-const VB_H = 620
+import { ago, titleCase, TWIN_STATE } from '@/lib/format'
 
 /**
  * Buildings need map_x/map_y (0–1) to be placed, set via an easy-to-miss
@@ -73,9 +76,23 @@ function heatColour(intensity) {
 export default function CampusMap() {
   const [days, setDays] = useState(30)
   const [mode, setMode] = useState('condition')   // condition | heat
-  const [hover, setHover] = useState(null)
+
+  // Drill-down state: clicking a building/floor/room in the 3D scene moves
+  // one level in; the breadcrumb below moves back out. Deeper ids are kept
+  // even when backing out, so stepping forward again doesn't need a re-pick.
+  const [view, setView] = useState('campus')       // campus | building | floor | room
+  const [selectedBuildingId, setSelectedBuildingId] = useState(null)
+  const [selectedRoomId, setSelectedRoomId] = useState(null)
+  const [selectedFloorId, setSelectedFloorId] = useState(null)
+  const [selectedAsset, setSelectedAsset] = useState(null)
+  const [pendingPlacement, setPendingPlacement] = useState(null)
+  const [placeForm, setPlaceForm] = useState(null)
+  const [roomModal, setRoomModal] = useState(false)
+  const [assetModal, setAssetModal] = useState(false)
 
   const { user } = useAuth()
+  const canEdit = ['technician', 'facility_manager', 'admin', 'super_admin'].includes(user?.role)
+  const qc = useQueryClient()
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   const campusId = campuses.data?.[0]?.id
@@ -85,6 +102,13 @@ export default function CampusMap() {
     queryFn: () => api.get(`/campus/campuses/${campusId}/overview`),
     enabled: !!campusId,
   })
+
+  const assetCategories = useQuery({
+    queryKey: ['asset-categories'],
+    queryFn: () => api.get('/campus/asset-categories'),
+    enabled: canEdit,
+  })
+
   // The heatmap endpoint is manager-and-above, but Campus Map is in the student
   // and teacher navigation, so every reporter opening this page fired a request
   // that could only 403. Ask for it only when it can be answered, and drop the
@@ -96,10 +120,43 @@ export default function CampusMap() {
     enabled: !!campusId && canSeeHeat,
   })
 
-  const navigate = useNavigate()
+  // Only needed once a floor is in view — the room level needs each asset's
+  // actual x/y to place its marker; the floor level only needs the overview's
+  // per-room counts, already in hand, but fetching here too keeps the room
+  // click instant instead of waiting on a second round trip.
+  const plan = useQuery({
+    queryKey: ['floor-plan', selectedFloorId],
+    queryFn: () => api.get(`/campus/floors/${selectedFloorId}/plan`),
+    enabled: !!selectedFloorId && (view === 'floor' || view === 'room'),
+  })
+  const planRoom = plan.data?.rooms?.find((r) => r.id === selectedRoomId) || null
+
+  const navigate = (v, ids = {}) => {
+    setView(v)
+    if ('buildingId' in ids) setSelectedBuildingId(ids.buildingId)
+    if ('floorId' in ids) setSelectedFloorId(ids.floorId)
+    if ('roomId' in ids) setSelectedRoomId(ids.roomId)
+  }
+
   const { refresh, refreshing } = useRefresh(
     overview.refetch, canSeeHeat ? heat.refetch : null, campuses.refetch,
+    selectedFloorId ? plan.refetch : null,
   )
+
+  const createPlace = useMutation({
+    mutationFn: ({ kind, body }) => {
+      if (kind === 'campus') return api.post('/campus/campuses', body)
+      if (kind === 'building') return api.post(`/campus/campuses/${campusId}/buildings`, body)
+      return api.post(`/campus/buildings/${selectedBuildingId}/floors`, body)
+    },
+    onSuccess: (created, { kind }) => {
+      setPlaceForm(null)
+      qc.invalidateQueries({ queryKey: ['campuses'] })
+      qc.invalidateQueries({ queryKey: ['campus-overview'] })
+      if (kind === 'building') navigate('building', { buildingId: created.id, floorId: null, roomId: null })
+      if (kind === 'floor') navigate('floor', { floorId: created.id, roomId: null })
+    },
+  })
 
   const busy = campuses.isLoading || overview.isLoading || refreshing
 
@@ -109,7 +166,9 @@ export default function CampusMap() {
 
   const heatByBuilding = new Map((heat.data?.buildings || []).map((b) => [b.id, b]))
   const buildings = overview.data?.buildings || []
-  const { placed: positioned, autoCount } = layoutBuildings(buildings)
+  const { placed: laidOut, autoCount } = layoutBuildings(buildings)
+  const selectedBuilding = buildings.find((b) => b.id === selectedBuildingId)
+  const selectedFloor = selectedBuilding?.floors?.find((f) => f.id === selectedFloorId)
 
   const exportCsv = () => {
     const rows = [
@@ -132,13 +191,33 @@ export default function CampusMap() {
     URL.revokeObjectURL(url)
   }
 
+  if (campuses.isLoading) return <Spinner label="Loading campus…" />
+  if (campuses.error) return <ErrorState error={campuses.error} onRetry={campuses.refetch} />
+  if (!campusId) {
+    return (
+      <>
+        <EmptyState
+          icon={Landmark} title="No campus configured"
+          description="Start with a campus, then add its buildings, floors, rooms and equipment."
+          action={canEdit ? (
+            <Button icon={Plus} onClick={() => setPlaceForm({ kind: 'campus' })}>
+              Add a campus
+            </Button>
+          ) : undefined}
+        />
+        <PlaceModal form={placeForm} onClose={() => setPlaceForm(null)}
+                    onSave={createPlace.mutate} saving={createPlace.isPending} />
+      </>
+    )
+  }
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-headline-lg text-ink">Campus Map</h1>
           <p className="text-body-md text-ink-muted mt-1">
-            Every building at a glance — by live condition, or by where complaints cluster.
+            The real thing, rendered — walk in from campus down to a single room.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -164,106 +243,155 @@ export default function CampusMap() {
 
       <Widget bodyClass="p-0" className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 p-widget border-b border-border-subtle">
-          <div className="flex p-1 bg-surface-sunken rounded-lg">
-            {[['condition', 'Live condition'],
-              ...(canSeeHeat ? [['heat', 'Complaint heatmap']] : [])].map(([k, label]) => (
-              <button key={k} onClick={() => setMode(k)}
-                      className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
-                        mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
-                      }`}>{label}</button>
-            ))}
+          <div className="flex items-center gap-2 min-w-0">
+            {view !== 'campus' && (
+              <button
+                onClick={() => {
+                  if (view === 'room') navigate('floor', { roomId: null })
+                  else if (view === 'floor') navigate('building', { floorId: null })
+                  else navigate('campus', { buildingId: null })
+                }}
+                className="btn-ghost h-8 w-8 p-0 rounded shrink-0"
+                aria-label="Back"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            )}
+            <nav className="flex items-center gap-1 text-body-md min-w-0 overflow-hidden">
+              <Crumb active={view === 'campus'} onClick={() => navigate('campus')}>
+                {overview.data?.campus?.name || 'Campus'}
+              </Crumb>
+              {selectedBuilding && (
+                <>
+                  <ChevronRight size={13} className="text-ink-faint shrink-0" />
+                  <Crumb active={view === 'building'} onClick={() => navigate('building', { floorId: null, roomId: null })}>
+                    {selectedBuilding.code}
+                  </Crumb>
+                </>
+              )}
+              {selectedFloor && (
+                <>
+                  <ChevronRight size={13} className="text-ink-faint shrink-0" />
+                  <Crumb active={view === 'floor'} onClick={() => navigate('floor', { roomId: null })}>
+                    {selectedFloor.name}
+                  </Crumb>
+                </>
+              )}
+              {view === 'room' && planRoom && (
+                <>
+                  <ChevronRight size={13} className="text-ink-faint shrink-0" />
+                  <Crumb active>{planRoom.code}</Crumb>
+                </>
+              )}
+            </nav>
           </div>
 
-          {mode === 'condition' ? (
-            <TwinLegend breakdown={overview.data?.state_breakdown} />
-          ) : (
-            <div className="flex items-center gap-2 text-body-sm text-ink-muted">
-              <span>Fewer</span>
-              <span className="h-2 w-32 rounded-full" style={{
-                background: 'linear-gradient(90deg, rgb(59,130,246), rgb(16,185,129), rgb(245,158,11), rgb(239,68,68))',
-              }} />
-              <span>More complaints</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {view === 'campus' && (
+              <div className="flex p-1 bg-surface-sunken rounded-lg">
+                {[['condition', 'Live condition'],
+                  ...(canSeeHeat ? [['heat', 'Complaint heatmap']] : [])].map(([k, label]) => (
+                  <button key={k} onClick={() => setMode(k)}
+                          className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
+                            mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
+                          }`}>{label}</button>
+                ))}
+              </div>
+            )}
+            {view === 'campus' && mode === 'condition' && (
+              <TwinLegend breakdown={overview.data?.state_breakdown} />
+            )}
+            {view === 'campus' && mode === 'heat' && (
+              <div className="flex items-center gap-2 text-body-sm text-ink-muted">
+                <span>Fewer</span>
+                <span className="h-2 w-24 rounded-full" style={{
+                  background: 'linear-gradient(90deg, rgb(59,130,246), rgb(16,185,129), rgb(245,158,11), rgb(239,68,68))',
+                }} />
+                <span>More</span>
+              </div>
+            )}
+
+            {canEdit && view === 'campus' && (
+              <Button size="sm" icon={Plus} onClick={() => setPlaceForm({ kind: 'building' })}>
+                Add building
+              </Button>
+            )}
+            {canEdit && view === 'building' && (
+              <Button size="sm" icon={Layers} onClick={() => setPlaceForm({ kind: 'floor' })}>
+                Add floor
+              </Button>
+            )}
+            {canEdit && view === 'floor' && (
+              <Button size="sm" icon={DoorOpen} onClick={() => setRoomModal(true)}>
+                Add room
+              </Button>
+            )}
+            {canEdit && view === 'room' && (
+              <Button size="sm" icon={Boxes} onClick={() => setAssetModal(true)}>
+                Add asset
+              </Button>
+            )}
+          </div>
         </div>
 
         {busy ? (
           <div className="p-widget">
-            <div className="skeleton w-full rounded-xl" style={{ aspectRatio: '1000 / 620' }} />
+            <div className="skeleton w-full rounded-xl" style={{ aspectRatio: '16 / 9' }} />
           </div>
-        ) : buildings.length === 0 ? (
-          <EmptyState icon={MapPinned} title="No buildings yet"
-                      description="Add a building in Campus Management to see it here." />
+        ) : view === 'campus' && buildings.length === 0 ? (
+          <EmptyState icon={Landmark} title="No buildings yet"
+                      description="Add a building to see it appear on the campus."
+                      action={canEdit ? (
+                        <Button icon={Plus} onClick={() => setPlaceForm({ kind: 'building' })}>Add building</Button>
+                      ) : undefined} />
         ) : (
-          <div className="relative bg-surface-sunken">
-            {autoCount > 0 && (
-              <p className="px-widget pt-3 text-body-sm text-ink-faint">
+          <div className="relative bg-surface-sunken" style={{ height: 560 }}>
+            {view === 'campus' && autoCount > 0 && (
+              <p className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-body-sm text-ink-faint bg-surface/90 backdrop-blur px-3 py-1.5 rounded-full border border-border-subtle">
                 {autoCount === buildings.length
-                  ? 'None of these buildings have map coordinates yet, so they’re shown in an approximate grid. '
-                  : `${autoCount} building${autoCount === 1 ? '' : 's'} shown at an approximate position. `}
-                An administrator can set exact coordinates in Campus Management.
+                  ? 'Positions are approximate — set exact coordinates in Campus Management.'
+                  : `${autoCount} building${autoCount === 1 ? '' : 's'} at an approximate position.`}
               </p>
             )}
-            <svg viewBox={`0 0 ${VB} ${VB_H}`} className="w-full h-[560px]" role="img"
-                 aria-label="Campus map">
-              <defs>
-                <pattern id="campusgrid" width="50" height="50" patternUnits="userSpaceOnUse">
-                  <path d="M 50 0 L 0 0 0 50" fill="none" className="stroke-border-subtle" strokeWidth="1" />
-                </pattern>
-                <radialGradient id="glow">
-                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.55" />
-                  <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              <rect width={VB} height={VB_H} fill="url(#campusgrid)" />
-
-              {/* Heat glow sits under the buildings so labels stay readable. */}
-              {mode === 'heat' && positioned.map((b) => {
-                const h = heatByBuilding.get(b.id)
-                if (!h?.count) return null
-                return (
-                  <circle key={`glow-${b.id}`}
-                          cx={b.map_x * VB} cy={b.map_y * VB_H}
-                          r={90 + h.intensity * 110}
-                          fill="url(#glow)"
-                          style={{ color: heatColour(h.intensity) }} />
-                )
-              })}
-
-              {positioned.map((b) => (
-                <BuildingBlock
-                  key={b.id}
-                  building={b}
-                  heat={heatByBuilding.get(b.id)}
-                  mode={mode}
-                  vb={VB}
-                  vbH={VB_H}
-                  onHover={setHover}
-                  onOpenRoom={(roomId, floorId) => navigate(`/twin/${floorId}?room=${roomId}`)}
-                />
-              ))}
-            </svg>
-
-            {hover && (
-              <div className="absolute bottom-3 left-3 bg-surface/95 backdrop-blur border border-border-subtle rounded-lg shadow-level3 p-3 pointer-events-none animate-fade-in">
-                <p className="text-body-md font-medium text-ink">{hover.name}</p>
-                <dl className="mt-1.5 space-y-0.5 text-body-sm">
-                  <div className="flex justify-between gap-6">
-                    <dt className="text-ink-muted">Assets</dt><dd className="tabular">{hover.asset_count}</dd>
-                  </div>
-                  <div className="flex justify-between gap-6">
-                    <dt className="text-ink-muted">Open issues</dt><dd className="tabular">{hover.open_issues}</dd>
-                  </div>
-                  <div className="flex justify-between gap-6">
-                    <dt className="text-ink-muted">Complaints ({days}d)</dt>
-                    <dd className="tabular">{hover.heat?.count ?? 0}</dd>
-                  </div>
-                </dl>
+            {view === 'room' && plan.isLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Spinner label="Loading room…" />
               </div>
+            ) : (
+              <CampusScene3D
+                view={view}
+                buildings={laidOut}
+                autoCount={autoCount}
+                mode={mode}
+                heatByBuilding={heatByBuilding}
+                heatColour={heatColour}
+                selectedBuildingId={selectedBuildingId}
+                selectedFloorId={selectedFloorId}
+                selectedRoomId={selectedRoomId}
+                roomAssets={view === 'room' ? (planRoom?.assets ?? null) : null}
+                pendingPlacement={pendingPlacement}
+                onSelectBuilding={(id) => navigate('building', { buildingId: id, floorId: null, roomId: null })}
+                onSelectFloor={(id) => navigate('floor', { floorId: id, roomId: null })}
+                onSelectRoom={(id) => { setPendingPlacement(null); navigate('room', { roomId: id }) }}
+                onSelectAsset={(a) => setSelectedAsset(a)}
+                onPlaceAsset={canEdit ? (pos) => { setPendingPlacement(pos); setAssetModal(true) } : undefined}
+                className="w-full h-full"
+              />
             )}
+
+            <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-body-sm text-ink-faint bg-surface/80 backdrop-blur px-3 py-1 rounded-full pointer-events-none">
+              Drag to orbit · scroll to zoom · click a {view === 'campus' ? 'building' : view === 'building' ? 'floor' : view === 'floor' ? 'room' : 'floor space to place equipment'}
+            </p>
           </div>
         )}
       </Widget>
+
+      {(selectedAsset || (view === 'room' && planRoom)) && (
+        <Inspector
+          asset={selectedAsset} room={view === 'room' ? planRoom : null}
+          onClose={() => setSelectedAsset(null)}
+        />
+      )}
 
       <div className="grid lg:grid-cols-2 gap-5">
         <Widget title="Buildings" bodyClass="p-0">
@@ -279,7 +407,8 @@ export default function CampusMap() {
                     ))}
                   </tr>
                 )) : buildings.map((b) => (
-                  <tr key={b.id}>
+                  <tr key={b.id} className="cursor-pointer"
+                      onClick={() => navigate('building', { buildingId: b.id, floorId: null, roomId: null })}>
                     <td>
                       <span className="font-mono text-mono-data text-secondary">{b.code}</span>
                       <span className="text-ink ml-2">{b.name}</span>
@@ -331,141 +460,158 @@ export default function CampusMap() {
             )}
         </Widget>
       </div>
+
+      <PlaceModal form={placeForm} onClose={() => setPlaceForm(null)}
+                  onSave={createPlace.mutate} saving={createPlace.isPending} />
+
+      <RoomModal
+        open={roomModal}
+        room={null}
+        floorId={selectedFloorId}
+        onClose={() => setRoomModal(false)}
+        onSaved={() => {
+          setRoomModal(false)
+          qc.invalidateQueries({ queryKey: ['campus-overview'] })
+          qc.invalidateQueries({ queryKey: ['floor-plan', selectedFloorId] })
+        }}
+      />
+
+      <AssetModal
+        open={assetModal}
+        asset={null}
+        roomId={selectedRoomId}
+        campusId={campusId}
+        categories={assetCategories.data || []}
+        initialPosition={pendingPlacement}
+        onClose={() => { setAssetModal(false); setPendingPlacement(null) }}
+        onSaved={() => {
+          setAssetModal(false)
+          setPendingPlacement(null)
+          qc.invalidateQueries({ queryKey: ['floor-plan', selectedFloorId] })
+          qc.invalidateQueries({ queryKey: ['campus-overview'] })
+        }}
+      />
     </div>
   )
 }
 
-/**
- * One building, drawn as an outline containing what is actually inside it.
- *
- * A coloured block tells you a building has a problem. It does not tell you the
- * problem is in the second-floor physics lab — which is the thing a facility
- * manager is standing at the map to find out. Floors stack top-down at their
- * real levels, and each room is a chip carrying its own worst asset state, so a
- * single red chip among green ones locates the fault without a drill-down.
- *
- * Rooms are only legible above a certain size, so below that the block falls
- * back to floor bands with counts rather than rendering unreadable slivers.
- */
-function BuildingBlock({ building: b, heat, mode, vb, vbH, onHover, onOpenRoom }) {
-  const colour = mode === 'heat' ? heatColour(heat?.intensity ?? 0) : b.aggregate_colour
-  const floors = b.floors || []
-
-  // Size to contents: a building with eight rooms needs more room than one
-  // with a single office, and a fixed box makes both look wrong.
-  const widest = Math.max(1, ...floors.map((f) => f.rooms.length))
-  const w = Math.min(300, Math.max(168, 56 + widest * 34))
-  const headerH = 42
-  const floorH = 26
-  const ht = headerH + Math.max(1, floors.length) * floorH + 10
-
-  // Nudge away from the edges so a wide block is never clipped.
-  const x = Math.min(vb - w - 8, Math.max(8, b.map_x * vb - w / 2))
-  const y = Math.min(vbH - ht - 8, Math.max(8, b.map_y * vbH - ht / 2))
-
+function Crumb({ active, onClick, children }) {
   return (
-    <g
-      onMouseEnter={() => onHover({ ...b, heat })}
-      onMouseLeave={() => onHover(null)}
-      className="cursor-pointer"
+    <button
+      onClick={onClick}
+      disabled={active}
+      className={`px-1.5 h-7 rounded truncate max-w-[160px] ${
+        active ? 'text-ink font-medium' : 'text-ink-muted hover:text-ink hover:bg-surface-sunken'
+      }`}
     >
-      {/* Shell */}
-      <rect
-        x={x} y={y} width={w} height={ht} rx="10"
-        fill={colour} fillOpacity={mode === 'heat' ? 0.24 : 0.10}
-        stroke={colour} strokeWidth="2.5"
-        className="transition-all duration-200"
-      />
+      {children}
+    </button>
+  )
+}
 
-      {/* Header band, so the code and totals never collide with the contents */}
-      <rect x={x} y={y} width={w} height={headerH} rx="10" fill={colour} fillOpacity="0.16" />
-      <rect x={x} y={y + headerH - 10} width={w} height="10" fill={colour} fillOpacity="0.16" />
-      <line x1={x} y1={y + headerH} x2={x + w} y2={y + headerH}
-            stroke={colour} strokeOpacity="0.4" strokeWidth="1.5" />
+/** Detail card for whichever room is currently open, or an asset clicked inside it. */
+function Inspector({ asset, room, onClose }) {
+  const detail = useQuery({
+    queryKey: ['asset', asset?.id],
+    queryFn: () => api.get(`/campus/assets/${asset.id}`),
+    enabled: !!asset?.id,
+  })
 
-      <text x={x + 10} y={y + 20} fontSize="17" fontWeight="700"
-            className="font-mono fill-ink pointer-events-none">
-        {b.code}
-      </text>
-      <text x={x + 10} y={y + 34} fontSize="10.5"
-            className="fill-ink-faint pointer-events-none">
-        {mode === 'heat'
-          ? `${heat?.count ?? 0} complaint${(heat?.count ?? 0) === 1 ? '' : 's'}`
-          : `${b.room_count ?? 0} rooms · ${b.asset_count} assets`}
-      </text>
-
-      {b.open_issues > 0 && mode === 'condition' && (
-        <>
-          <circle cx={x + w - 17} cy={y + 17} r="10.5" fill="#ef4444" />
-          <text x={x + w - 17} y={y + 21} textAnchor="middle" fontSize="11"
-                fill="white" fontWeight="700" className="pointer-events-none">
-            {b.open_issues}
-          </text>
-        </>
-      )}
-
-      {/* Floors, highest at the top — the way a building is actually stacked */}
-      {floors.length === 0 ? (
-        <text x={x + w / 2} y={y + headerH + 18} textAnchor="middle" fontSize="10.5"
-              className="fill-ink-faint pointer-events-none">
-          No floors mapped yet
-        </text>
-      ) : (
-        floors.map((f, i) => {
-          const fy = y + headerH + 4 + i * floorH
-          const chipW = Math.min(36, (w - 46) / Math.max(1, f.rooms.length) - 3)
-          const showRooms = chipW >= 14 && f.rooms.length > 0
-          return (
-            <g key={f.id}>
-              <text x={x + 10} y={fy + 16} fontSize="10"
-                    className="fill-ink-muted font-mono pointer-events-none">
-                {f.level}
-              </text>
-
-              {showRooms ? (
-                f.rooms.map((r, j) => (
-                  <g
-                    key={r.id}
-                    onClick={(e) => { e.stopPropagation(); onOpenRoom(r.id, f.id) }}
-                  >
-                    <title>
-                      {`${r.code} · ${r.name} (${r.kind.replace(/_/g, ' ')}) — `
-                        + `${r.asset_count} asset${r.asset_count === 1 ? '' : 's'}`
-                        + (r.open_issues ? `, ${r.open_issues} open` : '')}
-                    </title>
-                    <rect
-                      x={x + 26 + j * (chipW + 3)} y={fy + 4}
-                      width={chipW} height={18} rx="3.5"
-                      fill={r.colour} fillOpacity={r.state === 'healthy' ? 0.34 : 0.62}
-                      stroke={r.colour} strokeWidth="1"
-                    />
-                    <text
-                      x={x + 26 + j * (chipW + 3) + chipW / 2} y={fy + 17}
-                      textAnchor="middle" fontSize="9" fontWeight="700"
-                      className="fill-ink pointer-events-none font-mono"
-                    >
-                      {r.code.split('-').pop()}
-                    </text>
-                    {r.open_issues > 0 && (
-                      <circle
-                        cx={x + 26 + j * (chipW + 3) + chipW - 2} cy={fy + 5}
-                        r="3" fill="#ef4444" className="stroke-surface" strokeWidth="1"
-                      />
-                    )}
-                  </g>
-                ))
-              ) : (
-                <text x={x + 26} y={fy + 16} fontSize="10"
-                      className="fill-ink-faint pointer-events-none">
-                  {f.rooms.length
-                    ? `${f.rooms.length} rooms`
-                    : 'no rooms mapped'}
-                </text>
+  if (asset) {
+    const d = detail.data
+    return (
+      <Widget
+        title={asset.name}
+        subtitle={`${asset.tag} · ${room?.name || ''}`}
+        action={<button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close"><X size={16} /></button>}
+      >
+        {detail.isLoading ? <Spinner label="Loading asset…" /> : (
+          <div className="grid md:grid-cols-2 gap-5">
+            <div className="space-y-3">
+              <Row label="Status">
+                <span className="pill" style={{ background: `${asset.colour}1a`, color: asset.colour }}>
+                  <CircleDot size={12} /> {asset.label}
+                </span>
+              </Row>
+              <Row label="Asset ID"><span className="font-mono text-mono-data">{asset.tag}</span></Row>
+              {d?.room && <Row label="Zone"><span className="font-mono text-mono-data">{d.room.zone_id || '—'}</span></Row>}
+              {d?.asset?.manufacturer && <Row label="Make">{d.asset.manufacturer} {d.asset.model}</Row>}
+              <Row label="Open issues">{d?.open_issues?.length ?? 0}</Row>
+            </div>
+            <div className="space-y-4">
+              {d?.open_issues?.length > 0 && (
+                <div>
+                  <p className="text-label-caps uppercase text-ink-muted mb-2">Active issues</p>
+                  <div className="space-y-1.5">
+                    {d.open_issues.map((i) => (
+                      <div key={i.id} className="flex items-center justify-between gap-2 p-2 rounded border border-border-subtle">
+                        <div className="min-w-0">
+                          <p className="font-mono text-mono-data text-secondary">{i.reference}</p>
+                          <p className="text-body-sm text-ink truncate">{i.title}</p>
+                        </div>
+                        <StatusPill status={i.status} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-            </g>
-          )
-        })
+              {d?.condition_history?.length > 0 && (
+                <div>
+                  <p className="text-label-caps uppercase text-ink-muted mb-2">Condition history</p>
+                  <div className="space-y-1">
+                    {d.condition_history.slice(0, 4).map((h, i) => (
+                      <div key={i} className="flex items-center gap-2 text-body-sm">
+                        <span className="text-ink-faint w-24 shrink-0">{ago(h.at)}</span>
+                        <span className="text-ink-muted">
+                          {titleCase(h.from || 'new')} → <strong className="text-ink">{titleCase(h.to)}</strong>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </Widget>
+    )
+  }
+
+  if (!room) return null
+  return (
+    <Widget
+      title={room.name}
+      subtitle={room.zone_id || room.code}
+      action={<button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close"><X size={16} /></button>}
+    >
+      <div className="grid sm:grid-cols-4 gap-4">
+        <Row label="Type">{titleCase(room.kind)}</Row>
+        <Row label="Capacity">{room.capacity ?? '—'}</Row>
+        <Row label="Area">{room.area_sqft ? `${room.area_sqft} sq ft` : '—'}</Row>
+        <Row label="Open issues">{room.open_issue_count}</Row>
+      </div>
+      {room.assets?.length > 0 && (
+        <div className="mt-5">
+          <p className="text-label-caps uppercase text-ink-muted mb-2">Assets in this room — click one in the scene for details</p>
+          <div className="flex flex-wrap gap-2">
+            {room.assets.map((a) => (
+              <span key={a.id} className="pill border border-border-subtle bg-surface">
+                <span className="w-2 h-2 rounded-full" style={{ background: a.colour }} />
+                <span className="font-mono text-mono-data">{a.tag}</span>
+              </span>
+            ))}
+          </div>
+        </div>
       )}
-    </g>
+    </Widget>
+  )
+}
+
+function Row({ label, children }) {
+  return (
+    <div>
+      <p className="text-label-caps uppercase text-ink-muted">{label}</p>
+      <div className="text-body-md text-ink mt-1">{children}</div>
+    </div>
   )
 }
