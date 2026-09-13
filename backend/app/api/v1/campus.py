@@ -98,22 +98,22 @@ async def campus_overview(campus_id: uuid.UUID, user: CurrentUser, db: DB):
 
     # Per-building asset-state counts, resolved in one grouped query.
     rows = (await db.execute(
-        select(Building.id, Building.name, Building.code, Building.map_x, Building.map_y,
-               Asset.state, func.count(Asset.id))
+        select(Building.id, Building.name, Building.code, Building.floors_count,
+               Building.map_x, Building.map_y, Asset.state, func.count(Asset.id))
         .select_from(Building)
         .join(Floor, Floor.building_id == Building.id, isouter=True)
         .join(Room, Room.floor_id == Floor.id, isouter=True)
         .join(Asset, Asset.room_id == Room.id, isouter=True)
         .where(Building.campus_id == campus_id)
-        .group_by(Building.id, Building.name, Building.code,
+        .group_by(Building.id, Building.name, Building.code, Building.floors_count,
                   Building.map_x, Building.map_y, Asset.state)
     )).all()
 
     buildings: dict[uuid.UUID, dict] = {}
     breakdown: dict[str, int] = {s.value: 0 for s in AssetState}
-    for bid, name, code, mx, my, state, count in rows:
+    for bid, name, code, floors_count, mx, my, state, count in rows:
         b = buildings.setdefault(bid, {
-            "id": str(bid), "name": name, "code": code,
+            "id": str(bid), "name": name, "code": code, "floors_count": floors_count,
             "map_x": float(mx) if mx is not None else None,
             "map_y": float(my) if my is not None else None,
             "asset_count": 0, "states": {}, "open_issues": 0,
@@ -489,7 +489,7 @@ async def update_building(
             raise HTTPException(status.HTTP_409_CONFLICT,
                                 f"Building code {payload.code} already exists on this campus.")
 
-    for field, value in payload.model_dump().items():
+    for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(building, field, value)
     await db.flush()
     return BuildingOut.model_validate(building)

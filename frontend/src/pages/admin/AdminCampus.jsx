@@ -268,9 +268,15 @@ export default function AdminCampus() {
   )
 }
 
-/** Only the fields the API accepts; the overview adds display-only extras. */
+/** Only the fields the API accepts; the overview adds display-only extras.
+ *
+ * floors_count is only sent when creating a building. Editing one no longer
+ * includes it at all — PATCH only applies keys actually present in the
+ * request body, so this stops every edit (even just moving the map pin)
+ * from silently resetting the building's floor count back to 1.
+ */
 const body = (f) => ({
   name: f.name, code: f.code,
-  floors_count: f.floors_count ?? 1,
+  ...(f.id ? {} : { floors_count: f.floors_count ?? 1 }),
   map_x: f.map_x ?? null, map_y: f.map_y ?? null,
 })

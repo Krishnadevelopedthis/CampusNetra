@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func, or_, select
 
@@ -1198,7 +1198,7 @@ async def name_change_document(request_id: uuid.UUID, admin: RequireAdmin, db: D
     Unlike the approve/reject loader this accepts a decided request too — the
     evidence for a decision should stay visible after it is made.
     """
-    from app.services.storage import UploadError, private_file
+    from app.services.storage import UploadError, read_private_bytes
 
     found = (await db.execute(
         select(NameChangeRequest, User)
@@ -1212,13 +1212,13 @@ async def name_change_document(request_id: uuid.UUID, admin: RequireAdmin, db: D
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found")
 
     try:
-        path = private_file(found[0].id_document_url)
+        data = read_private_bytes(found[0].id_document_url)
     except UploadError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
 
     # Somebody's identity document: no shared cache should keep a copy.
-    return FileResponse(
-        path, media_type="image/jpeg",
+    return Response(
+        content=data, media_type="image/jpeg",
         headers={"Cache-Control": "private, no-store"},
     )
 

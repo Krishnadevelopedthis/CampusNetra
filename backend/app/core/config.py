@@ -57,9 +57,27 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = True
 
     # Storage
+    # "local" writes to UPLOAD_DIR on the server's own disk — fine for local
+    # development, but most PaaS free/standard tiers (Render, Railway, Fly,
+    # Heroku-style dynos) wipe local disk on every redeploy or restart. That
+    # silently deletes every issue/lost-and-found photo ever uploaded, which
+    # is why they can appear to "vanish" over time. Set STORAGE_BACKEND=s3
+    # and the S3_* values below to point at any S3-compatible bucket
+    # (Cloudflare R2 and Backblaze B2 both have workable free tiers) for
+    # uploads that actually survive a redeploy.
     STORAGE_BACKEND: Literal["local", "s3"] = "local"
     UPLOAD_DIR: str = "./uploads"
     MAX_UPLOAD_MB: int = 10
+
+    S3_BUCKET: str = ""
+    S3_REGION: str = "auto"
+    # Leave blank for real AWS S3; set for R2 / B2 / MinIO / DigitalOcean Spaces.
+    S3_ENDPOINT_URL: str = ""
+    S3_ACCESS_KEY_ID: str = ""
+    S3_SECRET_ACCESS_KEY: str = ""
+    # Where a public object's URL points once uploaded — the bucket's own
+    # public endpoint, or a CDN/custom domain in front of it.
+    S3_PUBLIC_BASE_URL: str = ""
 
     # Email — SMTP for local development, an HTTP API for hosted environments.
     #
@@ -103,6 +121,17 @@ class Settings(BaseSettings):
             raise ValueError(
                 "SECRET_KEY is still the development default. Generate one with:\n"
                 '  python -c "import secrets; print(secrets.token_urlsafe(64))"'
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _require_s3_config_when_selected(self) -> "Settings":
+        if self.STORAGE_BACKEND == "s3" and not (
+            self.S3_BUCKET and self.S3_ACCESS_KEY_ID and self.S3_SECRET_ACCESS_KEY
+        ):
+            raise ValueError(
+                "STORAGE_BACKEND=s3 requires S3_BUCKET, S3_ACCESS_KEY_ID and "
+                "S3_SECRET_ACCESS_KEY to be set."
             )
         return self
 

@@ -319,10 +319,15 @@
 }
 
 /* A slow, steady blink on the centre eye — subtle enough not to fight the
-   ring for attention, but enough to read as alive rather than a static icon. */
+   ring for attention, but enough to read as alive rather than a static icon.
+   transform-origin is 0 0, not 80px 80px: this group already lives inside a
+   parent <g transform="translate(80,80)">, so its own content is drawn
+   around its *local* origin (0,0). Scaling around 80,80 instead — a point
+   nowhere near the eye once the parent's translate is applied — was why the
+   blink barely read as an animation at all. */
 .pl__eye-lid {
   animation: eyeBlink42 4s ease-in-out infinite;
-  transform-origin: 80px 80px;
+  transform-origin: 0 0;
 }
 
 @keyframes ringRotate42 {
