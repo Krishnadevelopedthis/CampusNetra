@@ -245,7 +245,7 @@ async def request_email_change(payload: RequestEmailChangeRequest, user: Current
     code = await auth_service.create_verification_code(
         db, user, "email_change", bind=new_email.lower()
     )
-    sent = await send_otp(new_email, user.full_name, code, "email_change")
+    sent = await send_otp(new_email, user.full_name, code, "email_change",provider="resend",)
     if sent.delivered:
         return Message(detail=f"A verification code has been sent to {new_email}.")
     if settings.expose_dev_codes:
