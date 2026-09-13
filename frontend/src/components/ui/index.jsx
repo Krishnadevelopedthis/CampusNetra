@@ -5,6 +5,7 @@ import { forwardRef, useEffect, useRef, useState } from 'react'
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
 export { SkeletonRows }
+export { BrandLoader } from '@/components/ui/BrandLoader'
 
 /* ---------------- Modal ---------------- */
 export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
@@ -211,6 +212,13 @@ export function Select({ error, className, children, ...rest }) {
 /* ---------------- Avatar ---------------- */
 export function Avatar({ name, src, size = 32, className }) {
   const [failed, setFailed] = useState(false)
+  // Reset on every new src — otherwise an avatar that failed to load once
+  // (a transient network hiccup, or the brief moment mid logout/login when
+  // this re-renders with a stale or empty src) is stuck showing initials
+  // forever, even once a perfectly good src comes back. That read as an
+  // uploaded photo "fading away" and never returning after signing out.
+  useEffect(() => { setFailed(false) }, [src])
+
   if (src && !failed) {
     return (
       <img

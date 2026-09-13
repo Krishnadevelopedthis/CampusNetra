@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { Spinner } from '@/components/ui'
+import { BrandLoader, Spinner } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
 
@@ -110,7 +110,7 @@ function RequireAuth({ children, roles }) {
 
   if (!initialised) {
     return (
-      <Spinner
+      <BrandLoader
         label="Restoring your session…"
         className="min-h-screen"
       />
@@ -158,7 +158,7 @@ function PublicOnly({ children }) {
 
   if (!initialised) {
     return (
-      <Spinner
+      <BrandLoader
         label="Loading…"
         className="min-h-screen"
       />
