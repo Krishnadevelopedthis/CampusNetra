@@ -238,14 +238,20 @@ def _s3_key(relative_path: str, private: bool) -> str:
 
 def _write_object(relative_path: str, data: bytes, private: bool) -> None:
     if settings.STORAGE_BACKEND == "s3":
+        # No ACL is set here on purpose: every AWS S3 bucket created since
+        # April 2023 has ACLs disabled by default (put_object with ACL=
+        # "public-read" fails outright with AccessControlListNotSupported),
+        # and several S3-compatible providers never supported per-object
+        # ACLs at all. Public read access for the "public/" prefix is
+        # granted once, at the bucket level, via a bucket policy — see the
+        # example in backend/.env.example. Private objects (ID cards) are
+        # never touched by that policy and stay reachable only through
+        # read_private_bytes()'s authenticated route.
         _s3_client().put_object(
             Bucket=settings.S3_BUCKET,
             Key=_s3_key(relative_path, private),
             Body=data,
             ContentType="image/jpeg",
-            # Only public objects get a public ACL; private ones (ID cards)
-            # are readable only via read_private_bytes()'s authenticated route.
-            ACL="public-read" if not private else "private",
         )
         return
 
@@ -277,7 +283,19 @@ def _read_object(relative_path: str, private: bool) -> bytes:
 
 def _public_url(relative_path: str) -> str:
     if settings.STORAGE_BACKEND == "s3":
+        key = _s3_key(relative_path, private=False)
         base = settings.S3_PUBLIC_BASE_URL.rstrip("/")
-        return f"{base}/{_s3_key(relative_path, private=False)}"
+        if base:
+            return f"{base}/{key}"
+        # No S3_PUBLIC_BASE_URL configured: fall back to a URL the bucket
+        # itself will actually answer, rather than a host-less "/key" path
+        # that resolves against nothing. Endpoint-style providers (R2, B2,
+        # Spaces) serve a bucket at <endpoint>/<bucket>/<key>; plain AWS S3
+        # serves it at <bucket>.s3.<region>.amazonaws.com/<key>.
+        if settings.S3_ENDPOINT_URL:
+            endpoint = settings.S3_ENDPOINT_URL.rstrip("/")
+            return f"{endpoint}/{settings.S3_BUCKET}/{key}"
+        region = settings.S3_REGION if settings.S3_REGION not in ("", "auto") else "us-east-1"
+        return f"https://{settings.S3_BUCKET}.s3.{region}.amazonaws.com/{key}"
     return f"/media/{relative_path}"
 

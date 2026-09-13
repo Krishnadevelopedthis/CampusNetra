@@ -22,6 +22,31 @@ import { TWIN_STATE } from '@/lib/format'
 const VB = 1000
 const VB_H = 620
 
+/**
+ * Buildings need map_x/map_y (0–1) to be placed, set via an easy-to-miss
+ * field in Campus Management. A building with none set used to be dropped
+ * from the map entirely — with enough of them, the map looked empty even
+ * though every building existed and had rooms/assets. Buildings missing
+ * coordinates are now auto-arranged in a grid instead, so the map always
+ * shows something; a building an admin has actually positioned keeps its
+ * exact spot untouched.
+ */
+function layoutBuildings(buildings) {
+  const positioned = buildings.filter((b) => b.map_x != null && b.map_y != null)
+  const unpositioned = buildings.filter((b) => b.map_x == null || b.map_y == null)
+  if (unpositioned.length === 0) return { placed: positioned, autoCount: 0 }
+
+  const cols = Math.max(1, Math.ceil(Math.sqrt(unpositioned.length)))
+  const rows = Math.max(1, Math.ceil(unpositioned.length / cols))
+  const auto = unpositioned.map((b, i) => ({
+    ...b,
+    map_x: (i % cols + 0.5) / cols,
+    map_y: (Math.floor(i / cols) + 0.5) / rows,
+    _autoPositioned: true,
+  }))
+  return { placed: [...positioned, ...auto], autoCount: auto.length }
+}
+
 /** Cold blue through to hot red, by complaint intensity. */
 function heatColour(intensity) {
   if (intensity <= 0) return '#cbd5e1'
@@ -84,7 +109,7 @@ export default function CampusMap() {
 
   const heatByBuilding = new Map((heat.data?.buildings || []).map((b) => [b.id, b]))
   const buildings = overview.data?.buildings || []
-  const positioned = buildings.filter((b) => b.map_x != null && b.map_y != null)
+  const { placed: positioned, autoCount } = layoutBuildings(buildings)
 
   const exportCsv = () => {
     const rows = [
@@ -166,11 +191,19 @@ export default function CampusMap() {
           <div className="p-widget">
             <div className="skeleton w-full rounded-xl" style={{ aspectRatio: '1000 / 620' }} />
           </div>
-        ) : positioned.length === 0 ? (
-          <EmptyState icon={MapPinned} title="No buildings positioned on the map"
-                      description="Buildings need map coordinates before they can be placed. An administrator sets these in Campus Management." />
+        ) : buildings.length === 0 ? (
+          <EmptyState icon={MapPinned} title="No buildings yet"
+                      description="Add a building in Campus Management to see it here." />
         ) : (
           <div className="relative bg-surface-sunken">
+            {autoCount > 0 && (
+              <p className="px-widget pt-3 text-body-sm text-ink-faint">
+                {autoCount === buildings.length
+                  ? 'None of these buildings have map coordinates yet, so they’re shown in an approximate grid. '
+                  : `${autoCount} building${autoCount === 1 ? '' : 's'} shown at an approximate position. `}
+                An administrator can set exact coordinates in Campus Management.
+              </p>
+            )}
             <svg viewBox={`0 0 ${VB} ${VB_H}`} className="w-full h-[560px]" role="img"
                  aria-label="Campus map">
               <defs>
