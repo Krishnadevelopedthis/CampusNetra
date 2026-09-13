@@ -313,3 +313,68 @@ Not done / still open:
 - No automated test suite exists in this repo (`backend/` has no
   `test_*.py` files), so all verification above was manual/scripted rather
   than via `pytest`.
+
+## Addendum 3 — Resend misdiagnosis fix, and a real 3D campus map
+
+Two new, unrelated reports this round: (1) `/auth/me/change-email` returning
+503 "Resend rejected the API key" even with a correct `RESEND_API_KEY`, and
+(2) a request to actually build the 3D campus map — `three` had been sitting
+in `package.json` as a dependency since some earlier point, unused anywhere
+in the codebase. Checked directly rather than assuming either was already
+handled; neither was.
+
+- **Resend 503 despite a correct key — found and fixed the actual bug.**
+  `_send_resend()`'s status-code handling checked `if resp.status_code in
+  (401, 403): return "...rejected the API key..."` *before* the branch meant
+  to catch domain-verification failures, which Resend also reports as 403.
+  Every 403 was swallowed by the first branch, so an unverified sending
+  domain — the far more likely cause once a key is confirmed correct, and
+  the default `RESEND_FROM` here is `noreply@campusnetra.dpdns.org`, a
+  domain that would need its own DNS records verified with Resend — got
+  reported as a bad API key. Reordered so 401 alone means "bad key", 403 (or
+  any status whose message mentions "domain"/"verify") gets the accurate
+  domain-verification message with the DNS/onboarding@resend.dev guidance.
+  Also fixed `_no_sender_error()`, which hardcoded "SMTP_FROM" in its
+  message even when called from the Resend path (should say `RESEND_FROM`).
+  Verified against a mocked Resend API: a 403 domain-not-verified response no
+  longer mentions the API key at all; a genuine 401 still does.
+  **If the 503 persists after this**: it means the domain genuinely isn't
+  verified yet — check the Resend dashboard's Domains tab, or switch
+  `RESEND_FROM` to `onboarding@resend.dev` as a temporary unblock (Resend
+  only allows that address to send to the account owner's own inbox, so it
+  only works for testing, not real users).
+
+- **3D campus map — actually built, not just a dependency.** New
+  `frontend/src/features/campus3d/Campus3DView.jsx` using
+  `@react-three/fiber` + `@react-three/drei` (added as dependencies; `three`
+  itself was already there but unused). Buildings render as extruded boxes —
+  height scaled to floor count, colour following the exact same rule as the
+  2D map (condition colour or heat colour, same legend), same world
+  positions via the existing `map_x`/`map_y` fields and `layoutBuildings()`
+  auto-layout — so 2D and 3D always agree on where a building sits. Orbit
+  controls for rotate/pan/zoom, a ground grid, code labels billboarded to
+  face the camera, and a hover contract identical to the 2D view's
+  (`onHover(building-with-heat | null)`) so the existing info panel below the
+  map works unchanged for both. `CampusMap.jsx` gained a 2D/3D toggle next to
+  the existing condition/heat one; clicking a building in 3D opens its first
+  floor in the Digital Twin, same as clicking a room chip does in 2D.
+  `Campus3DView` is lazy-loaded (`React.lazy`) into its own chunk — it pulls
+  in three.js, which is a genuinely large dependency — so people who never
+  open the 3D view never download it; confirmed as a separate ~970 kB chunk
+  in the build output, not merged into the main bundle.
+
+Verified: backend `email.py` change compiles, imports, and its Resend
+status-code logic was tested directly against a mocked Resend API (403
+domain-error case and 401 bad-key case both produce the correct, distinct
+message — this is the fix that actually matters here, so it got an explicit
+test rather than just "the file imports"). Frontend builds and lints clean;
+the 3D chunk code-splits as intended. No headless-browser/WebGL renderer was
+available in this environment to smoke-test the actual Three.js scene
+mounting, so the 3D view's runtime behavior (not just its build) is unverified
+beyond careful review against the react-three-fiber/drei v8/v9 APIs used —
+worth an actual click-through in a browser before calling this fully done.
+
+Not done / still open:
+- The 3D scene has not been visually verified in a real browser.
+- Nothing about the S3/storage or floors_count items from addenda 1–2 was
+  touched this round; they stand as previously verified.

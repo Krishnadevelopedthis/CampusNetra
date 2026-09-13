@@ -1,7 +1,7 @@
+import { lazy, Suspense, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Download, Flame, MapPinned } from 'lucide-react'
-import { useState } from 'react'
+import { Boxes, Download, Flame, Map as MapIcon, MapPinned } from 'lucide-react'
 
 import {
   Button,
@@ -18,6 +18,10 @@ import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { TWIN_STATE } from '@/lib/format'
+
+// three.js + fiber add real weight to the bundle; only people who actually
+// open the 3D view should pay for downloading it.
+const Campus3DView = lazy(() => import('@/features/campus3d/Campus3DView'))
 
 const VB = 1000
 const VB_H = 620
@@ -73,6 +77,7 @@ function heatColour(intensity) {
 export default function CampusMap() {
   const [days, setDays] = useState(30)
   const [mode, setMode] = useState('condition')   // condition | heat
+  const [view, setView] = useState('2d')          // 2d | 3d
   const [hover, setHover] = useState(null)
 
   const { user } = useAuth()
@@ -164,14 +169,26 @@ export default function CampusMap() {
 
       <Widget bodyClass="p-0" className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 p-widget border-b border-border-subtle">
-          <div className="flex p-1 bg-surface-sunken rounded-lg">
-            {[['condition', 'Live condition'],
-              ...(canSeeHeat ? [['heat', 'Complaint heatmap']] : [])].map(([k, label]) => (
-              <button key={k} onClick={() => setMode(k)}
-                      className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
-                        mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
-                      }`}>{label}</button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex p-1 bg-surface-sunken rounded-lg">
+              {[['condition', 'Live condition'],
+                ...(canSeeHeat ? [['heat', 'Complaint heatmap']] : [])].map(([k, label]) => (
+                <button key={k} onClick={() => setMode(k)}
+                        className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
+                          mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
+                        }`}>{label}</button>
+              ))}
+            </div>
+            <div className="flex p-1 bg-surface-sunken rounded-lg">
+              {[['2d', '2D', MapIcon], ['3d', '3D', Boxes]].map(([k, label, Icon]) => (
+                <button key={k} onClick={() => setView(k)}
+                        className={`h-8 px-3 rounded text-body-md font-medium transition-colors flex items-center gap-1.5 ${
+                          view === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
+                        }`}>
+                  <Icon size={14} />{label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {mode === 'condition' ? (
@@ -204,45 +221,66 @@ export default function CampusMap() {
                 An administrator can set exact coordinates in Campus Management.
               </p>
             )}
-            <svg viewBox={`0 0 ${VB} ${VB_H}`} className="w-full h-[560px]" role="img"
-                 aria-label="Campus map">
-              <defs>
-                <pattern id="campusgrid" width="50" height="50" patternUnits="userSpaceOnUse">
-                  <path d="M 50 0 L 0 0 0 50" fill="none" className="stroke-border-subtle" strokeWidth="1" />
-                </pattern>
-                <radialGradient id="glow">
-                  <stop offset="0%" stopColor="currentColor" stopOpacity="0.55" />
-                  <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
-                </radialGradient>
-              </defs>
-              <rect width={VB} height={VB_H} fill="url(#campusgrid)" />
 
-              {/* Heat glow sits under the buildings so labels stay readable. */}
-              {mode === 'heat' && positioned.map((b) => {
-                const h = heatByBuilding.get(b.id)
-                if (!h?.count) return null
-                return (
-                  <circle key={`glow-${b.id}`}
-                          cx={b.map_x * VB} cy={b.map_y * VB_H}
-                          r={90 + h.intensity * 110}
-                          fill="url(#glow)"
-                          style={{ color: heatColour(h.intensity) }} />
-                )
-              })}
-
-              {positioned.map((b) => (
-                <BuildingBlock
-                  key={b.id}
-                  building={b}
-                  heat={heatByBuilding.get(b.id)}
+            {view === '3d' ? (
+              <Suspense fallback={
+                <div className="p-widget">
+                  <div className="skeleton w-full h-[560px] rounded-xl" />
+                </div>
+              }>
+                <Campus3DView
+                  buildings={positioned}
+                  heatByBuilding={heatByBuilding}
                   mode={mode}
-                  vb={VB}
-                  vbH={VB_H}
+                  heatColour={heatColour}
                   onHover={setHover}
-                  onOpenRoom={(roomId, floorId) => navigate(`/twin/${floorId}?room=${roomId}`)}
+                  onOpen={(b) => {
+                    const first = b.floors?.[0]
+                    if (first) navigate(`/twin/${first.id}`)
+                  }}
                 />
-              ))}
-            </svg>
+              </Suspense>
+            ) : (
+              <svg viewBox={`0 0 ${VB} ${VB_H}`} className="w-full h-[560px]" role="img"
+                   aria-label="Campus map">
+                <defs>
+                  <pattern id="campusgrid" width="50" height="50" patternUnits="userSpaceOnUse">
+                    <path d="M 50 0 L 0 0 0 50" fill="none" className="stroke-border-subtle" strokeWidth="1" />
+                  </pattern>
+                  <radialGradient id="glow">
+                    <stop offset="0%" stopColor="currentColor" stopOpacity="0.55" />
+                    <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                <rect width={VB} height={VB_H} fill="url(#campusgrid)" />
+
+                {/* Heat glow sits under the buildings so labels stay readable. */}
+                {mode === 'heat' && positioned.map((b) => {
+                  const h = heatByBuilding.get(b.id)
+                  if (!h?.count) return null
+                  return (
+                    <circle key={`glow-${b.id}`}
+                            cx={b.map_x * VB} cy={b.map_y * VB_H}
+                            r={90 + h.intensity * 110}
+                            fill="url(#glow)"
+                            style={{ color: heatColour(h.intensity) }} />
+                  )
+                })}
+
+                {positioned.map((b) => (
+                  <BuildingBlock
+                    key={b.id}
+                    building={b}
+                    heat={heatByBuilding.get(b.id)}
+                    mode={mode}
+                    vb={VB}
+                    vbH={VB_H}
+                    onHover={setHover}
+                    onOpenRoom={(roomId, floorId) => navigate(`/twin/${floorId}?room=${roomId}`)}
+                  />
+                ))}
+              </svg>
+            )}
 
             {hover && (
               <div className="absolute bottom-3 left-3 bg-surface/95 backdrop-blur border border-border-subtle rounded-lg shadow-level3 p-3 pointer-events-none animate-fade-in">
