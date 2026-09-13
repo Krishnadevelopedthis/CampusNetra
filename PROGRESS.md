@@ -145,3 +145,25 @@ this file is the real, checked-in status.)
 - `UpdateProfileRequest` losing `full_name`/`phone` is an intentional
   breaking change to the API contract — the frontend absolutely needs the
   two items above done together, or profile editing partially breaks.
+
+## Addendum — eye loader + avatar-persistence fix (separate small ask)
+
+Two independent, additive UI fixes layered on top of the work above — no
+overlap with the identity-verification/CAPTCHA changes, safe to read on
+their own:
+
+- **`components/ui/BrandLoader.jsx` (new)**: full-page loading animation
+  based on the Uiverse.io "Nawsome" CSS loader (see `styles/index.css`,
+  the `.pl__*` rules), with the original's two hand-tick arrows replaced by
+  an eye at the centre — "Netra" is Sanskrit/Hindi for "eye". Wired into
+  `App.jsx`'s `RequireAuth`/`PublicOnly` boot-loading states in place of the
+  plain `Spinner` that was there before. `Spinner` is untouched and still
+  used for the route-level `Suspense` fallback and everywhere else.
+- **Avatar-persistence bug, fixed**: `components/ui/Avatar` tracked an
+  `onError` image-load failure in a `failed` flag that never reset when
+  `src` changed. One failed load (e.g. a transient blip during the
+  `user: null → new user` re-render that happens across logout/login)
+  permanently stuck the avatar on its initials fallback — even once a
+  perfectly good `avatar_url` came back from the server. The upload itself
+  was never the bug; `avatar_url` was always persisted correctly via
+  `PATCH /auth/me`. Fixed with `useEffect(() => setFailed(false), [src])`.
