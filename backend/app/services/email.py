@@ -76,6 +76,32 @@ def _sender() -> tuple[str, str]:
     return name or settings.APP_NAME, addr if "@" in addr else ""
 
 
+
+
+
+
+
+
+# added function 
+
+def _resend_sender() -> tuple[str, str]:
+   
+    raw = (settings.RESEND_FROM or "").strip()
+
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
+        raw = raw[1:-1].strip()
+
+    name, addr = parseaddr(raw)
+
+    if "@" not in addr:
+        return "", ""
+
+    return name or settings.APP_NAME, addr
+
+
+# closing this 
+
+
 def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessage:
     msg = EmailMessage()
     name, addr = _sender()
@@ -128,7 +154,7 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
     """Resend's HTTPS API. Used where outbound SMTP is blocked."""
     import httpx
 
-    name, addr = _sender()
+    name, addr = _resend_sender()
     if not addr:
         return SendResult(delivered=False, error=_no_sender_error())
     sender = formataddr((name, addr))
@@ -255,9 +281,13 @@ def _send_blocking(msg: EmailMessage) -> SendResult:
 
 
 async def send_email(
-    to: str, subject: str, text: str, html: Optional[str] = None
+    to: str,
+    subject: str,
+    text: str,
+    html: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> SendResult:
-    provider = settings.email_provider
+    provider = provider or settings.email_provider
 
     if provider == "none":
         log.info(
@@ -356,7 +386,7 @@ async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
         f"If you did not request this, you can ignore this email.\n\n"
         f"— Campus Netra"
     )
-    return await send_email(to, subject, text, _otp_html(name, code, purpose))
+    return await send_email(to, subject, text, _otp_html(name, code, purpose),provider=provider,)
 
 
 async def verify_connection() -> SendResult:
