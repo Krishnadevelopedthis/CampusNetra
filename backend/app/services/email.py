@@ -374,7 +374,7 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 </html>"""
 
 
-async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
+async def send_otp(to: str, name: str, code: str, purpose: str, provider: Optional[str] = None,) -> SendResult:
     action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
     subject = f"{code} is your Campus Netra verification code"
 
