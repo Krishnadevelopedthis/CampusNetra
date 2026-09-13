@@ -45,9 +45,10 @@ class SendResult:
     logged_only: bool = False
 
 
-def _no_sender_error() -> str:
+def _no_sender_error(var_name: str = "SMTP_FROM") -> str:
+    value = getattr(settings, var_name, "")
     return (
-        f"SMTP_FROM is not a usable address (got {settings.SMTP_FROM!r}). "
+        f"{var_name} is not a usable address (got {value!r}). "
         "Set it to either 'you@example.com' or 'Campus Netra <you@example.com>' "
         "— with no surrounding quotes when setting it in a hosting dashboard."
     )
@@ -78,28 +79,19 @@ def _sender() -> tuple[str, str]:
 
 
 
-
-
-
-
-# added function 
-
 def _resend_sender() -> tuple[str, str]:
-   
+    """The display name and address Resend sends from — RESEND_FROM, not
+    SMTP_FROM. Kept separate from `_sender()` because the two providers are
+    commonly configured to send as different addresses (e.g. Brevo for
+    forgot-password, Resend for the profile email-change flow)."""
     raw = (settings.RESEND_FROM or "").strip()
-
     if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
         raw = raw[1:-1].strip()
 
     name, addr = parseaddr(raw)
-
     if "@" not in addr:
         return "", ""
-
     return name or settings.APP_NAME, addr
-
-
-# closing this 
 
 
 def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessage:
@@ -156,7 +148,7 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
 
     name, addr = _resend_sender()
     if not addr:
-        return SendResult(delivered=False, error=_no_sender_error())
+        return SendResult(delivered=False, error=_no_sender_error("RESEND_FROM"))
     sender = formataddr((name, addr))
 
     try:
@@ -176,15 +168,25 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
 
     detail = _api_error(resp)
     log.error("Resend rejected the message (%s): %s", resp.status_code, detail)
-    if resp.status_code in (401, 403):
+    # 401 is unambiguous: the key itself was rejected. 403, however, is what
+    # Resend also returns for an unverified sending domain — a wrong-looking
+    # "API key" message on a 403 that was actually about the *domain* sends
+    # someone re-checking (and re-pasting) a key that was correct all along.
+    # The domain problem is the common case once a key is confirmed correct,
+    # so check the message before assuming which one it is.
+    if resp.status_code == 401:
         return SendResult(delivered=False,
                           error="Resend rejected the API key. Check RESEND_API_KEY.")
-    if resp.status_code == 403 or "domain" in detail.lower():
+    if "domain" in detail.lower() or "verify" in detail.lower():
         return SendResult(
             delivered=False,
-            error=("Resend refused the sender address. Until you verify your own "
-                   "domain, the from address must be onboarding@resend.dev, and "
-                   "you can only send to the address that owns the account."))
+            error=(f"Resend refused to send from {addr!r}: {detail} Until you verify "
+                   "that domain with Resend (Domains tab — add the DNS records it gives "
+                   "you), the from address must be onboarding@resend.dev, and mail can "
+                   "only go to the address that owns the Resend account."))
+    if resp.status_code == 403:
+        return SendResult(delivered=False,
+                          error="Resend rejected the API key. Check RESEND_API_KEY.")
     return SendResult(delivered=False, error=f"Resend error: {detail}")
 
 
