@@ -379,14 +379,18 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 async def send_otp(to: str, name: str, code: str, purpose: str, provider: Optional[str] = None,) -> SendResult:
     action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
     subject = f"{code} is your Campus Netra verification code"
-
     text = (
+        f"Campus Netra\n\n"
+        f"Verify your new email address\n\n"
         f"Hello {name},\n\n"
+        f"You requested to change the email address associated with your Campus Netra account.\n\n"
+        f"Your verification code is:\n\n"
         f"Use this code to {action}:\n\n"
         f"    {code}\n\n"
-        f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes. "
-        f"If you did not request this, you can ignore this email.\n\n"
-        f"— Campus Netra"
+        f"This code expires in {settings.OTP_EXPIRE_MINUTES} minutes.\n\n"
+        f"If you did not request this change, you can safely ignore this email.\n\n"
+        f"Campus Netra\n"
+        f"campusnetra.dpdns.org"
     )
     return await send_email(to, subject, text, _otp_html(name, code, purpose),provider=provider,)
 
