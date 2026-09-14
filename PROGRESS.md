@@ -447,6 +447,76 @@ against `main` @ `10879ca` — rebased onto everything above without
 conflict in the actual code (`lib/api.js`, `AdminUsers.jsx`), only in
 this file, since both sides had been narrating the same stretch of time.
 
+## Addendum 6 — Financo/GreenSpring retheme (light + dark)
+
+Request: restyle the whole app to match two reference screenshots — a
+light fintech dashboard (warm off-white, black primary actions, one vivid
+orange accent) for light mode, and a dark course-platform (near-black
+ground, bright lime accent, violet secondary) for dark mode — without
+touching functionality, and with working hover states and responsiveness.
+
+Found `frontend/src/styles/theme.css` already rewritten for exactly this,
+sitting uncommitted in the sandbox — not something built this round.
+Reviewed it rather than redoing it: every color in `tailwind.config.js`
+already resolves to a CSS variable defined there per theme (light block in
+`:root`, dark block in `:root[data-theme='dark']`), so a theme really is
+just a value swap — no component needs to know which theme is active. The
+existing `.btn-*` classes in `index.css` already use the `-600`/`-700`
+token steps for base/hover, so hover states come along for free and read
+as "the same color, slightly deeper" rather than a different color
+entirely. `AuthShell.jsx` (Login/Register/Forgot-password) already
+matches the reference's split dark-panel/white-form layout, responsively
+(`md:grid`, stacks on mobile). Semantic status colors (success/warning/
+danger/info) were deliberately left unchanged — they were already
+accessible and match on both old and new looks.
+
+What was actually still broken: a handful of hardcoded hex colors outside
+the token system, which a value-swap in `theme.css` can't reach because
+they're not variables:
+- `AdminOverview.jsx` and `AdminPredictive.jsx`: a `<Metric accent="#1e1b4b">`
+  each — the old indigo primary, verbatim, sitting next to the new warm
+  palette. Changed to `accent="rgb(var(--c-primary))"`, which *is* a
+  variable reference, so it now actually follows the active theme instead
+  of being frozen on the old brand.
+- `ColorThemeSwitcher.jsx` (the per-user custom-accent picker, separate
+  from light/dark mode): its "Reset" button and hex-input placeholder were
+  both still `#1e1b4b`. Changed to `#f4602a` — the new light-theme accent
+  — so resetting your personal accent color returns you to the actual
+  current brand default, not the retired one.
+- Left the semantic chart-color hex codes alone
+  (`#10b981`/`#f59e0b`/`#ef4444`/`#3b82f6`/`#8b5cf6`) across
+  `AdminSystem.jsx`/`AdminAI.jsx`/`AdminLostFound.jsx`/`WorkOrderBoard.jsx`
+  — checked each against the token values and they already match
+  success/warning/danger/info/twin-inspection exactly, so there was
+  nothing to fix there.
+- `npm install` was needed before any of this would build — `node_modules`
+  in this sandbox predated the 3D/PDF dependencies from Addenda 3–4.
+
+Verified: `npm run build` succeeds (jsdom/jspdf/three chunks all present,
+same chunk-size warning as noted in Addendum 4, unrelated to this change).
+No component logic, routes, API calls, or data flow were touched — every
+edit in this addendum is either a CSS variable file or a color-prop value.
+
+Not done / still open:
+- **Not visually verified in an actual browser** — no headless
+  browser/screenshot tool available in this environment, same limitation
+  noted for the 3D work in Addendum 3–4. The build compiling and the token
+  chain being traced by hand is real signal, but isn't the same as having
+  looked at both themes rendered.
+- Responsiveness: `AuthShell` and the core `.btn`/`.widget`/`.input`
+  classes are responsive by construction (Tailwind utility breakpoints
+  already in use throughout). No page-by-page audit was done this round to
+  confirm every one of the ~40 pages behaves well at narrow widths — that
+  needs an actual pass in a browser, ideally alongside the visual
+  verification above.
+- The credit-card-style visual metaphor, colored wallet chips, and budget
+  progress-bar treatments from the Financo reference don't have a direct
+  equivalent built yet on any CampusNetra page — those were style
+  *references*, and nothing in this repo's actual content (buildings,
+  assets, work orders) maps onto "cards" or "wallets" literally. Worth a
+  human decision on which dashboard widgets, if any, should adopt that
+  denser card treatment, rather than guessing.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
