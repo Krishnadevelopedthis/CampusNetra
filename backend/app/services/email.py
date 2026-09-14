@@ -364,10 +364,10 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
           </td></tr>
 
           <tr><td style="padding:16px 32px;border-top:1px solid #e2e8f0;">
-            <p style="margin:0;font-size:12px;color:#94a3b8;">
-              Campus Netra — AI-powered campus facility management.
-              This is an automated message; please don't reply.
-            </p>
+             <p style="margin:0;font-size:12px;color:#94a3b8;">
+              Campus Netra<br>
+              Automated verification email. Please do not reply.
+                </p>
           </td></tr>
 
         </table>
@@ -379,19 +379,17 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 
 async def send_otp(to: str, name: str, code: str, purpose: str, provider: Optional[str] = None,) -> SendResult:
     action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
-    subject = "Your Campus Netra verification code"
+    subject = "Campus Netra verification code"
     text = (
         f"Campus Netra\n\n"
         f"Verify your new email address\n\n"
         f"Hello {name},\n\n"
-        f"You requested to change the email address associated with your Campus Netra account.\n\n"
         f"Your verification code is:\n\n"
         f"{code}\n\n"
-        f"Use this code to {action}:\n\n"
         f"This code expires in {settings.OTP_EXPIRE_MINUTES} minutes.\n\n"
         f"If you did not request this change, you can safely ignore this email.\n\n"
         f"Campus Netra\n"
-        f"campusnetra.dpdns.org"
+        f"Automated verification email. Please do not reply."
     )
     return await send_email(to, subject, text, _otp_html(name, code, purpose),provider=provider,)
 
