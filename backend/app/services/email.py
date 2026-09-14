@@ -316,7 +316,8 @@ async def send_email(
 _OTP_COPY = {
     "email_verify": ("verify your email address", "Verify your email"),
     "password_reset": ("reset your password", "Reset your password"),
-    "email_change": ("confirm this as your new email address", "Confirm your new email"),
+    "email_change":   ("confirm this as your new email address",
+    "Verify your new email address",),
 }
 _OTP_DEFAULT = ("confirm this request", "Your verification code")
 
@@ -378,15 +379,15 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 
 async def send_otp(to: str, name: str, code: str, purpose: str, provider: Optional[str] = None,) -> SendResult:
     action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
-    subject = f"{code} is your Campus Netra verification code"
+    subject = "Your Campus Netra verification code"
     text = (
         f"Campus Netra\n\n"
         f"Verify your new email address\n\n"
         f"Hello {name},\n\n"
         f"You requested to change the email address associated with your Campus Netra account.\n\n"
         f"Your verification code is:\n\n"
+        f"{code}\n\n"
         f"Use this code to {action}:\n\n"
-        f"    {code}\n\n"
         f"This code expires in {settings.OTP_EXPIRE_MINUTES} minutes.\n\n"
         f"If you did not request this change, you can safely ignore this email.\n\n"
         f"Campus Netra\n"
