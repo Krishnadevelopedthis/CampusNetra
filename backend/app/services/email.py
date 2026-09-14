@@ -265,9 +265,15 @@ def _send_blocking(msg: EmailMessage) -> SendResult:
 
 
 async def send_email(
-    to: str, subject: str, text: str, html: Optional[str] = None
+    to: str, subject: str, text: str, html: Optional[str] = None,
+    provider: Optional[str] = None,
 ) -> SendResult:
-    provider = settings.email_provider
+    # provider is set explicitly by send_otp (resolved per OTP purpose via
+    # settings.resolve_email_provider) for anything that needs to go through
+    # a specific transport when more than one is configured; other callers
+    # (the "your email was changed" notice, the data-export email) leave it
+    # unset and get the single-provider default, same as before this existed.
+    provider = provider or settings.email_provider
 
     if provider == "none":
         log.info(
@@ -366,7 +372,12 @@ async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
         f"If you did not request this, you can ignore this email.\n\n"
         f"— Campus Netra"
     )
-    return await send_email(to, subject, text, _otp_html(name, code, purpose))
+    # Resolved per purpose, so a deployment running two providers (e.g. Brevo
+    # for sign-up/reset, Resend for the profile email-change flow) sends each
+    # OTP through the transport actually meant for it, instead of whichever
+    # one happens to win settings.email_provider's single global pick.
+    provider = settings.resolve_email_provider(purpose)
+    return await send_email(to, subject, text, _otp_html(name, code, purpose), provider=provider)
 
 
 async def verify_connection() -> SendResult:
