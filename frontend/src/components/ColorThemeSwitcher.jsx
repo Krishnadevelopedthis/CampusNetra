@@ -111,7 +111,7 @@ export function ColorThemeSwitcher() {
   }
 
   const handleReset = () => {
-    handleColorChange('#1e1b4b') // Default indigo
+    handleColorChange('#f4602a') // Default brand accent (warm orange)
   }
 
   // Curated best color combinations (3 boxes) - each with background + optimal text color
@@ -184,7 +184,7 @@ export function ColorThemeSwitcher() {
               type="text"
               value={hexInput}
               onChange={handleHexInput}
-              placeholder="#1e1b4b"
+              placeholder="#f4602a"
               maxLength="7"
               className="input w-full font-mono text-body-md pr-20"
               aria-label="Enter hex color code"

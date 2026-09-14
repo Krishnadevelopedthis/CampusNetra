@@ -25,7 +25,7 @@ export default function AdminOverview() {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Metric label="Total users" value={totalUsers} accent="#1e1b4b" icon={Users} />
+        <Metric label="Total users" value={totalUsers} accent="rgb(var(--c-primary))" icon={Users} />
         <Metric label="Open issues" value={dashboard.data.metrics[0]?.value ?? 0} accent="#f59e0b" />
         <Metric label="Asset health" value={`${dashboard.data.health_score}%`}
                 accent={dashboard.data.health_score >= 90 ? '#10b981' : '#f59e0b'} />
