@@ -378,3 +378,75 @@ Not done / still open:
 - The 3D scene has not been visually verified in a real browser.
 - Nothing about the S3/storage or floors_count items from addenda 1–2 was
   touched this round; they stand as previously verified.
+
+## Addendum 4 — full building → floor → room → asset drilldown, real report PDFs
+
+Follow-up request: make building clicks (2D and 3D) open a real drilldown
+instead of jumping straight to a floor, give buildings actual architectural
+detail (windows) rather than plain colour blocks, add a 3D per-room view
+with an asset table, and make the asset report actually downloadable.
+
+- **Building → floor → room drilldown**: new
+  `frontend/src/features/campus3d/BuildingDrilldown.jsx`, two chained
+  Modals (floor picker, then room picker) fed entirely from data already
+  loaded by the campus overview query — no new endpoints needed. Wired into
+  both `Campus3DView`'s building click and the 2D SVG map's building-shell
+  click (`CampusMap.jsx`'s `BuildingBlock` gained an `onOpenBuilding` prop
+  on its outer `<g>`; existing room-chip clicks still `stopPropagation()`
+  so they keep going straight to `/twin/:floorId` unchanged — this is an
+  addition, not a replacement, for the 2D view).
+- **Windows on 3D buildings**: found this already in progress in
+  `Campus3DView.jsx`'s working tree when this round started (a `WindowGrid`
+  helper, neutral wall colour, status colour moved to a roof cap + base
+  ring instead of tinting the whole volume, a base plinth) — reviewed it,
+  it's sound, kept it as-is rather than redoing it.
+- **Real 3D room view**: new `frontend/src/features/campus3d/RoomScene3D.jsx`
+  + new page `frontend/src/pages/RoomView3D.jsx` at route `/rooms/:roomId`.
+  Renders the room as a floor + four low walls (open-topped, so the default
+  orbit angle can actually see into it) sized to the room's own aspect
+  ratio (derived from its `boundary` bounding box — the boundary itself is
+  in floor-plan coordinates and not usable directly, only its aspect ratio
+  is). Assets are placed using their real `pos_x`/`pos_y` (the same
+  room-local 0..1 convention the existing 2D floor plan already uses per
+  `FloorPlan.jsx`), coloured by condition, clickable through to
+  `/assets/:id`. Below the 3D view, a full data table (tag, name, category,
+  manufacturer/model, condition, warranty, cost) sourced from
+  `GET /campus/rooms/{id}` + `GET /campus/rooms/{id}/assets` +
+  `GET /campus/asset-categories` — all pre-existing endpoints, nothing
+  added on the backend. Route gated the same as `/assets/:id` and `/twin`
+  (technician/facility_manager/admin/super_admin) — students/teachers can
+  still browse the floor/room picker to see names and condition, but the
+  "open" action is disabled for them with an inline explanation, since cost
+  and maintenance data isn't shown to non-staff anywhere else in the app
+  either; extending that boundary to a new page seemed like the wrong place
+  to quietly change it.
+- **Downloadable asset report**: `AssetDetail.jsx` gained a "Download
+  report" button that builds a real PDF client-side (specification,
+  lifecycle/cost, full maintenance history, condition history) using
+  `jspdf` (newly installed). Import is dynamic (`await import('jspdf')`
+  inside the click handler) rather than static — a static import pulled
+  jsPDF's ~390KB into the AssetDetail page chunk itself (17KB → 402KB),
+  which every staff member visiting any asset would pay for whether or not
+  they ever click the button; lazy-loading brought the page chunk back to
+  ~12KB and put jsPDF in its own chunk that only loads on click. Verified
+  the actual jsPDF calls used (multi-line text, coloured text, right-aligned
+  columns, page-break handling) against a real jsPDF instance in Node —
+  produces a valid PDF, not just "the import resolves".
+
+Verified this round: `npm run build` and `npm run lint` clean (0 errors,
+only pre-existing warnings, none in touched files) after all of the above;
+confirmed via the build's own chunk-size output that `Campus3DView`,
+`RoomScene3D`, and `jspdf` are each separate lazy chunks, and that three.js
+itself is now a single chunk shared between the two 3D features rather than
+duplicated. The jsPDF report-building calls were exercised directly in Node
+against the real library (not mocked) and produce a valid PDF buffer.
+
+Not done / still open:
+- Still no headless browser available in this environment — none of the
+  three 3D scenes (campus view, per-room view) or the drilldown modals have
+  been clicked through in an actual browser this round either. Build/lint
+  passing and library calls checked directly is real signal, but it is not
+  the same as having looked at it.
+- The generated PDF's actual visual layout (column alignment, page breaks
+  on assets with long maintenance histories) hasn't been eyeballed as a
+  rendered document, only confirmed to generate without throwing.

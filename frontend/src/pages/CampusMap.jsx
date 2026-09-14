@@ -13,6 +13,7 @@ import {
   Widget,
 } from '@/components/ui'
 import { TwinLegend } from '@/features/twin/FloorPlan'
+import BuildingDrilldown from '@/features/campus3d/BuildingDrilldown'
 import { SkeletonMetrics } from '@/components/Skeletons'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
@@ -79,8 +80,9 @@ export default function CampusMap() {
   const [mode, setMode] = useState('condition')   // condition | heat
   const [view, setView] = useState('2d')          // 2d | 3d
   const [hover, setHover] = useState(null)
+  const [pickerBuilding, setPickerBuilding] = useState(null)
 
-  const { user } = useAuth()
+  const { user, isStaff } = useAuth()
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   const campusId = campuses.data?.[0]?.id
@@ -234,10 +236,7 @@ export default function CampusMap() {
                   mode={mode}
                   heatColour={heatColour}
                   onHover={setHover}
-                  onOpen={(b) => {
-                    const first = b.floors?.[0]
-                    if (first) navigate(`/twin/${first.id}`)
-                  }}
+                  onOpen={(b) => setPickerBuilding(b)}
                 />
               </Suspense>
             ) : (
@@ -276,6 +275,7 @@ export default function CampusMap() {
                     vb={VB}
                     vbH={VB_H}
                     onHover={setHover}
+                    onOpenBuilding={() => setPickerBuilding(b)}
                     onOpenRoom={(roomId, floorId) => navigate(`/twin/${floorId}?room=${roomId}`)}
                   />
                 ))}
@@ -369,6 +369,19 @@ export default function CampusMap() {
             )}
         </Widget>
       </div>
+
+      <BuildingDrilldown
+        key={pickerBuilding?.id || 'none'}
+        building={pickerBuilding}
+        canOpenRoom={isStaff()}
+        onClose={() => setPickerBuilding(null)}
+        onSelectRoom={(room, floor, building) => {
+          setPickerBuilding(null)
+          navigate(`/rooms/${room.id}`, {
+            state: { buildingName: building.name, floorName: floor.name },
+          })
+        }}
+      />
     </div>
   )
 }
@@ -385,7 +398,7 @@ export default function CampusMap() {
  * Rooms are only legible above a certain size, so below that the block falls
  * back to floor bands with counts rather than rendering unreadable slivers.
  */
-function BuildingBlock({ building: b, heat, mode, vb, vbH, onHover, onOpenRoom }) {
+function BuildingBlock({ building: b, heat, mode, vb, vbH, onHover, onOpenBuilding, onOpenRoom }) {
   const colour = mode === 'heat' ? heatColour(heat?.intensity ?? 0) : b.aggregate_colour
   const floors = b.floors || []
 
@@ -405,6 +418,7 @@ function BuildingBlock({ building: b, heat, mode, vb, vbH, onHover, onOpenRoom }
     <g
       onMouseEnter={() => onHover({ ...b, heat })}
       onMouseLeave={() => onHover(null)}
+      onClick={() => onOpenBuilding()}
       className="cursor-pointer"
     >
       {/* Shell */}

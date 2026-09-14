@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef, useState } from 'react'
+import { Suspense, useMemo, useState } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Billboard, ContactShadows, Grid, OrbitControls, Text } from '@react-three/drei'
 
@@ -9,60 +9,127 @@ const HALF_W = 10
 const HALF_D = 6.2
 const FLOOR_HEIGHT = 0.5
 const MIN_HEIGHT = 0.6
+const WALL_COLOUR = '#e7e9ee'
+const WINDOW_COLOUR = '#bfe3fb'
+const WINDOW_LIT = '#fde68a'
 
 function toWorld(mapX, mapY) {
   return [(mapX - 0.5) * 2 * HALF_W, (mapY - 0.5) * 2 * HALF_D]
 }
 
+/** A grid of small inset panes on one vertical face, one row per floor — the
+ * detail that makes a box read as "a building" instead of "a box with a
+ * colour". A handful of panes are given a warm tint instead of the usual
+ * glass blue, like a light left on, purely cosmetic but it's the difference
+ * between a diagram and a place. */
+function WindowGrid({ width, floors, faceZ, seed }) {
+  const rows = Math.min(floors, 6)
+  const cols = Math.max(2, Math.min(6, Math.round(width * 2.4)))
+  const paneW = (width * 0.72) / cols
+  const paneH = FLOOR_HEIGHT * 0.5
+  const rowGap = FLOOR_HEIGHT
+  const startX = -width * 0.36 + paneW / 2
+  const panes = []
+  for (let r = 0; r < rows; r += 1) {
+    for (let c = 0; c < cols; c += 1) {
+      // Deterministic per-building "lit window" pattern rather than random —
+      // random would repeat differently every re-render for no reason.
+      const lit = (seed * 7 + r * 3 + c) % 11 === 0
+      panes.push(
+        <mesh key={`${r}-${c}`}
+              position={[startX + c * (paneW * 1.35), rowGap * r + rowGap * 0.62, faceZ]}>
+          <planeGeometry args={[paneW, paneH]} />
+          <meshStandardMaterial
+            color={lit ? WINDOW_LIT : WINDOW_COLOUR}
+            emissive={lit ? WINDOW_LIT : WINDOW_COLOUR}
+            emissiveIntensity={lit ? 0.9 : 0.35}
+            roughness={0.2} metalness={0.1}
+          />
+        </mesh>,
+      )
+    }
+  }
+  return <>{panes}</>
+}
+
 /**
  * One building, extruded to a height proportional to its floor count so
- * "which building has the most floors" is visible at a glance, not just
- * "which building has a problem" (colour still carries that, as it does on
- * the 2D map — condition colour or heat colour, same rule, same legend).
+ * "which building has the most floors" is visible at a glance. Walls stay a
+ * neutral, real-building colour so the block itself reads as architecture;
+ * the status colour (condition or heat, same rule as the 2D map) lives on
+ * the roof cap and base ring instead of the whole volume, which is both more
+ * legible up close and closer to how an actual building looks.
  */
 function Building3D({ b, colour, count, isHot, hovered, onHover, onOpen }) {
-  const meshRef = useRef()
   const floors = Math.max(1, (b.floors || []).length)
   const widest = Math.max(1, ...(b.floors || []).map((f) => f.rooms?.length || 0))
   const width = Math.min(2.4, 1 + widest * 0.12)
   const depth = width * 0.75
   const height = Math.max(MIN_HEIGHT, floors * FLOOR_HEIGHT)
   const [x, z] = toWorld(b.map_x, b.map_y)
+  // A stable small integer from the building id, for the window-lighting
+  // pattern — same building always looks the same, different buildings vary.
+  const seed = useMemo(() => (
+    String(b.id).split('').reduce((s, ch) => (s + ch.charCodeAt(0)) % 97, 0)
+  ), [b.id])
+  const roofH = 0.12
+  const plinthH = 0.1
 
   return (
     <group position={[x, 0, z]}>
+      {/* Base plinth — a real building doesn't just touch the ground on a
+          mathematical plane. */}
+      <mesh position={[0, plinthH / 2, 0]}>
+        <boxGeometry args={[width * 1.08, plinthH, depth * 1.08]} />
+        <meshStandardMaterial color="#94a3b8" roughness={0.9} />
+      </mesh>
+
       <mesh
-        ref={meshRef}
-        position={[0, height / 2, 0]}
+        position={[0, plinthH + height / 2, 0]}
         onPointerOver={(e) => { e.stopPropagation(); onHover(b) }}
         onPointerOut={(e) => { e.stopPropagation(); onHover(null) }}
         onClick={(e) => { e.stopPropagation(); onOpen(b) }}
       >
         <boxGeometry args={[width, height, depth]} />
         <meshStandardMaterial
-          color={colour}
-          emissive={colour}
-          emissiveIntensity={hovered ? 0.55 : 0.18}
-          roughness={0.55}
-          metalness={0.05}
+          color={WALL_COLOUR}
+          emissive={hovered ? colour : '#000000'}
+          emissiveIntensity={hovered ? 0.25 : 0}
+          roughness={0.75} metalness={0.05}
         />
       </mesh>
 
-      {/* Base ring, brighter when hovered — cheap depth cue and hit-target
-          without needing an outline post-processing pass. */}
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Windows on the two long faces. */}
+      <group position={[0, plinthH, 0]}>
+        <WindowGrid width={width} floors={floors} faceZ={depth / 2 + 0.006} seed={seed} />
+        <group rotation={[0, Math.PI, 0]}>
+          <WindowGrid width={width} floors={floors} faceZ={depth / 2 + 0.006} seed={seed + 5} />
+        </group>
+      </group>
+
+      {/* Roof cap carries the status colour — condition or heat, same as
+          the 2D map's shell tint — so it's still the first thing read from
+          above without recolouring the whole building. */}
+      <mesh position={[0, plinthH + height + roofH / 2, 0]}>
+        <boxGeometry args={[width * 1.04, roofH, depth * 1.04]} />
+        <meshStandardMaterial color={colour} roughness={0.5} />
+      </mesh>
+
+      {/* Ground ring, brighter when hovered — a cheap, readable hit-target
+          indicator without an outline post-processing pass. */}
+      <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[Math.max(width, depth) * 0.62, Math.max(width, depth) * 0.72, 32]} />
         <meshBasicMaterial color={colour} transparent opacity={hovered ? 0.9 : 0.35} />
       </mesh>
 
       {isHot && (
-        <mesh position={[width / 2 + 0.15, height + 0.22, -depth / 2 - 0.15]}>
+        <mesh position={[width / 2 + 0.15, plinthH + height + 0.3, -depth / 2 - 0.15]}>
           <sphereGeometry args={[0.12, 12, 12]} />
           <meshStandardMaterial color="#ef4444" emissive="#ef4444" emissiveIntensity={0.8} />
         </mesh>
       )}
 
-      <Billboard position={[0, height + 0.42, 0]}>
+      <Billboard position={[0, plinthH + height + roofH + 0.42, 0]}>
         <Text fontSize={0.32} color="#0b1c30" outlineWidth={0.018} outlineColor="#ffffff"
               anchorX="center" anchorY="middle">
           {b.code}
