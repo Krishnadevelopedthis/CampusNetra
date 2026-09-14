@@ -7,6 +7,7 @@ import {
   Building2,
   Camera,
   Check,
+  Clock,
   GraduationCap,
   IdCard,
   Loader2,
@@ -20,10 +21,17 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Avatar, Button, Input, Widget, toast } from '@/components/ui'
+import { Avatar, Button, Input, Modal, Widget, toast } from '@/components/ui'
 import { api, mediaUrl, upload } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { dt } from '@/lib/format'
+import { OtpInput } from './VerifyEmail'
+
+// Falls back to the backend's own default (OTP_EXPIRE_MINUTES=10) for
+// responses from a server build that predates the expires_in field, so the
+// timer still shows something sane instead of stalling at 0:00.
+const DEFAULT_OTP_SECONDS = 600
+const RESEND_COOLDOWN_SECONDS = 30
 
 export default function Profile() {
   const { user, setUser } = useAuth()
@@ -230,7 +238,10 @@ function ContactCard({ user, setUser }) {
   const requestEmailChange = useMutation({
     mutationFn: (new_email) => api.post('/auth/me/change-email', { new_email }),
     onSuccess: (res, new_email) => {
-      setPendingEmail(new_email)
+      setPendingEmail({
+        value: new_email,
+        expiresAt: Date.now() + (res?.expires_in ?? DEFAULT_OTP_SECONDS) * 1000,
+      })
       if (res?.dev_code) toast.info('Email is not configured on this server.', `Your code is ${res.dev_code}`)
       else toast.info(`A 6-digit code has been sent to ${new_email}.`)
     },
@@ -239,7 +250,7 @@ function ContactCard({ user, setUser }) {
 
   const confirmEmailChange = useMutation({
     mutationFn: (otp_code) =>
-      api.post('/auth/me/verify-email-change', { new_email: pendingEmail, otp_code }),
+      api.post('/auth/me/verify-email-change', { new_email: pendingEmail?.value, otp_code }),
     onSuccess: (u) => { setUser(u); setPendingEmail(null); toast.success('Email updated.') },
     onError: (err) => toast.error(err.detail || 'Could not confirm that code.'),
   })
@@ -250,7 +261,10 @@ function ContactCard({ user, setUser }) {
   const requestPhoneChange = useMutation({
     mutationFn: (new_phone) => api.post('/auth/me/change-phone', { new_phone }),
     onSuccess: (res, new_phone) => {
-      setPendingPhone(new_phone)
+      setPendingPhone({
+        value: new_phone,
+        expiresAt: Date.now() + (res?.expires_in ?? DEFAULT_OTP_SECONDS) * 1000,
+      })
       if (res?.dev_code) {
         toast.info('No SMS provider is configured on this server.', `Your code is ${res.dev_code}`)
       } else {
@@ -262,7 +276,7 @@ function ContactCard({ user, setUser }) {
 
   const confirmPhoneChange = useMutation({
     mutationFn: (otp_code) =>
-      api.post('/auth/me/verify-phone-change', { new_phone: pendingPhone, otp_code }),
+      api.post('/auth/me/verify-phone-change', { new_phone: pendingPhone?.value, otp_code }),
     onSuccess: (u) => { setUser(u); setPendingPhone(null); toast.success('Phone number updated.') },
     onError: (err) => toast.error(err.detail || 'Could not confirm that code.'),
   })
@@ -317,10 +331,12 @@ function ContactCard({ user, setUser }) {
       saving: requestPhoneChange.isPending,
       onSave: (v) => requestPhoneChange.mutateAsync(v),
       pending: pendingPhone && {
-        to: pendingPhone,
+        to: pendingPhone.value,
+        expiresAt: pendingPhone.expiresAt,
         confirming: confirmPhoneChange.isPending,
+        resending: requestPhoneChange.isPending,
         onConfirm: (code) => confirmPhoneChange.mutateAsync(code),
-        onResend: () => requestPhoneChange.mutate(pendingPhone),
+        onResend: () => requestPhoneChange.mutate(pendingPhone.value),
         onCancel: () => setPendingPhone(null),
       },
     },
@@ -344,10 +360,12 @@ function ContactCard({ user, setUser }) {
       saving: requestEmailChange.isPending,
       onSave: (v) => requestEmailChange.mutateAsync(v),
       pending: pendingEmail && {
-        to: pendingEmail,
+        to: pendingEmail.value,
+        expiresAt: pendingEmail.expiresAt,
         confirming: confirmEmailChange.isPending,
+        resending: requestEmailChange.isPending,
         onConfirm: (code) => confirmEmailChange.mutateAsync(code),
-        onResend: () => requestEmailChange.mutate(pendingEmail),
+        onResend: () => requestEmailChange.mutate(pendingEmail.value),
         onCancel: () => setPendingEmail(null),
       },
     },
@@ -403,7 +421,23 @@ function EditableRow({
     }
   }
 
-  if (pending) return <CodeEntryRow icon={Icon} label={label} {...pending} />
+  if (pending) {
+    return (
+      <>
+        <div className="py-3">
+          <div className="flex items-center gap-3">
+            <Icon size={16} className="text-ink-faint shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-label-caps uppercase text-ink-muted">{label}</p>
+              <p className="text-body-lg text-ink mt-0.5 truncate">{value || empty}</p>
+            </div>
+            <span className="pill bg-info-bg text-info-text shrink-0">Confirming</span>
+          </div>
+        </div>
+        <CodeEntryModal icon={Icon} label={label} {...pending} />
+      </>
+    )
+  }
 
   return (
     <div className="py-3">
@@ -595,15 +629,40 @@ function NameRow({ icon: Icon, label, value, pending, submitting, onSubmit }) {
   )
 }
 
-/** Second step of changing an address: the code sent to it, or a way back. */
-function CodeEntryRow({ icon: Icon, label, to, confirming, onConfirm, onResend, onCancel }) {
+/** Formats a seconds count as mm:ss for the expiry/cooldown timers below. */
+function formatCountdown(seconds) {
+  const s = Math.max(0, Math.ceil(seconds))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+/**
+ * Second step of changing an address: a popup with the OTP entry, a
+ * countdown to when the code expires, and a resend button that's disabled
+ * for a short cooldown so a slow network doesn't turn one tap into three
+ * codes racing each other.
+ */
+function CodeEntryModal({ icon: Icon, label, to, expiresAt, confirming, resending, onConfirm, onResend, onCancel }) {
   const [code, setCode] = useState('')
   const [error, setError] = useState(null)
-  const inputRef = useRef(null)
+  const [now, setNow] = useState(Date.now())
+  const [cooldownUntil, setCooldownUntil] = useState(Date.now() + RESEND_COOLDOWN_SECONDS * 1000)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // A resend replaces expiresAt with a fresh one from the server response,
+  // so treat that as the signal to restart the resend cooldown too.
+  useEffect(() => { setCooldownUntil(Date.now() + RESEND_COOLDOWN_SECONDS * 1000) }, [expiresAt])
+
+  const secondsLeft = Math.max(0, (expiresAt - now) / 1000)
+  const expired = secondsLeft <= 0
+  const cooldownLeft = Math.max(0, (cooldownUntil - now) / 1000)
+  const canResend = cooldownLeft <= 0 && !resending
 
   const submit = async () => {
+    if (expired) { setError('This code has expired. Send a new one.'); return }
     if (!/^\d{6}$/.test(code)) { setError('Enter the 6-digit code.'); return }
     try {
       await onConfirm(code)
@@ -613,51 +672,43 @@ function CodeEntryRow({ icon: Icon, label, to, confirming, onConfirm, onResend, 
   }
 
   return (
-    <div className="py-3">
-      <div className="flex items-center gap-3">
-        <Icon size={16} className="text-ink-faint shrink-0" />
-
-        <div className="min-w-0 flex-1">
-          <p className="text-label-caps uppercase text-ink-muted">{label}</p>
-          <p className="text-body-sm text-ink-muted mt-0.5">
-            Enter the code sent to <span className="text-ink font-medium">{to}</span>.{' '}
-            <button type="button" onClick={onResend} className="text-secondary hover:underline">
-              Send again
-            </button>
+    <Modal open onClose={onCancel} title={`Confirm your new ${label.toLowerCase()}`} size="sm">
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <Icon size={18} className="text-ink-faint shrink-0 mt-0.5" />
+          <p className="text-body-md text-ink-muted">
+            Enter the code sent to <span className="text-ink font-medium">{to}</span>.
           </p>
+        </div>
 
-          <div className="mt-1.5 flex items-start gap-2">
-            <div className="flex-1 min-w-0">
-              <Input
-                ref={inputRef} inputMode="numeric" autoComplete="one-time-code" maxLength={6}
-                placeholder="6-digit code" aria-label="Verification code"
-                value={code} error={error}
-                onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); setError(null) }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); submit() }
-                  if (e.key === 'Escape') onCancel()
-                }}
-              />
-              {error && <p className="field-error">{error}</p>}
-            </div>
-            <button
-              type="button" onClick={submit} disabled={confirming}
-              className="btn-primary h-10 w-10 p-0"
-              aria-label={`Confirm new ${label.toLowerCase()}`}
-            >
-              {confirming ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-            </button>
-            <button
-              type="button" onClick={onCancel}
-              className="btn-secondary h-10 w-10 p-0"
-              aria-label={`Cancel ${label.toLowerCase()} change`}
-            >
-              <X size={16} />
-            </button>
-          </div>
+        <OtpInput value={code} onChange={(v) => { setCode(v); setError(null) }}
+                  error={error} disabled={confirming} />
+        {error && <p className="field-error text-center">{error}</p>}
+
+        <div className="flex items-center justify-between text-body-sm">
+          <span className={clsx('flex items-center gap-1.5', expired ? 'text-danger-text' : 'text-ink-faint')}>
+            <Clock size={13} />
+            {expired ? 'Code expired' : `Expires in ${formatCountdown(secondsLeft)}`}
+          </span>
+          <button
+            type="button" onClick={onResend} disabled={!canResend}
+            className={clsx(
+              'font-medium',
+              canResend ? 'text-secondary hover:underline' : 'text-ink-faint cursor-not-allowed',
+            )}
+          >
+            {resending ? 'Sending…' : canResend ? 'Send again' : `Resend in ${formatCountdown(cooldownLeft)}`}
+          </button>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <Button variant="secondary" className="flex-1" onClick={onCancel}>Cancel</Button>
+          <Button className="flex-1" onClick={submit} loading={confirming} disabled={expired}>
+            Confirm
+          </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
 

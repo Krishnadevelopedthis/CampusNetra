@@ -8,7 +8,14 @@ import { OtpInput } from './VerifyEmail'
 
 export default function ResetPassword() {
   const [params] = useSearchParams()
-  const [email, setEmail] = useState(params.get('email') || '')
+  // Whichever channel forgot-password sent the code through is preserved in
+  // the query string, so this page knows which field to send back — the
+  // backend needs exactly one of email/phone, not both.
+  const initialChannel = params.get('phone') ? 'phone' : 'email'
+  const [channel] = useState(initialChannel)
+  const [identifier, setIdentifier] = useState(
+    params.get(initialChannel) || ''
+  )
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -19,7 +26,9 @@ export default function ResetPassword() {
   const submit = async (e) => {
     e.preventDefault()
     const next = {}
-    if (!email.trim()) next.email = 'Enter your email address'
+    if (!identifier.trim()) {
+      next[channel] = channel === 'email' ? 'Enter your email address' : 'Enter your phone number'
+    }
     if (code.length !== 6) next.code = 'Enter the six-digit code'
     if (password.length < 8) next.new_password = 'At least 8 characters'
     if (password !== confirm) next.confirm = 'Passwords do not match'
@@ -29,7 +38,7 @@ export default function ResetPassword() {
     setErrors({})
     try {
       await api.post('/auth/reset-password', {
-        email: email.trim(), code, new_password: password,
+        [channel]: identifier.trim(), code, new_password: password,
       })
       toast.success('Password updated. Please sign in.')
       navigate('/login')
@@ -44,7 +53,9 @@ export default function ResetPassword() {
   return (
     <AuthShell
       title="Set a new password"
-      subtitle="Enter the code we emailed you, then choose a new password."
+      subtitle={channel === 'email'
+        ? 'Enter the code we emailed you, then choose a new password.'
+        : 'Enter the code we texted you, then choose a new password.'}
       footer={<Link to="/login" className="text-secondary hover:underline">Back to sign in</Link>}
     >
       <form onSubmit={submit} noValidate className="space-y-5">
@@ -54,8 +65,13 @@ export default function ResetPassword() {
           </div>
         )}
 
-        <Field label="Email address" error={errors.email} required>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />
+        <Field label={channel === 'email' ? 'Email address' : 'Phone number'}
+               error={errors.email || errors.phone} required>
+          <Input
+            type={channel === 'email' ? 'email' : 'tel'}
+            value={identifier} onChange={(e) => setIdentifier(e.target.value)}
+            error={errors.email || errors.phone}
+          />
         </Field>
 
         <Field label="Reset code" error={errors.code} required>

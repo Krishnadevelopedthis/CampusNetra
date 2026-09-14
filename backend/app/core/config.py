@@ -39,11 +39,21 @@ class Settings(BaseSettings):
     # no DB table, no third-party service, reuses SECRET_KEY.
     CAPTCHA_EXPIRE_MINUTES: int = 5
 
-    # SMS — no gateway wired in yet. Kept as a settings slot so a real provider
-    # (Twilio, MSG91, ...) can be dropped in behind services/sms.py without
-    # touching callers. Until then phone-change OTPs cannot actually be
-    # delivered by text.
-    SMS_PROVIDER: Literal["none"] = "none"
+    # SMS. Twilio is the only provider wired in (see services/sms.py); the
+    # literal accepts "none" until credentials are set, at which point set
+    # SMS_PROVIDER=twilio too. TWILIO_FROM_NUMBER must be a number Twilio
+    # gave you (bought or trial), in E.164 form, e.g. "+15017122661" — not a
+    # personal number. Trial accounts can only text numbers verified in the
+    # Twilio console (Phone Numbers → Verified Caller IDs) until upgraded.
+    SMS_PROVIDER: Literal["none", "twilio"] = "none"
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_FROM_NUMBER: str = ""
+    # Phone numbers are stored as a bare local number (see
+    # RequestPhoneChangeRequest's normalisation in schemas/auth.py), so this
+    # is prepended to build the E.164 address Twilio requires. "+91" (India)
+    # matches this deployment; change it if your users are elsewhere.
+    SMS_DEFAULT_COUNTRY_CODE: str = "+91"
 
     # Identity verification (name-change ID upload). The fraction of the
     # claimed name's tokens that must appear in the OCR'd ID text for the
@@ -94,6 +104,20 @@ class Settings(BaseSettings):
     RESEND_API_KEY: str = ""
     # Brevo's HTTP API, usable with the same account as their SMTP relay.
     BREVO_API_KEY: str = ""
+
+    # Which transport handles each kind of outgoing mail. "auto" (the
+    # default) uses whichever of RESEND_API_KEY / BREVO_API_KEY / SMTP_HOST
+    # is configured, in that order — fine for a single-provider setup. Pin a
+    # purpose to a specific value if you run two providers side by side (e.g.
+    # Brevo for the flows that go to your own users at sign-up/reset, Resend
+    # for the profile email-change flow that sends to an address that isn't
+    # a Campus Netra user yet) — set one to "resend" and the other to
+    # "brevo" so they stop sharing the "auto" pick, which always resolves to
+    # the same provider for both. If the pinned provider has no key
+    # configured, this falls back to "auto" rather than failing every send.
+    EMAIL_PROVIDER_EMAIL_VERIFY: Literal["auto", "resend", "brevo", "smtp"] = "auto"
+    EMAIL_PROVIDER_PASSWORD_RESET: Literal["auto", "resend", "brevo", "smtp"] = "auto"
+    EMAIL_PROVIDER_EMAIL_CHANGE: Literal["auto", "resend", "brevo", "smtp"] = "auto"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -146,6 +170,30 @@ class Settings(BaseSettings):
             return "smtp"
         return "none"
 
+    def _email_provider_configured(self, name: str) -> bool:
+        return {
+            "resend": bool(self.RESEND_API_KEY),
+            "brevo": bool(self.BREVO_API_KEY),
+            "smtp": bool(self.SMTP_HOST),
+        }.get(name, False)
+
+    def resolve_email_provider(self, purpose: str) -> str:
+        """The transport a given OTP purpose actually sends through.
+
+        Looks up the EMAIL_PROVIDER_* pin for this purpose; "auto", an unknown
+        purpose, or a pin naming a provider with no key configured all fall
+        back to the single-provider default (email_provider) instead of
+        failing every send.
+        """
+        pinned = {
+            "email_verify": self.EMAIL_PROVIDER_EMAIL_VERIFY,
+            "password_reset": self.EMAIL_PROVIDER_PASSWORD_RESET,
+            "email_change": self.EMAIL_PROVIDER_EMAIL_CHANGE,
+        }.get(purpose, "auto")
+        if pinned != "auto" and self._email_provider_configured(pinned):
+            return pinned
+        return self.email_provider
+
     @property
     def email_delivers(self) -> bool:
         """True when some transport is configured and mail can actually arrive."""
@@ -169,8 +217,10 @@ class Settings(BaseSettings):
 
     @property
     def sms_delivers(self) -> bool:
-        """True once a real SMS provider is configured. Always False today."""
-        return self.SMS_PROVIDER != "none"
+        """True once a real SMS provider is configured with usable credentials."""
+        if self.SMS_PROVIDER == "twilio":
+            return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_FROM_NUMBER)
+        return False
 
     @property
     def expose_dev_phone_codes(self) -> bool:
