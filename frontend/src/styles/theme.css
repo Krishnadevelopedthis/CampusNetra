@@ -122,15 +122,20 @@
 
   /* Tiered surfaces: "the desk" vs "the papers". Warm off-white, not cold
      grey — this is most of what makes the reference read as premium
-     rather than a generic admin template. */
-  --c-surface-base: 247 246 244;
+     rather than a generic admin template.
+     Was 247/246/244 — 8 RGB units from white, which combined with a
+     translucent white card produces basically no visible contrast at
+     all (the whole page reads as one undifferentiated white field).
+     Darkened enough that a white card actually separates from the page
+     it's sitting on. */
+  --c-surface-base: 234 230 221;
   --c-surface: 255 255 255;
-  --c-surface-sunken: 242 241 238;
+  --c-surface-sunken: 223 218 206;
   --c-surface-raised: 255 255 255;
   --c-surface-inverse: 23 20 15;
 
-  --c-border-subtle: 231 229 224;
-  --c-border: 214 211 203;
+  --c-border-subtle: 214 209 197;
+  --c-border: 197 191 176;
   --c-border-strong: 176 172 160;
 
   --c-ink: 23 20 15;
