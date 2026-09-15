@@ -102,6 +102,7 @@ class Settings(BaseSettings):
     SMTP_FROM: str = "Campus Netra <no-reply@campusnetra.app>"
 
     RESEND_API_KEY: str = ""
+    RESEND_FROM: str = "Campus Netra <noreply@campusnetra.dpdns.org>"
     # Brevo's HTTP API, usable with the same account as their SMTP relay.
     BREVO_API_KEY: str = ""
 

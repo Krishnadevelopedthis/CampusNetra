@@ -313,3 +313,191 @@ Not done / still open:
 - No automated test suite exists in this repo (`backend/` has no
   `test_*.py` files), so all verification above was manual/scripted rather
   than via `pytest`.
+
+## Addendum 3 — Resend misdiagnosis fix, and a real 3D campus map
+
+Two new, unrelated reports this round: (1) `/auth/me/change-email` returning
+503 "Resend rejected the API key" even with a correct `RESEND_API_KEY`, and
+(2) a request to actually build the 3D campus map — `three` had been sitting
+in `package.json` as a dependency since some earlier point, unused anywhere
+in the codebase. Checked directly rather than assuming either was already
+handled; neither was.
+
+- **Resend 503 despite a correct key — found and fixed the actual bug.**
+  `_send_resend()`'s status-code handling checked `if resp.status_code in
+  (401, 403): return "...rejected the API key..."` *before* the branch meant
+  to catch domain-verification failures, which Resend also reports as 403.
+  Every 403 was swallowed by the first branch, so an unverified sending
+  domain — the far more likely cause once a key is confirmed correct, and
+  the default `RESEND_FROM` here is `noreply@campusnetra.dpdns.org`, a
+  domain that would need its own DNS records verified with Resend — got
+  reported as a bad API key. Reordered so 401 alone means "bad key", 403 (or
+  any status whose message mentions "domain"/"verify") gets the accurate
+  domain-verification message with the DNS/onboarding@resend.dev guidance.
+  Also fixed `_no_sender_error()`, which hardcoded "SMTP_FROM" in its
+  message even when called from the Resend path (should say `RESEND_FROM`).
+  Verified against a mocked Resend API: a 403 domain-not-verified response no
+  longer mentions the API key at all; a genuine 401 still does.
+  **If the 503 persists after this**: it means the domain genuinely isn't
+  verified yet — check the Resend dashboard's Domains tab, or switch
+  `RESEND_FROM` to `onboarding@resend.dev` as a temporary unblock (Resend
+  only allows that address to send to the account owner's own inbox, so it
+  only works for testing, not real users).
+
+- **3D campus map — actually built, not just a dependency.** New
+  `frontend/src/features/campus3d/Campus3DView.jsx` using
+  `@react-three/fiber` + `@react-three/drei` (added as dependencies; `three`
+  itself was already there but unused). Buildings render as extruded boxes —
+  height scaled to floor count, colour following the exact same rule as the
+  2D map (condition colour or heat colour, same legend), same world
+  positions via the existing `map_x`/`map_y` fields and `layoutBuildings()`
+  auto-layout — so 2D and 3D always agree on where a building sits. Orbit
+  controls for rotate/pan/zoom, a ground grid, code labels billboarded to
+  face the camera, and a hover contract identical to the 2D view's
+  (`onHover(building-with-heat | null)`) so the existing info panel below the
+  map works unchanged for both. `CampusMap.jsx` gained a 2D/3D toggle next to
+  the existing condition/heat one; clicking a building in 3D opens its first
+  floor in the Digital Twin, same as clicking a room chip does in 2D.
+  `Campus3DView` is lazy-loaded (`React.lazy`) into its own chunk — it pulls
+  in three.js, which is a genuinely large dependency — so people who never
+  open the 3D view never download it; confirmed as a separate ~970 kB chunk
+  in the build output, not merged into the main bundle.
+
+Verified: backend `email.py` change compiles, imports, and its Resend
+status-code logic was tested directly against a mocked Resend API (403
+domain-error case and 401 bad-key case both produce the correct, distinct
+message — this is the fix that actually matters here, so it got an explicit
+test rather than just "the file imports"). Frontend builds and lints clean;
+the 3D chunk code-splits as intended. No headless-browser/WebGL renderer was
+available in this environment to smoke-test the actual Three.js scene
+mounting, so the 3D view's runtime behavior (not just its build) is unverified
+beyond careful review against the react-three-fiber/drei v8/v9 APIs used —
+worth an actual click-through in a browser before calling this fully done.
+
+Not done / still open:
+- The 3D scene has not been visually verified in a real browser.
+- Nothing about the S3/storage or floors_count items from addenda 1–2 was
+  touched this round; they stand as previously verified.
+
+## Addendum 4 — full building → floor → room → asset drilldown, real report PDFs
+
+Follow-up request: make building clicks (2D and 3D) open a real drilldown
+instead of jumping straight to a floor, give buildings actual architectural
+detail (windows) rather than plain colour blocks, add a 3D per-room view
+with an asset table, and make the asset report actually downloadable.
+
+- **Building → floor → room drilldown**: new
+  `frontend/src/features/campus3d/BuildingDrilldown.jsx`, two chained
+  Modals (floor picker, then room picker) fed entirely from data already
+  loaded by the campus overview query — no new endpoints needed. Wired into
+  both `Campus3DView`'s building click and the 2D SVG map's building-shell
+  click (`CampusMap.jsx`'s `BuildingBlock` gained an `onOpenBuilding` prop
+  on its outer `<g>`; existing room-chip clicks still `stopPropagation()`
+  so they keep going straight to `/twin/:floorId` unchanged — this is an
+  addition, not a replacement, for the 2D view).
+- **Windows on 3D buildings**: found this already in progress in
+  `Campus3DView.jsx`'s working tree when this round started (a `WindowGrid`
+  helper, neutral wall colour, status colour moved to a roof cap + base
+  ring instead of tinting the whole volume, a base plinth) — reviewed it,
+  it's sound, kept it as-is rather than redoing it.
+- **Real 3D room view**: new `frontend/src/features/campus3d/RoomScene3D.jsx`
+  + new page `frontend/src/pages/RoomView3D.jsx` at route `/rooms/:roomId`.
+  Renders the room as a floor + four low walls (open-topped, so the default
+  orbit angle can actually see into it) sized to the room's own aspect
+  ratio (derived from its `boundary` bounding box — the boundary itself is
+  in floor-plan coordinates and not usable directly, only its aspect ratio
+  is). Assets are placed using their real `pos_x`/`pos_y` (the same
+  room-local 0..1 convention the existing 2D floor plan already uses per
+  `FloorPlan.jsx`), coloured by condition, clickable through to
+  `/assets/:id`. Below the 3D view, a full data table (tag, name, category,
+  manufacturer/model, condition, warranty, cost) sourced from
+  `GET /campus/rooms/{id}` + `GET /campus/rooms/{id}/assets` +
+  `GET /campus/asset-categories` — all pre-existing endpoints, nothing
+  added on the backend. Route gated the same as `/assets/:id` and `/twin`
+  (technician/facility_manager/admin/super_admin) — students/teachers can
+  still browse the floor/room picker to see names and condition, but the
+  "open" action is disabled for them with an inline explanation, since cost
+  and maintenance data isn't shown to non-staff anywhere else in the app
+  either; extending that boundary to a new page seemed like the wrong place
+  to quietly change it.
+- **Downloadable asset report**: `AssetDetail.jsx` gained a "Download
+  report" button that builds a real PDF client-side (specification,
+  lifecycle/cost, full maintenance history, condition history) using
+  `jspdf` (newly installed). Import is dynamic (`await import('jspdf')`
+  inside the click handler) rather than static — a static import pulled
+  jsPDF's ~390KB into the AssetDetail page chunk itself (17KB → 402KB),
+  which every staff member visiting any asset would pay for whether or not
+  they ever click the button; lazy-loading brought the page chunk back to
+  ~12KB and put jsPDF in its own chunk that only loads on click. Verified
+  the actual jsPDF calls used (multi-line text, coloured text, right-aligned
+  columns, page-break handling) against a real jsPDF instance in Node —
+  produces a valid PDF, not just "the import resolves".
+
+Verified this round: `npm run build` and `npm run lint` clean (0 errors,
+only pre-existing warnings, none in touched files) after all of the above.
+The jsPDF report-building calls were exercised directly in Node against
+the real library (not mocked) and produce a valid PDF buffer.
+
+Not done / still open:
+- Still no headless browser available in this environment — none of the
+  3D scenes or the drilldown modals have been clicked through in an actual
+  browser this round either. Build/lint passing and library calls checked
+  directly is real signal, but it is not the same as having looked at it.
+- The generated PDF's actual visual layout (column alignment, page breaks
+  on assets with long maintenance histories) hasn't been eyeballed as a
+  rendered document, only confirmed to generate without throwing.
+
+---
+
+## Reconciliation: two competing 3D campus-map implementations
+
+Both this branch and `main` independently built a Three.js campus map at
+the same time — `main` via `Campus3DView.jsx`/`BuildingDrilldown.jsx`/
+`RoomScene3D.jsx`/`RoomView3D.jsx` using `@react-three/fiber`+`@react-three/drei`
+as a togglable addition next to the existing 2D SVG map; this branch via
+`features/twin/Scene3D.jsx` using raw `three.js` as a full replacement of
+the 2D map with a campus→building→floor→room drill-down (see the
+"Replace Campus Map with a real Three.js scene" commit above).
+
+Per explicit instruction, this branch's version was kept and `main`'s was
+dropped: `Campus3DView.jsx`, `BuildingDrilldown.jsx`, `RoomScene3D.jsx`,
+`RoomView3D.jsx`, its `/rooms/:roomId` route in `App.jsx`, and the
+`@react-three/fiber`/`@react-three/drei` dependencies (no longer used by
+anything once those files are gone) were all removed. `main`'s unrelated
+work in the same commit — real PDF asset reports via jsPDF in
+`AssetDetail.jsx` — was kept; it doesn't touch the map at all.
+
+`main` also carried a parallel, partial fix for the same Resend 401/403
+bug this branch already fixed (see "Fix Resend 401/403 misdiagnosis"
+above), plus a hand-added `RESEND_FROM` setting and per-call `provider`
+override on `send_otp()`, added directly by the project owner. Reconciled
+rather than picked one side outright:
+- Kept this branch's `resolve_email_provider(purpose)` system
+  (`EMAIL_PROVIDER_EMAIL_VERIFY`/`PASSWORD_RESET`/`EMAIL_CHANGE`) as the
+  actual fix, since main's version only patched the one `email_change`
+  call site and left `register`/`forgot-password`/`resend-code` still
+  silently defaulting to Resend whenever both provider keys are set —
+  the same root bug, just not yet visibly triggered there.
+- Adopted `RESEND_FROM` from main's hand edit — a genuinely separate
+  "from" address for Resend vs. SMTP/Brevo, which this branch didn't
+  have and which main's owner had a real reason to want.
+  `_resend_sender()` now reads `RESEND_FROM`, not `SMTP_FROM`.
+  `send_otp()` no longer takes an explicit `provider` parameter — the
+  per-purpose settings make a manual override at each call site
+  unnecessary, which is also why no auth.py call site needed touching.
+- Kept main's OTP email content/subject-line wording tweaks (the
+  hand-edited copy from the "Refine email content" commits), merged
+  into `send_otp()`'s template.
+- Kept this branch's 401-vs-403 diagnosis (403 itself, not just a
+  "domain"/"verify" keyword in the response body, is treated as the
+  sender/recipient-restriction case) rather than main's version, which
+  still mislabels Resend's actual sandbox-restriction message
+  ("You can only send testing emails to your own email address" — no
+  "domain" or "verify" in it) as a bad API key.
+
+Verified after reconciling: backend imports cleanly, `resolve_email_provider`
+tested against a mocked Settings instance for both purposes; frontend
+`npm install && npm run build && npm run lint` all clean (0 new errors,
+`CampusMap` bundle uses this branch's `three.js` scene, `jspdf` remains
+its own lazy chunk for `AssetDetail`'s PDF button, no `Campus3DView` or
+`RoomView3D` chunk exists anymore).

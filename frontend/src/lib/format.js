@@ -99,3 +99,22 @@ export const TWIN_STATE = {
   inspection_required: { colour: '#8b5cf6', label: 'Inspection Required' },
   decommissioned:      { colour: '#94a3b8', label: 'Decommissioned' },
 }
+
+/** Labels for Room.kind — icon choice per kind lives with whichever
+ * component actually renders one, to keep this file free of UI imports. */
+export const ROOM_KIND_LABELS = {
+  classroom: 'Classroom',
+  lecture_hall: 'Lecture Hall',
+  laboratory: 'Laboratory',
+  office: 'Office',
+  library: 'Library',
+  washroom: 'Washroom',
+  corridor: 'Corridor',
+  cafeteria: 'Cafeteria',
+  auditorium: 'Auditorium',
+  hostel_room: 'Hostel Room',
+  server_room: 'Server Room',
+  store: 'Store',
+  utility: 'Utility',
+  other: 'Other',
+}

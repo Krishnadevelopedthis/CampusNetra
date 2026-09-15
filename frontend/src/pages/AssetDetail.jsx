@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, CircleDot, History, MapPin, ShieldCheck, Wrench } from 'lucide-react'
+import { ArrowLeft, CircleDot, Download, History, MapPin, ShieldCheck, Wrench } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -19,12 +19,132 @@ import { api } from '@/lib/api'
 import { TWIN_STATE, ago, dt, money, titleCase } from '@/lib/format'
 import { useAuth } from '@/lib/auth'
 
+/**
+ * A one-page-ish PDF built directly with jsPDF's own text/line primitives
+ * rather than a table plugin — the maintenance history here is short
+ * (asset-scoped, not campus-scoped), so a plugin would be more dependency
+ * than the content warrants. Generated entirely client-side from data
+ * already on the page — this is a reformat, not a new request to the server.
+ */
+function buildAssetReportPdf(jsPDF, asset, data) {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const left = 48
+  const right = 547
+  let y = 56
+
+  const line = (text, size = 10, opts = {}) => {
+    doc.setFontSize(size)
+    doc.setFont('helvetica', opts.bold ? 'bold' : 'normal')
+    doc.text(text, opts.x ?? left, y)
+    y += opts.gap ?? size + 6
+  }
+  const rule = () => { doc.setDrawColor(210); doc.line(left, y, right, y); y += 14 }
+  const row = (label, value) => {
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100)
+    doc.text(label, left, y)
+    doc.setTextColor(20)
+    doc.text(value ?? '—', left + 150, y)
+    y += 18
+  }
+  const ensureSpace = (needed) => {
+    if (y + needed > 780) { doc.addPage(); y = 56 }
+  }
+
+  doc.setTextColor(20)
+  line('Campus Netra', 12, { bold: true, gap: 18 })
+  line(`Asset Report — ${asset.tag}`, 18, { bold: true, gap: 22 })
+  doc.setTextColor(120)
+  line(`Generated ${new Date().toLocaleString()}`, 9, { gap: 20 })
+  doc.setTextColor(20)
+  rule()
+
+  line('Specification', 12, { bold: true, gap: 18 })
+  row('Name', asset.name)
+  row('Asset tag', asset.tag)
+  row('Manufacturer', asset.manufacturer)
+  row('Model', asset.model)
+  row('Serial number', asset.serial_no)
+  row('Condition', data.state_label)
+  if (data.room) {
+    row('Location', [data.room.building, data.room.floor, data.room.name].filter(Boolean).join(' / '))
+  }
+  y += 6
+  rule()
+
+  line('Lifecycle & cost', 12, { bold: true, gap: 18 })
+  row('Purchase date', asset.purchase_date ? dt(asset.purchase_date, 'd MMM yyyy') : null)
+  row('Purchase cost', asset.cost ? money(asset.cost) : null)
+  row('Warranty expiry', asset.warranty_expiry ? dt(asset.warranty_expiry, 'd MMM yyyy') : null)
+  row('Warranty length', asset.warranty_months ? `${asset.warranty_months} months` : null)
+  row('Service interval', asset.service_interval_days ? `${asset.service_interval_days} days` : null)
+  row('Expected life', asset.expected_life_months ? `${asset.expected_life_months} months` : null)
+  row('Annual maintenance budget', asset.annual_maintenance_cost ? money(asset.annual_maintenance_cost) : null)
+  row('Last service', asset.last_service_at ? dt(asset.last_service_at, 'd MMM yyyy') : null)
+  const totalSpend = (data.maintenance_history || []).reduce((s, w) => s + (w.cost || 0), 0)
+  row('Total maintenance spend', totalSpend > 0 ? money(totalSpend) : null)
+  y += 6
+  rule()
+
+  ensureSpace(60)
+  line('Maintenance history', 12, { bold: true, gap: 18 })
+  if (!data.maintenance_history?.length) {
+    doc.setTextColor(120)
+    line('No work orders raised against this asset.', 10, { gap: 16 })
+    doc.setTextColor(20)
+  } else {
+    doc.setFontSize(9); doc.setTextColor(120)
+    doc.text('Reference', left, y); doc.text('Task', left + 90, y)
+    doc.text('Status', left + 300, y); doc.text('Completed', left + 380, y)
+    doc.text('Cost', right, y, { align: 'right' })
+    y += 14
+    doc.setTextColor(20)
+    data.maintenance_history.forEach((w) => {
+      ensureSpace(18)
+      doc.setFontSize(9)
+      doc.text(w.reference, left, y)
+      doc.text((w.title || '').slice(0, 42), left + 90, y)
+      doc.text(w.status, left + 300, y)
+      doc.text(w.completed_at ? dt(w.completed_at, 'd MMM yyyy') : '—', left + 380, y)
+      doc.text(w.cost > 0 ? money(w.cost) : '—', right, y, { align: 'right' })
+      y += 16
+    })
+  }
+  y += 6
+  ensureSpace(40)
+  rule()
+
+  line('Condition history', 12, { bold: true, gap: 18 })
+  if (!data.condition_history?.length) {
+    doc.setTextColor(120)
+    line('No state changes recorded yet.', 10, { gap: 16 })
+  } else {
+    data.condition_history.forEach((h) => {
+      ensureSpace(18)
+      doc.setFontSize(9); doc.setTextColor(20)
+      const change = h.from ? `${h.from} -> ${h.to}` : h.to
+      doc.text(`${dt(h.at, 'd MMM yyyy')}  ${change}`, left, y)
+      y += 14
+      if (h.reason) {
+        doc.setTextColor(120)
+        doc.text(h.reason.slice(0, 100), left + 12, y)
+        doc.setTextColor(20)
+        y += 14
+      }
+    })
+  }
+
+  doc.save(`asset-report-${asset.tag}.pdf`)
+}
+
 export default function AssetDetail() {
   const { id } = useParams()
   const qc = useQueryClient()
   const { isStaff } = useAuth()
   const [stateOpen, setStateOpen] = useState(false)
   const [form, setForm] = useState({})
+  const [reportLoading, setReportLoading] = useState(false)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['asset', id],
@@ -86,6 +206,22 @@ export default function AssetDetail() {
 
         <div className="flex flex-wrap gap-2">
           <Link to="/twin" className="btn-secondary">View on twin</Link>
+          <Button variant="secondary" icon={Download} loading={reportLoading}
+                  onClick={async () => {
+                    setReportLoading(true)
+                    try {
+                      // jsPDF is a genuinely large dependency for something
+                      // only some visits to this page will ever trigger —
+                      // load it on demand rather than paying for it on
+                      // every asset-detail view.
+                      const { jsPDF } = await import('jspdf')
+                      buildAssetReportPdf(jsPDF, a, data)
+                    } finally {
+                      setReportLoading(false)
+                    }
+                  }}>
+            Download report
+          </Button>
           {isStaff() && (
             <Button icon={Wrench} onClick={() => { setForm({ state: a.state }); setStateOpen(true) }}>
               Change condition
