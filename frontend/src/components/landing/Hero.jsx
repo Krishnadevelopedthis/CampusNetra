@@ -22,11 +22,11 @@ function InteractiveDashboardPreview() {
   return (
     <div className="relative w-full max-w-2xl mx-auto group">
       {/* ACETERNITY PROACTIV: Ambient Glow Backdrop + Radial Spotlight */}
-      <div className="absolute -inset-1.5 bg-gradient-to-r from-indigo-500/40 via-violet-500/30 to-cyan-500/40 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+      <div className="absolute -inset-1.5 bg-gradient-to-r from-secondary-400/40 via-primary-500/30 to-cyan-500/40 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
       <div className="absolute -inset-2.5 bg-spotlight-primary rounded-3xl blur-3xl opacity-60 pointer-events-none" aria-hidden />
 
       {/* Window Container — Glassmorphic */}
-      <div className="relative glass-panel rounded-2xl shadow-glow-indigo overflow-hidden transition-all duration-300">
+      <div className="relative glass-panel rounded-2xl shadow-glow-secondary overflow-hidden transition-all duration-300">
         {/* Title Bar & Interactive View Switcher */}
         <div className="flex items-center justify-between px-4 py-3 bg-surface-sunken/80 border-b border-border-subtle">
           <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ function InteractiveDashboardPreview() {
                 className={clsx(
                   'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-body-sm font-medium transition-all duration-200',
                   activeTab === id
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-glow-indigo'
+                    ? 'bg-gradient-to-r from-secondary-600 to-primary-800 text-white shadow-glow-secondary'
                     : 'text-ink-muted hover:text-ink hover:bg-surface-sunken',
                 )}
               >
@@ -322,7 +322,7 @@ export function Hero() {
             <h1 className="text-[clamp(2.5rem,5.5vw,4.25rem)] font-bold text-white leading-[1.1] tracking-tight" style={{ textWrap: 'balance' }}>
               Run Your Campus{' '}
               <span className="relative inline-block">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400">
                   With Precision.
                 </span>
               </span>
@@ -384,8 +384,8 @@ export function Hero() {
                 </div>
                 {/* ACETERNITY PROACTIV: Avatar stack social proof badge */}
                 <div className="avatar-stack flex items-center -space-x-2">
-                  <div className="w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AC</div>
-                  <div className="w-8 h-8 bg-violet-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">DT</div>
+                  <div className="w-8 h-8 bg-secondary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AC</div>
+                  <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">DT</div>
                   <div className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AI</div>
                   <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">SL</div>
                   <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">+12</div>

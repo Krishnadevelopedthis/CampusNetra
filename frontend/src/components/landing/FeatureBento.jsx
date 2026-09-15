@@ -167,7 +167,7 @@ export function FeatureBento() {
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-3">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Modular Enterprise Architecture</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -190,10 +190,10 @@ export function FeatureBento() {
               <div
                 key={feature.id}
                 className={clsx(
-                  'widget p-6 bg-surface flex flex-col justify-between transition-all duration-500 group hover:shadow-glow-indigo relative overflow-hidden glass-panel border',
-                  isDigitalTwin && 'lg:col-span-2 border-indigo-500/30 ring-1 ring-indigo-400/20 bg-gradient-to-br from-indigo-500/5 via-transparent to-violet-500/5',
-                  isIssue && 'lg:col-span-2 border-indigo-500/30',
-                  !isDigitalTwin && !isIssue && 'border-border-subtle hover:border-indigo-400/50 dark:hover:border-indigo-400/30',
+                  'widget p-6 bg-surface flex flex-col justify-between transition-all duration-500 group hover:shadow-glow-secondary relative overflow-hidden glass-panel border',
+                  isDigitalTwin && 'lg:col-span-2 border-secondary-500/30 ring-1 ring-secondary-400/20 bg-gradient-to-br from-secondary-400/5 via-transparent to-primary/5',
+                  isIssue && 'lg:col-span-2 border-secondary-500/30',
+                  !isDigitalTwin && !isIssue && 'border-border-subtle hover:border-secondary/50 dark:hover:border-secondary/30',
                 )}
                 style={{
                   animationDelay: `${idx * 50}ms`,
@@ -201,16 +201,16 @@ export function FeatureBento() {
                 }}
               >
                 {/* Animated Gradient Top Border */}
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
                 {/* Card Glow Header */}
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
                     <div className={clsx('w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm relative overflow-hidden', feature.iconBg)}>
-                      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-violet-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      <div className="absolute inset-0 bg-gradient-to-br from-secondary-400/20 to-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       <Icon size={18} className={clsx(feature.iconColor, 'relative z-10')} />
                     </div>
-                    <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full glass-panel border border-glass-border text-ink-muted group-hover:text-secondary group-hover:border-indigo-400/50 transition-all duration-300">
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full glass-panel border border-glass-border text-ink-muted group-hover:text-secondary group-hover:border-secondary/50 transition-all duration-300">
                       {feature.badge}
                     </span>
                   </div>
@@ -229,7 +229,7 @@ export function FeatureBento() {
                 ) : (
                   <div className="mt-4 pt-3 border-t border-border-subtle flex items-center justify-between text-[11px] text-ink-faint">
                     <span className="text-gradient-emerald font-medium">Synchronized Live</span>
-                    <ArrowRight size={13} className="text-ink-faint group-hover:text-indigo-400 group-hover:translate-x-1 transition-all duration-300" />
+                    <ArrowRight size={13} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 )}
               </div>

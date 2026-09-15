@@ -10,7 +10,7 @@ const DEMO_FEEDBACK = [
     quote: 'CampusNetra brought complete visibility to our 14 buildings. What used to take days of phone calls now resolves in hours through the automated work order queue.',
     author: 'Campus Operations Lead',
     initials: 'CO',
-    accentColor: 'indigo',
+    accentColor: 'secondary',
     icon: GraduationCap,
   },
   {
@@ -28,7 +28,7 @@ const DEMO_FEEDBACK = [
     quote: 'Reporting broken equipment in our labs is finally effortless. We get actual updates when things are fixed instead of wondering if anyone noticed.',
     author: 'Student Representative',
     initials: 'SR',
-    accentColor: 'violet',
+    accentColor: 'primary',
     icon: Shield,
   },
   {
@@ -61,9 +61,9 @@ const DEMO_FEEDBACK = [
 ]
 
 const AVATAR_COLORS = [
-  'from-indigo-500 to-violet-500',
+  'from-secondary-400 to-primary',
   'from-cyan-500 to-blue-500',
-  'from-violet-500 to-purple-500',
+  'from-primary-500 to-primary-600',
   'from-emerald-500 to-teal-500',
   'from-amber-500 to-orange-500',
   'from-cyan-500 to-emerald-500',
@@ -93,7 +93,7 @@ export function Testimonials() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <MessageSquare size={14} className="text-indigo-400" />
+            <MessageSquare size={14} className="text-secondary" />
             <span className="text-gradient-electric">Feedback</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -161,7 +161,7 @@ export function Testimonials() {
 
                   {/* Quote */}
                   <p className="text-body-md text-ink-muted leading-relaxed italic mb-6 relative">
-                    <span className="text-4xl text-indigo-400/20 font-serif leading-none absolute -top-3 -left-2">"</span>
+                    <span className="text-4xl text-secondary/20 font-serif leading-none absolute -top-3 -left-2">"</span>
                     {quote}
                   </p>
                 </div>

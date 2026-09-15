@@ -30,7 +30,7 @@ export function CTA() {
           <Link
             to="/register"
             className={clsx(
-              'inline-flex items-center justify-center gap-2 px-8 h-12 rounded-lg border-shimmer bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-semibold hover:from-indigo-600 hover:to-violet-600 transition-all duration-300 text-body-lg shadow-glow-indigo',
+              'inline-flex items-center justify-center gap-2 px-8 h-12 rounded-lg border-shimmer bg-gradient-to-r from-secondary-400 to-primary text-white font-semibold hover:from-secondary-600 hover:to-primary-800 transition-all duration-300 text-body-lg shadow-glow-secondary',
             )}
           >
             Get Started Free

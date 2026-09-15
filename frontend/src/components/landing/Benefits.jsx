@@ -8,16 +8,16 @@ const BENEFITS = [
     title: 'Resolve Faster',
     description: 'Cut triage time with automated AI classification, instant technician routing, and structured issue details.',
     accentColor: 'amber',
-    glowColor: 'glow-violet',
+    glowColor: 'glow-primary',
     gradient: 'from-amber-500 to-amber-600',
   },
   {
     icon: Brain,
     title: 'Manage Smarter',
     description: 'Gain full visibility into team workloads, open work orders, and SLA compliance across your entire campus.',
-    accentColor: 'indigo',
-    glowColor: 'glow-indigo',
-    gradient: 'from-indigo-500 to-violet-500',
+    accentColor: 'secondary',
+    glowColor: 'glow-secondary',
+    gradient: 'from-secondary-400 to-primary',
   },
   {
     icon: Layers,
@@ -25,7 +25,7 @@ const BENEFITS = [
     description: 'Explore your campus through interactive 3D digital twins — see asset health and active issues floor by floor.',
     accentColor: 'cyan',
     glowColor: 'glow-cyan',
-    gradient: 'from-cyan-500 to-indigo-500',
+    gradient: 'from-cyan-500 to-secondary-500',
   },
   {
     icon: TrendingUp,
@@ -59,7 +59,7 @@ export function Benefits() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Why CampusNetra</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -92,7 +92,7 @@ export function Benefits() {
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Icon size={22} className={clsx('relative z-10', `text-${accentColor}-400`)} />
                 </div>
-                <h3 className="text-headline-md text-ink font-semibold mb-2 group-hover:text-indigo-400 transition-colors duration-300">{title}</h3>
+                <h3 className="text-headline-md text-ink font-semibold mb-2 group-hover:text-secondary transition-colors duration-300">{title}</h3>
                 <p className="text-body-md text-ink-muted leading-relaxed">{description}</p>
               </div>
             </motion.div>

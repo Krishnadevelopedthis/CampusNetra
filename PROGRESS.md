@@ -557,6 +557,51 @@ view or stack over each other (modals, dropdowns).
 
 Not verified in a rendered browser, same limitation as Addendum 6.
 
+## Addendum 8 — landing page was still on the old brand colors
+
+Found the actual reason "all pages" didn't look done: the app pages
+(dashboard, admin, auth) go through the shared `.widget`/`.btn`/token
+system, so Addenda 6–7 reached them automatically. The **landing page**
+(`components/landing/*`, 17 files) is a separate, bespoke-styled section
+that never touched those shared classes — it was hardcoding Tailwind's
+stock `indigo`/`violet`/`purple` classes directly, left over from before
+the retheme existed. That's why it still looked like the old design.
+
+Swept all 17 files: every `indigo-*` class → the matching `secondary-*`
+step (the app's one accent — orange in light mode, lime in dark), every
+`violet-*`/`purple-*` class → the matching `primary-*` step (near-black
+in light, deep violet in dark). Same for two custom shadow utilities,
+`shadow-glow-indigo`/`shadow-glow-violet` in `tailwind.config.js`, which
+were hardcoded RGB triples — rebuilt as `glow-secondary`/`glow-primary`
+referencing the actual CSS variables, so (unlike before) they now follow
+whichever theme is active instead of being frozen on one hardcoded color.
+Also updated the string values in a few data-driven color arrays
+(`accentColor`, `glowColor`, `ACCENT_COLORS`) that get interpolated into
+class names at render time, so the dynamic classes resolve to the new
+palette too.
+
+Found two pre-existing, unrelated bugs while in there and fixed them
+since they're the same file, same gradient:
+`PlatformArchitecture.jsx`'s SVG diagram gradient referenced
+`var(--indigo-400)`/`var(--violet-400)`/`var(--cyan-400)`/
+`var(--emerald-400)` — none of those variable names actually exist (the
+real ones are all prefixed `--c-`, e.g. `--c-indigo-400`), so that
+gradient has likely never rendered a visible color. Fixed the prefix and
+pointed the two brand stops at the new tokens while at it.
+
+`glass-panel`/rounded-corner treatment was *not* missing on the landing
+page — it already has extensive per-element `rounded-*` classes and a
+working, theme-aware `.glass-panel` utility (`--glass-bg`/`--glass-blur`/
+`--glass-border`, already defined per theme in `theme.css`), used across
+nearly every section already. Nothing to add there; it was the accent
+*color* underneath the glass that was stale, not the glass effect itself.
+
+Not touched: `glow-cyan`/`glow-emerald` and their few remaining usages —
+those aren't part of the old indigo/violet brand identity, they're
+distinct accent options already living alongside it, left as-is.
+
+Not verified in a rendered browser, same limitation as Addenda 6–7.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
