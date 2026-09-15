@@ -45,9 +45,10 @@ class SendResult:
     logged_only: bool = False
 
 
-def _no_sender_error() -> str:
+def _no_sender_error(var_name: str = "SMTP_FROM") -> str:
+    value = getattr(settings, var_name, "")
     return (
-        f"SMTP_FROM is not a usable address (got {settings.SMTP_FROM!r}). "
+        f"{var_name} is not a usable address (got {value!r}). "
         "Set it to either 'you@example.com' or 'Campus Netra <you@example.com>' "
         "— with no surrounding quotes when setting it in a hosting dashboard."
     )
@@ -74,6 +75,23 @@ def _sender() -> tuple[str, str]:
     # sending as it produces an opaque provider rejection instead of the
     # message that says which variable to fix.
     return name or settings.APP_NAME, addr if "@" in addr else ""
+
+
+
+
+def _resend_sender() -> tuple[str, str]:
+    """The display name and address Resend sends from — RESEND_FROM, not
+    SMTP_FROM. Kept separate from `_sender()` because the two providers are
+    commonly configured to send as different addresses (e.g. Brevo for
+    forgot-password, Resend for the profile email-change flow)."""
+    raw = (settings.RESEND_FROM or "").strip()
+    if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
+        raw = raw[1:-1].strip()
+
+    name, addr = parseaddr(raw)
+    if "@" not in addr:
+        return "", ""
+    return name or settings.APP_NAME, addr
 
 
 def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessage:
@@ -128,9 +146,9 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
     """Resend's HTTPS API. Used where outbound SMTP is blocked."""
     import httpx
 
-    name, addr = _sender()
+    name, addr = _resend_sender()
     if not addr:
-        return SendResult(delivered=False, error=_no_sender_error())
+        return SendResult(delivered=False, error=_no_sender_error("RESEND_FROM"))
     sender = formataddr((name, addr))
 
     try:
@@ -150,25 +168,28 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
 
     detail = _api_error(resp)
     log.error("Resend rejected the message (%s): %s", resp.status_code, detail)
-    # 401 means the key itself is missing or wrong. 403 is what Resend returns
-    # for the *other* common failure — a sandbox/unverified-domain account can
-    # only send from onboarding@resend.dev and only to the address that owns
-    # the account — which is exactly the case here, since every OTP goes to
-    # some other campus user's address. The two used to share one branch, so
-    # a 403 (by far the more common of the two in practice) was always
-    # misreported as a bad API key, sending whoever read the error down the
-    # wrong troubleshooting path.
+    # 401 is unambiguous: the key itself was rejected. 403 is what Resend
+    # returns for the *other* common failure — a sandbox/unverified-domain
+    # account can only send from onboarding@resend.dev and only to the
+    # address that owns the account, which is exactly the case here since
+    # every OTP goes to some other campus user's address. Checking the
+    # status code first (rather than only scanning the message text for
+    # "domain"/"verify") matters because Resend's actual sandbox-restriction
+    # message — "You can only send testing emails to your own email
+    # address" — contains neither word, so a text-only check still
+    # mislabels the single most common real-world 403 as a bad API key.
     if resp.status_code == 401:
         return SendResult(delivered=False,
                           error="Resend rejected the API key. Check RESEND_API_KEY.")
     if resp.status_code == 403 or "domain" in detail.lower() or "verify" in detail.lower():
         return SendResult(
             delivered=False,
-            error=("Resend refused the sender or recipient address. On a sandbox "
+            error=(f"Resend refused to send from {addr!r}: {detail} On a sandbox "
                    "account (no verified domain), the from address must be "
-                   "onboarding@resend.dev, and you can only send to the address "
+                   "onboarding@resend.dev, and mail can only go to the address "
                    "that owns the Resend account — verify a domain at "
-                   "resend.com/domains to send to real users."))
+                   "resend.com/domains (add the DNS records it gives you) to send "
+                   "to real users."))
     return SendResult(delivered=False, error=f"Resend error: {detail}")
 
 
@@ -300,7 +321,7 @@ async def send_email(
 _OTP_COPY = {
     "email_verify": ("verify your email address", "Verify your email"),
     "password_reset": ("reset your password", "Reset your password"),
-    "email_change": ("confirm this as your new email address", "Confirm your new email"),
+    "email_change": ("confirm this as your new email address", "Verify your new email address"),
 }
 _OTP_DEFAULT = ("confirm this request", "Your verification code")
 
@@ -347,10 +368,10 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
           </td></tr>
 
           <tr><td style="padding:16px 32px;border-top:1px solid #e2e8f0;">
-            <p style="margin:0;font-size:12px;color:#94a3b8;">
-              Campus Netra — AI-powered campus facility management.
-              This is an automated message; please don't reply.
-            </p>
+             <p style="margin:0;font-size:12px;color:#94a3b8;">
+              Campus Netra<br>
+              Automated verification email. Please do not reply.
+                </p>
           </td></tr>
 
         </table>
@@ -361,16 +382,18 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 
 
 async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
-    action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
-    subject = f"{code} is your Campus Netra verification code"
-
+    action, heading = _OTP_COPY.get(purpose, _OTP_DEFAULT)
+    subject = "Campus Netra verification code"
     text = (
+        f"Campus Netra\n\n"
+        f"{heading}\n\n"
         f"Hello {name},\n\n"
-        f"Use this code to {action}:\n\n"
-        f"    {code}\n\n"
-        f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes. "
-        f"If you did not request this, you can ignore this email.\n\n"
-        f"— Campus Netra"
+        f"Use this code to {action}. Your verification code is:\n\n"
+        f"{code}\n\n"
+        f"This code expires in {settings.OTP_EXPIRE_MINUTES} minutes.\n\n"
+        f"If you did not request this, you can safely ignore this email.\n\n"
+        f"Campus Netra\n"
+        f"Automated verification email. Please do not reply."
     )
     # Resolved per purpose, so a deployment running two providers (e.g. Brevo
     # for sign-up/reset, Resend for the profile email-change flow) sends each
