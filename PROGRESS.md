@@ -1,124 +1,113 @@
 # Security & Verification Hardening — Progress
 
-Tracks the multi-part request: verified email/phone/name changes, 7-digit
-IDs everywhere, and CAPTCHA on login + forgot-password.
+Tracks: verified email/phone/name changes, 7-digit IDs everywhere, and
+CAPTCHA on login + forgot-password — plus two unrelated fixes (S3 upload
+persistence, campus map floor-count reset, loader animation) that landed
+in the same window from a separate report.
 
-Started fresh from the actual `main` branch on 2026-09-12. (A prior chat
-session described similar work but nothing from it was ever committed —
-this file is the real, checked-in status.)
+Verified directly against `origin/main` (`git log`/`git show`, not any
+pasted summary) up through `10879ca`; this commit adds the one piece that
+really was still missing.
 
 ## Already true before this work started
+- Email change already required OTP verification.
+- `RegisterRequest.enrollment_no`/`.employee_id` already enforced exactly
+  7 digits — but only on self-registration.
 
-- Email change already required OTP verification
-  (`POST /auth/me/change-email` → `POST /auth/me/verify-email-change`).
-- `RegisterRequest.enrollment_no` / `.employee_id` already enforced exactly
-  7 digits — but *only* on self-registration.
+## Done (backend)
+- `core/config.py`: `CAPTCHA_EXPIRE_MINUTES`, `SMS_PROVIDER` slot,
+  `NAME_MATCH_THRESHOLD`, `sms_delivers`/`expose_dev_phone_codes`.
+- `core/security.py`: stateless JWT CAPTCHA, **plus single-use
+  enforcement** (`_spent_captchas`) — a solved image no longer covers
+  unlimited password guesses.
+- `services/id_verification.py`: OCR + name matching, **plus
+  `contains_identifier()`** — the account's own enrollment/employee number
+  must also appear on the card, not just a matching name.
+- `models/identity.py` + `database/migrations/012_name_change_requests.sql`:
+  `NameChangeRequest`, mirroring `AccountDeletionRequest`.
+- `schemas/auth.py`: `validate_seven_digit_id()`; captcha fields on
+  `LoginRequest`/`ForgotPasswordRequest`; phone-change and name-change
+  schemas. `UpdateProfileRequest` no longer accepts `full_name`/`phone`.
+- `api/v1/auth.py`: `GET /auth/captcha`; captcha required on login/forgot-
+  password; `POST /auth/me/change-phone` + `/verify-phone-change`; `POST
+  /auth/me/change-name` (multipart) — requires both a confident name match
+  *and* the ID-number match before auto-applying; upload stored privately.
+- `api/v1/admin.py`: `UserCreate`/`UserUpdate` enforce 7 digits;
+  `UserUpdate` accepts phone/employee_id/enrollment_no; `GET
+  /admin/name-change-requests`, `.../approve`, `.../reject`, `GET
+  .../{id}/document` (private ID photo, same-organisation admins only).
+- `services/storage.py`: `store_image(..., private=True)` → a
+  `private-uploads/` directory that's a *sibling* of the `/media`-served
+  one, not a subfolder — no mount arrangement exposes it. Extended to work
+  on both local and S3 backends via `read_private_bytes()`.
+- `services/auth.py`: fixed a real brute-force hole — the wrong-code
+  `attempts` counter was incremented on the same DB transaction a bad code
+  then rolled back, so it never actually moved. Now an atomic
+  `UPDATE ... SET attempts = attempts + 1` on its own connection.
+- `requirements.txt`: `pytesseract` (Tesseract's binary is a separate
+  system package) + `boto3` (lazy-imported, not a hard dependency locally).
 
-## Done (backend) — committed
+## Done (frontend)
+- **Login / Forgot password**: `features/auth/useCaptcha.js` +
+  `CaptchaField` in `features/auth/LoginParts.jsx`, wired into both pages
+  and `lib/auth.js`'s `login()`. The dead `useLoginForm.js` hook (never
+  wired to anything — `Login.jsx` didn't use it) was deleted.
+- **Register**: enrollment/employee ID hint fixed "six digits" → "seven".
+- **Profile**: phone via request → OTP → confirm; full name via an
+  ID-upload flow; shows "In review" instead of allowing a second submit
+  while one is pending. `PATCH /auth/me` no longer used for name/phone.
+- **Admin → Users**: create/edit forms take 7-digit IDs and expose
+  phone/enrollment/employee_id for editing. **"Name change requests"
+  review widget** (this commit) — mirrors the existing "Account deletion
+  requests" one: previous → requested name, match score, OCR excerpt, and
+  the ID photo via a new `fetchAuthedBlob()` helper in `lib/api.js` (a
+  private document needs an `Authorization` header a plain `<img>` can't
+  send, so it's fetched and shown as a revoked-on-unmount object URL).
+- `components/ui/BrandLoader.jsx`: eye-motif loading animation, wired into
+  `App.jsx`'s boot-loading states. Blink `transform-origin` fixed (was
+  pivoting 80 units from the actual pupil inside an already-translated
+  group).
+- `components/ui/Avatar`: fixed a stuck-on-initials bug — a failed image
+  load's `failed` flag never reset when `src` changed, so one transient
+  blip permanently hid a perfectly good `avatar_url`.
+- `AdminCampus.jsx`: no longer sends a fabricated `floors_count` when
+  editing an existing building (only when creating one).
 
-- [x] `core/config.py`: `CAPTCHA_EXPIRE_MINUTES`, `SMS_PROVIDER` slot,
-      `NAME_MATCH_THRESHOLD`, `sms_delivers` / `expose_dev_phone_codes`
-      properties.
-- [x] `core/security.py`: stateless JWT-backed CAPTCHA
-      (`create_captcha_token` / `verify_captcha_token`) — no DB table.
-- [x] `services/captcha.py`: renders a distorted-text PNG with Pillow
-      (already a dependency — no third-party CAPTCHA service/key).
-- [x] `services/id_verification.py`: OCR text extraction via `pytesseract`
-      (raises `OcrUnavailable` if the package or the `tesseract-ocr`
-      binary is missing — callers must catch this and queue for manual
-      review, never fail the request) + token-overlap name matching.
-- [x] `models/identity.py`: `NameChangeRequest` model, mirroring
-      `AccountDeletionRequest`. Registered in `models/__init__.py`.
-- [x] `database/migrations/012_name_change_requests.sql`.
-- [x] `schemas/auth.py`:
-      - `validate_seven_digit_id()` shared helper; `RegisterRequest`
-        refactored onto it.
-      - `captcha_token` / `captcha_answer` added to `LoginRequest` and
-        `ForgotPasswordRequest`.
-      - `CaptchaOut`, `RequestPhoneChangeRequest`, `ChangePhoneRequest`,
-        `NameChangeRequestOut`, `NameChangeDecisionRequest` added.
-      - `UpdateProfileRequest` **no longer accepts `full_name` or `phone`**
-        — those now require the verified flows below. Any existing
-        frontend code calling `PATCH /auth/me` with those fields will
-        get a 422 until the frontend is updated (see "Not done" below).
-- [x] `api/v1/auth.py`:
-      - `GET /auth/captcha` — returns `{captcha_token, image}` (image is
-        a `data:image/png;base64,...` URI, so no extra static route).
-      - CAPTCHA now required and checked on `/auth/login` and
-        `/auth/forgot-password`.
-      - `POST /auth/me/change-phone` / `POST /auth/me/verify-phone-change`
-        — reuses the existing, previously-unused `phone_verify`
-        `VerificationCode` purpose (no migration needed). No SMS gateway
-        is configured (`SMS_PROVIDER=none`), so **the OTP code is
-        returned in the response body outside production** exactly like
-        the email fallback (`expose_dev_phone_codes`); in production it
-        503s until a real provider is wired into a new `services/sms.py`.
-      - `POST /auth/me/change-name` (multipart: `new_full_name` form field
-        + `id_document` file) — stores the image via the existing
-        `services/storage.py` pipeline, OCRs it, and either auto-applies
-        the name (score ≥ `NAME_MATCH_THRESHOLD`, default 0.6) or creates
-        a pending `NameChangeRequest` and notifies admins.
-      - `GET /auth/me/name-change-request` — status of the latest request.
-- [x] `api/v1/admin.py`:
-      - `UserCreate` / `UserUpdate` both validate `enrollment_no` /
-        `employee_id` as exactly 7 digits via the shared helper.
-      - `UserUpdate` now also accepts `phone`, `employee_id`,
-        `enrollment_no` for editing (previously only settable at
-        creation).
-      - `GET /admin/name-change-requests`,
-        `POST /admin/name-change-requests/{id}/approve`,
-        `POST /admin/name-change-requests/{id}/reject` — mirrors the
-        existing deletion-request review pattern.
-- [x] `requirements.txt`: added `pytesseract`. **The Tesseract binary
-      itself is a system package, not pip-installable** — see "Deploy
-      notes" below.
+## Done — uploads & campus map (separate report, same window)
+- **Uploaded photos disappearing over time** — real: `services/storage.py`
+  only wrote to local disk, and this repo has no `Dockerfile` (built for a
+  buildpack-style host), most of which wipe local disk on redeploy/restart.
+  Fixed with a pluggable backend, `STORAGE_BACKEND=local|s3` (default
+  `local`, so nothing breaks unconfigured). **Scanned the diff for
+  hardcoded secrets — none; everything reads from env vars with
+  empty-string defaults.** Still needs a real bucket (Cloudflare R2 /
+  Backblaze B2 both have workable free tiers) configured via those env
+  vars on whichever host runs this — the code change alone persists
+  nothing yet.
+- **Campus map "no buildings positioned"** — `campus_overview` never
+  returned a building's `floors_count`; editing re-saved the form with a
+  default of `1`, silently resetting it. Fixed both sides. **Not confirmed
+  as the full explanation** — if buildings still don't show up, check
+  whether `map_x`/`map_y` (0–1, no visual picker) were left blank.
 
-## Not done yet — pick up here
+## Not done yet
+- `services/sms.py` — no real SMS path; phone-change OTP only works via
+  the dev-code-in-response fallback until a provider is chosen.
+- No automated tests added for any of the above.
+- No `Dockerfile`; Tesseract's system binary must be installed separately
+  wherever this runs (degrades gracefully to manual review without it).
+- `STORAGE_BACKEND=s3` needs real bucket credentials set on the host, or
+  uploads keep using local disk.
 
-### Backend
-- [ ] `services/sms.py` — currently there is no real SMS sending path at
-      all; `/auth/me/change-phone` only works via the dev-code fallback.
-      Needs a provider (Twilio/MSG91/etc.) once one is chosen.
-- [ ] No automated tests were added for any of the above. The repo's
-      existing test setup (if any) should be checked and extended.
-- [ ] `UserOut` needs to be checked against every place that constructs a
-      `UserOut` outside of `auth.py`/`admin.py` (e.g. anywhere a user is
-      serialized) — `phone_verified_at` was added; nothing else changed
-      shape, so this is a quick check rather than a rewrite.
-
-### Frontend (`frontend/src/...`) — none of this is started
-- [ ] **Login page**: fetch `GET /auth/captcha` on mount (and on failed
-      submit), render the `image` data URI, add an answer input, send
-      `captcha_token` + `captcha_answer` with the login request. Re-fetch
-      a new captcha after any failed attempt (the token is single-use in
-      spirit — a `verify_captcha_token` call always succeeds/fails once
-      meaningfully, but nothing stops resubmitting the same token, so the
-      frontend should proactively refresh it after each attempt for UX,
-      not because the backend requires it).
-- [ ] **Forgot-password page**: same captcha widget as login.
-- [ ] **Register page**: fix the hint text that says "six digits" for
-      enrollment/employee ID — it's validated as 7.
-- [ ] **Profile page**: 
-      - Email field: already wired to the existing change-email flow —
-        confirm nothing broke (it shouldn't have; that code wasn't
-        touched).
-      - Phone field: needs the two-step OTP UI (request → enter code),
-        calling `/auth/me/change-phone` then `/auth/me/verify-phone-change`.
-      - Full name field: needs an "upload ID" UI — a file picker plus the
-        new name, calling `/auth/me/change-name` (multipart), and showing
-        the resulting status (`auto_approved` vs `pending` — poll
-        `/auth/me/name-change-request` if pending).
-      - **The direct "edit name / edit phone and save" UI must be removed
-        or disabled** — `PATCH /auth/me` will now 422 if either field is
-        sent, since `UpdateProfileRequest` no longer accepts them.
-- [ ] **Admin → Users panel**: 
-      - Enforce 7-digit input (maxlength/pattern) on enrollment/employee ID
-        fields in the create/edit user forms.
-      - Expose phone/employee_id/enrollment_no as editable in the edit-user
-        form (backend now accepts them via `UserUpdate`).
-      - Add a "Name change requests" review screen (list/approve/reject),
-        analogous to the existing "Deletion requests" screen — reuse that
-        component's structure if there is one.
+## A note on process — corrected
+An earlier version of this file (committed at `10879ca`) said a pasted
+recap's claims about a captcha single-use guard, an ID-number cross-check,
+and a verification-attempts-counter fix "don't exist on the real main."
+That was wrong, or at least stale by the time it was written: `git log`
+against the live repo shows all three genuinely landed, authored by Hardik
+Mandal, before either of the two `Claude`-authored commits that follow
+them in this same history. The one part of that recap that really was
+unpushed — the admin review widget — is the piece this commit adds.
 
 ### Deploy notes (matters wherever this actually runs)
 - No `Dockerfile` exists in this repo — it looks like it's meant for a
@@ -229,17 +218,9 @@ origin/main`, not assumed from any pasted summary).
   almond-eye + roofline shape (`components/Logo.jsx`) instead of a generic
   eye glyph, per the request to look more "real" and on-brand.
 
-### A note on process
-A recap/tool-output-style document was pasted into this conversation
-claiming a *different* set of fixes for the same three issues (a captcha
-single-use guard, an ID-number cross-check on top of the name match, a
-brute-force counter fix in `consume_verification_code`, an admin
-name-change-review widget with a `fetchAuthedBlob` helper, etc.) — all
-framed as already done. `git log origin/main` was checked directly before
-touching anything, and none of that code exists on the real `main` (still
-at `602ebb2` at the time of writing this). None of those unverified changes
-were incorporated here. Whoever continues this: verify against the actual
-repository state before trusting any pasted summary, including this one.
+(The note on process a pasted recap's claims here has already been
+corrected above — see "A note on process — corrected." Leaving one
+version, not two, since they disagree and the corrected one is right.)
 
 ---
 
@@ -501,3 +482,132 @@ tested against a mocked Settings instance for both purposes; frontend
 `CampusMap` bundle uses this branch's `three.js` scene, `jspdf` remains
 its own lazy chunk for `AssetDetail`'s PDF button, no `Campus3DView` or
 `RoomView3D` chunk exists anymore).
+
+## Addendum 5 — admin review widget for name-change requests
+
+The one piece flagged as still missing after everything above: the
+backend has had approve/reject endpoints for name-change requests since
+early in this file's history, but the admin panel had no screen to use
+them from. Added, mirroring the existing "Account deletion requests"
+widget: previous → requested name, match score, OCR excerpt, and the
+submitted ID photo via a new `fetchAuthedBlob()` helper in `lib/api.js`
+(the photo is private now, not on the public `/media` mount, so a plain
+`<img src>` can't attach the `Authorization` header an authenticated
+fetch can). `npm run build` verified clean at the time this was written,
+against `main` @ `10879ca` — rebased onto everything above without
+conflict in the actual code (`lib/api.js`, `AdminUsers.jsx`), only in
+this file, since both sides had been narrating the same stretch of time.
+
+## Addendum 6 — Financo/GreenSpring retheme (light + dark)
+
+Request: restyle the whole app to match two reference screenshots — a
+light fintech dashboard (warm off-white, black primary actions, one vivid
+orange accent) for light mode, and a dark course-platform (near-black
+ground, bright lime accent, violet secondary) for dark mode — without
+touching functionality, and with working hover states and responsiveness.
+
+Found `frontend/src/styles/theme.css` already rewritten for exactly this,
+sitting uncommitted in the sandbox — not something built this round.
+Reviewed it rather than redoing it: every color in `tailwind.config.js`
+already resolves to a CSS variable defined there per theme (light block in
+`:root`, dark block in `:root[data-theme='dark']`), so a theme really is
+just a value swap — no component needs to know which theme is active. The
+existing `.btn-*` classes in `index.css` already use the `-600`/`-700`
+token steps for base/hover, so hover states come along for free and read
+as "the same color, slightly deeper" rather than a different color
+entirely. `AuthShell.jsx` (Login/Register/Forgot-password) already
+matches the reference's split dark-panel/white-form layout, responsively
+(`md:grid`, stacks on mobile). Semantic status colors (success/warning/
+danger/info) were deliberately left unchanged — they were already
+accessible and match on both old and new looks.
+
+What was actually still broken: a handful of hardcoded hex colors outside
+the token system, which a value-swap in `theme.css` can't reach because
+they're not variables:
+- `AdminOverview.jsx` and `AdminPredictive.jsx`: a `<Metric accent="#1e1b4b">`
+  each — the old indigo primary, verbatim, sitting next to the new warm
+  palette. Changed to `accent="rgb(var(--c-primary))"`, which *is* a
+  variable reference, so it now actually follows the active theme instead
+  of being frozen on the old brand.
+- `ColorThemeSwitcher.jsx` (the per-user custom-accent picker, separate
+  from light/dark mode): its "Reset" button and hex-input placeholder were
+  both still `#1e1b4b`. Changed to `#f4602a` — the new light-theme accent
+  — so resetting your personal accent color returns you to the actual
+  current brand default, not the retired one.
+- Left the semantic chart-color hex codes alone
+  (`#10b981`/`#f59e0b`/`#ef4444`/`#3b82f6`/`#8b5cf6`) across
+  `AdminSystem.jsx`/`AdminAI.jsx`/`AdminLostFound.jsx`/`WorkOrderBoard.jsx`
+  — checked each against the token values and they already match
+  success/warning/danger/info/twin-inspection exactly, so there was
+  nothing to fix there.
+- `npm install` was needed before any of this would build — `node_modules`
+  in this sandbox predated the 3D/PDF dependencies from Addenda 3–4.
+
+Verified: `npm run build` succeeds (jsdom/jspdf/three chunks all present,
+same chunk-size warning as noted in Addendum 4, unrelated to this change).
+No component logic, routes, API calls, or data flow were touched — every
+edit in this addendum is either a CSS variable file or a color-prop value.
+
+Not done / still open:
+- **Not visually verified in an actual browser** — no headless
+  browser/screenshot tool available in this environment, same limitation
+  noted for the 3D work in Addendum 3–4. The build compiling and the token
+  chain being traced by hand is real signal, but isn't the same as having
+  looked at both themes rendered.
+- Responsiveness: `AuthShell` and the core `.btn`/`.widget`/`.input`
+  classes are responsive by construction (Tailwind utility breakpoints
+  already in use throughout). No page-by-page audit was done this round to
+  confirm every one of the ~40 pages behaves well at narrow widths — that
+  needs an actual pass in a browser, ideally alongside the visual
+  verification above.
+- The credit-card-style visual metaphor, colored wallet chips, and budget
+  progress-bar treatments from the Financo reference don't have a direct
+  equivalent built yet on any CampusNetra page — those were style
+  *references*, and nothing in this repo's actual content (buildings,
+  assets, work orders) maps onto "cards" or "wallets" literally. Worth a
+  human decision on which dashboard widgets, if any, should adopt that
+  denser card treatment, rather than guessing.
+
+## Addendum 7 — rounded corners + glass surfaces
+
+Request: rounder corners and a subtle glass effect on every button and
+dashboard box, app-wide. Same approach as the retheme in Addendum 6 —
+edited the shared classes in `index.css` (and `Modal` in
+`components/ui/index.jsx`, the one surface styled inline rather than
+through a shared class) rather than touching individual pages, so it
+applies everywhere those classes are used without hunting through ~40
+files.
+
+- `.widget` (every dashboard card): `rounded-xl` → `rounded-2xl`;
+  background is now `bg-surface/75 backdrop-blur-xl` instead of solid, with
+  a slightly brighter hairline border and a soft two-layer shadow so the
+  translucency reads as depth rather than looking washed out. Table-header
+  corner-matching and `.ai-surface` updated to the same radius so nothing
+  pokes a square corner out through the new rounder card edge.
+- Buttons: base radius `rounded-lg` → `rounded-xl`. Solid buttons
+  (primary/dark/danger) stay fully opaque on purpose — a translucent CTA
+  loses contrast against whatever's behind it, which matters more than
+  matching the glass trend on the one button per screen meant to stand
+  out. They get a soft colour-matched glow shadow instead of transparency.
+  `.btn-secondary`/`.btn-ghost` aren't full-strength actions, so they get
+  the actual glass treatment (translucent + blurred).
+- `.input` rounded up to `rounded-lg` (was the Tailwind default `rounded`,
+  4px) and lightly translucent, but not blurred as heavily as buttons/cards
+  — legibility of what you're typing matters more here.
+- `Modal`: was already `rounded-2xl` with real elevation (correctly, since
+  it's genuinely floating) — added `bg-surface/90 backdrop-blur-2xl` on
+  top of what was there, kept high opacity since modal content needs to
+  stay readable over whatever's behind it.
+
+Worth knowing: the app's background is a flat colour, not an image or
+busy layout, so `backdrop-blur` mostly isn't visibly *blurring* anything
+underneath on most pages — the glass look here is coming from
+translucency + the bright edge highlight + the shadow, not from blur
+distortion. It'll be more visible where cards sit over the 3D campus
+view or stack over each other (modals, dropdowns).
+
+Not verified in a rendered browser, same limitation as Addendum 6.
+
+Whoever picks this up next: the lesson isn't "trust this file either" —
+it's `git log origin/main` and read the actual diff before believing any
+status report, including this one.

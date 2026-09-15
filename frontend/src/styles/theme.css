@@ -1,50 +1,44 @@
 /**
- * Palette tokens — CampusNetra × Aceternity Proactiv Design System.
+ * Palette tokens — CampusNetra design system.
  *
- * Deep Obsidian ground, Electric Indigo, Vivid Violet, Cyber Cyan, Emerald Glow.
- * Radial spotlight glows, grid beam masks, moving border shimmer utilities.
+ * Light: warm near-black ink + white surfaces + one vivid warm-orange accent
+ * (referenced against a fintech dashboard brief). Dark: near-black ground +
+ * a violet secondary accent + a bright lime-green primary accent
+ * (referenced against a dark-mode course-platform brief).
  *
- * Every colour in tailwind.config.js resolves to one of these variables, so a
- * theme is a value swap and nothing else — no component knows which theme is
- * active. Values are space-separated RGB channels so Tailwind's alpha
- * modifiers (bg-surface/95) keep working.
+ * Every colour in tailwind.config.js resolves to one of these variables, so
+ * a theme is a value swap and nothing else — no component knows which
+ * theme is active. Values are space-separated RGB channels so Tailwind's
+ * alpha modifiers (bg-surface/95) keep working.
  *
- * The dark block is keyed only on [data-theme="dark"], never on a media query.
- * "Follow the device" is resolved to a concrete light/dark value in JS (see
- * lib/theme.js and the bootstrap in index.html), which keeps one source of
- * truth and lets the user override the device setting.
+ * The dark block is keyed only on [data-theme="dark"], never on a media
+ * query. "Follow the device" is resolved to a concrete light/dark value in
+ * JS (see lib/theme.js and the bootstrap in index.html), which keeps one
+ * source of truth and lets the user override the device setting.
  */
 
 :root {
   color-scheme: light;
 
   /* ============================================================
-   * ACETERNITY PROACTIV BRAND PALETTE
+   * LEGACY RAW PALETTE — kept for anything still referencing it
+   * directly (landing page decorative effects). Not the source of
+   * truth for the app UI below; --c-primary/--c-secondary are.
    * ============================================================ */
-
-  /* Deep Obsidian — primary dark ground */
   --c-obsidian-950: 3 7 18;
   --c-obsidian-900: 6 9 19;
   --c-obsidian-800: 11 15 25;
   --c-obsidian-700: 15 20 35;
-
-  /* Electric Indigo — primary brand */
   --c-indigo-400: 129 140 248;
   --c-indigo-500: 99 102 241;
   --c-indigo-600: 79 70 229;
   --c-indigo-700: 67 56 202;
-
-  /* Vivid Violet — secondary brand gradient */
   --c-violet-400: 167 139 250;
   --c-violet-500: 139 92 246;
   --c-violet-600: 124 58 237;
-
-  /* Cyber Cyan — highlight / tech accent */
   --c-cyan-400: 34 211 238;
   --c-cyan-500: 6 182 212;
   --c-cyan-600: 8 145 178;
-
-  /* Emerald Glow — success / status accent */
   --c-emerald-400: 52 211 153;
   --c-emerald-500: 16 185 129;
   --c-emerald-600: 5 150 105;
@@ -53,39 +47,49 @@
    * SEMANTIC BRAND TOKENS (mapped to above for Tailwind)
    * ============================================================ */
 
-  /* Brand: solid fills that always carry white text. */
-  --c-primary: 55 48 163;
-  --c-primary-50: 238 242 255;
-  --c-primary-100: 224 231 255;
-  --c-primary-200: 199 210 254;
-  --c-primary-300: 165 180 252;
-  --c-primary-400: 129 140 248;
-  --c-primary-500: 99 102 241;
-  --c-primary-600: 79 70 229;
-  --c-primary-700: 67 56 202;
-  --c-primary-800: 55 48 163;
-  --c-primary-900: 30 27 75;
-  --c-primary-950: 7 2 53;
+  /* Primary: the "other" filled button (.btn-dark) and a couple of hero
+     surfaces (AuthShell panel, Dashboard hero widget). Warm near-black. */
+  --c-primary: 23 20 15;
+  --c-primary-50: 244 243 240;
+  --c-primary-100: 231 229 224;
+  --c-primary-200: 214 211 203;
+  --c-primary-300: 176 172 160;
+  --c-primary-400: 120 115 103;
+  --c-primary-500: 74 71 63;
+  --c-primary-600: 48 45 38;
+  --c-primary-700: 34 31 25;
+  --c-primary-800: 42 38 31;
+  --c-primary-900: 15 13 9;
+  --c-primary-950: 8 7 5;
 
-  /* Brand as *text* on a light surface. Split from --c-primary because a
-     fill and a label need to move in opposite directions when the lights go
-     out: the fill stays dark, the label has to become light. */
-  --c-brand: 30 27 75;
-  --c-brand-soft: 238 242 255;
+  /* Brand as *text* on a light surface — kept quiet (table headers, small
+     labels) rather than the vivid accent; a whole table header row in the
+     accent colour reads as noisy, not premium. */
+  --c-brand: 92 88 78;
+  --c-brand-soft: 244 243 240;
 
-  --c-secondary: 59 130 246;
-  --c-secondary-50: 239 246 255;
-  --c-secondary-100: 219 234 254;
-  --c-secondary-200: 191 219 254;
-  --c-secondary-300: 147 197 253;
-  --c-secondary-400: 96 165 250;
-  --c-secondary-500: 59 130 246;
-  --c-secondary-600: 37 99 235;
-  --c-secondary-700: 29 78 216;
-  --c-secondary-800: 30 64 175;
-  --c-secondary-900: 30 58 138;
+  /* Secondary: the one confident accent — drives .btn-primary, active nav,
+     focus rings. Vivid warm orange. */
+  --c-secondary: 244 96 42;
+  --c-secondary-50: 254 240 234;
+  --c-secondary-100: 253 223 208;
+  --c-secondary-200: 250 195 168;
+  --c-secondary-300: 247 160 118;
+  --c-secondary-400: 244 122 72;
+  --c-secondary-500: 244 96 42;
+  --c-secondary-600: 240 85 28;
+  --c-secondary-700: 207 68 18;
+  --c-secondary-800: 168 54 15;
+  --c-secondary-900: 122 40 11;
 
-  /* Semantic: status only, never decoration. */
+  /* Text colours for filled accent surfaces. */
+  --c-on-primary: 247 246 244;
+  --c-on-secondary: 255 255 255;
+  --c-on-secondary-600: 255 255 255;
+  --c-on-brand: 255 255 255;
+
+  /* Semantic: status only, never decoration. Unchanged — already correct
+     and accessible; no reason tied to the new look to touch these. */
   --c-success: 16 185 129;
   --c-success-bg: 236 253 245;
   --c-success-border: 167 243 208;
@@ -107,7 +111,8 @@
   --c-info-border: 191 219 254;
   --c-info-text: 29 78 216;
 
-  /* Digital Twin asset states — must stay recognisable against both grounds. */
+  /* Digital Twin asset states — must stay recognisable against both
+     grounds, and keep their existing meaning. Unchanged. */
   --c-twin-healthy: 16 185 129;
   --c-twin-warning: 245 158 11;
   --c-twin-fault: 239 68 68;
@@ -115,92 +120,66 @@
   --c-twin-inspection: 139 92 246;
   --c-twin-decommissioned: 148 163 184;
 
-  /* Tiered surfaces: "the desk" vs "the papers". */
-  --c-surface-base: 248 250 252;
+  /* Tiered surfaces: "the desk" vs "the papers". Warm off-white, not cold
+     grey — this is most of what makes the reference read as premium
+     rather than a generic admin template. */
+  --c-surface-base: 247 246 244;
   --c-surface: 255 255 255;
-  --c-surface-sunken: 241 245 249;
+  --c-surface-sunken: 242 241 238;
   --c-surface-raised: 255 255 255;
-  --c-surface-inverse: 11 28 48;
+  --c-surface-inverse: 23 20 15;
 
-  --c-border-subtle: 226 232 240;
-  --c-border: 203 213 225;
-  --c-border-strong: 148 163 184;
+  --c-border-subtle: 231 229 224;
+  --c-border: 214 211 203;
+  --c-border-strong: 176 172 160;
 
-  --c-ink: 11 28 48;
-  --c-ink-muted: 71 70 79;
-  --c-ink-faint: 100 116 139;
-  --c-ink-inverse: 234 241 255;
+  --c-ink: 23 20 15;
+  --c-ink-muted: 92 88 78;
+  --c-ink-faint: 138 133 120;
+  --c-ink-inverse: 247 246 244;
 
-  --c-ai-bg: 240 247 255;
-  --c-ai-border: 219 234 254;
+  --c-ai-bg: 244 243 240;
+  --c-ai-border: 231 229 224;
 
   /* "No particular status" — the neutral counterpart to success/warning/... */
-  --c-neutral-bg: 241 245 249;
-  --c-neutral-text: 51 65 85;
+  --c-neutral-bg: 242 241 238;
+  --c-neutral-text: 92 88 78;
 
-  /* Level 2/3 elevation. Dark themes need a heavier shadow to read at all. */
-  --shadow-level2: 0 1px 4px 0 rgb(15 23 42 / 0.05);
-  --shadow-level3: 0 4px 12px -1px rgb(15 23 42 / 0.10), 0 2px 6px -2px rgb(15 23 42 / 0.06);
-  --shadow-popover: 0 8px 24px -4px rgb(15 23 42 / 0.14);
+  /* Cards stay bordered, not shadowed (see .widget in index.css) — real
+     elevation is reserved for things that actually float. */
+  --shadow-level2: 0 1px 4px 0 rgb(23 20 15 / 0.05);
+  --shadow-level3: 0 4px 12px -1px rgb(23 20 15 / 0.10), 0 2px 6px -2px rgb(23 20 15 / 0.06);
+  --shadow-popover: 0 8px 24px -4px rgb(23 20 15 / 0.14);
   --skeleton-sheen: 255 255 255;
 
   /* ============================================================
-   * ACETERNITY PROACTIV VISUAL EFFECTS
+   * DECORATIVE EFFECTS — landing page only, left as-is; not part of
+   * the app UI this brief covers.
    * ============================================================ */
-
-  /* Radial spotlight glow — top center ambient illumination */
   --spotlight-primary: radial-gradient(ellipse at top center, rgba(99, 102, 241, 0.18), transparent 60%);
   --spotlight-secondary: radial-gradient(ellipse at top center, rgba(139, 92, 246, 0.15), transparent 55%);
   --spotlight-cyan: radial-gradient(ellipse at top center, rgba(6, 182, 212, 0.12), transparent 50%);
   --spotlight-emerald: radial-gradient(ellipse at top center, rgba(16, 185, 129, 0.1), transparent 50%);
-
-  /* Grid beam — high-tech architectural dot/grid matrix with radial alpha mask */
   --grid-beam-mask: radial-gradient(ellipse 60% 50% at 50% 0%, #000 70%, transparent 100%);
   --grid-pattern: linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
                   linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-
-  /* Moving border shimmer — conic gradient rotation for action buttons */
   --shimmer-gradient: conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,0.4) 25%, transparent 50%,
                                          rgba(129,140,248,0.4) 60%, transparent 75%, transparent 100%);
   --shimmer-stops: linear-gradient(90deg,
-    transparent 0%,
-    rgba(255,255,255,0.15) 20%,
-    rgba(129,140,248,0.25) 40%,
-    rgba(167,139,250,0.25) 60%,
-    rgba(34,211,238,0.2) 80%,
-    transparent 100%
-  );
-
-  /* Multi-stop gradient text — for headlines */
+    transparent 0%, rgba(255,255,255,0.15) 20%, rgba(129,140,248,0.25) 40%,
+    rgba(167,139,250,0.25) 60%, rgba(34,211,238,0.2) 80%, transparent 100%);
   --gradient-text-primary: linear-gradient(135deg,
-    rgb(255,255,255) 0%,
-    rgb(229,231,235) 25%,
-    rgb(199,210,254) 50%,
-    rgb(165,180,252) 75%,
-    rgb(129,140,248) 100%
-  );
+    rgb(255,255,255) 0%, rgb(229,231,235) 25%, rgb(199,210,254) 50%,
+    rgb(165,180,252) 75%, rgb(129,140,248) 100%);
   --gradient-text-electric: linear-gradient(135deg,
-    rgb(129,140,248) 0%,
-    rgb(167,139,250) 50%,
-    rgb(244,114,182) 100%
-  );
+    rgb(129,140,248) 0%, rgb(167,139,250) 50%, rgb(244,114,182) 100%);
   --gradient-text-cyber: linear-gradient(135deg,
-    rgb(34,211,238) 0%,
-    rgb(129,140,248) 50%,
-    rgb(167,139,250) 100%
-  );
+    rgb(34,211,238) 0%, rgb(129,140,248) 50%, rgb(167,139,250) 100%);
   --gradient-text-emerald: linear-gradient(135deg,
-    rgb(52,211,153) 0%,
-    rgb(16,185,129) 50%,
-    rgb(34,197,94) 100%
-  );
-
-  /* Frosted glass panels */
+    rgb(52,211,153) 0%, rgb(16,185,129) 50%, rgb(34,197,94) 100%);
   --glass-bg: rgba(19, 28, 46, 0.6);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-blur: blur(20px);
-
-  /* Avatar stack social proof */
   --avatar-ring: 2px solid rgb(99 102 241 / 0.6);
   --avatar-overlap: -12px;
 }
@@ -208,52 +187,44 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* ============================================================
-   * ACETERNITY PROACTIV DARK MODE PALETTE
-   * Deep Obsidian ground with Electric Indigo / Vivid Violet / Cyber Cyan / Emerald Glow accents
-   * ============================================================ */
+  /* Primary: dark mode's "other" filled button (.btn-dark) and the same
+     hero surfaces as light mode — a deep violet, distinct from the plain
+     dark ground so those panels still read as a deliberate block. */
+  --c-primary: 45 33 84;
+  --c-primary-50: 30 24 56;
+  --c-primary-100: 40 32 74;
+  --c-primary-200: 58 44 102;
+  --c-primary-300: 84 64 140;
+  --c-primary-400: 110 88 176;
+  --c-primary-500: 133 112 200;
+  --c-primary-600: 45 33 84;
+  --c-primary-700: 36 27 68;
+  --c-primary-800: 58 44 102;
+  --c-primary-900: 176 160 230;
+  --c-primary-950: 20 15 40;
 
-  /* Deep Obsidian — stays as ground */
-  --c-obsidian-950: 3 7 18;
-  --c-obsidian-900: 6 9 19;
-  --c-obsidian-800: 11 15 25;
-  --c-obsidian-700: 15 20 35;
+  --c-brand: 168 168 176;
+  --c-brand-soft: 30 30 36;
 
-  /* Electric Indigo — lifted for dark ground AA contrast */
-  --c-indigo-400: 129 140 248;
-  --c-indigo-500: 99 102 241;
-  --c-indigo-600: 120 124 248;
-  --c-indigo-700: 140 143 250;
+  /* Secondary: dark mode's one confident accent — drives .btn-primary,
+     active nav, focus rings. Bright lime, so its "on" colour must be dark,
+     not white — a bright fill with white text fails contrast outright. */
+  --c-secondary: 200 241 63;
+  --c-secondary-50: 245 253 220;
+  --c-secondary-100: 233 250 185;
+  --c-secondary-200: 220 247 145;
+  --c-secondary-300: 210 244 110;
+  --c-secondary-400: 205 243 87;
+  --c-secondary-500: 200 241 63;
+  --c-secondary-600: 200 241 63;
+  --c-secondary-700: 174 214 45;
+  --c-secondary-800: 140 173 35;
+  --c-secondary-900: 95 122 20;
 
-  /* Vivid Violet — lifted */
-  --c-violet-400: 196 181 253;
-  --c-violet-500: 167 139 250;
-  --c-violet-600: 196 181 253;
-
-  /* Cyber Cyan — lifted */
-  --c-cyan-400: 103 232 249;
-  --c-cyan-500: 34 211 238;
-  --c-cyan-600: 56 189 248;
-
-  /* Emerald Glow — lifted */
-  --c-emerald-400: 110 231 183;
-  --c-emerald-500: 16 185 129;
-  --c-emerald-600: 52 211 153;
-
-  /* The fill stays saturated indigo so white text still clears AA on it. */
-  --c-primary: 55 48 163;
-  --c-primary-50: 30 27 75;
-  --c-primary-100: 40 36 96;
-  --c-primary-800: 129 140 248;
-  --c-primary-900: 165 180 252;
-
-  /* ...while the label form goes light, which is the whole reason it is a
-     separate token. */
-  --c-brand: 165 180 252;
-  --c-brand-soft: 38 36 82;
-
-  /* Lifted one step: blue-500 on a dark ground sits at 4.0:1, under AA. */
-  --c-secondary: 96 165 250;
+  --c-on-primary: 240 238 250;
+  --c-on-secondary: 20 24 8;
+  --c-on-secondary-600: 20 24 8;
+  --c-on-brand: 20 20 24;
 
   --c-success-bg: 6 42 32;
   --c-success-border: 16 96 63;
@@ -274,97 +245,66 @@
 
   --c-twin-decommissioned: 100 116 139;
 
-  /* Deep Obsidian surfaces */
-  --c-surface-base: 3 7 18;
-  --c-surface: 6 9 19;
-  --c-surface-sunken: 11 15 25;
-  --c-surface-raised: 15 20 35;
-  --c-surface-inverse: 248 250 252;
+  /* Ground — a plain near-black, not blue-tinted, with cards one step
+     lighter so they read as distinct panels rather than a colour wash. */
+  --c-surface-base: 20 20 24;
+  --c-surface: 27 27 32;
+  --c-surface-sunken: 15 15 18;
+  --c-surface-raised: 35 35 41;
+  --c-surface-inverse: 247 246 244;
 
-  --c-border-subtle: 20 26 42;
-  --c-border: 30 40 60;
-  --c-border-strong: 45 55 80;
+  --c-border-subtle: 40 40 47;
+  --c-border: 54 54 62;
+  --c-border-strong: 74 74 84;
 
-  --c-ink: 230 237 247;
-  --c-ink-muted: 163 176 196;
-  --c-ink-faint: 124 138 160;
-  --c-ink-inverse: 11 28 48;
+  --c-ink: 240 240 242;
+  --c-ink-muted: 168 168 176;
+  --c-ink-faint: 118 118 128;
+  --c-ink-inverse: 20 20 24;
 
-  --c-ai-bg: 11 18 35;
-  --c-ai-border: 25 35 60;
+  --c-ai-bg: 24 24 29;
+  --c-ai-border: 40 40 47;
 
-  --c-neutral-bg: 15 22 38;
-  --c-neutral-text: 203 213 225;
+  --c-neutral-bg: 27 27 32;
+  --c-neutral-text: 168 168 176;
 
   --shadow-level2: 0 1px 4px 0 rgb(0 0 0 / 0.40);
   --shadow-level3: 0 4px 12px -1px rgb(0 0 0 / 0.55), 0 2px 6px -2px rgb(0 0 0 / 0.40);
   --shadow-popover: 0 8px 24px -4px rgb(0 0 0 / 0.60);
   --skeleton-sheen: 148 163 184;
 
-  /* ============================================================
-   * ACETERNITY PROACTIV DARK MODE VISUAL EFFECTS
-   * ============================================================ */
-
-  /* Radial spotlight glow — more pronounced on dark ground */
+  /* Decorative effects — landing page only, unchanged from before. */
   --spotlight-primary: radial-gradient(ellipse at top center, rgba(99, 102, 241, 0.25), transparent 60%);
   --spotlight-secondary: radial-gradient(ellipse at top center, rgba(139, 92, 246, 0.22), transparent 55%);
   --spotlight-cyan: radial-gradient(ellipse at top center, rgba(6, 182, 212, 0.18), transparent 50%);
   --spotlight-emerald: radial-gradient(ellipse at top center, rgba(16, 185, 129, 0.15), transparent 50%);
-
-  /* Grid beam — inverted for dark */
   --grid-beam-mask: radial-gradient(ellipse 60% 50% at 50% 0%, #fff 70%, transparent 100%);
   --grid-pattern: linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px),
                   linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
-
-  /* Moving border shimmer — brighter on dark */
   --shimmer-gradient: conic-gradient(from 0deg, transparent 0%, rgba(255,255,255,0.5) 25%, transparent 50%,
                                          rgba(129,140,248,0.5) 60%, transparent 75%, transparent 100%);
   --shimmer-stops: linear-gradient(90deg,
-    transparent 0%,
-    rgba(255,255,255,0.2) 20%,
-    rgba(129,140,248,0.35) 40%,
-    rgba(196,181,253,0.35) 60%,
-    rgba(103,232,249,0.3) 80%,
-    transparent 100%
-  );
-
-  /* Multi-stop gradient text — brighter on dark ground */
+    transparent 0%, rgba(255,255,255,0.2) 20%, rgba(129,140,248,0.35) 40%,
+    rgba(196,181,253,0.35) 60%, rgba(103,232,249,0.3) 80%, transparent 100%);
   --gradient-text-primary: linear-gradient(135deg,
-    rgb(248,250,252) 0%,
-    rgb(226,232,240) 25%,
-    rgb(199,210,254) 50%,
-    rgb(165,180,252) 75%,
-    rgb(129,140,248) 100%
-  );
+    rgb(248,250,252) 0%, rgb(226,232,240) 25%, rgb(199,210,254) 50%,
+    rgb(165,180,252) 75%, rgb(129,140,248) 100%);
   --gradient-text-electric: linear-gradient(135deg,
-    rgb(129,140,248) 0%,
-    rgb(196,181,253) 50%,
-    rgb(251,207,232) 100%
-  );
+    rgb(129,140,248) 0%, rgb(196,181,253) 50%, rgb(251,207,232) 100%);
   --gradient-text-cyber: linear-gradient(135deg,
-    rgb(103,232,249) 0%,
-    rgb(129,140,248) 50%,
-    rgb(196,181,253) 100%
-  );
+    rgb(103,232,249) 0%, rgb(129,140,248) 50%, rgb(196,181,253) 100%);
   --gradient-text-emerald: linear-gradient(135deg,
-    rgb(110,231,183) 0%,
-    rgb(52,211,153) 50%,
-    rgb(74,222,128) 100%
-  );
-
-  /* Frosted glass panels — darker on dark ground */
+    rgb(110,231,183) 0%, rgb(52,211,153) 50%, rgb(74,222,128) 100%);
   --glass-bg: rgba(6, 9, 19, 0.7);
   --glass-border: rgba(255, 255, 255, 0.06);
   --glass-blur: blur(24px);
-
-  /* Avatar stack social proof */
   --avatar-ring: 2px solid rgb(129 140 248 / 0.7);
   --avatar-overlap: -12px;
 }
 
-/* Theme changes repaint every surface at once; without this the swap reads as
-   a glitch rather than a deliberate transition. Anything already animating
-   its own colours is left alone. */
+/* Theme changes repaint every surface at once; without this the swap reads
+   as a glitch rather than a deliberate transition. Anything already
+   animating its own colours is left alone. */
 :root.theme-switching *,
 :root.theme-switching *::before,
 :root.theme-switching *::after {
@@ -373,17 +313,13 @@
 }
 
 /* ============================================================
- * UTILITY CLASSES FOR ACETERNITY EFFECTS
- * These can be used directly in components or via @apply
+ * UTILITY CLASSES — landing-page decorative effects, unchanged
  * ============================================================ */
-
-/* Spotlight glow backgrounds */
 .bg-spotlight-primary { background-image: var(--spotlight-primary); }
 .bg-spotlight-secondary { background-image: var(--spotlight-secondary); }
 .bg-spotlight-cyan { background-image: var(--spotlight-cyan); }
 .bg-spotlight-emerald { background-image: var(--spotlight-emerald); }
 
-/* Grid beam background with radial mask */
 .bg-grid-beam {
   background-image: var(--grid-pattern);
   background-size: 48px 48px;
@@ -391,7 +327,6 @@
   mask-image: var(--grid-beam-mask);
 }
 
-/* Moving border shimmer */
 .border-shimmer {
   position: relative;
   isolation: isolate;
@@ -411,20 +346,17 @@
   z-index: -1;
 }
 
-/* Gradient text utilities */
 .text-gradient-primary { background: var(--gradient-text-primary); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .text-gradient-electric { background: var(--gradient-text-electric); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .text-gradient-cyber { background: var(--gradient-text-cyber); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .text-gradient-emerald { background: var(--gradient-text-emerald); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
-/* Frosted glass panels */
 .glass-panel {
   background: var(--glass-bg);
   backdrop-filter: var(--glass-blur);
   border: 1px solid var(--glass-border);
 }
 
-/* Avatar stack social proof */
 .avatar-stack > * {
   margin-left: var(--avatar-overlap);
   border: var(--avatar-ring);
@@ -432,7 +364,6 @@
 }
 .avatar-stack > *:first-child { margin-left: 0; }
 
-/* Status beacon pulse ring */
 .status-beacon {
   position: relative;
 }

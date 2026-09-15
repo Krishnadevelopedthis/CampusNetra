@@ -46,7 +46,7 @@ export default function AdminPredictive() {
                 accent={data.summary.high_risk > 0 ? '#ef4444' : '#10b981'} />
         <Metric label="Medium risk" value={data.summary.medium_risk} accent="#f59e0b" />
         <Metric label="Already scheduled" value={data.summary.already_scheduled} accent="#3b82f6" />
-        <Metric label="Assets flagged" value={data.predictions.length} accent="#1e1b4b" />
+        <Metric label="Assets flagged" value={data.predictions.length} accent="rgb(var(--c-primary))" />
       </div>
 
       {/* How the score is built — a manager has to justify spending on a working machine. */}

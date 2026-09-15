@@ -30,12 +30,17 @@
 }
 
 @layer components {
-  /* ---- Level 1: bordered, never shadowed ---- */
+  /* ---- Level 1: translucent, softly bordered, gently elevated ----
+     Glass treatment: a surface you can *almost* see through (not a photo-
+     blur effect — the app background is flat, so the win here is depth,
+     not distortion), a bright hairline on the border for an edge to catch
+     light, and a soft shadow so the translucency doesn't read as flat. */
   .widget {
-    @apply bg-surface border border-border-subtle rounded-xl min-w-0;
+    @apply bg-surface/75 backdrop-blur-xl border border-border-subtle/70
+           rounded-2xl min-w-0 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_28px_-14px_rgb(0_0_0/0.16)];
   }
   .widget-header {
-    @apply flex items-center justify-between px-widget py-3.5 border-b border-border-subtle;
+    @apply flex items-center justify-between px-widget py-3.5 border-b border-border-subtle/70 rounded-t-2xl;
   }
   .widget-title {
     @apply text-headline-md text-ink;
@@ -44,43 +49,49 @@
     @apply p-widget;
   }
 
-  /* ---- Buttons ---- */
+  /* ---- Buttons ----
+     Solid buttons (primary/dark/danger) stay opaque on purpose — a
+     translucent CTA loses contrast against whatever's behind it, and the
+     one-accent-per-view principle depends on that button reading clearly.
+     They get the same rounder corners plus a soft colour-matched glow
+     instead. Secondary/ghost aren't full-strength actions, so they get
+     the genuine glass treatment: translucent + blurred. */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 h-10
-           text-body-md font-medium transition-colors duration-150
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10
+           text-body-md font-medium transition-all duration-150
            disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap;
   }
   .btn-primary {
-    @apply btn bg-secondary-600 text-white;
+    @apply btn bg-secondary-600 text-white shadow-[0_4px_14px_-4px_rgb(var(--c-secondary-600)/0.55)];
   }
   .btn-primary:hover {
-    @apply bg-secondary-700;
+    @apply bg-secondary-700 shadow-[0_6px_18px_-4px_rgb(var(--c-secondary-600)/0.65)];
   }
   .btn-dark {
-    @apply btn bg-primary text-white;
+    @apply btn bg-primary text-white shadow-[0_4px_14px_-4px_rgb(var(--c-primary)/0.45)];
   }
   .btn-dark:hover {
     @apply bg-primary-800;
   }
   .btn-secondary {
-    @apply btn bg-surface text-ink border border-border-subtle;
+    @apply btn bg-surface/60 backdrop-blur-md text-ink border border-border-subtle/70;
   }
   .btn-secondary:hover {
-    @apply bg-surface-sunken;
+    @apply bg-surface-sunken/80;
   }
   .btn-ghost {
-    @apply btn bg-transparent text-ink-muted;
+    @apply btn bg-transparent backdrop-blur-md text-ink-muted;
   }
   .btn-ghost:hover {
-    @apply bg-surface-sunken;
+    @apply bg-surface-sunken/70;
   }
   .btn-danger {
-    @apply btn bg-danger text-white;
+    @apply btn bg-danger text-white shadow-[0_4px_14px_-4px_rgb(var(--c-danger)/0.5)];
   }
   .btn-danger:hover {
     @apply bg-danger-strong;
   }
-  .btn-sm        { @apply h-8 px-3 text-body-sm; }
+  .btn-sm        { @apply h-8 px-3 text-body-sm rounded-lg; }
   .btn-lg        { @apply h-11 px-5 text-body-lg; }
 
   /* ---- Forms ---- */
@@ -88,7 +99,7 @@
     @apply block text-label-caps uppercase text-ink-muted mb-1.5;
   }
   .input {
-    @apply w-full h-10 px-3 bg-surface border border-border-subtle rounded
+    @apply w-full h-10 px-3 bg-surface/80 backdrop-blur-sm border border-border-subtle rounded-lg
            text-body-md text-ink placeholder:text-ink-faint
            focus:border-secondary focus:ring-1 focus:ring-secondary
            disabled:bg-surface-sunken disabled:text-ink-faint transition-colors;
@@ -127,19 +138,20 @@
   .table tbody tr:hover { @apply bg-surface-sunken/60; }
   .table-compact tbody td { @apply py-2 text-body-sm; }
   /* Without this the header's square corners poke out through the card's
-     radius wherever a table is the first thing inside a widget. */
-  .widget > .table-wrap:first-child .table thead th:first-child { @apply rounded-tl-xl; }
-  .widget > .table-wrap:first-child .table thead th:last-child { @apply rounded-tr-xl; }
+     radius wherever a table is the first thing inside a widget. Matches
+     .widget's rounded-2xl above — keep these two in sync if either changes. */
+  .widget > .table-wrap:first-child .table thead th:first-child { @apply rounded-tl-2xl; }
+  .widget > .table-wrap:first-child .table thead th:last-child { @apply rounded-tr-2xl; }
   .table tbody tr:last-child td { @apply border-b-0; }
 
   /* ---- AI surfaces: tinted so machine output reads as non-human ---- */
   .ai-surface {
-    @apply bg-ai-bg border border-ai-border rounded-xl;
+    @apply bg-ai-bg backdrop-blur-md border border-ai-border rounded-2xl;
   }
 
   .sidebar-link {
-    @apply flex items-center gap-3 h-11 px-3 rounded-lg text-body-md font-medium
-           text-ink-muted hover:bg-surface-sunken hover:text-ink transition-colors;
+    @apply flex items-center gap-3 h-11 px-3 rounded-xl text-body-md font-medium
+           text-ink-muted hover:bg-surface-sunken/70 hover:text-ink transition-colors;
   }
   .sidebar-link-active {
     @apply bg-secondary text-white hover:bg-secondary hover:text-white;
