@@ -517,6 +517,46 @@ Not done / still open:
   human decision on which dashboard widgets, if any, should adopt that
   denser card treatment, rather than guessing.
 
+## Addendum 7 — rounded corners + glass surfaces
+
+Request: rounder corners and a subtle glass effect on every button and
+dashboard box, app-wide. Same approach as the retheme in Addendum 6 —
+edited the shared classes in `index.css` (and `Modal` in
+`components/ui/index.jsx`, the one surface styled inline rather than
+through a shared class) rather than touching individual pages, so it
+applies everywhere those classes are used without hunting through ~40
+files.
+
+- `.widget` (every dashboard card): `rounded-xl` → `rounded-2xl`;
+  background is now `bg-surface/75 backdrop-blur-xl` instead of solid, with
+  a slightly brighter hairline border and a soft two-layer shadow so the
+  translucency reads as depth rather than looking washed out. Table-header
+  corner-matching and `.ai-surface` updated to the same radius so nothing
+  pokes a square corner out through the new rounder card edge.
+- Buttons: base radius `rounded-lg` → `rounded-xl`. Solid buttons
+  (primary/dark/danger) stay fully opaque on purpose — a translucent CTA
+  loses contrast against whatever's behind it, which matters more than
+  matching the glass trend on the one button per screen meant to stand
+  out. They get a soft colour-matched glow shadow instead of transparency.
+  `.btn-secondary`/`.btn-ghost` aren't full-strength actions, so they get
+  the actual glass treatment (translucent + blurred).
+- `.input` rounded up to `rounded-lg` (was the Tailwind default `rounded`,
+  4px) and lightly translucent, but not blurred as heavily as buttons/cards
+  — legibility of what you're typing matters more here.
+- `Modal`: was already `rounded-2xl` with real elevation (correctly, since
+  it's genuinely floating) — added `bg-surface/90 backdrop-blur-2xl` on
+  top of what was there, kept high opacity since modal content needs to
+  stay readable over whatever's behind it.
+
+Worth knowing: the app's background is a flat colour, not an image or
+busy layout, so `backdrop-blur` mostly isn't visibly *blurring* anything
+underneath on most pages — the glass look here is coming from
+translucency + the bright edge highlight + the shadow, not from blur
+distortion. It'll be more visible where cards sit over the 3D campus
+view or stack over each other (modals, dropdowns).
+
+Not verified in a rendered browser, same limitation as Addendum 6.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
