@@ -65,7 +65,7 @@ def _sender() -> tuple[str, str]:
     the failure is invisible because the fallback code is hidden. Stripping the
     wrapper here means the value works wherever it was copied from.
     """
-    raw = (settings.SMTP_FROM or "").strip()
+    raw = (settings.BREVO_FROM or "").strip()
     if len(raw) >= 2 and raw[0] == raw[-1] and raw[0] in "\"'":
         raw = raw[1:-1].strip()
 
@@ -74,8 +74,8 @@ def _sender() -> tuple[str, str]:
     # looks like a fallback but for Brevo it is a relay login, not a mailbox —
     # sending as it produces an opaque provider rejection instead of the
     # message that says which variable to fix.
-    return name or settings.APP_NAME, addr if "@" in addr else ""
-
+   
+    return settings.BREVO_FROM_NAME or name or settings.APP_NAME, addr
 
 
 
