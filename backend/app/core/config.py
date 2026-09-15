@@ -227,7 +227,7 @@ class Settings(BaseSettings):
         """AI calls only go out when a key is present; otherwise heuristics run."""
         return self.AI_ENABLED and bool(self.ANTHROPIC_API_KEY)
 
-  @property
+    @property
     def sms_delivers(self) -> bool:
         """True when the configured SMS provider has usable credentials."""
 
