@@ -87,18 +87,138 @@ async def _send_twilio(to: str, body: str) -> SendResult:
     return SendResult(delivered=False, error=f"Twilio error: {detail}")
 
 
+BREVO_SMS_URL = "https://api.brevo.com/v3/transactionalSMS/send"
+
+
+async def _send_brevo(to: str, body: str) -> SendResult:
+    """Send transactional SMS through Brevo."""
+
+    if not settings.BREVO_API_KEY:
+        return SendResult(
+            delivered=False,
+            error="BREVO_API_KEY is not configured.",
+        )
+
+    if not settings.BREVO_SMS_SENDER:
+        return SendResult(
+            delivered=False,
+            error="BREVO_SMS_SENDER is not configured.",
+        )
+
+    recipient = to_e164(to)
+
+    headers = {
+        "accept": "application/json",
+        "api-key": settings.BREVO_API_KEY,
+        "content-type": "application/json",
+    }
+
+    payload = {
+        "sender": settings.BREVO_SMS_SENDER,
+        "recipient": recipient,
+        "content": body,
+        "type": "transactional",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                BREVO_SMS_URL,
+                headers=headers,
+                json=payload,
+            )
+    except httpx.HTTPError as exc:
+        log.error("Could not reach Brevo SMS API: %s", exc)
+
+        return SendResult(
+            delivered=False,
+            error=f"Could not reach Brevo SMS API: {exc}",
+        )
+
+    if resp.status_code < 300:
+        try:
+            data = resp.json()
+
+            log.info(
+                "Brevo SMS accepted: recipient=%s message_id=%s",
+                recipient,
+                data.get("messageId"),
+            )
+        except Exception:
+            log.info(
+                "Brevo SMS accepted: recipient=%s",
+                recipient,
+            )
+
+        return SendResult(delivered=True)
+
+    detail = _api_error(resp)
+
+    log.error(
+        "Brevo rejected SMS (%s): %s",
+        resp.status_code,
+        detail,
+    )
+
+    if resp.status_code == 401:
+        return SendResult(
+            delivered=False,
+            error="Brevo rejected the API key. Check BREVO_API_KEY.",
+        )
+
+    if resp.status_code == 400:
+        return SendResult(
+            delivered=False,
+            error=f"Brevo rejected the SMS request: {detail}",
+        )
+
+    return SendResult(
+        delivered=False,
+        error=f"Brevo SMS error: {detail}",
+    )
+
+
 async def send_sms(to: str, body: str) -> SendResult:
-    if settings.SMS_PROVIDER == "twilio":
-        if not (settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_FROM_NUMBER):
-            return SendResult(delivered=False,
-                              error="SMS_PROVIDER=twilio but TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/"
-                                    "TWILIO_FROM_NUMBER are not all set.")
+    provider = (settings.SMS_PROVIDER or "").strip().lower()
+
+    if provider == "brevo":
+        return await _send_brevo(to, body)
+
+    if provider == "twilio":
+        if not (
+            settings.TWILIO_ACCOUNT_SID
+            and settings.TWILIO_AUTH_TOKEN
+            and settings.TWILIO_FROM_NUMBER
+        ):
+            return SendResult(
+                delivered=False,
+                error=(
+                    "SMS_PROVIDER=twilio but "
+                    "TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN/"
+                    "TWILIO_FROM_NUMBER are not all set."
+                ),
+            )
+
         return await _send_twilio(to, body)
 
-    log.info("\n%s\n  SMS NOT SENT — no SMS provider configured\n  To: %s\n\n%s\n%s",
-             "=" * 70, to, body, "=" * 70)
-    return SendResult(delivered=False, logged_only=True,
-                      error="SMS delivery is not configured on this server.")
+    log.info(
+        "\n%s\n"
+        "  SMS NOT SENT — no supported SMS provider configured\n"
+        "  Provider: %s\n"
+        "  To: %s\n\n"
+        "%s\n%s",
+        "=" * 70,
+        provider or "none",
+        to,
+        body,
+        "=" * 70,
+    )
+
+    return SendResult(
+        delivered=False,
+        logged_only=True,
+        error="SMS delivery is not configured on this server.",
+    )
 
 
 # What each purpose is for, in one short sentence — SMS has no room for the
