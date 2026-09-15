@@ -45,7 +45,16 @@ class Settings(BaseSettings):
     # gave you (bought or trial), in E.164 form, e.g. "+15017122661" — not a
     # personal number. Trial accounts can only text numbers verified in the
     # Twilio console (Phone Numbers → Verified Caller IDs) until upgraded.
-    SMS_PROVIDER: Literal["none", "twilio"] = "none"
+  # SMS — Brevo Transactional SMS
+    SMS_PROVIDER: Literal["none", "brevo", "twilio"] = "brevo"
+
+    BREVO_SMS_SENDER: str = "CampusNetra"
+
+# Stored phone numbers are bare local numbers, e.g. 9876543210.
+# This is prepended to create the E.164 number used by Brevo.
+    SMS_DEFAULT_COUNTRY_CODE: str = "+91"
+
+# Legacy Twilio settings — kept temporarily for backwards compatibility.
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
@@ -218,11 +227,23 @@ class Settings(BaseSettings):
         """AI calls only go out when a key is present; otherwise heuristics run."""
         return self.AI_ENABLED and bool(self.ANTHROPIC_API_KEY)
 
-    @property
+  @property
     def sms_delivers(self) -> bool:
-        """True once a real SMS provider is configured with usable credentials."""
+        """True when the configured SMS provider has usable credentials."""
+
+        if self.SMS_PROVIDER == "brevo":
+            return bool(
+                self.BREVO_API_KEY
+                and self.BREVO_SMS_SENDER
+            )
+
         if self.SMS_PROVIDER == "twilio":
-            return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_FROM_NUMBER)
+            return bool(
+                self.TWILIO_ACCOUNT_SID
+                and self.TWILIO_AUTH_TOKEN
+                and self.TWILIO_FROM_NUMBER
+            )
+
         return False
 
     @property
