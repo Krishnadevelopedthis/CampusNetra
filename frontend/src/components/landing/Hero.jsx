@@ -306,7 +306,7 @@ export function Hero() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Hero Column */}
           <div>
-            {/* 21st.dev Announcement Pill */}
+            {/* Announcement pill (was duplicated below — removed the second copy) */}
             <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full px-3.5 py-1.5 mb-7 transition-all duration-200 cursor-pointer">
               <div className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
@@ -327,18 +327,6 @@ export function Hero() {
                 </span>
               </span>
             </h1>
-
-            {/* ACETERNITY PROACTIV: Announcement pill with gradient-text */}
-            <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full px-3.5 py-1.5 mb-7 transition-all duration-200 cursor-pointer">
-              <div className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </div>
-              <span className="text-[13px] font-medium text-white/90 {text-gradient-emerald}">
-                Next-Gen Campus Facilities & Digital Twin 2.0
-              </span>
-              <ChevronRight size={14} className="text-white/60" />
-            </div>
 
             <p className="mt-6 text-body-lg text-white/75 max-w-xl leading-relaxed">
               CampusNetra connects students, technicians, and facility directors through a unified
