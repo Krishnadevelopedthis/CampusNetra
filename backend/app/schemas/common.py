@@ -30,6 +30,10 @@ class Message(BaseModel):
     # Development only: present when SMTP is unconfigured, so the verification
     # code is reachable without an inbox. Never populated in production.
     dev_code: Optional[str] = None
+    # Seconds until the OTP just issued expires, so the frontend can show a
+    # countdown instead of hardcoding OTP_EXPIRE_MINUTES and drifting out of
+    # sync with the server the moment that setting changes.
+    expires_in: Optional[int] = None
 
 
 class IdResponse(BaseModel):

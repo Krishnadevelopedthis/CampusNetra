@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { ChevronRight, Copy } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import { Button, Field, Input, Modal, Select, toast } from '@/components/ui'
 import { api } from '@/lib/api'
@@ -129,7 +129,7 @@ function LocationPicker({ campusId, value, onChange }) {
   )
 }
 
-export function AssetModal({ open, asset, roomId, campusId, categories, onClose, onSaved }) {
+export function AssetModal({ open, asset, roomId, campusId, categories, initialPosition, onClose, onSaved }) {
   // A caller that already knows the room passes it; otherwise it is chosen here.
   const [pickedRoom, setPickedRoom] = useState('')
   const targetRoom = roomId || pickedRoom
@@ -211,6 +211,10 @@ export function AssetModal({ open, asset, roomId, campusId, categories, onClose,
       return api.post(`/campus/rooms/${targetRoom}/assets/bulk`, {
         ...payload,
         quantity: Math.max(1, Number(form.quantity) || 1),
+        // Set when this dialog was opened by clicking a spot on the 3D room
+        // floor, so the first unit lands exactly there instead of needing a
+        // separate drag-to-place step afterwards.
+        ...(initialPosition ? { pos_x: initialPosition.x, pos_y: initialPosition.y } : {}),
       })
     },
     onSuccess: (res) => {
@@ -255,6 +259,13 @@ export function AssetModal({ open, asset, roomId, campusId, categories, onClose,
             <LocationPicker campusId={campusId} value={pickedRoom} onChange={setPickedRoom} />
             <hr className="border-border-subtle" />
           </>
+        )}
+
+        {!isEdit && initialPosition && (
+          <p className="text-body-sm text-info-text bg-info-bg border border-info-border rounded-xl px-3.5 py-2.5">
+            Placed at the spot you clicked on the room floor
+            ({Math.round(initialPosition.x * 100)}%, {Math.round(initialPosition.y * 100)}%).
+          </p>
         )}
 
         <div className="grid sm:grid-cols-2 gap-4">
@@ -512,6 +523,95 @@ export function RoomModal({ open, room, floorId, onClose, onSaved }) {
             <ChevronRight size={14} className="shrink-0 mt-0.5" />
             Draw its outline afterwards in Floor Plans so it appears on the twin.
           </p>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+/**
+ * The three levels above a room: campus, building, floor.
+ *
+ * One dialog for all three because they differ only in which fields apply,
+ * and because the point of the panel that opens it is that the whole chain
+ * is one flow — a person mapping a new site should not be sent to three
+ * screens to describe one building. Shared by the Digital Twin and the 3D
+ * Campus Map so "add a building" behaves identically from either place.
+ */
+const PLACE_TITLES = {
+  campus: 'Add a campus',
+  building: 'Add a building',
+  floor: 'Add a floor',
+}
+
+export function PlaceModal({ form, onClose, onSave, saving }) {
+  const [draft, setDraft] = useState({})
+
+  // Reset when a different level is opened, so a building's code does not
+  // arrive prefilled in the floor dialog.
+  useEffect(() => { setDraft(form || {}) }, [form])
+
+  if (!form) return null
+  const kind = form.kind
+  const set = (k) => (e) => setDraft((f) => ({ ...f, [k]: e.target.value }))
+  const complete = kind === 'floor'
+    ? !!draft.name
+    : !!draft.name && !!draft.code
+
+  return (
+    <Modal
+      open onClose={onClose} title={PLACE_TITLES[kind]} size="sm"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button loading={saving} disabled={!complete}
+                  onClick={() => onSave({
+                    kind,
+                    body: kind === 'campus'
+                      ? { name: draft.name, code: draft.code, address: draft.address || null }
+                      : kind === 'building'
+                        ? {
+                          name: draft.name, code: draft.code,
+                          floors_count: Math.max(1, Number(draft.floors_count) || 1),
+                        }
+                        : { name: draft.name, level: Number(draft.level) || 0 },
+                  })}>
+            {PLACE_TITLES[kind]}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Name" required className={kind === 'floor' ? '' : undefined}>
+            <Input value={draft.name || ''} onChange={set('name')}
+                   placeholder={kind === 'campus' ? 'Main Campus'
+                     : kind === 'building' ? 'Science Block' : 'Second Floor'} />
+          </Field>
+          {kind === 'floor' ? (
+            <Field label="Level" hint="0 is ground">
+              <Input type="number" value={draft.level ?? ''} onChange={set('level')} />
+            </Field>
+          ) : (
+            <Field label="Code" required hint="Short and unique">
+              <Input value={draft.code || ''} onChange={set('code')}
+                     placeholder={kind === 'campus' ? 'MAIN' : 'SCI'} />
+            </Field>
+          )}
+        </div>
+
+        {kind === 'campus' && (
+          <Field label="Address">
+            <Input value={draft.address || ''} onChange={set('address')} />
+          </Field>
+        )}
+
+        {kind === 'building' && (
+          <Field label="How many floors?"
+                 hint="Created with the building — a building with no floors cannot hold rooms. More can be added later.">
+            <Input type="number" min="1" max="100" value={draft.floors_count ?? 1}
+                   onChange={set('floors_count')} />
+          </Field>
         )}
       </div>
     </Modal>

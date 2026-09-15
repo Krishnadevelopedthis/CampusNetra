@@ -31,6 +31,7 @@ from app.services import notifications as notify_svc
 from app.services.audit import record_audit
 from app.services.captcha import render_captcha_png
 from app.services.email import send_email, send_otp
+from app.services.sms import send_otp_sms
 
 router = APIRouter(route_class=CommitRoute, prefix="/auth", tags=["Authentication"])
 
@@ -120,7 +121,7 @@ async def resend_code(payload: ResendCodeRequest, db: DB):
     sent = await send_otp(user.email, user.full_name, code, payload.purpose)
     if not sent.delivered and settings.expose_dev_codes:
         return Message(detail="Email is not configured on this server; your code is shown below.",
-                       dev_code=code)
+                       dev_code=code, expires_in=settings.OTP_EXPIRE_MINUTES * 60)
     return generic
 
 
@@ -155,24 +156,42 @@ async def logout(user: CurrentUser, db: DB):
 
 @router.post("/forgot-password", response_model=Message)
 async def forgot_password(payload: ForgotPasswordRequest, db: DB):
-    """Enumeration-safe: the response is identical for unknown addresses."""
+    """Enumeration-safe: the response is identical whether or not the
+    email/phone is registered. Sends by whichever channel was given —
+    the schema enforces exactly one of the two.
+    """
     _require_captcha(payload.captcha_token, payload.captcha_answer)
-    generic = Message(detail="If that address is registered, a reset code has been sent.")
-    user = await db.scalar(select(User).where(User.email == payload.email))
-    if user is None:
+
+    if payload.email:
+        generic = Message(detail="If that address is registered, a reset code has been sent.")
+        user = await db.scalar(select(User).where(User.email == payload.email))
+        if user is None:
+            return generic
+        code = await auth_service.create_verification_code(db, user, "password_reset")
+        sent = await send_otp(user.email, user.full_name, code, "password_reset")
+        if not sent.delivered and settings.expose_dev_codes:
+            return Message(detail="Email is not configured on this server; your code is shown below.",
+                           dev_code=code, expires_in=settings.OTP_EXPIRE_MINUTES * 60)
         return generic
 
+    generic = Message(detail="If that number is registered, a reset code has been sent.")
+    user = await db.scalar(select(User).where(User.phone == payload.phone))
+    if user is None:
+        return generic
     code = await auth_service.create_verification_code(db, user, "password_reset")
-    sent = await send_otp(user.email, user.full_name, code, "password_reset")
-    if not sent.delivered and settings.expose_dev_codes:
-        return Message(detail="Email is not configured on this server; your code is shown below.",
-                       dev_code=code)
+    sent = await send_otp_sms(user.phone, code, "password_reset")
+    if not sent.delivered and settings.expose_dev_phone_codes:
+        return Message(detail="No SMS provider is configured on this server; your code is shown below.",
+                       dev_code=code, expires_in=settings.OTP_EXPIRE_MINUTES * 60)
     return generic
 
 
 @router.post("/reset-password", response_model=Message)
 async def reset_password(payload: ResetPasswordRequest, db: DB, request: Request):
-    user = await db.scalar(select(User).where(User.email == payload.email))
+    if payload.email:
+        user = await db.scalar(select(User).where(User.email == payload.email))
+    else:
+        user = await db.scalar(select(User).where(User.phone == payload.phone))
     if user is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid reset request")
 
@@ -245,13 +264,14 @@ async def request_email_change(payload: RequestEmailChangeRequest, user: Current
     code = await auth_service.create_verification_code(
         db, user, "email_change", bind=new_email.lower()
     )
-    sent = await send_otp(new_email, user.full_name, code, "email_change",provider="resend",)
+    sent = await send_otp(new_email, user.full_name, code, "email_change")
     if sent.delivered:
-        return Message(detail=f"A verification code has been sent to {new_email}.")
+        return Message(detail=f"A verification code has been sent to {new_email}.",
+                       expires_in=settings.OTP_EXPIRE_MINUTES * 60)
     if settings.expose_dev_codes:
         return Message(
             detail="Email is not configured on this server; your code is shown below.",
-            dev_code=code,
+            dev_code=code, expires_in=settings.OTP_EXPIRE_MINUTES * 60,
         )
     raise HTTPException(
         status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -303,9 +323,10 @@ async def _ensure_phone_free(db: DB, phone: str, user: User) -> None:
 
 @router.post("/me/change-phone", response_model=Message)
 async def request_phone_change(payload: RequestPhoneChangeRequest, user: CurrentUser, db: DB):
-    """Sends an OTP to the new number to prove it's reachable, same shape as
-    the email-change flow. Reuses the existing 'phone_verify' OTP purpose,
-    bound to the new number so a code cannot be redeemed for a different one.
+    """Sends an OTP by SMS to the new number to prove it's reachable, same
+    shape as the email-change flow. Reuses the existing 'phone_verify' OTP
+    purpose, bound to the new number so a code cannot be redeemed for a
+    different one.
     """
     if payload.new_phone == user.phone:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "That is already your phone number")
@@ -315,21 +336,18 @@ async def request_phone_change(payload: RequestPhoneChangeRequest, user: Current
         db, user, "phone_verify", bind=payload.new_phone
     )
 
-    # No SMS gateway is configured yet (see Settings.SMS_PROVIDER) — until one
-    # is wired up in services/sms.py, the code is shown in the response
-    # outside production, exactly like the email OTP fallback.
-    if settings.sms_delivers:
-        # Placeholder for the day a provider is plugged in.
-        return Message(detail=f"A verification code has been sent to {payload.new_phone}.")
+    sent = await send_otp_sms(payload.new_phone, code, "phone_verify")
+    if sent.delivered:
+        return Message(detail=f"A verification code has been sent to {payload.new_phone}.",
+                       expires_in=settings.OTP_EXPIRE_MINUTES * 60)
     if settings.expose_dev_phone_codes:
         return Message(
             detail="No SMS provider is configured on this server; your code is shown below.",
-            dev_code=code,
+            dev_code=code, expires_in=settings.OTP_EXPIRE_MINUTES * 60,
         )
     raise HTTPException(
         status.HTTP_503_SERVICE_UNAVAILABLE,
-        "No SMS provider is configured on this server, so the code could not be sent. "
-        "Contact your administrator.",
+        f"The verification SMS could not be sent. {sent.error or ''}".strip(),
     )
 
 

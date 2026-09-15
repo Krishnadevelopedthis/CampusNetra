@@ -925,6 +925,64 @@ async def email_test(admin: RequireAdmin):
     }
 
 
+# ---------------- SMS delivery diagnostics ----------------
+# Same shape as the email diagnostics above, for the same reason: a Twilio
+# key can be present but wrong, and TWILIO_FROM_NUMBER can be set to a
+# number Twilio doesn't actually recognise as yours — both look identical
+# to "configured" from the settings alone.
+
+@router.get("/sms/status", response_model=dict)
+async def sms_status(admin: RequireAdmin):
+    from app.services.sms import verify_sms_connection
+
+    result = await verify_sms_connection()
+    return {
+        "provider": settings.SMS_PROVIDER,
+        "configured": settings.sms_delivers,
+        "from_number": settings.TWILIO_FROM_NUMBER or None,
+        "verified": result.delivered,
+        "error": result.error,
+        "hint": _sms_delivery_hint(result),
+    }
+
+
+def _sms_delivery_hint(result) -> str | None:
+    if settings.SMS_PROVIDER == "none":
+        return ("No SMS provider is configured. Set SMS_PROVIDER=twilio plus "
+                "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER.")
+    if not result.delivered:
+        return result.error
+    return None
+
+
+@router.post("/sms/test", response_model=dict)
+async def sms_test(admin: RequireAdmin):
+    """Send a real test text to the signed-in administrator's own phone.
+
+    Same restriction as /email/test, for the same reason — and on a Twilio
+    trial account this is also the fastest way to notice the number isn't in
+    the verified-caller-ID list, since that's the single most common reason
+    this reports a failure with credentials that are otherwise correct.
+    """
+    from app.services.sms import send_sms
+
+    if not admin.phone:
+        return {"sent": False, "to": None,
+                "error": "Your account has no phone number on file to send a test to."}
+
+    result = await send_sms(
+        admin.phone,
+        f"Campus Netra: this is a test SMS, {admin.full_name}. "
+        "If you received it, verification codes will reach your users.",
+    )
+    return {
+        "sent": result.delivered,
+        "to": admin.phone,
+        "provider": settings.SMS_PROVIDER,
+        "error": result.error,
+    }
+
+
 # ---------------- Academic programmes ----------------
 
 @router.get("/programmes", response_model=list[dict])
