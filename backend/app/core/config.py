@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # RequestPhoneChangeRequest's normalisation in schemas/auth.py), so this
     # is prepended to build the E.164 address Twilio requires. "+91" (India)
     # matches this deployment; change it if your users are elsewhere.
-    SMS_DEFAULT_COUNTRY_CODE: str = "+91"
+    
 
     # Identity verification (name-change ID upload). The fraction of the
     # claimed name's tokens that must appear in the OCR'd ID text for the
@@ -127,9 +127,9 @@ class Settings(BaseSettings):
     # "brevo" so they stop sharing the "auto" pick, which always resolves to
     # the same provider for both. If the pinned provider has no key
     # configured, this falls back to "auto" rather than failing every send.
-    EMAIL_PROVIDER_EMAIL_VERIFY: Literal["auto", "resend", "brevo", "smtp"] = "auto"
-    EMAIL_PROVIDER_PASSWORD_RESET: Literal["auto", "resend", "brevo", "smtp"] = "auto"
-    EMAIL_PROVIDER_EMAIL_CHANGE: Literal["auto", "resend", "brevo", "smtp"] = "auto"
+    EMAIL_PROVIDER_EMAIL_VERIFY: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
+    EMAIL_PROVIDER_PASSWORD_RESET: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
+    EMAIL_PROVIDER_EMAIL_CHANGE: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
