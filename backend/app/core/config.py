@@ -105,6 +105,8 @@ class Settings(BaseSettings):
     RESEND_FROM: str = "Campus Netra <noreply@campusnetra.dpdns.org>"
     # Brevo's HTTP API, usable with the same account as their SMTP relay.
     BREVO_API_KEY: str = ""
+    BREVO_FROM: str = "techcareit.in@gmail.com"
+    BREVO_FROM_NAME: str = "Techcare"
 
     # Which transport handles each kind of outgoing mail. "auto" (the
     # default) uses whichever of RESEND_API_KEY / BREVO_API_KEY / SMTP_HOST
