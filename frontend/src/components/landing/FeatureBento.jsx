@@ -13,6 +13,7 @@ import {
   Sparkles,
   Zap,
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import clsx from 'clsx'
 
 const FEATURES = [
@@ -187,18 +188,18 @@ export function FeatureBento() {
             const isIssue = feature.id === 'issue'
 
             return (
-              <div
+              <motion.div
                 key={feature.id}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.5, delay: (idx % 3) * 0.08, ease: [0.24, 0, 0.38, 1] }}
                 className={clsx(
                   'widget p-6 bg-surface flex flex-col justify-between transition-all duration-500 group hover:shadow-glow-secondary relative overflow-hidden glass-panel border',
                   isDigitalTwin && 'lg:col-span-2 border-secondary-500/30 ring-1 ring-secondary-400/20 bg-gradient-to-br from-secondary-400/5 via-transparent to-primary/5',
                   isIssue && 'lg:col-span-2 border-secondary-500/30',
                   !isDigitalTwin && !isIssue && 'border-border-subtle hover:border-secondary/50 dark:hover:border-secondary/30',
                 )}
-                style={{
-                  animationDelay: `${idx * 50}ms`,
-                  animation: 'fade-in 500ms ease-out both',
-                }}
               >
                 {/* Animated Gradient Top Border */}
                 <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -232,7 +233,7 @@ export function FeatureBento() {
                     <ArrowRight size={13} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-300" />
                   </div>
                 )}
-              </div>
+              </motion.div>
             )
           })}
         </div>

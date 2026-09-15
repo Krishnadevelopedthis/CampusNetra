@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+Allow: /login
+Allow: /register
+
+# Authenticated application — nothing behind login is useful to a search
+# result (it 404s/redirects to login for anyone not signed in anyway),
+# so keep crawlers from wasting time and crawl budget on it.
+Disallow: /dashboard
+Disallow: /issues
+Disallow: /work-orders
+Disallow: /inspections
+Disallow: /lost-found
+Disallow: /analytics
+Disallow: /twin
+Disallow: /profile
+Disallow: /settings
+Disallow: /admin
+Disallow: /technician
+Disallow: /facility
+Disallow: /search
+Disallow: /help
+
+Sitemap: https://campusnetra.dpdns.org/sitemap.xml
