@@ -36,7 +36,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       <div
         ref={ref} role="dialog" aria-modal="true" aria-label={title}
         className={clsx(
-          'relative w-full bg-surface rounded-2xl border border-border-subtle shadow-level3 animate-slide-up',
+          'relative w-full bg-surface/90 backdrop-blur-2xl rounded-2xl border border-border-subtle/70 shadow-level3 animate-slide-up',
           'max-h-[90vh] flex flex-col', widths[size],
         )}
       >
