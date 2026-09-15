@@ -251,7 +251,7 @@ const STATUS_CONFIG = {
     activeStroke: 'rgba(245, 158, 11, 1)',
     text: '#d97706',
     badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
-    glow: 'glow-violet',
+    glow: 'glow-primary',
     accent: 'amber',
   },
   fault: {
@@ -260,7 +260,7 @@ const STATUS_CONFIG = {
     activeStroke: 'rgba(239, 68, 68, 1)',
     text: '#dc2626',
     badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
-    glow: 'glow-violet',
+    glow: 'glow-primary',
     accent: 'rose',
   },
   maintenance: {
@@ -269,7 +269,7 @@ const STATUS_CONFIG = {
     activeStroke: 'rgba(59, 130, 246, 1)',
     text: '#2563eb',
     badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    glow: 'glow-indigo',
+    glow: 'glow-secondary',
     accent: 'cyan',
   },
   inspection: {
@@ -277,9 +277,9 @@ const STATUS_CONFIG = {
     stroke: 'rgba(147, 51, 234, 0.5)',
     activeStroke: 'rgba(147, 51, 234, 1)',
     text: '#9333ea',
-    badge: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
-    glow: 'glow-violet',
-    accent: 'violet',
+    badge: 'bg-primary/10 text-secondary-600 dark:text-secondary-400 border-primary-500/20',
+    glow: 'glow-primary',
+    accent: 'primary',
   },
 }
 
@@ -334,7 +334,7 @@ export function DigitalTwinShowcase() {
           className="text-center max-w-3xl mx-auto mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Radio size={14} className="text-indigo-400 animate-pulse" />
+            <Radio size={14} className="text-secondary animate-pulse" />
             <span className="text-gradient-electric">Telemetry-Linked Digital Twin</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -351,7 +351,7 @@ export function DigitalTwinShowcase() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.5, ease: [0.24, 0, 0.38, 1] }}
-          className="widget overflow-hidden glass-panel border border-glass-border shadow-glow-indigo relative"
+          className="widget overflow-hidden glass-panel border border-glass-border shadow-glow-secondary relative"
         >
           {/* Animated gradient border */}
           <div className="absolute inset-0 border-shimmer pointer-events-none" />
@@ -359,7 +359,7 @@ export function DigitalTwinShowcase() {
           {/* Header Bar */}
           <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-4 border-b border-glass-border bg-surface-sunken/50 relative z-10">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center font-bold text-[14px] shadow-glow-indigo">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary-400 to-primary text-white flex items-center justify-center font-bold text-[14px] shadow-glow-secondary">
                 DT
               </div>
               <div>
@@ -394,7 +394,7 @@ export function DigitalTwinShowcase() {
                   className={clsx(
                     'px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all',
                     activeFloor === f.id
-                      ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-glow-indigo'
+                      ? 'bg-gradient-to-r from-secondary-400 to-primary text-white shadow-glow-secondary'
                       : 'text-ink-muted hover:text-ink hover:bg-surface/60',
                   )}
                   whileHover={{ scale: 1.02 }}
@@ -598,7 +598,7 @@ export function DigitalTwinShowcase() {
                       {[
                         { icon: Users, color: 'emerald', label: 'Occupancy', value: `${selectedRoom.occupants} persons` },
                         { icon: Zap, color: 'amber', label: 'Active Power Draw', value: selectedRoom.power },
-                        { icon: Activity, color: 'indigo', label: 'System Status', value: selectedRoom.status.charAt(0).toUpperCase() + selectedRoom.status.slice(1) },
+                        { icon: Activity, color: 'secondary', label: 'System Status', value: selectedRoom.status.charAt(0).toUpperCase() + selectedRoom.status.slice(1) },
                         { icon: Sliders, color: 'cyan', label: 'Asset Health', value: selectedRoom.system },
                       ].map((metric, idx) => (
                         <motion.div
@@ -645,7 +645,7 @@ export function DigitalTwinShowcase() {
                       <button
                         type="button"
                         onClick={handleSimulateAnomaly}
-                        className="w-full btn btn-outline btn-sm h-10 flex items-center justify-center gap-2 text-indigo-400 hover:text-indigo-300 border-indigo-400/30 hover:border-indigo-400 hover:bg-indigo-500/10 transition-all duration-300 border-shimmer"
+                        className="w-full btn btn-outline btn-sm h-10 flex items-center justify-center gap-2 text-secondary hover:text-secondary-300 border-secondary/30 hover:border-secondary hover:bg-secondary/10 transition-all duration-300 border-shimmer"
                       >
                         <RefreshCw size={13} />
                         <span>

@@ -70,7 +70,7 @@ export function Footer() {
               work order orchestration, digital twin visualisation, and AI-driven predictive maintenance.
             </p>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-              <Sparkles size={14} className="text-indigo-400" />
+              <Sparkles size={14} className="text-secondary" />
               <span className="text-gradient-electric">Powered by CampusNetra</span>
             </div>
             <p className="text-body-sm text-ink-faint">
@@ -89,22 +89,22 @@ export function Footer() {
                       <Link
                         to={link.href}
                         className={clsx(
-                          'text-body-sm text-ink-muted hover:text-indigo-400 transition-colors duration-200 flex items-center gap-1.5 group',
+                          'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
                         )}
                       >
                         {link.label}
-                        <ArrowRight size={12} className="text-ink-faint group-hover:text-indigo-400 group-hover:translate-x-1 transition-all duration-200" />
+                        <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
                       </Link>
                     ) : (
                       <a
                         href={link.href}
                         onClick={(e) => handleAnchor(e, link.href)}
                         className={clsx(
-                          'text-body-sm text-ink-muted hover:text-indigo-400 transition-colors duration-200 flex items-center gap-1.5 group',
+                          'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
                         )}
                       >
                         {link.label}
-                        <ArrowRight size={12} className="text-ink-faint group-hover:text-indigo-400 group-hover:translate-x-1 transition-all duration-200" />
+                        <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
                       </a>
                     )}
                   </li>
@@ -166,9 +166,9 @@ export function Footer() {
         <div className="pt-8 border-t border-glass-border flex flex-col sm:flex-row items-center justify-between gap-4 text-body-sm text-ink-faint">
           <p className="text-gradient-emerald font-medium">CampusNetra — Smart Campus Facility Management System</p>
           <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-indigo-400 cursor-pointer transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-indigo-400 cursor-pointer transition-colors">Terms</Link>
-            <Link to="/security" className="hover:text-indigo-400 cursor-pointer transition-colors">Security</Link>
+            <Link to="/privacy" className="hover:text-secondary cursor-pointer transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-secondary cursor-pointer transition-colors">Terms</Link>
+            <Link to="/security" className="hover:text-secondary cursor-pointer transition-colors">Security</Link>
           </div>
         </div>
       </div>

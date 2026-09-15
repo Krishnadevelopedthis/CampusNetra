@@ -3,9 +3,9 @@ import clsx from 'clsx'
 import { motion } from 'framer-motion'
 
 const NODES = [
-  { icon: AlertTriangle, label: 'Issue Engine', color: 'indigo', accentColor: 'amber', glowColor: 'glow-indigo', description: 'Real-time incident intake & classification' },
+  { icon: AlertTriangle, label: 'Issue Engine', color: 'secondary', accentColor: 'amber', glowColor: 'glow-secondary', description: 'Real-time incident intake & classification' },
   { icon: ClipboardList, label: 'Work Orders', color: 'cyan', accentColor: 'info', glowColor: 'glow-cyan', description: 'Automated routing & SLA tracking' },
-  { icon: Layers, label: 'Digital Twin', color: 'violet', accentColor: 'secondary', glowColor: 'glow-violet', description: '3D campus visualization & asset mapping' },
+  { icon: Layers, label: 'Digital Twin', color: 'primary', accentColor: 'secondary', glowColor: 'glow-primary', description: '3D campus visualization & asset mapping' },
   { icon: Activity, label: 'Predictive Engine', color: 'emerald', accentColor: 'success', glowColor: 'glow-emerald', description: 'AI-driven failure prediction & risk scoring' },
   { icon: Search, label: 'Lost & Found', color: 'amber', accentColor: 'primary', glowColor: 'glow-amber', description: 'Campus-wide item recovery portal' },
   { icon: BarChart3, label: 'Analytics Core', color: 'amber', accentColor: 'warning', glowColor: 'glow-amber', description: 'Operational insights & compliance reports' },
@@ -13,9 +13,9 @@ const NODES = [
 
 const CENTER_HUB = {
   icons: [
-    { icon: Brain, label: 'AI Brain', color: 'indigo' },
+    { icon: Brain, label: 'AI Brain', color: 'secondary' },
     { icon: Server, label: 'Core API', color: 'cyan' },
-    { icon: Database, label: 'Data Lake', color: 'violet' },
+    { icon: Database, label: 'Data Lake', color: 'primary' },
     { icon: Shield, label: 'Security', color: 'emerald' },
   ],
 }
@@ -42,7 +42,7 @@ export function PlatformArchitecture() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Zap size={14} className="text-indigo-400" />
+            <Zap size={14} className="text-secondary" />
             <span className="text-gradient-electric">Architecture</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -60,14 +60,14 @@ export function PlatformArchitecture() {
           <svg className="absolute inset-0 -z-10 pointer-events-none" viewBox="0 0 800 400" preserveAspectRatio="none">
             <defs>
               <linearGradient id="connector-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="var(--indigo-400)" stopOpacity="0.3" />
-                <stop offset="50%" stopColor="var(--violet-400)" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="var(--cyan-400)" stopOpacity="0.3" />
+                <stop offset="0%" stopColor="rgb(var(--c-secondary-400))" stopOpacity="0.3" />
+                <stop offset="50%" stopColor="rgb(var(--c-primary-400))" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="rgb(var(--c-cyan-400))" stopOpacity="0.3" />
               </linearGradient>
               <linearGradient id="connector-gradient-2" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="var(--emerald-400)" stopOpacity="0.3" />
-                <stop offset="50%" stopColor="var(--cyan-400)" stopOpacity="0.2" />
-                <stop offset="100%" stopColor="var(--indigo-400)" stopOpacity="0.3" />
+                <stop offset="0%" stopColor="rgb(var(--c-emerald-400))" stopOpacity="0.3" />
+                <stop offset="50%" stopColor="rgb(var(--c-cyan-400))" stopOpacity="0.2" />
+                <stop offset="100%" stopColor="rgb(var(--c-secondary-400))" stopOpacity="0.3" />
               </linearGradient>
             </defs>
             {/* Top row connectors */}
@@ -89,12 +89,12 @@ export function PlatformArchitecture() {
           >
             <div className="relative">
               {/* Pulse rings */}
-              <div className="absolute inset-0 -inset-4 rounded-full border border-indigo-400/30 animate-ping opacity-75" />
-              <div className="absolute inset-0 -inset-8 rounded-full border border-violet-400/20 animate-ping opacity-50" style={{ animationDelay: '700ms', animationDuration: '3s' }} />
+              <div className="absolute inset-0 -inset-4 rounded-full border border-secondary/30 animate-ping opacity-75" />
+              <div className="absolute inset-0 -inset-8 rounded-full border border-primary-400/20 animate-ping opacity-50" style={{ animationDelay: '700ms', animationDuration: '3s' }} />
               <div className="absolute inset-0 -inset-12 rounded-full border border-cyan-400/15 animate-ping opacity-40" style={{ animationDelay: '1400ms', animationDuration: '4s' }} />
 
-              <div className="relative flex items-center gap-3 px-8 py-5 rounded-2xl glass-panel border border-glass-border shadow-glow-indigo shadow-glow-violet">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-glow-indigo">
+              <div className="relative flex items-center gap-3 px-8 py-5 rounded-2xl glass-panel border border-glass-border shadow-glow-secondary shadow-glow-primary">
+                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-secondary-400 to-primary flex items-center justify-center shadow-glow-secondary">
                   <Brain size={28} className="text-white" />
                 </div>
                 <div>
@@ -111,7 +111,7 @@ export function PlatformArchitecture() {
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + idx * 0.08, type: 'spring', stiffness: 300 }}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-glass-border shadow-glow-indigo/20"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-glass-border shadow-glow-secondary/20"
                     whileHover={{ scale: 1.02 }}
                   >
                     <div className={clsx('w-5 h-5 rounded-full flex items-center justify-center', `bg-${color}-500/20`, `text-${color}-400`)}>
@@ -151,7 +151,7 @@ export function PlatformArchitecture() {
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <Icon size={24} className={clsx('relative z-10', `text-${color}-400`)} />
                   </div>
-                  <h3 className="text-headline-sm text-ink font-semibold mb-1 group-hover:text-indigo-400 transition-colors duration-300">{label}</h3>
+                  <h3 className="text-headline-sm text-ink font-semibold mb-1 group-hover:text-secondary transition-colors duration-300">{label}</h3>
                   <p className="text-body-sm text-ink-muted leading-relaxed">{description}</p>
                 </div>
               </motion.div>
@@ -185,7 +185,7 @@ export function PlatformArchitecture() {
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <Icon size={24} className={clsx('relative z-10', `text-${color}-400`)} />
                   </div>
-                  <h3 className="text-headline-sm text-ink font-semibold mb-1 group-hover:text-indigo-400 transition-colors duration-300">{label}</h3>
+                  <h3 className="text-headline-sm text-ink font-semibold mb-1 group-hover:text-secondary transition-colors duration-300">{label}</h3>
                   <p className="text-body-sm text-ink-muted leading-relaxed">{description}</p>
                 </div>
               </motion.div>
@@ -203,7 +203,7 @@ export function PlatformArchitecture() {
               { label: 'Real-time Sync', icon: Zap, color: 'amber' },
               { label: 'Bidirectional', icon: Globe, color: 'cyan' },
               { label: 'Event Driven', icon: Activity, color: 'emerald' },
-              { label: 'Secure', icon: Shield, color: 'indigo' },
+              { label: 'Secure', icon: Shield, color: 'secondary' },
             ].map(({ label, icon: Icon, color }, idx) => (
               <div key={label} className="flex flex-col items-center gap-2">
                 <div className={clsx('w-10 h-10 rounded-xl border flex items-center justify-center', `bg-${color}-500/15`, `border-${color}-400/30`, `text-${color}-400`)}>

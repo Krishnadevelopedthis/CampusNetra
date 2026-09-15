@@ -7,15 +7,15 @@ const PILLARS = [
     icon: ShieldCheck,
     title: 'Role-Based Access Control',
     description: 'Fine-grained permissions for Admins, Facility Managers, Technicians, and Students — each user only sees what they are authorised to access.',
-    accentColor: 'indigo',
-    glowColor: 'glow-indigo',
+    accentColor: 'secondary',
+    glowColor: 'glow-secondary',
   },
   {
     icon: Lock,
     title: 'Secure Authentication',
     description: 'JWT-based stateless authentication, bcrypt password hashing, secure cookie storage, and full session management.',
-    accentColor: 'violet',
-    glowColor: 'glow-violet',
+    accentColor: 'primary',
+    glowColor: 'glow-primary',
   },
   {
     icon: FileText,
@@ -48,7 +48,7 @@ export function SecuritySection() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Enterprise Trust</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -71,7 +71,7 @@ export function SecuritySection() {
               className="widget p-6 glass-panel border border-glass-border relative overflow-hidden group"
             >
               {/* Animated gradient border top */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
               {/* Glow on hover */}
               <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', glowColor)} />
@@ -81,7 +81,7 @@ export function SecuritySection() {
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Icon size={22} className={clsx('relative z-10', `text-${accentColor}-400`)} />
                 </div>
-                <h3 className="text-headline-md text-ink font-semibold mb-2 group-hover:text-indigo-400 transition-colors duration-300">{title}</h3>
+                <h3 className="text-headline-md text-ink font-semibold mb-2 group-hover:text-secondary transition-colors duration-300">{title}</h3>
                 <p className="text-body-md text-ink-muted leading-relaxed">{description}</p>
               </div>
             </motion.div>
@@ -97,8 +97,8 @@ export function SecuritySection() {
         >
           {[
             { label: 'SOC 2 Type II', icon: CheckCircle, color: 'emerald' },
-            { label: 'ISO 27001', icon: ShieldCheck, color: 'indigo' },
-            { label: 'GDPR Compliant', icon: FileText, color: 'violet' },
+            { label: 'ISO 27001', icon: ShieldCheck, color: 'secondary' },
+            { label: 'GDPR Compliant', icon: FileText, color: 'primary' },
             { label: 'FERPA Ready', icon: Users, color: 'cyan' },
             { label: 'Audit Logs', icon: Eye, color: 'amber' },
           ].map((badge, idx) => (
