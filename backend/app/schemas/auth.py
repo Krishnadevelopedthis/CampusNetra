@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from app.core.enums import UserRole
 from app.schemas.common import ORMModel
@@ -29,6 +29,18 @@ def validate_password(v: str) -> str:
     if missing:
         raise ValueError("Password must contain " + ", ".join(missing))
     return v
+
+
+def _v_new_phone(value: str) -> str:
+    """Same normalisation as RegisterRequest.phone — see there for why."""
+    digits = re.sub(r"\D", "", value)
+    if digits.startswith("91") and len(digits) == 12:
+        digits = digits[2:]
+    elif digits.startswith("0") and len(digits) == 11:
+        digits = digits[1:]
+    if len(digits) != 10:
+        raise ValueError("Enter a 10-digit mobile number")
+    return digits
 
 
 def validate_seven_digit_id(value: Optional[str], label: str) -> Optional[str]:
@@ -123,9 +135,24 @@ class RefreshRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: EmailStr
+    """Exactly one of email/phone — the two use different OTP channels
+    (email vs SMS) so the endpoint needs to know which one was requested,
+    not just "an identifier"."""
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
     captcha_token: str
     captcha_answer: str = Field(min_length=1, max_length=16)
+
+    @field_validator("phone")
+    @classmethod
+    def _v_phone(cls, value: Optional[str]) -> Optional[str]:
+        return _v_new_phone(value) if value else value
+
+    @model_validator(mode="after")
+    def _exactly_one_identifier(self) -> "ForgotPasswordRequest":
+        if bool(self.email) == bool(self.phone):
+            raise ValueError("Provide either an email address or a phone number, not both.")
+        return self
 
 
 class CaptchaOut(BaseModel):
@@ -135,11 +162,25 @@ class CaptchaOut(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    email: EmailStr
+    """Same either/or as ForgotPasswordRequest — whichever channel the code
+    went out on is the one it can be redeemed against."""
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
     code: str = Field(min_length=4, max_length=10)
     new_password: str
 
     _v_pw = field_validator("new_password")(validate_password)
+
+    @field_validator("phone")
+    @classmethod
+    def _v_phone(cls, value: Optional[str]) -> Optional[str]:
+        return _v_new_phone(value) if value else value
+
+    @model_validator(mode="after")
+    def _exactly_one_identifier(self) -> "ResetPasswordRequest":
+        if bool(self.email) == bool(self.phone):
+            raise ValueError("Provide either an email address or a phone number, not both.")
+        return self
 
 
 class VerifyEmailRequest(BaseModel):
@@ -208,18 +249,6 @@ class ChangeEmailRequest(BaseModel):
 
 class RequestEmailChangeRequest(BaseModel):
     new_email: EmailStr
-
-
-def _v_new_phone(value: str) -> str:
-    """Same normalisation as RegisterRequest.phone — see there for why."""
-    digits = re.sub(r"\D", "", value)
-    if digits.startswith("91") and len(digits) == 12:
-        digits = digits[2:]
-    elif digits.startswith("0") and len(digits) == 11:
-        digits = digits[1:]
-    if len(digits) != 10:
-        raise ValueError("Enter a 10-digit mobile number")
-    return digits
 
 
 class RequestPhoneChangeRequest(BaseModel):

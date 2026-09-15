@@ -415,22 +415,73 @@ with an asset table, and make the asset report actually downloadable.
   produces a valid PDF, not just "the import resolves".
 
 Verified this round: `npm run build` and `npm run lint` clean (0 errors,
-only pre-existing warnings, none in touched files) after all of the above;
-confirmed via the build's own chunk-size output that `Campus3DView`,
-`RoomScene3D`, and `jspdf` are each separate lazy chunks, and that three.js
-itself is now a single chunk shared between the two 3D features rather than
-duplicated. The jsPDF report-building calls were exercised directly in Node
-against the real library (not mocked) and produce a valid PDF buffer.
+only pre-existing warnings, none in touched files) after all of the above.
+The jsPDF report-building calls were exercised directly in Node against
+the real library (not mocked) and produce a valid PDF buffer.
 
 Not done / still open:
 - Still no headless browser available in this environment — none of the
-  three 3D scenes (campus view, per-room view) or the drilldown modals have
-  been clicked through in an actual browser this round either. Build/lint
-  passing and library calls checked directly is real signal, but it is not
-  the same as having looked at it.
+  3D scenes or the drilldown modals have been clicked through in an actual
+  browser this round either. Build/lint passing and library calls checked
+  directly is real signal, but it is not the same as having looked at it.
 - The generated PDF's actual visual layout (column alignment, page breaks
   on assets with long maintenance histories) hasn't been eyeballed as a
   rendered document, only confirmed to generate without throwing.
+
+---
+
+## Reconciliation: two competing 3D campus-map implementations
+
+Both this branch and `main` independently built a Three.js campus map at
+the same time — `main` via `Campus3DView.jsx`/`BuildingDrilldown.jsx`/
+`RoomScene3D.jsx`/`RoomView3D.jsx` using `@react-three/fiber`+`@react-three/drei`
+as a togglable addition next to the existing 2D SVG map; this branch via
+`features/twin/Scene3D.jsx` using raw `three.js` as a full replacement of
+the 2D map with a campus→building→floor→room drill-down (see the
+"Replace Campus Map with a real Three.js scene" commit above).
+
+Per explicit instruction, this branch's version was kept and `main`'s was
+dropped: `Campus3DView.jsx`, `BuildingDrilldown.jsx`, `RoomScene3D.jsx`,
+`RoomView3D.jsx`, its `/rooms/:roomId` route in `App.jsx`, and the
+`@react-three/fiber`/`@react-three/drei` dependencies (no longer used by
+anything once those files are gone) were all removed. `main`'s unrelated
+work in the same commit — real PDF asset reports via jsPDF in
+`AssetDetail.jsx` — was kept; it doesn't touch the map at all.
+
+`main` also carried a parallel, partial fix for the same Resend 401/403
+bug this branch already fixed (see "Fix Resend 401/403 misdiagnosis"
+above), plus a hand-added `RESEND_FROM` setting and per-call `provider`
+override on `send_otp()`, added directly by the project owner. Reconciled
+rather than picked one side outright:
+- Kept this branch's `resolve_email_provider(purpose)` system
+  (`EMAIL_PROVIDER_EMAIL_VERIFY`/`PASSWORD_RESET`/`EMAIL_CHANGE`) as the
+  actual fix, since main's version only patched the one `email_change`
+  call site and left `register`/`forgot-password`/`resend-code` still
+  silently defaulting to Resend whenever both provider keys are set —
+  the same root bug, just not yet visibly triggered there.
+- Adopted `RESEND_FROM` from main's hand edit — a genuinely separate
+  "from" address for Resend vs. SMTP/Brevo, which this branch didn't
+  have and which main's owner had a real reason to want.
+  `_resend_sender()` now reads `RESEND_FROM`, not `SMTP_FROM`.
+  `send_otp()` no longer takes an explicit `provider` parameter — the
+  per-purpose settings make a manual override at each call site
+  unnecessary, which is also why no auth.py call site needed touching.
+- Kept main's OTP email content/subject-line wording tweaks (the
+  hand-edited copy from the "Refine email content" commits), merged
+  into `send_otp()`'s template.
+- Kept this branch's 401-vs-403 diagnosis (403 itself, not just a
+  "domain"/"verify" keyword in the response body, is treated as the
+  sender/recipient-restriction case) rather than main's version, which
+  still mislabels Resend's actual sandbox-restriction message
+  ("You can only send testing emails to your own email address" — no
+  "domain" or "verify" in it) as a bad API key.
+
+Verified after reconciling: backend imports cleanly, `resolve_email_provider`
+tested against a mocked Settings instance for both purposes; frontend
+`npm install && npm run build && npm run lint` all clean (0 new errors,
+`CampusMap` bundle uses this branch's `three.js` scene, `jspdf` remains
+its own lazy chunk for `AssetDetail`'s PDF button, no `Campus3DView` or
+`RoomView3D` chunk exists anymore).
 
 ## Addendum 5 — admin review widget for name-change requests
 

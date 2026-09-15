@@ -168,25 +168,28 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
 
     detail = _api_error(resp)
     log.error("Resend rejected the message (%s): %s", resp.status_code, detail)
-    # 401 is unambiguous: the key itself was rejected. 403, however, is what
-    # Resend also returns for an unverified sending domain — a wrong-looking
-    # "API key" message on a 403 that was actually about the *domain* sends
-    # someone re-checking (and re-pasting) a key that was correct all along.
-    # The domain problem is the common case once a key is confirmed correct,
-    # so check the message before assuming which one it is.
+    # 401 is unambiguous: the key itself was rejected. 403 is what Resend
+    # returns for the *other* common failure — a sandbox/unverified-domain
+    # account can only send from onboarding@resend.dev and only to the
+    # address that owns the account, which is exactly the case here since
+    # every OTP goes to some other campus user's address. Checking the
+    # status code first (rather than only scanning the message text for
+    # "domain"/"verify") matters because Resend's actual sandbox-restriction
+    # message — "You can only send testing emails to your own email
+    # address" — contains neither word, so a text-only check still
+    # mislabels the single most common real-world 403 as a bad API key.
     if resp.status_code == 401:
         return SendResult(delivered=False,
                           error="Resend rejected the API key. Check RESEND_API_KEY.")
-    if "domain" in detail.lower() or "verify" in detail.lower():
+    if resp.status_code == 403 or "domain" in detail.lower() or "verify" in detail.lower():
         return SendResult(
             delivered=False,
-            error=(f"Resend refused to send from {addr!r}: {detail} Until you verify "
-                   "that domain with Resend (Domains tab — add the DNS records it gives "
-                   "you), the from address must be onboarding@resend.dev, and mail can "
-                   "only go to the address that owns the Resend account."))
-    if resp.status_code == 403:
-        return SendResult(delivered=False,
-                          error="Resend rejected the API key. Check RESEND_API_KEY.")
+            error=(f"Resend refused to send from {addr!r}: {detail} On a sandbox "
+                   "account (no verified domain), the from address must be "
+                   "onboarding@resend.dev, and mail can only go to the address "
+                   "that owns the Resend account — verify a domain at "
+                   "resend.com/domains (add the DNS records it gives you) to send "
+                   "to real users."))
     return SendResult(delivered=False, error=f"Resend error: {detail}")
 
 
@@ -283,12 +286,14 @@ def _send_blocking(msg: EmailMessage) -> SendResult:
 
 
 async def send_email(
-    to: str,
-    subject: str,
-    text: str,
-    html: Optional[str] = None,
+    to: str, subject: str, text: str, html: Optional[str] = None,
     provider: Optional[str] = None,
 ) -> SendResult:
+    # provider is set explicitly by send_otp (resolved per OTP purpose via
+    # settings.resolve_email_provider) for anything that needs to go through
+    # a specific transport when more than one is configured; other callers
+    # (the "your email was changed" notice, the data-export email) leave it
+    # unset and get the single-provider default, same as before this existed.
     provider = provider or settings.email_provider
 
     if provider == "none":
@@ -316,8 +321,7 @@ async def send_email(
 _OTP_COPY = {
     "email_verify": ("verify your email address", "Verify your email"),
     "password_reset": ("reset your password", "Reset your password"),
-    "email_change":   ("confirm this as your new email address",
-    "Verify your new email address",),
+    "email_change": ("confirm this as your new email address", "Verify your new email address"),
 }
 _OTP_DEFAULT = ("confirm this request", "Your verification code")
 
@@ -377,21 +381,26 @@ def _otp_html(name: str, code: str, purpose: str) -> str:
 </html>"""
 
 
-async def send_otp(to: str, name: str, code: str, purpose: str, provider: Optional[str] = None,) -> SendResult:
-    action, _ = _OTP_COPY.get(purpose, _OTP_DEFAULT)
+async def send_otp(to: str, name: str, code: str, purpose: str) -> SendResult:
+    action, heading = _OTP_COPY.get(purpose, _OTP_DEFAULT)
     subject = "Campus Netra verification code"
     text = (
         f"Campus Netra\n\n"
-        f"Verify your new email address\n\n"
+        f"{heading}\n\n"
         f"Hello {name},\n\n"
-        f"Your verification code is:\n\n"
+        f"Use this code to {action}. Your verification code is:\n\n"
         f"{code}\n\n"
         f"This code expires in {settings.OTP_EXPIRE_MINUTES} minutes.\n\n"
-        f"If you did not request this change, you can safely ignore this email.\n\n"
+        f"If you did not request this, you can safely ignore this email.\n\n"
         f"Campus Netra\n"
         f"Automated verification email. Please do not reply."
     )
-    return await send_email(to, subject, text, _otp_html(name, code, purpose),provider=provider,)
+    # Resolved per purpose, so a deployment running two providers (e.g. Brevo
+    # for sign-up/reset, Resend for the profile email-change flow) sends each
+    # OTP through the transport actually meant for it, instead of whichever
+    # one happens to win settings.email_provider's single global pick.
+    provider = settings.resolve_email_provider(purpose)
+    return await send_email(to, subject, text, _otp_html(name, code, purpose), provider=provider)
 
 
 async def verify_connection() -> SendResult:

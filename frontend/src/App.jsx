@@ -26,7 +26,6 @@ const CampusMap = lazy(() => import('@/pages/CampusMap'))
 const FloorPlanEditor = lazy(() => import('@/pages/FloorPlanEditor'))
 const AssetList = lazy(() => import('@/pages/AssetList'))
 const AssetDetail = lazy(() => import('@/pages/AssetDetail'))
-const RoomView3D = lazy(() => import('@/pages/RoomView3D'))
 const EventReplay = lazy(() => import('@/pages/EventReplay'))
 const WorkOrderList = lazy(() => import('@/pages/WorkOrderList'))
 const WorkOrderBoard = lazy(() => import('@/pages/WorkOrderBoard'))
@@ -459,15 +458,6 @@ export default function App() {
                 element={
                   <RequireAuth roles={STAFF}>
                     <AssetDetail />
-                  </RequireAuth>
-                }
-              />
-
-              <Route
-                path="/rooms/:roomId"
-                element={
-                  <RequireAuth roles={STAFF}>
-                    <RoomView3D />
                   </RequireAuth>
                 }
               />
