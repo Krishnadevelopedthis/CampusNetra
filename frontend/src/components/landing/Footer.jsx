@@ -114,54 +114,6 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Sitemap Section */}
-        <div className="mb-8 pt-8 border-t border-glass-border">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Public Website */}
-            <div>
-              <p className="text-label-caps text-ink uppercase tracking-wider mb-4 font-bold text-gradient-cyber">PUBLIC WEBSITE</p>
-              <ul className="space-y-2 text-body-sm text-ink-muted font-mono">
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #platform</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #twin</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #ai</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #analytics</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #how-it-works</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #faq</li>
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /features</li>
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /about</li>
-              </ul>
-            </div>
-
-            {/* Sitemap */}
-            <div>
-              <p className="text-label-caps text-ink uppercase tracking-wider mb-4 font-bold text-gradient-cyber">SITEMAP</p>
-              <ul className="space-y-2 text-body-sm text-ink-muted font-mono">
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /features</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /about</li>
-              </ul>
-            </div>
-
-            {/* Private Application */}
-            <div>
-              <p className="text-label-caps text-ink uppercase tracking-wider mb-4 font-bold text-gradient-cyber">PRIVATE APPLICATION 🔒</p>
-              <ul className="space-y-2 text-body-sm text-ink-muted font-mono">
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /dashboard</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /issues</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /work-orders</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /inspections</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /lost-found</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /analytics</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /twin</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /profile</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /settings</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /admin/*</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
         {/* Bottom bar */}
         <div className="pt-8 border-t border-glass-border flex flex-col sm:flex-row items-center justify-between gap-4 text-body-sm text-ink-faint">
           <p className="text-gradient-emerald font-medium">CampusNetra — Smart Campus Facility Management System</p>
