@@ -939,7 +939,7 @@ async def sms_status(admin: RequireAdmin):
     return {
         "provider": settings.SMS_PROVIDER,
         "configured": settings.sms_delivers,
-        "from_number": settings.TWILIO_FROM_NUMBER or None,
+        "from_number": settings.TWILIO_FROM_NUMBER or settings.BREVO_SMS_SENDER or None,
         "verified": result.delivered,
         "error": result.error,
         "hint": _sms_delivery_hint(result),
@@ -948,11 +948,24 @@ async def sms_status(admin: RequireAdmin):
 
 def _sms_delivery_hint(result) -> str | None:
     if settings.SMS_PROVIDER == "none":
-        return ("No SMS provider is configured. Set SMS_PROVIDER=twilio plus "
-                "TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER.")
+        return ("No SMS provider is configured. Set SMS_PROVIDER=brevo plus BREVO_API_KEY "
+                "and BREVO_SMS_SENDER, or SMS_PROVIDER=twilio plus TWILIO_ACCOUNT_SID, "
+                "TWILIO_AUTH_TOKEN and TWILIO_FROM_NUMBER.")
     if not result.delivered:
         return result.error
-    return None
+    # The credentials check above only confirms the provider accepted the API
+    # call — it says nothing about whether a carrier will actually deliver the
+    # text. Use /admin/sms/test to find that out for real: for numbers in
+    # India specifically, TRAI's DLT (Distributed Ledger Technology) rules
+    # require the sender ID and message template to be registered before
+    # carriers will deliver it — an unregistered sender is the single most
+    # common reason an API call "succeeds" but nothing ever reaches the
+    # phone. Brevo and Twilio both require this registration for India;
+    # check their dashboards for a DLT/India compliance section.
+    return ("Credentials look valid. If a real test text (POST /admin/sms/test) still "
+            "doesn't arrive on an Indian number, this is almost always DLT "
+            "(TRAI) sender/template registration, not a code or credentials problem — "
+            "check your provider's India/DLT compliance section.")
 
 
 @router.post("/sms/test", response_model=dict)

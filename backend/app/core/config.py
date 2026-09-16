@@ -39,20 +39,33 @@ class Settings(BaseSettings):
     # no DB table, no third-party service, reuses SECRET_KEY.
     CAPTCHA_EXPIRE_MINUTES: int = 5
 
-    # SMS. Twilio is the only provider wired in (see services/sms.py); the
-    # literal accepts "none" until credentials are set, at which point set
-    # SMS_PROVIDER=twilio too. TWILIO_FROM_NUMBER must be a number Twilio
-    # gave you (bought or trial), in E.164 form, e.g. "+15017122661" — not a
-    # personal number. Trial accounts can only text numbers verified in the
-    # Twilio console (Phone Numbers → Verified Caller IDs) until upgraded.
-    SMS_PROVIDER: Literal["none", "twilio"] = "none"
+    # SMS. Two providers are wired in (see services/sms.py): Brevo (default)
+    # and Twilio — pick one with SMS_PROVIDER. Both need Indian numbers to
+    # go through DLT (TRAI) sender/template registration before a carrier
+    # will actually deliver anything; see EMAIL_AND_SMS_SETUP.md before
+    # assuming a delivery failure is a credentials or code problem.
+    SMS_PROVIDER: Literal["none", "brevo", "twilio", "self_hosted"] = "self_hosted"
+
+    # Brevo SMS — same BREVO_API_KEY as the email section below; SMS credits
+    # are purchased separately from email credits in Brevo's dashboard.
+    BREVO_SMS_SENDER: str = "CampusNetra"
+    # Self-hosted Android SMS Gateway
+    SELF_HOSTED_SMS_URL: str = ""
+    SELF_HOSTED_SMS_API_KEY: str = ""
+
+    # Twilio — TWILIO_FROM_NUMBER must be a number Twilio gave you (bought or
+    # trial), in E.164 form, e.g. "+15017122661", not a personal number.
+    # Trial accounts can only text numbers verified in the Twilio console
+    # (Phone Numbers → Verified Caller IDs) until upgraded.
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
+
     # Phone numbers are stored as a bare local number (see
     # RequestPhoneChangeRequest's normalisation in schemas/auth.py), so this
-    # is prepended to build the E.164 address Twilio requires. "+91" (India)
-    # matches this deployment; change it if your users are elsewhere.
+    # is prepended to build the E.164 address either provider requires.
+    # "+91" (India) matches this deployment; change it if your users are
+    # elsewhere.
     SMS_DEFAULT_COUNTRY_CODE: str = "+91"
 
     # Identity verification (name-change ID upload). The fraction of the
@@ -105,6 +118,8 @@ class Settings(BaseSettings):
     RESEND_FROM: str = "Campus Netra <noreply@campusnetra.dpdns.org>"
     # Brevo's HTTP API, usable with the same account as their SMTP relay.
     BREVO_API_KEY: str = ""
+    BREVO_FROM: str = "techcareit.in@gmail.com"
+    BREVO_FROM_NAME: str = "Techcare"
 
     # Which transport handles each kind of outgoing mail. "auto" (the
     # default) uses whichever of RESEND_API_KEY / BREVO_API_KEY / SMTP_HOST
@@ -116,9 +131,9 @@ class Settings(BaseSettings):
     # "brevo" so they stop sharing the "auto" pick, which always resolves to
     # the same provider for both. If the pinned provider has no key
     # configured, this falls back to "auto" rather than failing every send.
-    EMAIL_PROVIDER_EMAIL_VERIFY: Literal["auto", "resend", "brevo", "smtp"] = "auto"
-    EMAIL_PROVIDER_PASSWORD_RESET: Literal["auto", "resend", "brevo", "smtp"] = "auto"
-    EMAIL_PROVIDER_EMAIL_CHANGE: Literal["auto", "resend", "brevo", "smtp"] = "auto"
+    EMAIL_PROVIDER_EMAIL_VERIFY: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
+    EMAIL_PROVIDER_PASSWORD_RESET: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
+    EMAIL_PROVIDER_EMAIL_CHANGE: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
@@ -218,9 +233,27 @@ class Settings(BaseSettings):
 
     @property
     def sms_delivers(self) -> bool:
-        """True once a real SMS provider is configured with usable credentials."""
+        """True when the configured SMS provider has usable credentials."""
+
+        if self.SMS_PROVIDER == "self_hosted":
+            return bool(
+                self.SELF_HOSTED_SMS_URL
+                and self.SELF_HOSTED_SMS_API_KEY
+            )
+
+        if self.SMS_PROVIDER == "brevo":
+            return bool(
+                self.BREVO_API_KEY
+                and self.BREVO_SMS_SENDER
+            )
+
         if self.SMS_PROVIDER == "twilio":
-            return bool(self.TWILIO_ACCOUNT_SID and self.TWILIO_AUTH_TOKEN and self.TWILIO_FROM_NUMBER)
+            return bool(
+                self.TWILIO_ACCOUNT_SID
+                and self.TWILIO_AUTH_TOKEN
+                and self.TWILIO_FROM_NUMBER
+            )
+
         return False
 
     @property

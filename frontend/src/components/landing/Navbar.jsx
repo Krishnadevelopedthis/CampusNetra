@@ -90,7 +90,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={handleGetStarted}
-              className="px-4 h-9 rounded-lg text-body-md font-medium bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 transition-all duration-150 inline-flex items-center shadow-glow-indigo border-shimmer"
+              className="px-4 h-9 rounded-lg text-body-md font-medium bg-gradient-to-r from-secondary-400 to-primary text-white hover:from-secondary-600 hover:to-primary-800 transition-all duration-150 inline-flex items-center shadow-glow-secondary border-shimmer"
             >
               Get Started
             </button>
@@ -143,7 +143,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={handleGetStarted}
-              className="block px-4 py-2.5 rounded-lg text-body-md font-medium bg-gradient-to-r from-indigo-500 to-violet-500 text-white hover:from-indigo-600 hover:to-violet-600 text-center transition-all border-shimmer shadow-glow-indigo"
+              className="block px-4 py-2.5 rounded-lg text-body-md font-medium bg-gradient-to-r from-secondary-400 to-primary text-white hover:from-secondary-600 hover:to-primary-800 text-center transition-all border-shimmer shadow-glow-secondary"
             >
               Get Started
             </button>

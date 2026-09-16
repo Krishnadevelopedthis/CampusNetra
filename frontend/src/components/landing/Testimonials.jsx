@@ -10,7 +10,7 @@ const DEMO_FEEDBACK = [
     quote: 'CampusNetra brought complete visibility to our 14 buildings. What used to take days of phone calls now resolves in hours through the automated work order queue.',
     author: 'Campus Operations Lead',
     initials: 'CO',
-    accentColor: 'indigo',
+    accentColor: 'secondary',
     icon: GraduationCap,
   },
   {
@@ -28,7 +28,7 @@ const DEMO_FEEDBACK = [
     quote: 'Reporting broken equipment in our labs is finally effortless. We get actual updates when things are fixed instead of wondering if anyone noticed.',
     author: 'Student Representative',
     initials: 'SR',
-    accentColor: 'violet',
+    accentColor: 'primary',
     icon: Shield,
   },
   {
@@ -61,16 +61,34 @@ const DEMO_FEEDBACK = [
 ]
 
 const AVATAR_COLORS = [
-  'from-indigo-500 to-violet-500',
-  'from-cyan-500 to-blue-500',
-  'from-violet-500 to-purple-500',
-  'from-emerald-500 to-teal-500',
-  'from-amber-500 to-orange-500',
-  'from-cyan-500 to-emerald-500',
+  'bg-gradient-to-br from-secondary-400 to-primary',
+  'bg-gradient-to-br from-cyan-500 to-blue-500',
+  'bg-gradient-to-br from-primary-500 to-primary-600',
+  'bg-gradient-to-br from-emerald-500 to-teal-500',
+  'bg-gradient-to-br from-amber-500 to-orange-500',
+  'bg-gradient-to-br from-cyan-500 to-emerald-500',
 ]
 
 export function Testimonials() {
   const scrollContainer = useRef(null)
+  const [isPaused, setIsPaused] = useState(false)
+
+  // Auto-advance on all devices (not just desktop) — pauses while the
+  // visitor is actually touching/hovering it, and respects
+  // prefers-reduced-motion rather than forcing motion on everyone.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (isPaused) return
+    const el = scrollContainer.current
+    if (!el) return
+    const id = setInterval(() => {
+      if (!el) return
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8
+      el.scrollTo(atEnd ? { left: 0, behavior: 'smooth' } : { left: el.scrollLeft + 416, behavior: 'smooth' })
+    }, 3200)
+    return () => clearInterval(id)
+  }, [isPaused])
 
   return (
     <section className="py-24 bg-surface-base relative overflow-hidden">
@@ -93,7 +111,7 @@ export function Testimonials() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <MessageSquare size={14} className="text-indigo-400" />
+            <MessageSquare size={14} className="text-secondary" />
             <span className="text-gradient-electric">Feedback</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -135,6 +153,10 @@ export function Testimonials() {
             ref={scrollContainer}
             className="flex gap-6 pb-8 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
             style={{ scrollSnapType: 'x mandatory' }}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={() => setIsPaused(true)}
+            onTouchEnd={() => setTimeout(() => setIsPaused(false), 2500)}
           >
             {DEMO_FEEDBACK.map(({ role, institution, quote, author, initials, accentColor, icon: Icon }, idx) => (
               <motion.div
@@ -161,15 +183,14 @@ export function Testimonials() {
 
                   {/* Quote */}
                   <p className="text-body-md text-ink-muted leading-relaxed italic mb-6 relative">
-                    <span className="text-4xl text-indigo-400/20 font-serif leading-none absolute -top-3 -left-2">"</span>
+                    <span className="text-4xl text-secondary/20 font-serif leading-none absolute -top-3 -left-2">"</span>
                     {quote}
                   </p>
                 </div>
 
                 <div className="border-t border-glass-border pt-4 relative z-10">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center text-body-sm font-bold text-white flex-shrink-0"
-                         style={{ background: AVATAR_COLORS[idx % AVATAR_COLORS.length] }}>
+                    <div className={clsx('w-10 h-10 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center text-body-sm font-bold text-white flex-shrink-0', AVATAR_COLORS[idx % AVATAR_COLORS.length])}>
                       {initials}
                     </div>
                     <div>

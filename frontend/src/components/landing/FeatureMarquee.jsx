@@ -23,7 +23,7 @@ const ROW_2 = [
   'Event Timeline',
 ]
 
-const ACCENT_COLORS = ['indigo', 'violet', 'cyan', 'emerald', 'amber', 'indigo', 'violet', 'cyan']
+const ACCENT_COLORS = ['secondary', 'primary', 'cyan', 'emerald', 'amber', 'secondary', 'primary', 'cyan']
 
 export function FeatureMarquee() {
   return (
@@ -49,7 +49,7 @@ export function FeatureMarquee() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.03, type: 'spring', stiffness: 300 }}
                 whileHover={{ scale: 1.05 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-glass-border text-body-sm font-medium flex-shrink-0 shadow-glow-indigo/20"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-glass-border text-body-sm font-medium flex-shrink-0 shadow-glow-secondary/20"
               >
                 <span className={clsx('w-1.5 h-1.5 rounded-full', `bg-${ACCENT_COLORS[i % ACCENT_COLORS.length]}-400`)} />
                 <span className="text-gradient-electric">{item}</span>
@@ -66,7 +66,7 @@ export function FeatureMarquee() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.03, type: 'spring', stiffness: 300 }}
                 whileHover={{ scale: 1.05 }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-glass-border text-body-sm font-medium flex-shrink-0 shadow-glow-violet/20"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-glass-border text-body-sm font-medium flex-shrink-0 shadow-glow-primary/20"
               >
                 <span className={clsx('w-1.5 h-1.5 rounded-full', `bg-${ACCENT_COLORS[(i + 3) % ACCENT_COLORS.length]}-400`)} />
                 <span className="text-gradient-cyber">{item}</span>

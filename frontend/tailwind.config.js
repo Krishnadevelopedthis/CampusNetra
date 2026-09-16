@@ -198,9 +198,11 @@ export default {
         // Level 3 — overlays, drawers, AI panels.
         level3: 'var(--shadow-level3)',
         popover: 'var(--shadow-popover)',
-        // Aceternity glow shadows
-        'glow-indigo': '0 0 40px -5px rgb(99 102 241 / 0.3), 0 0 80px -10px rgb(99 102 241 / 0.15)',
-        'glow-violet': '0 0 40px -5px rgb(139 92 246 / 0.3), 0 0 80px -10px rgb(139 92 246 / 0.15)',
+        // Landing-page glow shadows — theme-aware (references the same
+        // variables as everything else, so it's orange in light mode and
+        // lime in dark mode automatically, same as every other accent use).
+        'glow-secondary': '0 0 40px -5px rgb(var(--c-secondary-500) / 0.3), 0 0 80px -10px rgb(var(--c-secondary-500) / 0.15)',
+        'glow-primary': '0 0 40px -5px rgb(var(--c-primary) / 0.3), 0 0 80px -10px rgb(var(--c-primary) / 0.15)',
         'glow-cyan': '0 0 40px -5px rgb(6 182 212 / 0.3), 0 0 80px -10px rgb(6 182 212 / 0.15)',
         'glow-emerald': '0 0 40px -5px rgb(16 185 129 / 0.3), 0 0 80px -10px rgb(16 185 129 / 0.15)',
       },

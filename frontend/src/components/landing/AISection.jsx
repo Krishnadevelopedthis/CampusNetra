@@ -139,7 +139,7 @@ export function AISection() {
           className="text-center max-w-3xl mx-auto mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Interactive AI Engine Sandbox</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -162,7 +162,7 @@ export function AISection() {
           >
             <div className="widget p-5 glass-panel border border-glass-border relative overflow-hidden group">
               {/* Glow accent on hover */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none glow-indigo" />
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none glow-secondary" />
 
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-3">
@@ -185,8 +185,8 @@ export function AISection() {
                         className={clsx(
                           'w-full text-left p-3 rounded-xl border text-body-sm transition-all duration-200 flex flex-col gap-1 relative overflow-hidden',
                           isSelected
-                            ? 'bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border-indigo-400/50 ring-1 ring-indigo-400/30'
-                            : 'bg-surface-sunken/60 hover:bg-surface-sunken border-border-subtle hover:border-indigo-400/30',
+                            ? 'bg-gradient-to-r from-secondary-400/10 to-primary/10 border-secondary/50 ring-1 ring-secondary-400/30'
+                            : 'bg-surface-sunken/60 hover:bg-surface-sunken border-border-subtle hover:border-secondary/30',
                         )}
                       >
                         <div className="flex items-center justify-between">
@@ -195,7 +195,7 @@ export function AISection() {
                             <motion.span
                               initial={{ opacity: 0, scale: 0.8 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="text-[11px] font-bold text-indigo-400"
+                              className="text-[11px] font-bold text-secondary"
                             >
                               Active
                             </motion.span>
@@ -222,7 +222,7 @@ export function AISection() {
                       type="submit"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="btn btn-primary btn-sm h-9 px-3 flex items-center gap-1.5 border-shimmer shadow-glow-indigo"
+                      className="btn btn-primary btn-sm h-9 px-3 flex items-center gap-1.5 border-shimmer shadow-glow-secondary"
                     >
                       <Send size={13} />
                       <span>Run</span>
@@ -240,8 +240,8 @@ export function AISection() {
               className="grid grid-cols-2 gap-3"
             >
               {[
-                { icon: Brain, title: 'Zero Manual Triage', sub: '99.4% precision routing', color: 'indigo' },
-                { icon: Clock, title: 'Adaptive SLAs', sub: 'Dynamic hazard weighting', color: 'violet' },
+                { icon: Brain, title: 'Zero Manual Triage', sub: '99.4% precision routing', color: 'secondary' },
+                { icon: Clock, title: 'Adaptive SLAs', sub: 'Dynamic hazard weighting', color: 'primary' },
                 { icon: TrendingUp, title: 'Pattern Detection', sub: 'Early failure warnings', color: 'cyan' },
                 { icon: Zap, title: 'Instant Dispatch', sub: '< 200ms processing', color: 'amber' },
               ].map(({ icon: Icon, title, sub, color }, idx) => (
@@ -273,11 +273,11 @@ export function AISection() {
             transition={{ delay: 0.3, duration: 0.5 }}
             className="lg:col-span-7"
           >
-            <div className="relative widget overflow-hidden glass-panel border border-glass-border p-6 shadow-glow-indigo">
+            <div className="relative widget overflow-hidden glass-panel border border-glass-border p-6 shadow-glow-secondary">
               {/* Header */}
               <div className="flex items-center justify-between pb-4 border-b border-glass-border">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-glow-indigo">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary-400 to-primary text-white flex items-center justify-center shadow-glow-secondary">
                     <Brain size={18} />
                   </div>
                   <div>
@@ -291,7 +291,7 @@ export function AISection() {
                   transition={{ duration: 1.5, repeat: Infinity }}
                   className="flex items-center gap-2"
                 >
-                  <span className="text-[11px] font-mono text-indigo-400 bg-indigo-500/10 border border-indigo-400/30 px-2.5 py-1 rounded-full font-bold">
+                  <span className="text-[11px] font-mono text-secondary bg-secondary/10 border border-secondary/30 px-2.5 py-1 rounded-full font-bold">
                     CONFIDENCE: {activePrompt.urgencyScore}
                   </span>
                 </motion.div>
@@ -309,7 +309,7 @@ export function AISection() {
                     className="py-20 flex flex-col items-center justify-center text-center space-y-3"
                   >
                     <motion.div
-                      className="w-12 h-12 border-3 border-indigo-500 border-t-transparent rounded-full"
+                      className="w-12 h-12 border-3 border-secondary-500 border-t-transparent rounded-full"
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                     />
@@ -383,7 +383,7 @@ export function AISection() {
                       <motion.span
                         animate={{ scale: [1, 1.02, 1] }}
                         transition={{ duration: 2, repeat: Infinity }}
-                        className="text-label-caps bg-gradient-to-r from-indigo-500 to-violet-500 text-white px-2.5 py-1 rounded-full font-bold border-shimmer shadow-glow-indigo"
+                        className="text-label-caps bg-gradient-to-r from-secondary-400 to-primary text-white px-2.5 py-1 rounded-full font-bold border-shimmer shadow-glow-secondary"
                       >
                         Route Armed
                       </motion.span>
@@ -396,7 +396,7 @@ export function AISection() {
                       transition={{ delay: 0.25 }}
                     >
                       <p className="text-body-sm font-bold text-ink mb-2.5 flex items-center gap-1.5">
-                        <CheckCircle2 size={15} className="text-indigo-400" />
+                        <CheckCircle2 size={15} className="text-secondary" />
                         <span>Synthesized Emergency Action Checklist</span>
                       </p>
                       <div className="space-y-2">
@@ -408,7 +408,7 @@ export function AISection() {
                             transition={{ delay: 0.3 + idx * 0.05 }}
                             className="flex items-start gap-2.5 p-2.5 rounded-lg glass-panel border border-glass-border text-body-sm"
                           >
-                            <span className={clsx('w-5 h-5 rounded-md flex items-center justify-center font-mono text-[11px] font-bold flex-shrink-0 mt-0.5', `bg-${idx % 2 === 0 ? 'indigo' : 'violet'}-500/20`, `text-${idx % 2 === 0 ? 'indigo' : 'violet'}-400`)}>
+                            <span className={clsx('w-5 h-5 rounded-md flex items-center justify-center font-mono text-[11px] font-bold flex-shrink-0 mt-0.5', `bg-${idx % 2 === 0 ? 'secondary' : 'primary'}-500/20`, `text-${idx % 2 === 0 ? 'secondary' : 'primary'}-400`)}>
                               {idx + 1}
                             </span>
                             <span className="text-ink font-medium text-[13px]">{step}</span>

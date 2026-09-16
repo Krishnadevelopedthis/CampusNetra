@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1e1b4b" />
+    <meta name="theme-color" content="#f4602a" />
     <meta name="description" content="CampusNetra is an intelligent campus facility management platform combining issue reporting, work order orchestration, digital twin visualisation, and AI-driven predictive maintenance." />
     <meta name="keywords" content="smart campus, facility management, digital twin, work orders, issue tracking, predictive maintenance, campus operations" />
     <meta property="og:title" content="CampusNetra | Smart Campus Facility Management System" />
@@ -30,14 +30,14 @@
           var mode = saved === 'light' || saved === 'dark' ? saved
             : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           document.documentElement.dataset.theme = mode
-          document.documentElement.dataset.userColorTheme = '#1e1b4b'
+          document.documentElement.dataset.userColorTheme = '#f4602a'
 
           if (mode === 'dark') {
-            document.querySelector('meta[name="theme-color"]').content = '#0b1220'
+            document.querySelector('meta[name="theme-color"]').content = '#141418'
           }
         } catch (e) {
           document.documentElement.dataset.theme = 'light'
-          document.documentElement.dataset.userColorTheme = '#1e1b4b'
+          document.documentElement.dataset.userColorTheme = '#f4602a'
         }
       })()
     </script>

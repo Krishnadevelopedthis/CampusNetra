@@ -17,12 +17,12 @@ const ROLES = [
       'Digital twin floor plan management',
       'AI analytics and cost modelling reports',
     ],
-    accentColor: 'indigo',
-    glowColor: 'glow-indigo',
-    badgeColor: 'bg-indigo-500/10 border-indigo-400/30 text-indigo-400',
+    accentColor: 'secondary',
+    glowColor: 'glow-secondary',
+    badgeColor: 'bg-secondary/10 border-secondary/30 text-secondary',
     demo: {
       badge: 'Admin Console',
-      badgeColor: 'bg-indigo-500/10 border-indigo-400/30 text-indigo-400',
+      badgeColor: 'bg-secondary/10 border-secondary/30 text-secondary',
       items: [
         { label: 'Total Issues', value: '247', trend: '+12% this month', up: true },
         { label: 'SLA Compliance', value: '91%', trend: '+3% vs last month', up: true },
@@ -45,7 +45,7 @@ const ROLES = [
       'Technician performance and time tracking',
     ],
     accentColor: 'amber',
-    glowColor: 'glow-violet',
+    glowColor: 'glow-primary',
     badgeColor: 'bg-amber-500/10 border-amber-400/30 text-amber-400',
     demo: {
       badge: 'Manager View',
@@ -134,7 +134,7 @@ export function RoleTabs() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Built for Every Role</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -160,7 +160,7 @@ export function RoleTabs() {
                 className={clsx(
                   'flex items-center gap-2 px-4 py-2.5 rounded-lg text-body-md font-medium transition-all duration-300 relative overflow-hidden',
                   activeId === id
-                    ? 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-ink shadow-glow-indigo'
+                    ? 'bg-gradient-to-r from-secondary-400/20 to-primary/20 text-ink shadow-glow-secondary'
                     : 'text-ink-muted hover:text-ink hover:bg-surface/60',
                 )}
                 whileHover={{ scale: 1.02 }}
@@ -247,7 +247,7 @@ export function RoleTabs() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.25 + idx * 0.05, type: 'spring', stiffness: 300 }}
-                      className={clsx('rounded-xl p-4 glass-panel border border-glass-border transition-all duration-300 hover:shadow-glow-indigo', `bg-${active.accentColor}-500/5 border-${active.accentColor}-400/20`)}
+                      className={clsx('rounded-xl p-4 glass-panel border border-glass-border transition-all duration-300 hover:shadow-glow-secondary', `bg-${active.accentColor}-500/5 border-${active.accentColor}-400/20`)}
                     >
                       <p className="text-body-sm text-ink-faint mb-1">{label}</p>
                       <p className="text-headline-md text-ink font-bold">{value}</p>
