@@ -3,7 +3,7 @@ import {
   Boxes, ChevronLeft, ChevronRight, CircleDot, DoorOpen, Download, Flame,
   Landmark, Layers, Plus, X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 
 import {
   Button,
@@ -17,6 +17,12 @@ import {
   Widget,
 } from '@/components/ui'
 import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
+// Lazy: maplibre-gl is a large dependency that only matters once a campus
+// actually has real-world coordinates set (hasOutdoorMap below) — most
+// visits to this page shouldn't pay for it just to render the three.js
+// fallback grid.
+const OutdoorCampusMap = lazy(() =>
+  import('@/features/twin/OutdoorCampusMap').then((m) => ({ default: m.OutdoorCampusMap })))
 import { CampusScene3D } from '@/features/twin/Scene3D'
 import { TwinLegend } from '@/features/twin/FloorPlan'
 import { SkeletonMetrics } from '@/components/Skeletons'
@@ -160,13 +166,37 @@ export default function CampusMap() {
 
   const busy = campuses.isLoading || overview.isLoading || refreshing
 
+  // Scene3D tears down and rebuilds its whole WebGL scene whenever these
+  // change identity — memoised so an unrelated re-render (a query refetch,
+  // a hover, the parent's own state ticking) doesn't hand it a new Map/array
+  // every time and reset the camera the user just dragged into place. Kept
+  // above the early-return below since hooks can't run conditionally.
+  const heatByBuilding = useMemo(
+    () => new Map((heat.data?.buildings || []).map((b) => [b.id, b])),
+    [heat.data],
+  )
+  const buildings = overview.data?.buildings || []
+  const { placed: laidOut, autoCount } = useMemo(
+    () => layoutBuildings(buildings),
+    // buildings is a fresh array each render (overview.data?.buildings || []),
+    // so key off overview.data itself, which react-query only replaces when
+    // the response actually changes.
+    [overview.data],
+  )
+
   if (overview.error && !overview.data) {
     return <ErrorState error={overview.error} onRetry={overview.refetch} />
   }
 
-  const heatByBuilding = new Map((heat.data?.buildings || []).map((b) => [b.id, b]))
-  const buildings = overview.data?.buildings || []
-  const { placed: laidOut, autoCount } = layoutBuildings(buildings)
+  // The outdoor map needs the campus itself geolocated; a building missing
+  // only its own lat/lng just doesn't get a footprint drawn (handled inside
+  // OutdoorCampusMap) rather than losing the whole outdoor view over one
+  // building never having been pinned.
+  const campusGeo = overview.data?.campus
+  const hasOutdoorMap = view === 'campus' && campusGeo?.latitude != null && campusGeo?.longitude != null
+  const buildingsMissingGeo = hasOutdoorMap
+    ? buildings.filter((b) => b.latitude == null || b.longitude == null).length
+    : 0
   const selectedBuilding = buildings.find((b) => b.id === selectedBuildingId)
   const selectedFloor = selectedBuilding?.floors?.find((f) => f.id === selectedFloorId)
 
@@ -346,14 +376,35 @@ export default function CampusMap() {
                       ) : undefined} />
         ) : (
           <div className="relative bg-surface-sunken" style={{ height: 560 }}>
-            {view === 'campus' && autoCount > 0 && (
+            {view === 'campus' && hasOutdoorMap && buildingsMissingGeo > 0 && (
+              <p className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-body-sm text-ink-faint bg-surface/90 backdrop-blur px-3 py-1.5 rounded-full border border-border-subtle">
+                {buildingsMissingGeo} building{buildingsMissingGeo === 1 ? '' : 's'} without map coordinates aren't shown on the outdoor map.
+              </p>
+            )}
+            {view === 'campus' && !hasOutdoorMap && autoCount > 0 && (
               <p className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-body-sm text-ink-faint bg-surface/90 backdrop-blur px-3 py-1.5 rounded-full border border-border-subtle">
                 {autoCount === buildings.length
                   ? 'Positions are approximate — set exact coordinates in Campus Management.'
                   : `${autoCount} building${autoCount === 1 ? '' : 's'} at an approximate position.`}
               </p>
             )}
-            {view === 'room' && plan.isLoading ? (
+            {view === 'campus' && hasOutdoorMap ? (
+              <Suspense fallback={
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Spinner label="Loading map…" />
+                </div>
+              }>
+                <OutdoorCampusMap
+                  campus={overview.data.campus}
+                  buildings={buildings}
+                  mode={mode}
+                  heatByBuilding={heatByBuilding}
+                  heatColour={heatColour}
+                  onSelectBuilding={(id) => navigate('building', { buildingId: id, floorId: null, roomId: null })}
+                  className="w-full h-full"
+                />
+              </Suspense>
+            ) : view === 'room' && plan.isLoading ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <Spinner label="Loading room…" />
               </div>
@@ -380,7 +431,9 @@ export default function CampusMap() {
             )}
 
             <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-body-sm text-ink-faint bg-surface/80 backdrop-blur px-3 py-1 rounded-full pointer-events-none">
-              Drag to orbit · scroll to zoom · click a {view === 'campus' ? 'building' : view === 'building' ? 'floor' : view === 'floor' ? 'room' : 'floor space to place equipment'}
+              {view === 'campus' && hasOutdoorMap
+                ? 'Drag to orbit · scroll to zoom · click a building'
+                : `Drag to orbit · scroll to zoom · click a ${view === 'campus' ? 'building' : view === 'building' ? 'floor' : view === 'floor' ? 'room' : 'floor space to place equipment'}`}
             </p>
           </div>
         )}
