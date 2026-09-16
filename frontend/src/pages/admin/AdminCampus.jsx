@@ -17,6 +17,7 @@ export default function AdminCampus() {
   const [expanded, setExpanded] = useState(null)
   const [buildingForm, setBuildingForm] = useState(null)
   const [floorForm, setFloorForm] = useState(null)
+  const [locationForm, setLocationForm] = useState(null)
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   const campusId = campuses.data?.[0]?.id
@@ -57,6 +58,20 @@ export default function AdminCampus() {
 
   const deleteFloor = useCascadingDelete({ path: '/campus/floors', onDone: refresh })
 
+  const saveLocation = useMutation({
+    mutationFn: (f) => api.patch(`/campus/campuses/${campusId}`, {
+      latitude: f.latitude === '' ? null : Number(f.latitude),
+      longitude: f.longitude === '' ? null : Number(f.longitude),
+    }),
+    onSuccess: () => {
+      toast.success('Campus location saved.')
+      setLocationForm(null)
+      qc.invalidateQueries({ queryKey: ['campuses'] })
+      qc.invalidateQueries({ queryKey: ['campus-overview'] })
+    },
+    onError: (e) => toast.error(e.detail || 'Could not save the location'),
+  })
+
   if (campuses.isLoading || overview.isLoading) return <Spinner label="Loading campus…" />
   if (overview.error) return <ErrorState error={overview.error} onRetry={overview.refetch} />
 
@@ -69,9 +84,19 @@ export default function AdminCampus() {
         title={campus?.name || 'Campus'}
         subtitle={campus?.address}
         action={
-          <Button icon={Plus} onClick={() => setBuildingForm({ floors_count: 1 })}>
-            Add building
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="secondary" icon={MapPin}
+              onClick={() => setLocationForm({
+                latitude: campus?.latitude ?? '', longitude: campus?.longitude ?? '',
+              })}
+            >
+              {campus?.latitude != null ? 'Edit location' : 'Set location'}
+            </Button>
+            <Button icon={Plus} onClick={() => setBuildingForm({ floors_count: 1 })}>
+              Add building
+            </Button>
+          </div>
         }
       >
         <dl className="grid sm:grid-cols-4 gap-4">
@@ -87,6 +112,12 @@ export default function AdminCampus() {
             </div>
           ))}
         </dl>
+        {campus?.latitude == null && (
+          <p className="text-body-sm text-ink-faint mt-3">
+            No location set — the Campus Map page shows an abstract layout instead of the
+            real outdoor map. Set this campus's coordinates to enable it.
+          </p>
+        )}
       </Widget>
 
       <Widget title="Buildings & Floors"
@@ -237,6 +268,29 @@ export default function AdminCampus() {
                 </Field>
               </div>
             </div>
+
+            <div>
+              <p className="label">Real-world coordinates</p>
+              <p className="hint mb-2">
+                Only needed if the campus has a location set (see "Edit location" above) —
+                places this building's footprint on the outdoor 3D map. Leave blank to have
+                it positioned automatically instead.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field label="Latitude">
+                  <Input type="number" step="0.000001" min="-90" max="90"
+                         value={buildingForm.latitude ?? ''}
+                         onChange={(e) => setBuildingForm((f) => ({
+                           ...f, latitude: e.target.value === '' ? null : Number(e.target.value) }))} />
+                </Field>
+                <Field label="Longitude">
+                  <Input type="number" step="0.000001" min="-180" max="180"
+                         value={buildingForm.longitude ?? ''}
+                         onChange={(e) => setBuildingForm((f) => ({
+                           ...f, longitude: e.target.value === '' ? null : Number(e.target.value) }))} />
+                </Field>
+              </div>
+            </div>
           </div>
         )}
       </Modal>
@@ -264,6 +318,40 @@ export default function AdminCampus() {
           </div>
         )}
       </Modal>
+      <Modal
+        open={!!locationForm} onClose={() => setLocationForm(null)} title="Campus location"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLocationForm(null)}>Cancel</Button>
+            <Button loading={saveLocation.isPending} onClick={() => saveLocation.mutate(locationForm)}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        {locationForm && (
+          <div className="space-y-4">
+            <p className="text-body-sm text-ink-muted">
+              Centres the outdoor 3D map on the Campus Map page. Look up the campus on{' '}
+              <a href="https://www.openstreetmap.org" target="_blank" rel="noreferrer"
+                 className="text-secondary hover:underline">openstreetmap.org</a>
+              {' '}— right-click a point and choose "Show address" to get its coordinates.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="Latitude">
+                <Input type="number" step="0.000001" min="-90" max="90" placeholder="19.076000"
+                       value={locationForm.latitude}
+                       onChange={(e) => setLocationForm((f) => ({ ...f, latitude: e.target.value }))} />
+              </Field>
+              <Field label="Longitude">
+                <Input type="number" step="0.000001" min="-180" max="180" placeholder="72.877700"
+                       value={locationForm.longitude}
+                       onChange={(e) => setLocationForm((f) => ({ ...f, longitude: e.target.value }))} />
+              </Field>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
@@ -279,4 +367,5 @@ const body = (f) => ({
   name: f.name, code: f.code,
   ...(f.id ? {} : { floors_count: f.floors_count ?? 1 }),
   map_x: f.map_x ?? null, map_y: f.map_y ?? null,
+  latitude: f.latitude ?? null, longitude: f.longitude ?? null,
 })

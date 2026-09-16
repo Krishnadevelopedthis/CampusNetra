@@ -99,23 +99,30 @@ async def campus_overview(campus_id: uuid.UUID, user: CurrentUser, db: DB):
     # Per-building asset-state counts, resolved in one grouped query.
     rows = (await db.execute(
         select(Building.id, Building.name, Building.code, Building.floors_count,
-               Building.map_x, Building.map_y, Asset.state, func.count(Asset.id))
+               Building.map_x, Building.map_y, Building.latitude, Building.longitude,
+               Asset.state, func.count(Asset.id))
         .select_from(Building)
         .join(Floor, Floor.building_id == Building.id, isouter=True)
         .join(Room, Room.floor_id == Floor.id, isouter=True)
         .join(Asset, Asset.room_id == Room.id, isouter=True)
         .where(Building.campus_id == campus_id)
         .group_by(Building.id, Building.name, Building.code, Building.floors_count,
-                  Building.map_x, Building.map_y, Asset.state)
+                  Building.map_x, Building.map_y, Building.latitude, Building.longitude,
+                  Asset.state)
     )).all()
 
     buildings: dict[uuid.UUID, dict] = {}
     breakdown: dict[str, int] = {s.value: 0 for s in AssetState}
-    for bid, name, code, floors_count, mx, my, state, count in rows:
+    for bid, name, code, floors_count, mx, my, lat, lng, state, count in rows:
         b = buildings.setdefault(bid, {
             "id": str(bid), "name": name, "code": code, "floors_count": floors_count,
             "map_x": float(mx) if mx is not None else None,
             "map_y": float(my) if my is not None else None,
+            # Real-world coordinates, for the outdoor MapLibre layer — distinct
+            # from map_x/map_y, which are the normalised 0..1 abstract-plane
+            # position used by the indoor/no-basemap fallback view.
+            "latitude": float(lat) if lat is not None else None,
+            "longitude": float(lng) if lng is not None else None,
             "asset_count": 0, "states": {}, "open_issues": 0,
         })
         if state is not None:
@@ -340,6 +347,12 @@ class CampusUpsert(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     code: str = Field(min_length=1, max_length=20)
     address: Optional[str] = None
+    # Real-world coordinates, not the normalised map_x/map_y — this is what
+    # centres the OSM/MapLibre outdoor view (see OutdoorCampusMap.jsx);
+    # without it the outdoor map has nothing to centre on and the page falls
+    # back to the abstract grid.
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
 
 
 class BuildingUpsert(BaseModel):
@@ -348,6 +361,11 @@ class BuildingUpsert(BaseModel):
     floors_count: int = Field(1, ge=1, le=100)
     map_x: Optional[float] = Field(None, ge=0, le=1)
     map_y: Optional[float] = Field(None, ge=0, le=1)
+    # Same real-world-vs-normalised distinction as Campus above — this is
+    # what actually places the building's footprint on the outdoor map;
+    # map_x/map_y only ever positioned it on the abstract grid fallback.
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
 
 
 class FloorUpsert(BaseModel):

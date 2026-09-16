@@ -91,6 +91,103 @@ function gridCells(n, cols = Math.max(1, Math.ceil(Math.sqrt(n)))) {
   }))
 }
 
+// Shared window material — lots of window quads get created per rebuild
+// (every building, every floor), one material for all of them instead of
+// one per quad keeps that from being needlessly expensive.
+const WINDOW_MATERIAL = new THREE.MeshStandardMaterial({
+  color: '#dceaf7', roughness: 0.25, metalness: 0.15,
+  emissive: '#bfe0ff', emissiveIntensity: 0.35,
+})
+
+/** A grid of window quads on all four vertical faces of a footprint×height
+ * box, roughly one row per floor. Purely decorative — condition/heat colour
+ * lives on the roof cap and base ring added alongside this, not the walls,
+ * so a building reads as a building first and a status indicator second. */
+function addBuildingWindows(content, { cx, cz, footprint, height, floors }) {
+  const cols = Math.max(2, Math.min(5, Math.round(footprint / 0.6)))
+  const rows = Math.max(1, Math.min(6, floors))
+  const rowH = height / rows
+  const winW = (footprint / cols) * 0.52
+  const winH = rowH * 0.5
+  const marginY = (rowH - winH) / 2
+  const half = footprint / 2
+
+  const faces = [
+    { axis: 'z', sign: 1 }, { axis: 'z', sign: -1 },
+    { axis: 'x', sign: 1 }, { axis: 'x', sign: -1 },
+  ]
+  const group = new THREE.Group()
+  faces.forEach(({ axis, sign }) => {
+    for (let r = 0; r < rows; r += 1) {
+      for (let c = 0; c < cols; c += 1) {
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), WINDOW_MATERIAL)
+        const along = (c + 0.5) / cols - 0.5
+        const y = r * rowH + marginY + winH / 2
+        if (axis === 'z') {
+          mesh.position.set(cx + along * footprint * 0.94, y, cz + sign * (half + 0.015))
+          mesh.rotation.y = sign > 0 ? 0 : Math.PI
+        } else {
+          mesh.position.set(cx + sign * (half + 0.015), y, cz + along * footprint * 0.94)
+          mesh.rotation.y = sign > 0 ? Math.PI / 2 : -Math.PI / 2
+        }
+        group.add(mesh)
+      }
+    }
+  })
+  content.add(group)
+}
+
+/** Open-topped walls sized to a square room, with a door gap in the front
+ * wall and windows on the back wall — enough to read as an actual room
+ * rather than a floor with markers floating over it. */
+function addRoomWalls(content, half, height = 3.1) {
+  const wallMat = new THREE.MeshStandardMaterial({ color: '#eef2f6', roughness: 0.85, side: THREE.DoubleSide })
+  const t = 0.08
+  const full = half * 2
+  const group = new THREE.Group()
+
+  const back = new THREE.Mesh(new THREE.BoxGeometry(full, height, t), wallMat)
+  back.position.set(0, height / 2, -half)
+  group.add(back)
+
+  const left = new THREE.Mesh(new THREE.BoxGeometry(t, height, full), wallMat)
+  left.position.set(-half, height / 2, 0)
+  group.add(left)
+
+  const right = left.clone()
+  right.position.set(half, height / 2, 0)
+  group.add(right)
+
+  // Front wall gets a door-width gap in the middle rather than one solid slab.
+  const doorWidth = full * 0.22
+  const segW = (full - doorWidth) / 2
+  const frontL = new THREE.Mesh(new THREE.BoxGeometry(segW, height, t), wallMat)
+  frontL.position.set(-(doorWidth / 2 + segW / 2), height / 2, half)
+  group.add(frontL)
+  const frontR = frontL.clone()
+  frontR.position.set(doorWidth / 2 + segW / 2, height / 2, half)
+  group.add(frontR)
+
+  // Windows: three across the back wall, one on each side wall.
+  const cols = 3
+  for (let i = 0; i < cols; i += 1) {
+    const w = new THREE.Mesh(new THREE.PlaneGeometry((full / cols) * 0.55, height * 0.32), WINDOW_MATERIAL)
+    w.position.set((i + 0.5) / cols * full - half, height * 0.56, -half + t / 2 + 0.01)
+    group.add(w)
+  }
+  const sideWin = new THREE.PlaneGeometry(full * 0.26, height * 0.32)
+  const wL = new THREE.Mesh(sideWin, WINDOW_MATERIAL)
+  wL.rotation.y = Math.PI / 2
+  wL.position.set(-half + t / 2 + 0.01, height * 0.56, 0)
+  group.add(wL)
+  const wR = new THREE.Mesh(sideWin, WINDOW_MATERIAL)
+  wR.rotation.y = -Math.PI / 2
+  wR.position.set(half - t / 2 - 0.01, height * 0.56, 0)
+  group.add(wR)
+
+  content.add(group)
+}
+
 export function CampusScene3D({
   view,               // 'campus' | 'building' | 'floor' | 'room'
   buildings = [],     // overview.buildings, each with .floors (nested) and .map_x/.map_y
@@ -112,6 +209,13 @@ export function CampusScene3D({
 }) {
   const mountRef = useRef(null)
   const stateRef = useRef({})
+  // Tracks which building/floor/room is actually "in view" so the content
+  // effect below can tell a genuine drill-in/out from an incidental
+  // re-render (a query refetch, a hover, a parent state tick) and only
+  // reframe the camera for the former — otherwise every unrelated re-render
+  // snapped the camera back to the default framing mid-drag, which is what
+  // made the scene feel locked in place instead of freely orbitable.
+  const subjectRef = useRef(null)
 
   // ---- one-time setup: renderer, camera, controls, resize/click wiring ----
   useEffect(() => {
@@ -223,6 +327,14 @@ export function CampusScene3D({
       disposeObject(child)
     }
 
+    // "Subject" = which building/floor/room is being looked at, not the
+    // data behind it — a refetch that leaves the same room selected is not
+    // a drill-in and must not touch the camera; picking a different
+    // building/floor/room, or changing zoom level, is and should reframe.
+    const subjectKey = `${view}|${selectedBuildingId || ''}|${selectedFloorId || ''}|${selectedRoomId || ''}`
+    const subjectChanged = subjectRef.current !== subjectKey
+    subjectRef.current = subjectKey
+
     const addClickable = (mesh, { onClick, cursor = 'pointer', hoverColor, baseScale = 1 } = {}) => {
       mesh.userData.kind = 'clickable'
       mesh.userData.cursor = cursor
@@ -264,11 +376,14 @@ export function CampusScene3D({
         const footprint = BUILDING_UNIT * (0.7 + Math.min(1, (b.room_count || 1) / 12) * 0.5)
 
         const heat = heatByBuilding?.get(b.id)
-        const colour = mode === 'heat' ? heatColour(heat?.intensity ?? 0) : (b.aggregate_colour || '#10b981')
+        const statusColour = mode === 'heat' ? heatColour(heat?.intensity ?? 0) : (b.aggregate_colour || '#10b981')
 
+        // Walls stay a neutral tone so the building reads as a building,
+        // not a coloured block — condition/heat now lives on the roof cap
+        // and base ring instead, still visible at a glance from orbit.
         const box = new THREE.Mesh(
           new THREE.BoxGeometry(footprint, h, footprint),
-          new THREE.MeshStandardMaterial({ color: colour, roughness: 0.55, metalness: 0.05 }),
+          new THREE.MeshStandardMaterial({ color: '#e7e3d9', roughness: 0.65, metalness: 0.03 }),
         )
         box.position.set(wx, h / 2, wz)
         addClickable(box, {
@@ -276,6 +391,25 @@ export function CampusScene3D({
           hoverColor: '#3b82f6',
           baseScale: 1,
         })
+        content.add(box)
+        addBuildingWindows(content, { cx: wx, cz: wz, footprint, height: h, floors })
+
+        const roof = new THREE.Mesh(
+          new THREE.BoxGeometry(footprint * 1.05, 0.14, footprint * 1.05),
+          new THREE.MeshStandardMaterial({ color: statusColour, roughness: 0.4 }),
+        )
+        roof.position.set(wx, h + 0.07, wz)
+        content.add(roof)
+
+        const base = new THREE.Mesh(
+          new THREE.BoxGeometry(footprint * 1.1, 0.12, footprint * 1.1),
+          new THREE.MeshStandardMaterial({
+            color: statusColour, roughness: 0.5, emissive: statusColour, emissiveIntensity: 0.15,
+          }),
+        )
+        base.position.set(wx, 0.06, wz)
+        content.add(base)
+
         if (b.id === selectedBuildingId) {
           const outline = new THREE.Mesh(
             new THREE.BoxGeometry(footprint * 1.08, h * 1.02, footprint * 1.08),
@@ -284,7 +418,6 @@ export function CampusScene3D({
           outline.position.copy(box.position)
           content.add(outline)
         }
-        content.add(box)
 
         const label = makeLabel(b.code)
         label.position.set(wx, h + 0.55, wz)
@@ -308,8 +441,10 @@ export function CampusScene3D({
         content.add(note)
       }
 
-      camera.position.set(WORLD * 0.55, WORLD * 0.62, WORLD * 0.55)
-      controls.target.set(0, 1.5, 0)
+      if (subjectChanged) {
+        camera.position.set(WORLD * 0.55, WORLD * 0.62, WORLD * 0.55)
+        controls.target.set(0, 1.5, 0)
+      }
     }
 
     // ------------------------------------------------------------ BUILDING
@@ -363,8 +498,10 @@ export function CampusScene3D({
       })
 
       const topY = Math.max(0, floors.length - 1) * FLOOR_HEIGHT
-      camera.position.set(WORLD * 0.28, topY + WORLD * 0.24, WORLD * 0.32)
-      controls.target.set(0, topY / 2, 0)
+      if (subjectChanged) {
+        camera.position.set(WORLD * 0.28, topY + WORLD * 0.24, WORLD * 0.32)
+        controls.target.set(0, topY / 2, 0)
+      }
     }
 
     // --------------------------------------------------------------- FLOOR
@@ -419,8 +556,10 @@ export function CampusScene3D({
         }
       })
 
-      camera.position.set(0, ROOM_WORLD * 0.62, ROOM_WORLD * 0.62)
-      controls.target.set(0, 0, 0)
+      if (subjectChanged) {
+        camera.position.set(0, ROOM_WORLD * 0.62, ROOM_WORLD * 0.62)
+        controls.target.set(0, 0, 0)
+      }
     }
 
     // ---------------------------------------------------------------- ROOM
@@ -439,6 +578,7 @@ export function CampusScene3D({
         onPlaceAsset?.({ x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) })
       }
       content.add(floorMesh)
+      addRoomWalls(content, ROOM_WORLD * 0.36)
 
       const half = ROOM_WORLD * 0.36
       ;(roomAssets || []).forEach((a) => {
@@ -482,8 +622,10 @@ export function CampusScene3D({
         content.add(ghost)
       }
 
-      camera.position.set(0, ROOM_WORLD * 0.45, ROOM_WORLD * 0.45)
-      controls.target.set(0, 0, 0)
+      if (subjectChanged) {
+        camera.position.set(0, ROOM_WORLD * 0.45, ROOM_WORLD * 0.45)
+        controls.target.set(0, 0, 0)
+      }
     }
 
     controls.update()
