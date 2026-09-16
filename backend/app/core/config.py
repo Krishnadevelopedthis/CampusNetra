@@ -44,11 +44,14 @@ class Settings(BaseSettings):
     # go through DLT (TRAI) sender/template registration before a carrier
     # will actually deliver anything; see EMAIL_AND_SMS_SETUP.md before
     # assuming a delivery failure is a credentials or code problem.
-    SMS_PROVIDER: Literal["none", "brevo", "twilio"] = "brevo"
+    SMS_PROVIDER: Literal["none", "brevo", "twilio", "self_hosted"] = "self_hosted"
 
     # Brevo SMS — same BREVO_API_KEY as the email section below; SMS credits
     # are purchased separately from email credits in Brevo's dashboard.
     BREVO_SMS_SENDER: str = "CampusNetra"
+    # Self-hosted Android SMS Gateway
+    SELF_HOSTED_SMS_URL: str = ""
+    SELF_HOSTED_SMS_API_KEY: str = ""
 
     # Twilio — TWILIO_FROM_NUMBER must be a number Twilio gave you (bought or
     # trial), in E.164 form, e.g. "+15017122661", not a personal number.
@@ -231,6 +234,12 @@ class Settings(BaseSettings):
     @property
     def sms_delivers(self) -> bool:
         """True when the configured SMS provider has usable credentials."""
+
+         if self.SMS_PROVIDER == "self_hosted":
+            return bool(
+                self.SELF_HOSTED_SMS_URL
+                and self.SELF_HOSTED_SMS_API_KEY
+            )
 
         if self.SMS_PROVIDER == "brevo":
             return bool(
