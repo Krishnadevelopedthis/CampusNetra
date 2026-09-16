@@ -235,7 +235,7 @@ class Settings(BaseSettings):
     def sms_delivers(self) -> bool:
         """True when the configured SMS provider has usable credentials."""
 
-         if self.SMS_PROVIDER == "self_hosted":
+        if self.SMS_PROVIDER == "self_hosted":
             return bool(
                 self.SELF_HOSTED_SMS_URL
                 and self.SELF_HOSTED_SMS_API_KEY
