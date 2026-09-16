@@ -608,6 +608,126 @@ view or stack over each other (modals, dropdowns).
 
 Not verified in a rendered browser, same limitation as Addendum 6.
 
+## Addendum 8 — landing page was still on the old brand colors
+
+Found the actual reason "all pages" didn't look done: the app pages
+(dashboard, admin, auth) go through the shared `.widget`/`.btn`/token
+system, so Addenda 6–7 reached them automatically. The **landing page**
+(`components/landing/*`, 17 files) is a separate, bespoke-styled section
+that never touched those shared classes — it was hardcoding Tailwind's
+stock `indigo`/`violet`/`purple` classes directly, left over from before
+the retheme existed. That's why it still looked like the old design.
+
+Swept all 17 files: every `indigo-*` class → the matching `secondary-*`
+step (the app's one accent — orange in light mode, lime in dark), every
+`violet-*`/`purple-*` class → the matching `primary-*` step (near-black
+in light, deep violet in dark). Same for two custom shadow utilities,
+`shadow-glow-indigo`/`shadow-glow-violet` in `tailwind.config.js`, which
+were hardcoded RGB triples — rebuilt as `glow-secondary`/`glow-primary`
+referencing the actual CSS variables, so (unlike before) they now follow
+whichever theme is active instead of being frozen on one hardcoded color.
+Also updated the string values in a few data-driven color arrays
+(`accentColor`, `glowColor`, `ACCENT_COLORS`) that get interpolated into
+class names at render time, so the dynamic classes resolve to the new
+palette too.
+
+Found two pre-existing, unrelated bugs while in there and fixed them
+since they're the same file, same gradient:
+`PlatformArchitecture.jsx`'s SVG diagram gradient referenced
+`var(--indigo-400)`/`var(--violet-400)`/`var(--cyan-400)`/
+`var(--emerald-400)` — none of those variable names actually exist (the
+real ones are all prefixed `--c-`, e.g. `--c-indigo-400`), so that
+gradient has likely never rendered a visible color. Fixed the prefix and
+pointed the two brand stops at the new tokens while at it.
+
+`glass-panel`/rounded-corner treatment was *not* missing on the landing
+page — it already has extensive per-element `rounded-*` classes and a
+working, theme-aware `.glass-panel` utility (`--glass-bg`/`--glass-blur`/
+`--glass-border`, already defined per theme in `theme.css`), used across
+nearly every section already. Nothing to add there; it was the accent
+*color* underneath the glass that was stale, not the glass effect itself.
+
+Not touched: `glow-cyan`/`glow-emerald` and their few remaining usages —
+those aren't part of the old indigo/violet brand identity, they're
+distinct accent options already living alongside it, left as-is.
+
+Not verified in a rendered browser, same limitation as Addenda 6–7.
+
+## Addendum 9 — light-mode contrast, landing-page bugs, and a real sitemap
+
+Four different reports bundled into one message; handled each on its own
+merits rather than assuming they were all the same root cause.
+
+**"All white dashboard is gross" — real bug, not a vague complaint.**
+Checked the actual numbers: light mode's page background (247/246/244),
+card surface (255/255/255), and card border (231/229/224) were all
+within 24 RGB units of pure white. A translucent white card on a
+near-white page produces close to zero visible contrast — the whole
+light theme really was reading as one undifferentiated white field, which
+also means the "glass" effect from Addendum 7 had nothing to show against.
+Darkened the light-mode surface/border scale (`--c-surface-base` 247→234,
+`--c-surface-sunken` 242→223, `--c-border-subtle` 231→214, `--c-border`
+214→197) so a white card now visibly separates from the page under it.
+Dark mode already had a design comment noting the same risk and was
+already spaced out reasonably, so left it as-is.
+
+**Duplicate "Next-Gen Campus Facilities & Digital Twin 2.0" badge** — real,
+and the fix already existed uncommitted in the sandbox from an earlier
+pass (comment: "was duplicated below — removed the second copy"), just
+never got shipped. Included it in this commit. If it's still showing
+duplicated on the live site after this deploys, that's a stale-cache/
+stale-deploy question, not a remaining code issue — only one copy exists
+in the source now.
+
+**Testimonials carousel ("Designed for the Realities of Campus Life")**
+— had manual arrow buttons but no auto-advance at all, on any device; not
+a desktop-vs-mobile gap, the feature simply wasn't built. Added
+auto-scroll (every ~3.2s, loops back to start), pausing while actually
+hovered/touched rather than fighting a manual swipe, and skipped
+entirely under `prefers-reduced-motion`. Also found and fixed a real bug
+in the same file: testimonial avatar colors were being passed as
+`style={{ background: 'from-secondary-400 to-primary' }}` — that's a
+Tailwind class string, not a CSS value, so it did nothing. Converted to
+actual `bg-gradient-to-br` classes.
+
+**"Nine Interconnected Modules" grid** — cards animated once on mount
+with a fixed delay, regardless of scroll position, so if the section was
+below the fold the animation had already finished by the time anyone
+scrolled to it — on every device, not just mobile. Replaced with
+`framer-motion`'s `whileInView` (viewport-triggered, `once: true`), which
+is scroll-position-aware the same way on desktop, tablet, and mobile
+since it's based on the same intersection check regardless of device.
+
+**Footer "PUBLIC WEBSITE / SITEMAP / PRIVATE APPLICATION" listing** —
+removed. Beyond looking like an unstyled debug dump, it was publicly
+broadcasting the entire authenticated app's route structure
+(`/admin/*` and friends) to any visitor or crawler — not a security hole
+by itself since those routes still require auth, but not something a
+production marketing page should be advertising either. Replaced with an
+actual `frontend/public/sitemap.xml` (served at `/sitemap.xml`) and
+`robots.txt` (allows the real public pages, disallows the authenticated
+app paths, points crawlers at the sitemap).
+
+**Found while building the sitemap, not yet fixed**: the footer and
+presumably the navbar link to `/features`, `/about`, `/privacy`,
+`/terms`, and `/security` — none of those routes actually exist in
+`App.jsx`. They're currently dead links (404 on click). Deliberately
+*not* included in `sitemap.xml` — listing 404s in a sitemap actively hurts
+SEO rather than helping it. Building those five pages is real, separate
+scope; flagging it rather than guessing at content for pages nobody
+asked for yet.
+
+**Also fixed while sweeping colors**: `index.html`'s `theme-color` meta
+(mobile browser chrome color) and the default `userColorTheme` value were
+both still the old indigo `#1e1b4b`, including in the dark-mode branch of
+the inline anti-flash script, which set an unrelated stale navy
+(`#0b1220`) instead of matching anything current. All three now point at
+the current palette.
+
+Not verified in a rendered browser, same limitation as every addendum
+above it — this is all traced through the code and confirmed to build,
+not confirmed by looking at it.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

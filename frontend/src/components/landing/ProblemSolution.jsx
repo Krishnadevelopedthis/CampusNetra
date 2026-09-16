@@ -33,7 +33,7 @@ export function ProblemSolution() {
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Problem → Solution</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>

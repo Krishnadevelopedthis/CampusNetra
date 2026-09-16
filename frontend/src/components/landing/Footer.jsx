@@ -70,7 +70,7 @@ export function Footer() {
               work order orchestration, digital twin visualisation, and AI-driven predictive maintenance.
             </p>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-              <Sparkles size={14} className="text-indigo-400" />
+              <Sparkles size={14} className="text-secondary" />
               <span className="text-gradient-electric">Powered by CampusNetra</span>
             </div>
             <p className="text-body-sm text-ink-faint">
@@ -89,22 +89,22 @@ export function Footer() {
                       <Link
                         to={link.href}
                         className={clsx(
-                          'text-body-sm text-ink-muted hover:text-indigo-400 transition-colors duration-200 flex items-center gap-1.5 group',
+                          'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
                         )}
                       >
                         {link.label}
-                        <ArrowRight size={12} className="text-ink-faint group-hover:text-indigo-400 group-hover:translate-x-1 transition-all duration-200" />
+                        <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
                       </Link>
                     ) : (
                       <a
                         href={link.href}
                         onClick={(e) => handleAnchor(e, link.href)}
                         className={clsx(
-                          'text-body-sm text-ink-muted hover:text-indigo-400 transition-colors duration-200 flex items-center gap-1.5 group',
+                          'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
                         )}
                       >
                         {link.label}
-                        <ArrowRight size={12} className="text-ink-faint group-hover:text-indigo-400 group-hover:translate-x-1 transition-all duration-200" />
+                        <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
                       </a>
                     )}
                   </li>
@@ -114,61 +114,13 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Sitemap Section */}
-        <div className="mb-8 pt-8 border-t border-glass-border">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Public Website */}
-            <div>
-              <p className="text-label-caps text-ink uppercase tracking-wider mb-4 font-bold text-gradient-cyber">PUBLIC WEBSITE</p>
-              <ul className="space-y-2 text-body-sm text-ink-muted font-mono">
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #platform</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #twin</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #ai</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #analytics</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #how-it-works</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> #faq</li>
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /features</li>
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /about</li>
-              </ul>
-            </div>
-
-            {/* Sitemap */}
-            <div>
-              <p className="text-label-caps text-ink uppercase tracking-wider mb-4 font-bold text-gradient-cyber">SITEMAP</p>
-              <ul className="space-y-2 text-body-sm text-ink-muted font-mono">
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /features</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /about</li>
-              </ul>
-            </div>
-
-            {/* Private Application */}
-            <div>
-              <p className="text-label-caps text-ink uppercase tracking-wider mb-4 font-bold text-gradient-cyber">PRIVATE APPLICATION 🔒</p>
-              <ul className="space-y-2 text-body-sm text-ink-muted font-mono">
-                <li className="flex items-center gap-2"><ArrowRight size={10} className="text-ink-faint" /> /dashboard</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /issues</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /work-orders</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /inspections</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /lost-found</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /analytics</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /twin</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /profile</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /settings</li>
-                <li className="flex items-center gap-2 pl-4"><ArrowRight size={10} className="text-ink-faint" /> /admin/*</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
         {/* Bottom bar */}
         <div className="pt-8 border-t border-glass-border flex flex-col sm:flex-row items-center justify-between gap-4 text-body-sm text-ink-faint">
           <p className="text-gradient-emerald font-medium">CampusNetra — Smart Campus Facility Management System</p>
           <div className="flex gap-6">
-            <Link to="/privacy" className="hover:text-indigo-400 cursor-pointer transition-colors">Privacy</Link>
-            <Link to="/terms" className="hover:text-indigo-400 cursor-pointer transition-colors">Terms</Link>
-            <Link to="/security" className="hover:text-indigo-400 cursor-pointer transition-colors">Security</Link>
+            <Link to="/privacy" className="hover:text-secondary cursor-pointer transition-colors">Privacy</Link>
+            <Link to="/terms" className="hover:text-secondary cursor-pointer transition-colors">Terms</Link>
+            <Link to="/security" className="hover:text-secondary cursor-pointer transition-colors">Security</Link>
           </div>
         </div>
       </div>

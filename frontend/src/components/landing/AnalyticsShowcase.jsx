@@ -29,8 +29,8 @@ const DEPARTMENTS = [
   {
     id: 'all',
     label: 'Campus-Wide Master',
-    accentColor: 'indigo',
-    glowColor: 'glow-indigo',
+    accentColor: 'secondary',
+    glowColor: 'glow-secondary',
     metrics: [
       { label: 'Overall SLA Compliance', value: '94.2%', sub: 'Target: ≥ 85%', trend: '+3.4%', isPositive: true },
       { label: 'Avg First-Response Time', value: '18 mins', sub: 'Target: ≤ 45m', trend: '-12 mins', isPositive: true },
@@ -50,7 +50,7 @@ const DEPARTMENTS = [
     id: 'electrical',
     label: 'Electrical & Power',
     accentColor: 'amber',
-    glowColor: 'glow-violet',
+    glowColor: 'glow-primary',
     metrics: [
       { label: 'Electrical SLA Compliance', value: '98.1%', sub: 'Target: ≥ 90%', trend: '+4.1%', isPositive: true },
       { label: 'Avg First-Response Time', value: '12 mins', sub: 'Critical safety', trend: '-8 mins', isPositive: true },
@@ -146,7 +146,7 @@ export function AnalyticsShowcase() {
           className="text-center max-w-3xl mx-auto mb-14"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-indigo-400" />
+            <Sparkles size={14} className="text-secondary" />
             <span className="text-gradient-electric">Telemetry & Operational Intelligence</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -158,7 +158,7 @@ export function AnalyticsShowcase() {
           </p>
           <div className="mt-3 inline-flex items-center gap-2 text-[12px] text-ink-faint">
             <motion.span
-              className="w-2 h-2 rounded-full bg-indigo-400 status-beacon"
+              className="w-2 h-2 rounded-full bg-secondary-400 status-beacon"
               animate={{ scale: [1, 1.3, 1], opacity: [0.6, 0.2, 0.6] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             />
@@ -175,7 +175,7 @@ export function AnalyticsShowcase() {
         >
           <motion.div
             layout
-            className="inline-flex glass-panel border border-glass-border p-1.5 rounded-2xl gap-1.5 flex-wrap justify-center shadow-glow-indigo"
+            className="inline-flex glass-panel border border-glass-border p-1.5 rounded-2xl gap-1.5 flex-wrap justify-center shadow-glow-secondary"
           >
             {DEPARTMENTS.map((dept) => {
               const isSelected = dept.id === selectedDeptId
@@ -191,7 +191,7 @@ export function AnalyticsShowcase() {
                   className={clsx(
                     'px-4 py-2 rounded-xl text-body-sm font-semibold transition-all duration-200 flex items-center gap-2 relative overflow-hidden',
                     isSelected
-                      ? 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-indigo-400 border-indigo-400/30 shadow-glow-indigo'
+                      ? 'bg-gradient-to-r from-secondary-400/20 to-primary/20 text-secondary border-secondary/30 shadow-glow-secondary'
                       : 'text-ink-muted hover:text-ink hover:bg-surface/60',
                   )}
                 >
@@ -256,7 +256,7 @@ export function AnalyticsShowcase() {
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
-            className="lg:col-span-7 widget p-6 glass-panel border border-glass-border shadow-glow-indigo relative overflow-hidden group"
+            className="lg:col-span-7 widget p-6 glass-panel border border-glass-border shadow-glow-secondary relative overflow-hidden group"
           >
             <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', activeDept.glowColor)} />
             <div className="relative z-10">
@@ -290,7 +290,7 @@ export function AnalyticsShowcase() {
                     className={clsx(
                       'px-3 py-1 rounded-lg text-[12px] font-semibold transition-colors',
                       activeChartTab === 'compliance'
-                        ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-glow-indigo'
+                        ? 'bg-gradient-to-r from-secondary-400 to-primary text-white shadow-glow-secondary'
                         : 'text-ink-muted hover:text-ink',
                     )}
                   >
@@ -305,7 +305,7 @@ export function AnalyticsShowcase() {
                     className={clsx(
                       'px-3 py-1 rounded-lg text-[12px] font-semibold transition-colors',
                       activeChartTab === 'response'
-                        ? 'bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-glow-cyan'
+                        ? 'bg-gradient-to-r from-cyan-500 to-secondary-500 text-white shadow-glow-cyan'
                         : 'text-ink-muted hover:text-ink',
                     )}
                   >
@@ -395,7 +395,7 @@ export function AnalyticsShowcase() {
                   <ShieldCheck size={13} />
                   Audited against ISO 55001 Asset Management Framework
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded glass-panel border border-glass-border text-indigo-400">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded glass-panel border border-glass-border text-secondary">
                   SIMULATED DATASET
                 </span>
               </div>
@@ -407,12 +407,12 @@ export function AnalyticsShowcase() {
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.35, duration: 0.5 }}
-            className="lg:col-span-5 widget p-6 glass-panel border border-glass-border shadow-glow-indigo relative overflow-hidden group"
+            className="lg:col-span-5 widget p-6 glass-panel border border-glass-border shadow-glow-secondary relative overflow-hidden group"
           >
             <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', activeDept.glowColor)} />
             <div className="relative z-10">
               <div className="flex items-center gap-2.5 pb-4 border-b border-glass-border mb-5">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-glow-indigo">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary-400 to-primary text-white flex items-center justify-center shadow-glow-secondary">
                   <Calculator size={18} />
                 </div>
                 <div>
@@ -426,7 +426,7 @@ export function AnalyticsShowcase() {
                 <div>
                   <div className="flex justify-between text-body-sm mb-1.5">
                     <span className="font-semibold text-ink">Campus Population (Students & Staff)</span>
-                    <span className="font-mono font-bold text-indigo-400">{studentCount.toLocaleString()}</span>
+                    <span className="font-mono font-bold text-secondary">{studentCount.toLocaleString()}</span>
                   </div>
                   <input
                     type="range"
@@ -435,7 +435,7 @@ export function AnalyticsShowcase() {
                     step="500"
                     value={studentCount}
                     onChange={(e) => setStudentCount(Number(e.target.value))}
-                    className="w-full h-2 bg-surface-sunken rounded-lg appearance-none cursor-pointer accent-indigo"
+                    className="w-full h-2 bg-surface-sunken rounded-lg appearance-none cursor-pointer accent-secondary"
                   />
                   <div className="flex justify-between text-[11px] text-ink-faint mt-1">
                     <span>1,000</span>
@@ -447,7 +447,7 @@ export function AnalyticsShowcase() {
                 <div>
                   <div className="flex justify-between text-body-sm mb-1.5">
                     <span className="font-semibold text-ink">Total Managed Buildings / Blocks</span>
-                    <span className="font-mono font-bold text-indigo-400">{campusBuildings} Blocks</span>
+                    <span className="font-mono font-bold text-secondary">{campusBuildings} Blocks</span>
                   </div>
                   <input
                     type="range"
@@ -456,7 +456,7 @@ export function AnalyticsShowcase() {
                     step="1"
                     value={campusBuildings}
                     onChange={(e) => setCampusBuildings(Number(e.target.value))}
-                    className="w-full h-2 bg-surface-sunken rounded-lg appearance-none cursor-pointer accent-indigo"
+                    className="w-full h-2 bg-surface-sunken rounded-lg appearance-none cursor-pointer accent-secondary"
                   />
                   <div className="flex justify-between text-[11px] text-ink-faint mt-1">
                     <span>2</span>
@@ -483,7 +483,7 @@ export function AnalyticsShowcase() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[12px] text-ink-muted">Critical SLA Breaches Prevented</span>
-                  <span className="text-body-sm font-mono font-bold text-indigo-400">~{breachesPrevented} incidents</span>
+                  <span className="text-body-sm font-mono font-bold text-secondary">~{breachesPrevented} incidents</span>
                 </div>
                 <div className="pt-2 border-t border-glass-border flex items-center justify-between">
                   <span className="text-body-sm font-bold text-ink">Est. Operational Value</span>

@@ -22,11 +22,11 @@ function InteractiveDashboardPreview() {
   return (
     <div className="relative w-full max-w-2xl mx-auto group">
       {/* ACETERNITY PROACTIV: Ambient Glow Backdrop + Radial Spotlight */}
-      <div className="absolute -inset-1.5 bg-gradient-to-r from-indigo-500/40 via-violet-500/30 to-cyan-500/40 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
+      <div className="absolute -inset-1.5 bg-gradient-to-r from-secondary-400/40 via-primary-500/30 to-cyan-500/40 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
       <div className="absolute -inset-2.5 bg-spotlight-primary rounded-3xl blur-3xl opacity-60 pointer-events-none" aria-hidden />
 
       {/* Window Container — Glassmorphic */}
-      <div className="relative glass-panel rounded-2xl shadow-glow-indigo overflow-hidden transition-all duration-300">
+      <div className="relative glass-panel rounded-2xl shadow-glow-secondary overflow-hidden transition-all duration-300">
         {/* Title Bar & Interactive View Switcher */}
         <div className="flex items-center justify-between px-4 py-3 bg-surface-sunken/80 border-b border-border-subtle">
           <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ function InteractiveDashboardPreview() {
                 className={clsx(
                   'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-body-sm font-medium transition-all duration-200',
                   activeTab === id
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-glow-indigo'
+                    ? 'bg-gradient-to-r from-secondary-600 to-primary-800 text-white shadow-glow-secondary'
                     : 'text-ink-muted hover:text-ink hover:bg-surface-sunken',
                 )}
               >
@@ -306,7 +306,7 @@ export function Hero() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Left Hero Column */}
           <div>
-            {/* 21st.dev Announcement Pill */}
+            {/* Announcement pill (was duplicated below — removed the second copy) */}
             <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full px-3.5 py-1.5 mb-7 transition-all duration-200 cursor-pointer">
               <div className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
@@ -322,23 +322,11 @@ export function Hero() {
             <h1 className="text-[clamp(2.5rem,5.5vw,4.25rem)] font-bold text-white leading-[1.1] tracking-tight" style={{ textWrap: 'balance' }}>
               Run Your Campus{' '}
               <span className="relative inline-block">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-violet-400 to-cyan-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400">
                   With Precision.
                 </span>
               </span>
             </h1>
-
-            {/* ACETERNITY PROACTIV: Announcement pill with gradient-text */}
-            <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full px-3.5 py-1.5 mb-7 transition-all duration-200 cursor-pointer">
-              <div className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </div>
-              <span className="text-[13px] font-medium text-white/90 {text-gradient-emerald}">
-                Next-Gen Campus Facilities & Digital Twin 2.0
-              </span>
-              <ChevronRight size={14} className="text-white/60" />
-            </div>
 
             <p className="mt-6 text-body-lg text-white/75 max-w-xl leading-relaxed">
               CampusNetra connects students, technicians, and facility directors through a unified
@@ -384,8 +372,8 @@ export function Hero() {
                 </div>
                 {/* ACETERNITY PROACTIV: Avatar stack social proof badge */}
                 <div className="avatar-stack flex items-center -space-x-2">
-                  <div className="w-8 h-8 bg-indigo-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AC</div>
-                  <div className="w-8 h-8 bg-violet-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">DT</div>
+                  <div className="w-8 h-8 bg-secondary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AC</div>
+                  <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">DT</div>
                   <div className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AI</div>
                   <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">SL</div>
                   <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">+12</div>

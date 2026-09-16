@@ -6,30 +6,30 @@ import clsx from 'clsx'
 import { motion } from 'framer-motion'
 
 const INSTITUTION_TYPES = [
-  { icon: GraduationCap, label: 'Universities', color: 'indigo', description: 'Multi-campus management' },
-  { icon: Building2, label: 'Colleges', color: 'violet', description: 'Faculty & student portals' },
+  { icon: GraduationCap, label: 'Universities', color: 'secondary', description: 'Multi-campus management' },
+  { icon: Building2, label: 'Colleges', color: 'primary', description: 'Faculty & student portals' },
   { icon: FlaskConical, label: 'Research Institutes', color: 'cyan', description: 'Lab & equipment tracking' },
   { icon: Dumbbell, label: 'Sports Academies', color: 'emerald', description: 'Venue & asset maintenance' },
   { icon: Utensils, label: 'Campus Dining', color: 'amber', description: 'Kitchen & facility ops' },
-  { icon: Trees, label: 'Large Campuses', color: 'indigo', description: 'Distributed infrastructure' },
+  { icon: Trees, label: 'Large Campuses', color: 'secondary', description: 'Distributed infrastructure' },
 ]
 
 const TRUST_METRICS = [
-  { icon: Users, label: '50+', sublabel: 'Institutions', color: 'indigo', glow: 'glow-indigo' },
-  { icon: Award, label: '99.4%', sublabel: 'AI Precision', color: 'violet', glow: 'glow-violet' },
+  { icon: Users, label: '50+', sublabel: 'Institutions', color: 'secondary', glow: 'glow-secondary' },
+  { icon: Award, label: '99.4%', sublabel: 'AI Precision', color: 'primary', glow: 'glow-primary' },
   { icon: TrendingUp, label: '40%', sublabel: 'Faster Resolution', color: 'cyan', glow: 'glow-cyan' },
   { icon: Shield, label: 'SOC 2', sublabel: 'Certified', color: 'emerald', glow: 'glow-emerald' },
   { icon: Globe, label: 'Global', sublabel: 'Deployment Ready', color: 'amber', glow: 'glow-amber' },
-  { icon: Zap, label: '<200ms', sublabel: 'API Latency', color: 'indigo', glow: 'glow-indigo' },
+  { icon: Zap, label: '<200ms', sublabel: 'API Latency', color: 'secondary', glow: 'glow-secondary' },
 ]
 
 const DEMO_INSTITUTIONS = [
-  { name: 'Metro State University', type: 'University', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=metro-state', color: 'indigo' },
-  { name: 'Tech Valley College', type: 'College', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=tech-valley', color: 'violet' },
+  { name: 'Metro State University', type: 'University', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=metro-state', color: 'secondary' },
+  { name: 'Tech Valley College', type: 'College', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=tech-valley', color: 'primary' },
   { name: 'Quantum Research Institute', type: 'Research', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=quantum-research', color: 'cyan' },
   { name: 'Apex Sports Academy', type: 'Sports', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=apex-sports', color: 'emerald' },
   { name: 'Campus Dining Services', type: 'Dining', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=campus-dining', color: 'amber' },
-  { name: 'Greenfield Mega Campus', type: 'Large Campus', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=greenfield', color: 'indigo' },
+  { name: 'Greenfield Mega Campus', type: 'Large Campus', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=greenfield', color: 'secondary' },
 ]
 
 export function TrustSection() {
@@ -54,7 +54,7 @@ export function TrustSection() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Award size={14} className="text-indigo-400" />
+            <Award size={14} className="text-secondary" />
             <span className="text-gradient-electric">Trusted by Leading Institutions</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -124,7 +124,7 @@ export function TrustSection() {
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     <Icon size={24} className={clsx('relative z-10', `text-${color}-400`)} />
                   </div>
-                  <h4 className="text-body-md font-semibold text-ink group-hover:text-indigo-400 transition-colors duration-300">{label}</h4>
+                  <h4 className="text-body-md font-semibold text-ink group-hover:text-secondary transition-colors duration-300">{label}</h4>
                   <p className="text-body-sm text-ink-muted">{description}</p>
                 </div>
               </motion.div>
@@ -174,10 +174,10 @@ export function TrustSection() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.75, type: 'spring', stiffness: 300 }}
-              className="w-12 h-12 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center shadow-lg ring-1 ring-inset"
+              className="w-12 h-12 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 bg-gradient-to-br from-secondary-400/20 to-primary/20 flex items-center justify-center shadow-lg ring-1 ring-inset"
               title="50+ Institutions"
             >
-              <span className="text-body-sm font-bold text-indigo-400">50+</span>
+              <span className="text-body-sm font-bold text-secondary">50+</span>
             </motion.div>
           </div>
         </motion.div>

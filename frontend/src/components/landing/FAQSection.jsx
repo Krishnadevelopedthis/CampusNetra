@@ -16,8 +16,8 @@ const FAQS = [
   {
     category: 'AI & Triage Engine',
     icon: Cpu,
-    color: 'indigo',
-    glow: 'glow-indigo',
+    color: 'secondary',
+    glow: 'glow-secondary',
     question: 'How accurate is the autonomous AI incident triage and routing?',
     answer:
       'Our domain-specific operational language model parses natural language incident reports, extract hazard levels, urgency factors, and location cues, achieving 99.4% precision in categorizing issues and routing them directly to the appropriate on-duty crew without manual dispatcher bottlenecks.',
@@ -34,8 +34,8 @@ const FAQS = [
   {
     category: 'Security & Access Control',
     icon: Shield,
-    color: 'violet',
-    glow: 'glow-violet',
+    color: 'primary',
+    glow: 'glow-primary',
     question: 'How are roles and permissions isolated between students, staff, and technicians?',
     answer:
       'CampusNetra implements strict Role-Based Access Control (RBAC). Students and general staff access simplified reporting and Lost & Found portals with zero access to facility controls. Technicians see assigned work orders and asset QR scans, while Facility Managers and Admins access full telemetry and analytics.',
@@ -79,7 +79,7 @@ export function FAQSection() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <HelpCircle size={14} className="text-indigo-400" />
+            <HelpCircle size={14} className="text-secondary" />
             <span className="text-gradient-electric">Frequently Asked Questions</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
@@ -112,8 +112,8 @@ export function FAQSection() {
                 <div className={clsx(
                   'glass-panel border border-glass-border transition-all duration-300 relative overflow-hidden group',
                   isOpen
-                    ? 'shadow-glow-indigo/30 border-indigo-400/30'
-                    : 'hover:border-indigo-400/30 hover:shadow-glow-indigo/20'
+                    ? 'shadow-glow-secondary/30 border-secondary/30'
+                    : 'hover:border-secondary/30 hover:shadow-glow-secondary/20'
                 )}>
                   {/* Animated gradient border top */}
                   <div className={clsx('absolute top-0 left-0 right-0 h-0.5 transition-opacity duration-300', `from-${faq.color}-400 to-${faq.color}-500`, isOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')} style={{ background: `linear-gradient(90deg, var(--${faq.color}-400), var(--${faq.color}-500))` }} />
@@ -190,10 +190,10 @@ export function FAQSection() {
           className="mt-12 text-center"
         >
           <p className="text-body-md text-ink-muted mb-4">Didn't find your answer?</p>
-          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl glass-panel border border-glass-border border-shimmer shadow-glow-indigo">
-            <Sparkles size={16} className="text-indigo-400" />
+          <div className="inline-flex items-center gap-2 px-6 py-3 rounded-xl glass-panel border border-glass-border border-shimmer shadow-glow-secondary">
+            <Sparkles size={16} className="text-secondary" />
             <span className="text-body-md font-semibold text-ink text-gradient-electric">Contact Our Team</span>
-            <CheckCircle size={16} className="text-indigo-400" />
+            <CheckCircle size={16} className="text-secondary" />
           </div>
         </motion.div>
       </div>
