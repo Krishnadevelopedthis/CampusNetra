@@ -105,10 +105,32 @@ Or from a shell with the backend's `.env` loaded:
 
 ---
 
-## 2. SMS — Twilio
+## 2. SMS — Brevo (default) or Twilio
 
 Used for: phone-number-change OTP, and "reset password via phone number".
-Twilio is the only provider wired in.
+Two providers are wired in — `SMS_PROVIDER` picks which.
+
+### Option A — Brevo (the default)
+
+If you already set up Brevo for email above, this reuses the same
+`BREVO_API_KEY` — SMS is a separate product from email in Brevo, so you
+still need to buy SMS credits (Brevo dashboard → **SMS Campaigns** or
+**Transactional → SMS** → billing) before anything will send; a valid API
+key with zero SMS credit purchased fails the same way an unfunded account
+would.
+
+1. In Brevo, go to **Transactional → SMS** and confirm you have credit.
+2. Set:
+   ```
+   SMS_PROVIDER=brevo
+   BREVO_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxxx     # same key as email
+   BREVO_SMS_SENDER=CampusNetra
+   ```
+   `BREVO_SMS_SENDER` is the alphanumeric sender ID recipients see instead
+   of a phone number — max 11 characters, letters/numbers only. **This is
+   also the piece that needs DLT registration for India — see below.**
+
+### Option B — Twilio
 
 1. Sign up at [twilio.com](https://www.twilio.com) (a trial account works
    for testing, see the limitation below).
@@ -128,28 +150,60 @@ Twilio is the only provider wired in.
    form (`+` followed by the full number, no spaces or dashes) — not a
    personal phone number.
 
-5. `SMS_DEFAULT_COUNTRY_CODE` (default `+91`) is prepended to the 10-digit
-   numbers this app stores, to build the full number Twilio needs. Change
-   it if your users aren't in India.
-
-### The #1 thing that trips this up: trial account restrictions
-
 **A Twilio trial account can only send SMS to phone numbers you've
 manually verified** in the console (**Phone Numbers → Manage → Verified
 Caller IDs**). Every other number gets rejected with a 403, which looks
 like a configuration problem but isn't — it's Twilio protecting against
-spam from unpaid accounts. Either:
-- verify the specific numbers you're testing with there, or
-- upgrade the account (add a payment method) to send to any number.
+spam from unpaid accounts. Either verify the specific numbers you're
+testing with there, or upgrade the account (add a payment method).
 
-`/admin/sms/status` and this app's own error messages both call this out
-by name instead of just saying "Twilio rejected it" — if you see that
-message, this is almost always why.
+`SMS_DEFAULT_COUNTRY_CODE` (default `+91`) is prepended to the 10-digit
+numbers this app stores, to build the full number either provider needs.
+Change it if your users aren't in India.
+
+### What if the API says success but nothing arrives? (India numbers)
+
+**This is the single most common way SMS "isn't working" despite everything
+above being configured correctly**, and it isn't something this app's code
+can detect or work around: India's telecom regulator (TRAI) requires every
+commercial SMS — the sender ID and the exact message template — to be
+registered on a **DLT (Distributed Ledger Technology)** platform before a
+carrier will deliver it to an Indian number. An unregistered sender doesn't
+usually get rejected by Brevo/Twilio's API at all: the API call returns
+success (`delivered: true` from this app's own diagnostics, a `messageId`
+from Brevo, a `sid` from Twilio — everything *looks* like it worked), and
+the message is then silently dropped by the recipient's carrier, so nothing
+ever shows up on the phone. No error, no bounce, nothing in this app's logs
+to point at, because from the provider's side the send genuinely succeeded.
+
+To actually receive OTPs on Indian numbers, you need to complete DLT
+registration:
+- **Brevo**: does not currently offer a self-service DLT registration path
+  for India — check their support/docs for current India SMS support
+  before relying on it for Indian recipients.
+- **Twilio**: has an India-specific onboarding flow requiring a registered
+  Indian business entity, sender ID, and message template registered via
+  Twilio's DLT portal (search "Twilio India DLT" in their docs) — this is
+  a multi-day process involving TRAI-registered aggregators, not something
+  you configure in `.env`.
+- Purpose-built Indian SMS gateways (MSG91, Gupshup, Kaleyra, Textlocal,
+  and others) generally have a more direct DLT registration flow than a
+  global provider like Brevo or Twilio, since serving Indian numbers is
+  their core business — worth considering if DLT compliance through Brevo
+  or Twilio proves difficult. None of these are wired into
+  `services/sms.py` today; adding one follows the same shape as the
+  Brevo/Twilio functions already there.
+
+None of this is optional or bypassable from the application side — it's a
+regulatory requirement enforced by the carriers themselves, independent of
+which provider or which code sends the request.
 
 ### Checking it's working
 
 As an admin:
-- `GET /api/v1/admin/sms/status` — confirms the credentials are valid.
+- `GET /api/v1/admin/sms/status` — confirms the credentials are valid for
+  whichever provider `SMS_PROVIDER` selects (this only proves the provider
+  will accept a request, not that a carrier will deliver it — see above).
 - `POST /api/v1/admin/sms/test` — sends a real test text to your own admin
   account's phone number (only works if your admin account has a phone
   number saved).

@@ -4,9 +4,12 @@ Mirrors services/email.py: when no provider is configured, the message is
 logged instead of sent, and the caller is told delivery did not happen so
 it can surface that honestly instead of claiming a text is on its way.
 
-Twilio is the only provider wired in. Its REST API is called directly with
-httpx (same approach as the Resend/Brevo HTTP paths in email.py) rather than
-pulling in the twilio SDK, since a POST with basic auth is all that's needed.
+Two providers are wired in — Brevo (default) and Twilio — both called via
+their plain HTTPS REST APIs with httpx rather than an SDK, same approach as
+the Resend/Brevo email paths in email.py. See EMAIL_AND_SMS_SETUP.md for
+setup, and in particular for why a "successful" send can still never reach
+an Indian phone (DLT/TRAI sender registration, a carrier-level requirement
+neither provider nor this code can bypass).
 """
 from __future__ import annotations
 
@@ -238,28 +241,51 @@ async def send_otp_sms(to: str, code: str, purpose: str) -> SendResult:
 
 
 async def verify_sms_connection() -> SendResult:
-    """Check the SMS provider without sending anything, for the /health probe
-    and the check-sms script."""
-    if settings.SMS_PROVIDER != "twilio":
-        return SendResult(delivered=False, logged_only=True,
-                          error="No SMS provider configured.")
-    if not (settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN):
-        return SendResult(delivered=False,
-                          error="TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN are not set.")
+    """Check the configured SMS provider without sending anything, for the
+    /health probe and the admin /sms/status diagnostic.
 
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}.json"
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(url, auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN))
-    except httpx.HTTPError as exc:
-        return SendResult(delivered=False, error=f"Could not reach Twilio: {exc}")
+    This used to only know how to check Twilio, so with SMS_PROVIDER=brevo
+    (the actual default) it always reported "No SMS provider configured"
+    regardless of whether Brevo was set up correctly — the diagnostic tool
+    for "why isn't SMS working" was itself wrong about the common case.
+    """
+    if settings.SMS_PROVIDER == "brevo":
+        if not settings.BREVO_API_KEY:
+            return SendResult(delivered=False, error="BREVO_API_KEY is not set.")
+        if not settings.BREVO_SMS_SENDER:
+            return SendResult(delivered=False, error="BREVO_SMS_SENDER is not set.")
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    "https://api.brevo.com/v3/account",
+                    headers={"accept": "application/json", "api-key": settings.BREVO_API_KEY},
+                )
+        except httpx.HTTPError as exc:
+            return SendResult(delivered=False, error=f"Could not reach Brevo: {exc}")
+        if resp.status_code < 300:
+            return SendResult(delivered=True)
+        if resp.status_code == 401:
+            return SendResult(delivered=False, error="Brevo rejected BREVO_API_KEY.")
+        return SendResult(delivered=False, error=_api_error(resp))
 
-    if resp.status_code < 300:
-        if not settings.TWILIO_FROM_NUMBER:
+    if settings.SMS_PROVIDER == "twilio":
+        if not (settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN):
             return SendResult(delivered=False,
-                              error="Credentials are valid but TWILIO_FROM_NUMBER is not set.")
-        return SendResult(delivered=True)
-    if resp.status_code == 401:
-        return SendResult(delivered=False,
-                          error="Twilio rejected TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN.")
-    return SendResult(delivered=False, error=_api_error(resp))
+                              error="TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN are not set.")
+        url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.TWILIO_ACCOUNT_SID}.json"
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(url, auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN))
+        except httpx.HTTPError as exc:
+            return SendResult(delivered=False, error=f"Could not reach Twilio: {exc}")
+        if resp.status_code < 300:
+            if not settings.TWILIO_FROM_NUMBER:
+                return SendResult(delivered=False,
+                                  error="Credentials are valid but TWILIO_FROM_NUMBER is not set.")
+            return SendResult(delivered=True)
+        if resp.status_code == 401:
+            return SendResult(delivered=False,
+                              error="Twilio rejected TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN.")
+        return SendResult(delivered=False, error=_api_error(resp))
+
+    return SendResult(delivered=False, logged_only=True, error="No SMS provider configured.")

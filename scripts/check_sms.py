@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify Twilio configuration and optionally send a real test SMS.
+"""Verify SMS configuration (Brevo or Twilio) and optionally send a real test.
 
     ./scripts/check_sms.py                 # check the credentials only
     ./scripts/check_sms.py 9876543210      # also send a test text
@@ -38,10 +38,14 @@ async def main() -> int:
     print(f"\n{DIM}Reading backend/.env{RESET}")
     print(f"  provider      : {settings.SMS_PROVIDER}")
 
-    if settings.SMS_PROVIDER != "twilio":
-        print(f"\n{YELLOW}SMS_PROVIDER is not set to 'twilio', so no SMS can be delivered.{RESET}")
+    if settings.SMS_PROVIDER == "none":
+        print(f"\n{YELLOW}No SMS provider is configured, so no SMS can be delivered.{RESET}")
         print("Verification codes will be shown in the app instead (development only).")
-        print(f"\nTo enable real SMS, add to {DIM}backend/.env{RESET}:\n")
+        print(f"\nTo enable real SMS, add to {DIM}backend/.env{RESET} — either:\n")
+        print("  SMS_PROVIDER=brevo")
+        print("  BREVO_API_KEY=xkeysib-xxxxxxxxxxxxxxxxxxxxx")
+        print("  BREVO_SMS_SENDER=CampusNetra")
+        print(f"\n{DIM}or{RESET}\n")
         print("  SMS_PROVIDER=twilio")
         print("  TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         print("  TWILIO_AUTH_TOKEN=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
@@ -49,10 +53,15 @@ async def main() -> int:
         print(f"{DIM}See EMAIL_AND_SMS_SETUP.md at the repo root for the full walkthrough.{RESET}\n")
         return 1
 
-    sid = settings.TWILIO_ACCOUNT_SID
-    print(f"  Account SID   : {sid[:6]}{'*' * max(0, len(sid) - 6)} ({len(sid)} chars)" if sid else "  Account SID   : (not set)")
-    print(f"  Auth token    : {'*' * 8 + ' (set)' if settings.TWILIO_AUTH_TOKEN else '(not set)'}")
-    print(f"  From number   : {settings.TWILIO_FROM_NUMBER or '(not set)'}")
+    if settings.SMS_PROVIDER == "brevo":
+        key = settings.BREVO_API_KEY
+        print(f"  API key       : {key[:8]}{'*' * max(0, len(key) - 8)} ({len(key)} chars)" if key else "  API key       : (not set)")
+        print(f"  Sender ID     : {settings.BREVO_SMS_SENDER or '(not set)'}")
+    else:
+        sid = settings.TWILIO_ACCOUNT_SID
+        print(f"  Account SID   : {sid[:6]}{'*' * max(0, len(sid) - 6)} ({len(sid)} chars)" if sid else "  Account SID   : (not set)")
+        print(f"  Auth token    : {'*' * 8 + ' (set)' if settings.TWILIO_AUTH_TOKEN else '(not set)'}")
+        print(f"  From number   : {settings.TWILIO_FROM_NUMBER or '(not set)'}")
     print(f"  Country code  : {settings.SMS_DEFAULT_COUNTRY_CODE}\n")
 
     print("Verifying the credentials…")
@@ -60,14 +69,20 @@ async def main() -> int:
     if not result.delivered:
         print(f"{RED}  FAILED{RESET}  {result.error}\n")
         return 1
-    print(f"{GREEN}  Credentials accepted.{RESET}\n")
+    print(f"{GREEN}  Credentials accepted.{RESET}")
+    print(f"{DIM}  (This confirms the provider will accept the API call — not that a carrier\n"
+          f"   will deliver it. See the note about India/DLT below.){RESET}\n")
 
     if len(sys.argv) > 1:
         to = sys.argv[1]
         print(f"Sending a test code to {to_e164(to)}…")
         sent = await send_otp_sms(to, "123456", "phone_verify")
         if sent.delivered:
-            print(f"{GREEN}  Sent. Check the phone.{RESET}\n")
+            print(f"{GREEN}  Provider accepted it. Check the phone.{RESET}")
+            print(f"{DIM}  If it never arrives despite this, and the number is in India, that is\n"
+                  f"  almost always DLT (TRAI) sender/template registration, not a credentials\n"
+                  f"  or code problem — see 'What if the API says success but nothing arrives?'\n"
+                  f"  in EMAIL_AND_SMS_SETUP.md.{RESET}\n")
         else:
             print(f"{RED}  FAILED{RESET}  {sent.error}\n")
             if "trial" in (sent.error or "").lower():
