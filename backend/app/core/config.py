@@ -39,30 +39,31 @@ class Settings(BaseSettings):
     # no DB table, no third-party service, reuses SECRET_KEY.
     CAPTCHA_EXPIRE_MINUTES: int = 5
 
-    # SMS. Twilio is the only provider wired in (see services/sms.py); the
-    # literal accepts "none" until credentials are set, at which point set
-    # SMS_PROVIDER=twilio too. TWILIO_FROM_NUMBER must be a number Twilio
-    # gave you (bought or trial), in E.164 form, e.g. "+15017122661" — not a
-    # personal number. Trial accounts can only text numbers verified in the
-    # Twilio console (Phone Numbers → Verified Caller IDs) until upgraded.
-  # SMS — Brevo Transactional SMS
+    # SMS. Two providers are wired in (see services/sms.py): Brevo (default)
+    # and Twilio — pick one with SMS_PROVIDER. Both need Indian numbers to
+    # go through DLT (TRAI) sender/template registration before a carrier
+    # will actually deliver anything; see EMAIL_AND_SMS_SETUP.md before
+    # assuming a delivery failure is a credentials or code problem.
     SMS_PROVIDER: Literal["none", "brevo", "twilio"] = "brevo"
 
+    # Brevo SMS — same BREVO_API_KEY as the email section below; SMS credits
+    # are purchased separately from email credits in Brevo's dashboard.
     BREVO_SMS_SENDER: str = "CampusNetra"
 
-# Stored phone numbers are bare local numbers, e.g. 9876543210.
-# This is prepended to create the E.164 number used by Brevo.
-    SMS_DEFAULT_COUNTRY_CODE: str = "+91"
-
-# Legacy Twilio settings — kept temporarily for backwards compatibility.
+    # Twilio — TWILIO_FROM_NUMBER must be a number Twilio gave you (bought or
+    # trial), in E.164 form, e.g. "+15017122661", not a personal number.
+    # Trial accounts can only text numbers verified in the Twilio console
+    # (Phone Numbers → Verified Caller IDs) until upgraded.
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_FROM_NUMBER: str = ""
+
     # Phone numbers are stored as a bare local number (see
     # RequestPhoneChangeRequest's normalisation in schemas/auth.py), so this
-    # is prepended to build the E.164 address Twilio requires. "+91" (India)
-    # matches this deployment; change it if your users are elsewhere.
-    
+    # is prepended to build the E.164 address either provider requires.
+    # "+91" (India) matches this deployment; change it if your users are
+    # elsewhere.
+    SMS_DEFAULT_COUNTRY_CODE: str = "+91"
 
     # Identity verification (name-change ID upload). The fraction of the
     # claimed name's tokens that must appear in the OCR'd ID text for the
