@@ -131,7 +131,7 @@ export default function ForgotPassword() {
             <div className="relative">
               <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
               <Input
-                type="tel" autoComplete="tel" className="pl-9" placeholder="e.g. 9867943963"
+                type="tel" autoComplete="tel" className="pl-9" placeholder="e.g. 9998880000"
                 value={phone} onChange={(e) => setPhone(e.target.value)} error={error}
               />
             </div>
