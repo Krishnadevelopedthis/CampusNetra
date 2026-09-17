@@ -450,7 +450,14 @@ export function CampusScene3D({
     // ------------------------------------------------------------ BUILDING
     if (view === 'building') {
       const building = buildings.find((b) => b.id === selectedBuildingId)
-      const floors = building?.floors || []
+      // campus_overview orders floors DESC (level 7, 6, 5, ... 1) for its own
+      // reasons — fine for a list, wrong for Y position, where the ground
+      // floor (lowest level) must get the smallest y. Sorting ascending
+      // here, rather than relying on array order, is what actually pins
+      // "Floor 1" to the bottom regardless of what order the API sends.
+      const floors = [...(building?.floors || [])].sort(
+        (a, b) => (a.level ?? 0) - (b.level ?? 0),
+      )
       floors.forEach((f, i) => {
         const y = i * FLOOR_HEIGHT
         const size = FLOOR_UNIT * Math.max(2.4, Math.ceil(Math.sqrt(Math.max(1, f.rooms.length))))

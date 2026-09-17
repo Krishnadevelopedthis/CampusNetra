@@ -1,6 +1,6 @@
 import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // OpenFreeMap: free vector tiles, no API key, no billing — MapLibre's own
 // recommended free host. "liberty" already ships OSM road/building/land-use
@@ -72,6 +72,10 @@ export function OutdoorCampusMap({
   const mountRef = useRef(null)
   const mapRef = useRef(null)
   const readyRef = useRef(false)
+  // A failed style/tile load used to leave a blank div with no clue why —
+  // this surfaces it so "the map doesn't show" becomes an actual message
+  // instead of silence.
+  const [loadError, setLoadError] = useState(null)
 
   // Map creation: once per mount, keyed only on the campus centre — not on
   // buildings/mode/heat, for the same reason the indoor Scene3D's camera got
@@ -79,6 +83,7 @@ export function OutdoorCampusMap({
   // would reset pitch/bearing/zoom out from under anyone mid-drag.
   useEffect(() => {
     if (!mountRef.current || campus?.latitude == null || campus?.longitude == null) return
+    setLoadError(null)
     const lat = Number(campus.latitude)
     const lng = Number(campus.longitude)
 
@@ -94,6 +99,25 @@ export function OutdoorCampusMap({
     })
     mapRef.current = map
     map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
+
+    // A blocked/unreachable tile host, an ad-blocker, or the style URL
+    // itself failing all surface here rather than as a silently blank
+    // canvas — this is the single most common MapLibre integration failure
+    // and previously gave no indication anything had gone wrong at all.
+    map.on('error', (e) => {
+      console.error('OutdoorCampusMap: MapLibre error', e?.error || e)
+      setLoadError(
+        e?.error?.message ||
+        'Could not load the outdoor map. Check your network connection or try again.',
+      )
+    })
+
+    // MapLibre sizes its canvas from the container's dimensions at
+    // construction time; if a parent's layout (a Suspense boundary, a flex
+    // container that hasn't settled yet) hasn't given it real width/height
+    // by then, the canvas can end up 0×0 — invisible, with no error at all.
+    // resize() after layout has definitely settled is a cheap defensive fix.
+    const resizeTimer = setTimeout(() => map.resize(), 50)
 
     map.on('load', () => {
       map.addSource('cn-boundary', {
@@ -147,6 +171,7 @@ export function OutdoorCampusMap({
 
     return () => {
       readyRef.current = false
+      clearTimeout(resizeTimer)
       map.remove()
       mapRef.current = null
     }
@@ -168,5 +193,18 @@ export function OutdoorCampusMap({
     })
   }, [buildings, mode, heatByBuilding, heatColour])
 
-  return <div ref={mountRef} className={className} />
+  return (
+    <div className={className} style={{ position: 'relative' }}>
+      <div ref={mountRef} style={{ position: 'absolute', inset: 0 }} />
+      {loadError && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+          justifyContent: 'center', textAlign: 'center', padding: '1rem',
+          background: 'rgba(241, 245, 249, 0.92)', pointerEvents: 'none',
+        }}>
+          <p style={{ maxWidth: 360, fontSize: 14, color: '#475569' }}>{loadError}</p>
+        </div>
+      )}
+    </div>
+  )
 }
