@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Boxes, ChevronLeft, ChevronRight, CircleDot, DoorOpen, Download, Flame,
-  Landmark, Layers, Plus, X,
+  Landmark, Layers, Maximize, Plus, RotateCcw, RotateCw, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
 
 import {
   Button,
@@ -94,6 +94,10 @@ export default function CampusMap() {
   const [pendingPlacement, setPendingPlacement] = useState(null)
   const [placeForm, setPlaceForm] = useState(null)
   const [roomModal, setRoomModal] = useState(false)
+  // Imperative handle onto the indoor 3D scene, for the on-screen nav
+  // buttons below — dragging to orbit is awkward on a touchscreen, so
+  // rotate/tilt/zoom/reset are also reachable as taps.
+  const sceneRef = useRef(null)
   const [assetModal, setAssetModal] = useState(false)
 
   const { user } = useAuth()
@@ -409,25 +413,37 @@ export default function CampusMap() {
                 <Spinner label="Loading room…" />
               </div>
             ) : (
-              <CampusScene3D
-                view={view}
-                buildings={laidOut}
-                autoCount={autoCount}
-                mode={mode}
-                heatByBuilding={heatByBuilding}
-                heatColour={heatColour}
-                selectedBuildingId={selectedBuildingId}
-                selectedFloorId={selectedFloorId}
-                selectedRoomId={selectedRoomId}
-                roomAssets={view === 'room' ? (planRoom?.assets ?? null) : null}
-                pendingPlacement={pendingPlacement}
-                onSelectBuilding={(id) => navigate('building', { buildingId: id, floorId: null, roomId: null })}
-                onSelectFloor={(id) => navigate('floor', { floorId: id, roomId: null })}
-                onSelectRoom={(id) => { setPendingPlacement(null); navigate('room', { roomId: id }) }}
-                onSelectAsset={(a) => setSelectedAsset(a)}
-                onPlaceAsset={canEdit ? (pos) => { setPendingPlacement(pos); setAssetModal(true) } : undefined}
-                className="w-full h-full"
-              />
+              <>
+                <CampusScene3D
+                  ref={sceneRef}
+                  view={view}
+                  buildings={laidOut}
+                  autoCount={autoCount}
+                  mode={mode}
+                  heatByBuilding={heatByBuilding}
+                  heatColour={heatColour}
+                  selectedBuildingId={selectedBuildingId}
+                  selectedFloorId={selectedFloorId}
+                  selectedRoomId={selectedRoomId}
+                  roomAssets={view === 'room' ? (planRoom?.assets ?? null) : null}
+                  pendingPlacement={pendingPlacement}
+                  onSelectBuilding={(id) => navigate('building', { buildingId: id, floorId: null, roomId: null })}
+                  onSelectFloor={(id) => navigate('floor', { floorId: id, roomId: null })}
+                  onSelectRoom={(id) => { setPendingPlacement(null); navigate('room', { roomId: id }) }}
+                  onSelectAsset={(a) => setSelectedAsset(a)}
+                  onPlaceAsset={canEdit ? (pos) => { setPendingPlacement(pos); setAssetModal(true) } : undefined}
+                  className="w-full h-full"
+                />
+                {/* Touch-friendly alternative to drag-to-orbit — same controls
+                    work on desktop too, just less necessary there. */}
+                <div className="absolute right-3 top-14 z-10 flex flex-col gap-1.5">
+                  <SceneNavButton icon={ZoomIn} label="Zoom in" onClick={() => sceneRef.current?.zoom(0.8)} />
+                  <SceneNavButton icon={ZoomOut} label="Zoom out" onClick={() => sceneRef.current?.zoom(1.25)} />
+                  <SceneNavButton icon={RotateCcw} label="Rotate left" onClick={() => sceneRef.current?.rotate(-20)} />
+                  <SceneNavButton icon={RotateCw} label="Rotate right" onClick={() => sceneRef.current?.rotate(20)} />
+                  <SceneNavButton icon={Maximize} label="Reset view" onClick={() => sceneRef.current?.resetView()} />
+                </div>
+              </>
             )}
 
             <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-body-sm text-ink-faint bg-surface/80 backdrop-blur px-3 py-1 rounded-full pointer-events-none">
@@ -545,6 +561,19 @@ export default function CampusMap() {
         }}
       />
     </div>
+  )
+}
+
+function SceneNavButton({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      type="button" onClick={onClick} aria-label={label} title={label}
+      className="h-9 w-9 rounded-full bg-surface/90 backdrop-blur border border-border-subtle
+                 shadow-level2 flex items-center justify-center text-ink-muted
+                 hover:text-ink hover:bg-surface active:scale-95 transition-transform"
+    >
+      <Icon size={16} />
+    </button>
   )
 }
 

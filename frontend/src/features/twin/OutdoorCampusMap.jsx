@@ -112,6 +112,22 @@ export function OutdoorCampusMap({
       )
     })
 
+    // The controls above render immediately regardless of whether the style
+    // actually finishes loading, so "the map is blank but the zoom buttons
+    // are there" is exactly what a hung/blocked tile request looks like —
+    // neither 'load' nor 'error' necessarily fires for that (a CORS failure
+    // or a request stuck pending both look like silence). This timeout is
+    // what turns "nothing happened" into an actual, checkable message.
+    const loadTimeout = setTimeout(() => {
+      if (!readyRef.current) {
+        setLoadError(
+          'The map tiles never finished loading (tiles.openfreemap.org may be blocked on ' +
+          'this network — check a school/office firewall or ad-blocker, or open the ' +
+          'browser console\'s Network tab and look for that host).',
+        )
+      }
+    }, 8000)
+
     // MapLibre sizes its canvas from the container's dimensions at
     // construction time; if a parent's layout (a Suspense boundary, a flex
     // container that hasn't settled yet) hasn't given it real width/height
@@ -120,6 +136,7 @@ export function OutdoorCampusMap({
     const resizeTimer = setTimeout(() => map.resize(), 50)
 
     map.on('load', () => {
+      clearTimeout(loadTimeout)
       map.addSource('cn-boundary', {
         type: 'geojson', data: boundaryCircle(lat, lng, 260),
       })
@@ -171,6 +188,7 @@ export function OutdoorCampusMap({
 
     return () => {
       readyRef.current = false
+      clearTimeout(loadTimeout)
       clearTimeout(resizeTimer)
       map.remove()
       mapRef.current = null

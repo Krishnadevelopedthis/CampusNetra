@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
@@ -188,7 +188,7 @@ function addRoomWalls(content, half, height = 3.1) {
   content.add(group)
 }
 
-export function CampusScene3D({
+export const CampusScene3D = forwardRef(function CampusScene3D({
   view,               // 'campus' | 'building' | 'floor' | 'room'
   buildings = [],     // overview.buildings, each with .floors (nested) and .map_x/.map_y
   autoCount = 0,
@@ -206,7 +206,7 @@ export function CampusScene3D({
   onSelectAsset,
   onPlaceAsset,       // ({x,y}) — called when empty room floor is clicked
   className,
-}) {
+}, ref) {
   const mountRef = useRef(null)
   const stateRef = useRef({})
   // Tracks which building/floor/room is actually "in view" so the content
@@ -216,6 +216,63 @@ export function CampusScene3D({
   // snapped the camera back to the default framing mid-drag, which is what
   // made the scene feel locked in place instead of freely orbitable.
   const subjectRef = useRef(null)
+
+  // On-screen nav buttons for touch devices, where dragging to orbit is
+  // awkward — rotate/tilt/zoom by nudging the camera's spherical position
+  // around whatever OrbitControls' current target is, same math OrbitControls
+  // itself does internally, then letting it re-derive its own state on the
+  // next controls.update() rather than fighting it for ownership of the angle.
+  useImperativeHandle(ref, () => ({
+    rotate: (deltaDeg) => {
+      const { camera, controls } = stateRef.current
+      if (!camera || !controls) return
+      const offset = camera.position.clone().sub(controls.target)
+      const angle = (deltaDeg * Math.PI) / 180
+      const cos = Math.cos(angle)
+      const sin = Math.sin(angle)
+      const x = offset.x * cos - offset.z * sin
+      const z = offset.x * sin + offset.z * cos
+      camera.position.set(controls.target.x + x, camera.position.y, controls.target.z + z)
+      controls.update()
+    },
+    tilt: (deltaDeg) => {
+      const { camera, controls } = stateRef.current
+      if (!camera || !controls) return
+      const offset = camera.position.clone().sub(controls.target)
+      const radius = offset.length()
+      const currentPolar = Math.acos(Math.min(1, Math.max(-1, offset.y / radius)))
+      const nextPolar = Math.min(
+        controls.maxPolarAngle ?? Math.PI * 0.49,
+        Math.max(0.15, currentPolar - (deltaDeg * Math.PI) / 180),
+      )
+      const azimuth = Math.atan2(offset.x, offset.z)
+      const horizontal = radius * Math.sin(nextPolar)
+      camera.position.set(
+        controls.target.x + horizontal * Math.sin(azimuth),
+        controls.target.y + radius * Math.cos(nextPolar),
+        controls.target.z + horizontal * Math.cos(azimuth),
+      )
+      controls.update()
+    },
+    zoom: (factor) => {
+      const { camera, controls } = stateRef.current
+      if (!camera || !controls) return
+      const offset = camera.position.clone().sub(controls.target)
+      const minD = controls.minDistance ?? 1
+      const maxD = controls.maxDistance ?? Infinity
+      const nextLen = Math.min(maxD, Math.max(minD, offset.length() * factor))
+      offset.setLength(nextLen)
+      camera.position.copy(controls.target).add(offset)
+      controls.update()
+    },
+    resetView: () => {
+      const { camera, controls, defaultFraming } = stateRef.current
+      if (!camera || !controls || !defaultFraming) return
+      camera.position.copy(defaultFraming.position)
+      controls.target.copy(defaultFraming.target)
+      controls.update()
+    },
+  }), [])
 
   // ---- one-time setup: renderer, camera, controls, resize/click wiring ----
   useEffect(() => {
@@ -335,6 +392,19 @@ export function CampusScene3D({
     const subjectChanged = subjectRef.current !== subjectKey
     subjectRef.current = subjectKey
 
+    // Applies a default framing (only when the subject actually changed,
+    // same guard as before) and stashes it so the resetView() exposed via
+    // ref can jump straight back to it later without recomputing anything.
+    const frame = (px, py, pz, tx, ty, tz) => {
+      if (!subjectChanged) return
+      camera.position.set(px, py, pz)
+      controls.target.set(tx, ty, tz)
+      stateRef.current.defaultFraming = {
+        position: new THREE.Vector3(px, py, pz),
+        target: new THREE.Vector3(tx, ty, tz),
+      }
+    }
+
     const addClickable = (mesh, { onClick, cursor = 'pointer', hoverColor, baseScale = 1 } = {}) => {
       mesh.userData.kind = 'clickable'
       mesh.userData.cursor = cursor
@@ -441,10 +511,7 @@ export function CampusScene3D({
         content.add(note)
       }
 
-      if (subjectChanged) {
-        camera.position.set(WORLD * 0.55, WORLD * 0.62, WORLD * 0.55)
-        controls.target.set(0, 1.5, 0)
-      }
+      frame(WORLD * 0.55, WORLD * 0.62, WORLD * 0.55, 0, 1.5, 0)
     }
 
     // ------------------------------------------------------------ BUILDING
@@ -505,10 +572,7 @@ export function CampusScene3D({
       })
 
       const topY = Math.max(0, floors.length - 1) * FLOOR_HEIGHT
-      if (subjectChanged) {
-        camera.position.set(WORLD * 0.28, topY + WORLD * 0.24, WORLD * 0.32)
-        controls.target.set(0, topY / 2, 0)
-      }
+      frame(WORLD * 0.28, topY + WORLD * 0.24, WORLD * 0.32, 0, topY / 2, 0)
     }
 
     // --------------------------------------------------------------- FLOOR
@@ -563,10 +627,7 @@ export function CampusScene3D({
         }
       })
 
-      if (subjectChanged) {
-        camera.position.set(0, ROOM_WORLD * 0.62, ROOM_WORLD * 0.62)
-        controls.target.set(0, 0, 0)
-      }
+      frame(0, ROOM_WORLD * 0.62, ROOM_WORLD * 0.62, 0, 0, 0)
     }
 
     // ---------------------------------------------------------------- ROOM
@@ -629,10 +690,7 @@ export function CampusScene3D({
         content.add(ghost)
       }
 
-      if (subjectChanged) {
-        camera.position.set(0, ROOM_WORLD * 0.45, ROOM_WORLD * 0.45)
-        controls.target.set(0, 0, 0)
-      }
+      frame(0, ROOM_WORLD * 0.45, ROOM_WORLD * 0.45, 0, 0, 0)
     }
 
     controls.update()
@@ -643,4 +701,4 @@ export function CampusScene3D({
   ])
 
   return <div ref={mountRef} className={className} />
-}
+})
