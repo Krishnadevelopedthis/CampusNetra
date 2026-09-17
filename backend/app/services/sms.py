@@ -503,7 +503,7 @@ async def send_otp_sms(
     body = (
         f"{code} is your Campus Netra code {action}. "
         f"Expires in {settings.OTP_EXPIRE_MINUTES} minutes. "
-        "Don't share this code."
+        "Don't share this code with anyone"
     )
 
     return await send_sms(to, body)
