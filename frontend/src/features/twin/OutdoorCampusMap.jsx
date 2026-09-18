@@ -10,6 +10,32 @@ import { useEffect, useRef, useState } from 'react'
 // on top, so the two never get confused with each other.
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 
+// If OpenFreeMap doesn't answer in time — a community-run, donation-funded
+// service with no uptime guarantee, and one report already showed its tiles
+// never finishing on a real network — CARTO's free raster basemap is a
+// second, independent host/CDN to try before giving up entirely. It has no
+// 3D city buildings of its own (raster, not vector), but CampusNetra's own
+// building layer below is fill-extrusion from our own GeoJSON either way,
+// so it still renders in 3D on top of a flat basemap — only the surrounding
+// OSM city context is lost, not the actual point of this view.
+const FALLBACK_STYLE = {
+  version: 8,
+  sources: {
+    'cn-fallback-raster': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors © CARTO',
+    },
+  },
+  layers: [{ id: 'cn-fallback-raster-layer', type: 'raster', source: 'cn-fallback-raster' }],
+}
+
 const METERS_PER_DEG_LAT = 111_320
 const metersPerDegLng = (lat) => METERS_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180)
 
@@ -86,65 +112,20 @@ export function OutdoorCampusMap({
     setLoadError(null)
     const lat = Number(campus.latitude)
     const lng = Number(campus.longitude)
+    let disposed = false
+    let cleanupCurrent = () => {}
 
-    const map = new MapLibreMap({
-      container: mountRef.current,
-      style: STYLE_URL,
-      center: [lng, lat],
-      zoom: 16.5,
-      pitch: 55,
-      bearing: -17,
-      antialias: true,
-      maxPitch: 75,
-    })
-    mapRef.current = map
-    map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
-
-    // A blocked/unreachable tile host, an ad-blocker, or the style URL
-    // itself failing all surface here rather than as a silently blank
-    // canvas — this is the single most common MapLibre integration failure
-    // and previously gave no indication anything had gone wrong at all.
-    map.on('error', (e) => {
-      console.error('OutdoorCampusMap: MapLibre error', e?.error || e)
-      setLoadError(
-        e?.error?.message ||
-        'Could not load the outdoor map. Check your network connection or try again.',
-      )
-    })
-
-    // The controls above render immediately regardless of whether the style
-    // actually finishes loading, so "the map is blank but the zoom buttons
-    // are there" is exactly what a hung/blocked tile request looks like —
-    // neither 'load' nor 'error' necessarily fires for that (a CORS failure
-    // or a request stuck pending both look like silence). This timeout is
-    // what turns "nothing happened" into an actual, checkable message.
-    const loadTimeout = setTimeout(() => {
-      if (!readyRef.current) {
-        setLoadError(
-          'The map tiles never finished loading (tiles.openfreemap.org may be blocked on ' +
-          'this network — check a school/office firewall or ad-blocker, or open the ' +
-          'browser console\'s Network tab and look for that host).',
-        )
-      }
-    }, 8000)
-
-    // MapLibre sizes its canvas from the container's dimensions at
-    // construction time; if a parent's layout (a Suspense boundary, a flex
-    // container that hasn't settled yet) hasn't given it real width/height
-    // by then, the canvas can end up 0×0 — invisible, with no error at all.
-    // resize() after layout has definitely settled is a cheap defensive fix.
-    const resizeTimer = setTimeout(() => map.resize(), 50)
-
-    map.on('load', () => {
-      clearTimeout(loadTimeout)
-      try {
-        map.addSource('cn-boundary', {
-          type: 'geojson', data: boundaryCircle(lat, lng, 260),
-        })
-        map.addLayer({
-          id: 'cn-boundary-line', type: 'line', source: 'cn-boundary',
-          paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 2], 'line-opacity': 0.55 },
-        })
+    // Builds CampusNetra's own layers (boundary ring, buildings, labels,
+    // click handling) on top of whatever base style just loaded — the same
+    // regardless of whether that base ended up being the primary vector
+    // style or the raster fallback, since neither of those affects our own
+    // GeoJSON sources or fill-extrusion layer.
+    const addOwnLayers = (map) => {
+      map.addSource('cn-boundary', { type: 'geojson', data: boundaryCircle(lat, lng, 260) })
+      map.addLayer({
+        id: 'cn-boundary-line', type: 'line', source: 'cn-boundary',
+        paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 2], 'line-opacity': 0.55 },
+      })
 
       map.addSource('cn-buildings', {
         type: 'geojson',
@@ -183,26 +164,102 @@ export function OutdoorCampusMap({
         },
         paint: { 'text-color': '#0f172a', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
       })
+    }
 
-      readyRef.current = true
-      } catch (err) {
-        // Any exception thrown while adding sources/layers (a malformed
-        // coordinate producing invalid GeoJSON, a style that doesn't
-        // support fill-extrusion, etc.) — the 'error' event only catches
-        // MapLibre's own async failures, not application code throwing
-        // inside this handler, so without this the map silently stops
-        // partway through with nothing on screen and no visible cause.
-        console.error('OutdoorCampusMap: failed while building layers', err)
-        setLoadError(`Could not build the outdoor map layers: ${err.message || err}`)
+    // isFallback=true when this is the second attempt (CARTO raster) after
+    // the primary (OpenFreeMap vector) timed out — a fallback that also
+    // fails shows the real error instead of trying a third time.
+    const startMap = (styleUrl, isFallback) => {
+      const map = new MapLibreMap({
+        container: mountRef.current,
+        style: styleUrl,
+        center: [lng, lat],
+        zoom: 16.5,
+        pitch: 55,
+        bearing: -17,
+        antialias: true,
+        maxPitch: 75,
+      })
+      mapRef.current = map
+      map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
+
+      // A blocked/unreachable tile host, an ad-blocker, or the style URL
+      // itself failing all surface here rather than as a silently blank
+      // canvas — this is the single most common MapLibre integration
+      // failure and previously gave no indication anything had gone wrong.
+      map.on('error', (e) => {
+        console.error('OutdoorCampusMap: MapLibre error', isFallback ? '(fallback)' : '(primary)', e?.error || e)
+        if (!isFallback) return // let the timeout below decide whether to fall back
+        setLoadError(
+          e?.error?.message ||
+          'Could not load the outdoor map. Check your network connection or try again.',
+        )
+      })
+
+      // The controls above render immediately regardless of whether the
+      // style actually finishes loading, so "the map is blank but the zoom
+      // buttons are there" is exactly what a hung/blocked tile request
+      // looks like — neither 'load' nor 'error' necessarily fires for that
+      // (a CORS failure or a request stuck pending both look like
+      // silence). This timeout is what turns "nothing happened" into an
+      // actual, checkable outcome — either a working fallback or a
+      // specific, readable error, never silence.
+      const loadTimeout = setTimeout(() => {
+        if (readyRef.current || disposed) return
+        if (!isFallback) {
+          console.warn('OutdoorCampusMap: primary style timed out, trying fallback')
+          cleanupCurrent()
+          startMap(FALLBACK_STYLE, true)
+          return
+        }
+        setLoadError(
+          'The map tiles never finished loading from either provider — this looks like a ' +
+          'network issue (a school/office firewall or ad-blocker may be blocking map tile ' +
+          'hosts) rather than something wrong with the page. Try a different network, or ' +
+          'check the browser console\'s Network tab for tiles.openfreemap.org / ' +
+          'basemaps.cartocdn.com.',
+        )
+      }, 8000)
+
+      // MapLibre sizes its canvas from the container's dimensions at
+      // construction time; if a parent's layout (a Suspense boundary, a
+      // flex container that hasn't settled yet) hasn't given it real
+      // width/height by then, the canvas can end up 0×0 — invisible, with
+      // no error at all. resize() after layout has definitely settled is
+      // a cheap defensive fix.
+      const resizeTimer = setTimeout(() => map.resize(), 50)
+
+      map.on('load', () => {
+        clearTimeout(loadTimeout)
+        try {
+          addOwnLayers(map)
+          readyRef.current = true
+        } catch (err) {
+          // Any exception thrown while adding sources/layers (a malformed
+          // coordinate producing invalid GeoJSON, a style that doesn't
+          // support fill-extrusion, etc.) — the 'error' event only catches
+          // MapLibre's own async failures, not application code throwing
+          // inside this handler, so without this the map silently stops
+          // partway through with nothing on screen and no visible cause.
+          console.error('OutdoorCampusMap: failed while building layers', err)
+          setLoadError(`Could not build the outdoor map layers: ${err.message || err}`)
+        }
+      })
+
+      cleanupCurrent = () => {
+        clearTimeout(loadTimeout)
+        clearTimeout(resizeTimer)
+        map.remove()
+        mapRef.current = null
       }
-    })
+    }
+
+    startMap(STYLE_URL, false)
 
     return () => {
+      disposed = true
       readyRef.current = false
-      clearTimeout(loadTimeout)
-      clearTimeout(resizeTimer)
-      map.remove()
-      mapRef.current = null
+      cleanupCurrent()
     }
     // Recreating the whole map for a lat/lng change is correct here — that
     // only happens if the campus itself is repointed, which should recentre
