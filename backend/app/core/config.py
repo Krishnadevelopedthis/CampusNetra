@@ -44,8 +44,14 @@ class Settings(BaseSettings):
     # go through DLT (TRAI) sender/template registration before a carrier
     # will actually deliver anything; see EMAIL_AND_SMS_SETUP.md before
     # assuming a delivery failure is a credentials or code problem.
-    SMS_PROVIDER: Literal["none", "brevo", "twilio", "self_hosted"] = "self_hosted"
-
+    SMS_PROVIDER: Literal[
+    "none",
+    "brevo",
+    "twilio",
+    "self_hosted",
+    "smshorizon",
+    ] = "smshorizon"
+    
     # Brevo SMS — same BREVO_API_KEY as the email section below; SMS credits
     # are purchased separately from email credits in Brevo's dashboard.
     BREVO_SMS_SENDER: str = "CampusNetra"
@@ -126,7 +132,7 @@ class Settings(BaseSettings):
     SMSHORIZON_SENDER_ID: str = ""
     SMSHORIZON_TEMPLATE_ID: str = ""
     
-
+  
     # Which transport handles each kind of outgoing mail. "auto" (the
     # default) uses whichever of RESEND_API_KEY / BREVO_API_KEY / SMTP_HOST
     # is configured, in that order — fine for a single-provider setup. Pin a
@@ -258,6 +264,13 @@ class Settings(BaseSettings):
                 self.TWILIO_ACCOUNT_SID
                 and self.TWILIO_AUTH_TOKEN
                 and self.TWILIO_FROM_NUMBER
+            )
+        if self.SMS_PROVIDER == "smshorizon":
+            return bool(
+                self.SMSHORIZON_USER
+                and self.SMSHORIZON_API_KEY
+                and self.SMSHORIZON_SENDER_ID
+                and self.SMSHORIZON_TEMPLATE_ID
             )
 
         return False
