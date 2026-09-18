@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { Navbar } from '@/components/landing/Navbar'
 import { Footer } from '@/components/landing/Footer'
 
@@ -14,6 +16,13 @@ export function StaticPage({ eyebrow, title, subtitle, children }) {
       <Navbar />
       <main className="pt-32 pb-24">
         <div className="max-w-3xl mx-auto px-6 lg:px-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-body-sm font-medium text-ink-muted hover:text-secondary transition-colors mb-8 -ml-1 px-1 py-1 min-h-[44px] items-center"
+          >
+            <ArrowLeft size={16} />
+            Back to Home
+          </Link>
           {eyebrow ? (
             <p className="text-label-caps uppercase tracking-wider text-secondary font-semibold mb-3">{eyebrow}</p>
           ) : null}

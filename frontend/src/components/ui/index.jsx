@@ -42,7 +42,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       >
         <header className="flex items-center justify-between px-5 py-4 border-b border-border-subtle shrink-0">
           <h2 className="text-headline-md">{title}</h2>
-          <button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded-lg" aria-label="Close">
+          <button onClick={onClose} className="btn-ghost h-11 w-11 p-0 rounded-lg" aria-label="Close">
             <X size={18} />
           </button>
         </header>

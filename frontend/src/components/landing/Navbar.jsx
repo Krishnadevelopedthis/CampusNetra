@@ -122,7 +122,7 @@ export function Navbar() {
             type="button"
             ref={toggleRef}
             className={clsx(
-              'md:hidden p-2 rounded-lg transition-colors',
+              'md:hidden p-3 -m-1 rounded-lg transition-colors',
               scrolled ? 'text-ink hover:bg-surface-sunken' : 'text-white hover:bg-white/10',
             )}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
