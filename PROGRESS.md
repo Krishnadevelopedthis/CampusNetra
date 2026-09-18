@@ -850,6 +850,46 @@ strength of a build passing. Flagging rather than guessing at what
 `npm run build` verified clean. Not verified in an actual rendered
 browser — same limitation as every addendum before this one.
 
+## Addendum 13 — the actual root cause of every "still sharp corners" report
+
+Four rounds (Addenda 6, 7, 11, 12) of rounding fixes, and the user kept
+sending screenshots showing sharp corners everywhere, unchanged. Every
+fix was individually correct and every build was clean, which made no
+sense — until actually diffing the *compiled* CSS output instead of
+trusting that a clean build meant the classes did what they said.
+
+Found it in `tailwind.config.js`:
+
+```js
+borderRadius: {
+  // Sharp corners for all elements
+  DEFAULT: '0', sm: '0', md: '0', lg: '0', xl: '0', '2xl': '0',
+}
+```
+
+Someone had explicitly zeroed Tailwind's entire border-radius scale,
+with a comment saying exactly that. Every `rounded-2xl`/`rounded-xl`/
+`rounded-lg` class added across this whole project — `.widget`, `.btn`,
+`.input`, `Modal`, every landing-page card — was compiling to a real,
+present CSS rule, with `border-radius: 0` inside it. Not missing,
+not overridden by specificity elsewhere -- the class itself had been
+redefined to mean zero. No amount of adding `rounded-2xl` to more
+components could ever have produced a visible result against this.
+
+Removed the override entirely. Confirmed by grepping the actual built
+CSS this time, not just watching the build succeed:
+`.widget{border-radius:1rem}`, `.btn{border-radius:.75rem}`,
+`.input{border-radius:.5rem}` -- 16px/12px/8px, matching what every one
+of those components was always written to expect. One remaining
+`border-radius:0` in the built output belongs to MapLibre's own popup
+close-button, a third-party library style, unrelated and correct as-is.
+
+Lesson for real this time: a clean build only proves the code is valid
+JS/CSS syntax. It says nothing about what a class actually *resolves to*
+once the whole config is applied. Should have grepped the compiled
+output the first time corners were reported as still sharp, not the
+fourth.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
