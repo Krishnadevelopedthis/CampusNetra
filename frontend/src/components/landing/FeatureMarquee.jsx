@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
+import { accent } from '@/lib/accentColors'
 
 const ROW_1 = [
   'Issue Management',
@@ -51,7 +52,7 @@ export function FeatureMarquee() {
                 whileHover={{ scale: 1.05 }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-glass-border text-body-sm font-medium flex-shrink-0 shadow-glow-secondary/20"
               >
-                <span className={clsx('w-1.5 h-1.5 rounded-full', `bg-${ACCENT_COLORS[i % ACCENT_COLORS.length]}-400`)} />
+                <span className={clsx('w-1.5 h-1.5 rounded-full', accent(ACCENT_COLORS[i % ACCENT_COLORS.length]).text400.replace('text-', 'bg-'))} />
                 <span className="text-gradient-electric">{item}</span>
               </motion.span>
             ))}
@@ -68,7 +69,7 @@ export function FeatureMarquee() {
                 whileHover={{ scale: 1.05 }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-panel border border-glass-border text-body-sm font-medium flex-shrink-0 shadow-glow-primary/20"
               >
-                <span className={clsx('w-1.5 h-1.5 rounded-full', `bg-${ACCENT_COLORS[(i + 3) % ACCENT_COLORS.length]}-400`)} />
+                <span className={clsx('w-1.5 h-1.5 rounded-full', accent(ACCENT_COLORS[(i + 3) % ACCENT_COLORS.length]).text400.replace('text-', 'bg-'))} />
                 <span className="text-gradient-cyber">{item}</span>
               </motion.span>
             ))}

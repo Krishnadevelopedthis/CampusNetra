@@ -1,6 +1,7 @@
 import { ShieldCheck, Lock, FileText, Sparkles, Users, Eye, CheckCircle } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
+import { accent } from '@/lib/accentColors'
 
 const PILLARS = [
   {
@@ -61,7 +62,7 @@ export function SecuritySection() {
 
         {/* 3 Pillars */}
         <div className="grid md:grid-cols-3 gap-8">
-          {PILLARS.map(({ icon: Icon, title, description, accentColor, glowColor }, idx) => (
+          {PILLARS.map(({ icon: Icon, title, description, accentColor, glowColor }, idx) => { const a = accent(accentColor); return (
             <motion.div
               key={title}
               initial={{ opacity: 0, y: 30 }}
@@ -77,15 +78,15 @@ export function SecuritySection() {
               <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', glowColor)} />
 
               <div className="relative z-10">
-                <div className={clsx('w-12 h-12 rounded-xl border flex items-center justify-center mb-5 relative overflow-hidden', `bg-gradient-to-br from-${accentColor}-500/20 to-${accentColor}-400/10`, `border-${accentColor}-400/30`)}>
+                <div className={clsx('w-12 h-12 rounded-xl border flex items-center justify-center mb-5 relative overflow-hidden', a.bg20, a.border30)}>
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <Icon size={22} className={clsx('relative z-10', `text-${accentColor}-400`)} />
+                  <Icon size={22} className={clsx('relative z-10', a.text400)} />
                 </div>
                 <h3 className="text-headline-md text-ink font-semibold mb-2 group-hover:text-secondary transition-colors duration-300">{title}</h3>
                 <p className="text-body-md text-ink-muted leading-relaxed">{description}</p>
               </div>
             </motion.div>
-          ))}
+          )})}
         </div>
 
         {/* Compliance badges row */}
@@ -110,7 +111,7 @@ export function SecuritySection() {
               className="flex items-center gap-2 px-4 py-2 rounded-xl glass-panel border border-glass-border"
               whileHover={{ scale: 1.02 }}
             >
-              <badge.icon size={14} className={clsx(`text-${badge.color}-400`)} />
+              <badge.icon size={14} className={clsx(accent(badge.color).text400)} />
               <span className="text-body-sm font-medium text-ink-muted">{badge.label}</span>
             </motion.div>
           ))}

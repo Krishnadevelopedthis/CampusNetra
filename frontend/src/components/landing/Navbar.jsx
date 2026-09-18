@@ -19,6 +19,7 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const navigate = useNavigate()
   const mobileRef = useRef(null)
+  const toggleRef = useRef(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
@@ -32,6 +33,26 @@ export function Navbar() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Close mobile menu on an outside click/tap. mobileRef was already wired
+  // to the panel but nothing was actually listening for outside clicks.
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onPointerDown = (e) => {
+      if (
+        mobileRef.current && !mobileRef.current.contains(e.target) &&
+        toggleRef.current && !toggleRef.current.contains(e.target)
+      ) {
+        setMobileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('touchstart', onPointerDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('touchstart', onPointerDown)
+    }
+  }, [mobileOpen])
 
   const handleAnchor = (e, href) => {
     e.preventDefault()
@@ -99,6 +120,7 @@ export function Navbar() {
           {/* Mobile hamburger */}
           <button
             type="button"
+            ref={toggleRef}
             className={clsx(
               'md:hidden p-2 rounded-lg transition-colors',
               scrolled ? 'text-ink hover:bg-surface-sunken' : 'text-white hover:bg-white/10',

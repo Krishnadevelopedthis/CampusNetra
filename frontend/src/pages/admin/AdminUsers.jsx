@@ -450,7 +450,7 @@ function EditUserModal({ user, onClose, departments, programmes, onDone }) {
             <Input
               value={form.phone ?? user.phone ?? ''}
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              error={errors.phone} placeholder="e.g. 9867943963"
+              error={errors.phone} placeholder="e.g. 9998880000"
             />
           </Field>
           <Field

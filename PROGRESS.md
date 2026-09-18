@@ -728,6 +728,55 @@ Not verified in a rendered browser, same limitation as every addendum
 above it — this is all traced through the code and confirmed to build,
 not confirmed by looking at it.
 
+## Addendum 10 — the actual root cause of "gray dashboards," plus 404s
+
+The previous addendum's color sweep only fixed classes that were wrong.
+It turns out most of the flat-gray-box appearance across the landing
+page wasn't a wrong color — it was **no color at all**, for a structural
+reason: 11 landing components build Tailwind classes by inserting a
+variable into the middle of a class name at runtime
+(`` `bg-${color}-500/15` ``). Tailwind's compiler only sees literal
+class-name strings written directly in source files; it can't execute
+the code to find out what `color` resolves to, so that exact composed
+string is never generated. The class silently does nothing at render
+time — no background, no border, no text color — which is exactly the
+flat, colorless cards in every screenshot (`TrustSection`'s stats/
+campus-type grids, `DigitalTwinShowcase`, `AnalyticsShowcase`'s admin-
+console preview, and seven more files with the identical pattern).
+
+Fixed properly rather than patched around: added
+`frontend/src/lib/accentColors.js`, one shared lookup mapping every
+color name actually used in the landing page's data arrays (`secondary`,
+`primary`, `cyan`, `emerald`, `amber`, plus the semantic `success`/
+`warning`/`danger`/`info` tokens, which have a different shape — flat
+colors, not a numbered ramp) to complete, literal Tailwind classes.
+Every one of `TrustSection`, `Testimonials`, `AISection`, `Benefits`,
+`SecuritySection`, `FAQSection`, `FeatureMarquee`, `RoleTabs`,
+`DigitalTwinShowcase`, `AnalyticsShowcase`, and `PlatformArchitecture`
+now imports and uses it instead of interpolating. Also added the missing
+`glow-amber` shadow (referenced in three files, never defined), and
+discovered `amber` had never been added to the custom `--c-amber-*` CSS
+variable palette that `cyan`/`emerald`/`secondary`/`primary` all have —
+a handful of chart/SVG color references were resolving to nothing for
+the amber case specifically. Added it properly (matches Tailwind's stock
+amber-400/500/600 values, so nothing else needed to change).
+
+**Click-outside-closes for the mobile menu** and **all 11 missing
+footer pages** (`/about`, `/features`, `/pricing`, `/privacy`, `/terms`,
+`/security`, `/docs`, `/api-docs`, `/community`, `/support`,
+`/solutions/:audience`) arrived already built, uncommitted in the
+sandbox — not written this round, but verified this round: cross-checked
+every `href` in `Footer.jsx`'s actual link data against the new routes
+in `App.jsx` one by one (not just skimmed), confirmed `/lost-found/report`
+already existed for "Report Lost Item," and spot-read `Privacy.jsx` for
+quality — it describes what the app actually collects and does, with an
+honest "not lawyer-reviewed" disclaimer, rather than generic filler.
+Every footer link resolves to something real now.
+
+`npm run build` succeeds clean across all of it, marketing pages
+included. Still not verified in an actual rendered browser — traced
+through the code and confirmed to build, not confirmed by looking at it.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

@@ -319,7 +319,7 @@ function ContactCard({ user, setUser }) {
       label: 'Phone',
       value: user?.phone,
       type: 'tel',
-      placeholder: 'e.g. 9867943963',
+      placeholder: 'e.g. 9998880000',
       empty: 'Add a number so technicians can reach you about a report',
       // Matches what the server accepts: +91 and a leading 0 are allowed and
       // stripped, which the old check rejected outright.

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, HelpCircle, Sparkles, Shield, Cpu, Clock, Building2, CheckCircle } from 'lucide-react'
 import clsx from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
+import { accent } from '@/lib/accentColors'
 
 const FAQS = [
   {
@@ -101,6 +102,7 @@ export function FAQSection() {
           {FAQS.map((faq, idx) => {
             const isOpen = openIndex === idx
             const Icon = faq.icon
+            const a = accent(faq.color)
             return (
               <motion.div
                 key={faq.question}
@@ -116,7 +118,7 @@ export function FAQSection() {
                     : 'hover:border-secondary/30 hover:shadow-glow-secondary/20'
                 )}>
                   {/* Animated gradient border top */}
-                  <div className={clsx('absolute top-0 left-0 right-0 h-0.5 transition-opacity duration-300', `from-${faq.color}-400 to-${faq.color}-500`, isOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')} style={{ background: `linear-gradient(90deg, var(--${faq.color}-400), var(--${faq.color}-500))` }} />
+                  <div className={clsx('absolute top-0 left-0 right-0 h-0.5 transition-opacity duration-300 bg-gradient-to-r', a.from400, a.to500, isOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')} />
 
                   {/* Glow on hover/open */}
                   <div className={clsx('absolute inset-0 transition-opacity duration-500 pointer-events-none', faq.glow, isOpen ? 'opacity-20' : 'opacity-0 group-hover:opacity-100')} />
@@ -132,15 +134,15 @@ export function FAQSection() {
                         className={clsx(
                           'w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 transition-all duration-300',
                           isOpen
-                            ? `bg-${faq.color}-500 text-white border-${faq.color}-500`
+                            ? clsx(a.bg500, 'text-white', a.border500)
                             : 'bg-surface-sunken border-border-subtle text-ink-muted',
                         )}
                         whileHover={{ scale: 1.05 }}
                       >
-                        <Icon size={18} className={clsx(isOpen ? 'text-white' : `text-${faq.color}-400`)} />
+                        <Icon size={18} className={clsx(isOpen ? 'text-white' : a.text400)} />
                       </motion.div>
                       <div>
-                        <span className={clsx('text-[11px] font-bold uppercase tracking-wider block mb-0.5', `text-${faq.color}-400`)}>
+                        <span className={clsx('text-[11px] font-bold uppercase tracking-wider block mb-0.5', a.text400)}>
                           {faq.category}
                         </span>
                         <h3 className="text-body-lg font-bold text-ink">{faq.question}</h3>
@@ -150,7 +152,7 @@ export function FAQSection() {
                     <motion.div
                       className={clsx(
                         'w-8 h-8 rounded-full flex items-center justify-center text-ink-muted transition-all duration-300 flex-shrink-0',
-                        isOpen && `bg-${faq.color}-500/20 text-${faq.color}-400 rotate-180`,
+                        isOpen && clsx(a.bg20, a.text400, 'rotate-180'),
                       )}
                       animate={{ rotate: isOpen ? 180 : 0 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
@@ -170,7 +172,7 @@ export function FAQSection() {
                         className="px-5 pb-5 pt-1 text-body-md text-ink-muted leading-relaxed border-t border-glass-border pl-16"
                       >
                         <div className="relative">
-                          <div className="absolute left-0 top-2 w-0.5 h-full rounded-full" style={{ background: `var(--${faq.color}-400)` }} />
+                          <div className={clsx('absolute left-0 top-2 w-0.5 h-full rounded-full', a.bg500)} />
                           <p className="pl-4">{faq.answer}</p>
                         </div>
                       </motion.div>
