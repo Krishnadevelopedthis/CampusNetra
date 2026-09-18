@@ -4,12 +4,17 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from app.core.enums import AssetState, RoomKind
 from app.schemas.common import ORMModel
+
+# Which plane an asset's pos_x/pos_y is measured against — see Asset.surface
+# in models/spatial.py. A wall's pos_x is position along the wall, pos_y is
+# height up it; the ceiling reuses the same x/y-as-plane math as the floor.
+AssetSurface = Literal["floor", "wall_back", "wall_left", "wall_right", "wall_front", "ceiling"]
 
 
 class CampusOut(ORMModel):
@@ -65,6 +70,7 @@ class AssetOut(ORMModel):
     state: AssetState
     pos_x: Optional[Decimal] = None
     pos_y: Optional[Decimal] = None
+    surface: AssetSurface = "floor"
     purchase_date: Optional[datetime] = None
     warranty_expiry: Optional[datetime] = None
     cost: Optional[Decimal] = None
@@ -85,6 +91,7 @@ class AssetMarker(BaseModel):
     label: str
     pos_x: Optional[float] = None
     pos_y: Optional[float] = None
+    surface: AssetSurface = "floor"
     category_icon: Optional[str] = None
     open_issue_count: int = 0
     # Populated for markers currently in fault so the tooltip can show context.
@@ -168,6 +175,7 @@ class AssetCreate(BaseModel):
     serial_no: Optional[str] = None
     pos_x: Optional[float] = Field(None, ge=0, le=1)
     pos_y: Optional[float] = Field(None, ge=0, le=1)
+    surface: AssetSurface = "floor"
     purchase_date: Optional[datetime] = None
     warranty_expiry: Optional[datetime] = None
     cost: Optional[float] = Field(None, ge=0)
@@ -183,8 +191,20 @@ class AssetBulkCreate(AssetCreate):
     `tag` is treated as a stem when quantity > 1 and suffixed per unit, because
     tags are unique and typing twelve of them by hand is how registers stop
     being maintained.
+
+    `pattern` decides how pos_x/pos_y for units 2..N are derived from the
+    single point the caller clicked (start_x/start_y, i.e. this class's
+    inherited pos_x/pos_y) — computed authoritatively here, not trusted from
+    the client, same reasoning as the batch-placement collision/validation
+    principle generally: the frontend can preview, the backend decides.
+      near_start  — small offset grid hugging the clicked point (previous,
+                    only, behaviour — kept as the default for back-compat).
+      fill_room   — even grid spanning the whole floor/ceiling plane.
+      fill_wall   — evenly spaced along the wall named in `surface`, at a
+                    fixed height; pos_y is ignored, quantity is the count.
     """
     quantity: int = Field(1, ge=1, le=200)
+    pattern: Literal["near_start", "fill_room", "fill_wall"] = "near_start"
 
 
 class AssetUpdate(BaseModel):
@@ -197,6 +217,7 @@ class AssetUpdate(BaseModel):
     serial_no: Optional[str] = None
     pos_x: Optional[float] = Field(None, ge=0, le=1)
     pos_y: Optional[float] = Field(None, ge=0, le=1)
+    surface: Optional[AssetSurface] = None
     purchase_date: Optional[datetime] = None
     warranty_expiry: Optional[datetime] = None
     cost: Optional[float] = Field(None, ge=0)

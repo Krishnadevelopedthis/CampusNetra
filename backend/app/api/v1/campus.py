@@ -1,6 +1,7 @@
 """Spatial hierarchy and Digital Twin endpoints."""
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
@@ -325,6 +326,7 @@ async def floor_plan(floor_id: uuid.UUID, user: CurrentUser, db: DB):
                     label=STATE_LABELS[a.state.value],
                     pos_x=float(a.pos_x) if a.pos_x is not None else None,
                     pos_y=float(a.pos_y) if a.pos_y is not None else None,
+                    surface=a.surface,
                     category_icon=categories[a.category_id].icon if a.category_id in categories else None,
                     open_issue_count=asset_issue_count.get(a.id, 0),
                     active_issue_reference=asset_issue_ref.get(a.id),
@@ -867,12 +869,63 @@ async def create_asset(
         raise HTTPException(status.HTTP_409_CONFLICT,
                             f"Asset tag {payload.tag} is already in use.")
 
-    data = payload.model_dump(exclude={"room_id"})
+    # surface lives in Asset.meta (via the surface property), not a plain
+    # column, so it can't go through the **data spread below like everything
+    # else — excluded there and set separately through the property setter.
+    data = payload.model_dump(exclude={"room_id", "surface"})
     asset = Asset(room_id=room_id, **data)
+    asset.surface = payload.surface
     db.add(asset)
     await db.flush()
     await db.refresh(asset)
     return AssetOut.model_validate(asset)
+
+
+def _bulk_positions(
+    pattern: str, quantity: int, start_x: Optional[float], start_y: Optional[float],
+) -> list[tuple[Optional[float], Optional[float]]]:
+    """Where each unit in a batch actually lands. Computed here, not trusted
+    from the client — same principle as any batch-placement validation: the
+    frontend can preview a layout, but the position that gets persisted is
+    whatever the backend decided, so a stale/tampered preview can't write
+    positions the server never agreed to.
+    """
+    if quantity <= 1 or start_x is None or start_y is None:
+        return [(start_x, start_y)] * max(1, quantity)
+
+    if pattern == "fill_room":
+        # Same square-grid idea as the frontend's own gridCells() helper,
+        # kept in from a margin so units don't sit flush against a wall.
+        cols = max(1, math.ceil(math.sqrt(quantity)))
+        rows = max(1, math.ceil(quantity / cols))
+        margin, span = 0.08, 1 - 2 * 0.08
+        return [
+            (
+                margin + span * ((i % cols) + 0.5) / cols,
+                margin + span * ((i // cols) + 0.5) / rows,
+            )
+            for i in range(quantity)
+        ]
+
+    if pattern == "fill_wall":
+        # x = position along the wall, evenly spaced; y = start_y for all
+        # (the height the user clicked at, held constant across the run —
+        # a row of wall lights belongs at one height, not a staircase of them).
+        margin, span = 0.05, 1 - 2 * 0.05
+        return [
+            (margin + span * (i + 0.5) / quantity, start_y)
+            for i in range(quantity)
+        ]
+
+    # "near_start" (default): small offset grid hugging the clicked point —
+    # the original, only, behaviour before fill_room/fill_wall existed.
+    return [
+        (
+            min(0.98, max(0.02, start_x + (i % 5) * 0.03)),
+            min(0.98, max(0.02, start_y + (i // 5) * 0.03)),
+        )
+        for i in range(quantity)
+    ]
 
 
 @router.post("/rooms/{room_id}/assets/bulk", response_model=list[AssetOut], status_code=201)
@@ -884,7 +937,8 @@ async def create_assets_bulk(
     A lab with twelve identical tube lights is the normal case, and forcing
     twelve separate submissions with twelve hand-typed tags is why asset
     registers stop being maintained. Tags are suffixed from the given stem;
-    every other field is shared.
+    every other field is shared. `pattern` decides how the run is laid out —
+    see _bulk_positions.
     """
     room = await db.scalar(select(Room).where(Room.id == room_id))
     if room is None:
@@ -902,14 +956,12 @@ async def create_assets_bulk(
             + (" …" if len(taken) > 5 else ""),
         )
 
-    data = payload.model_dump(exclude={"room_id", "quantity", "tag"})
+    positions = _bulk_positions(payload.pattern, quantity, payload.pos_x, payload.pos_y)
+    data = payload.model_dump(exclude={"room_id", "quantity", "tag", "pattern", "surface", "pos_x", "pos_y"})
     created = []
-    for i, tag in enumerate(tags):
-        asset = Asset(room_id=room_id, tag=tag, **data)
-        # Spread the markers so a dozen units are not stacked on one pixel.
-        if quantity > 1 and payload.pos_x is not None and payload.pos_y is not None:
-            asset.pos_x = min(0.98, max(0.02, float(payload.pos_x) + (i % 5) * 0.03))
-            asset.pos_y = min(0.98, max(0.02, float(payload.pos_y) + (i // 5) * 0.03))
+    for tag, (px, py) in zip(tags, positions):
+        asset = Asset(room_id=room_id, tag=tag, pos_x=px, pos_y=py, **data)
+        asset.surface = payload.surface
         db.add(asset)
         created.append(asset)
 

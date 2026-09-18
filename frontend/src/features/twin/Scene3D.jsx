@@ -140,22 +140,40 @@ function addBuildingWindows(content, { cx, cz, footprint, height, floors }) {
 /** Open-topped walls sized to a square room, with a door gap in the front
  * wall and windows on the back wall — enough to read as an actual room
  * rather than a floor with markers floating over it. */
-function addRoomWalls(content, half, height = 3.1) {
+function addRoomWalls(content, half, height, addClickable, onSurfaceClick) {
   const wallMat = new THREE.MeshStandardMaterial({ color: '#eef2f6', roughness: 0.85, side: THREE.DoubleSide })
   const t = 0.08
   const full = half * 2
   const group = new THREE.Group()
 
+  // Each wall is clickable for wall-mounted equipment (a wall fan, an AC unit,
+  // a fire extinguisher bracket) exactly like the floor is for floor-standing
+  // gear — onSurfaceClick gets the wall's name plus a position normalised
+  // against that wall's own plane (x = along the wall, y = height up it), not
+  // the room's floor plane, since a wall asset's "position" means something
+  // different from a floor asset's.
+  const wireWall = (mesh, surface, alongFromHit) => {
+    addClickable(mesh, { cursor: 'crosshair', hoverColor: '#3b82f6' })
+    mesh.userData.onClick = (hit) => {
+      const along = Math.min(1, Math.max(0, alongFromHit(hit.point)))
+      const up = Math.min(1, Math.max(0, hit.point.y / height))
+      onSurfaceClick?.(surface, { x: along, y: up })
+    }
+  }
+
   const back = new THREE.Mesh(new THREE.BoxGeometry(full, height, t), wallMat)
   back.position.set(0, height / 2, -half)
+  wireWall(back, 'wall_back', (p) => (p.x + half) / full)
   group.add(back)
 
   const left = new THREE.Mesh(new THREE.BoxGeometry(t, height, full), wallMat)
   left.position.set(-half, height / 2, 0)
+  wireWall(left, 'wall_left', (p) => (p.z + half) / full)
   group.add(left)
 
   const right = left.clone()
   right.position.set(half, height / 2, 0)
+  wireWall(right, 'wall_right', (p) => (p.z + half) / full)
   group.add(right)
 
   // Front wall gets a door-width gap in the middle rather than one solid slab.
@@ -163,9 +181,11 @@ function addRoomWalls(content, half, height = 3.1) {
   const segW = (full - doorWidth) / 2
   const frontL = new THREE.Mesh(new THREE.BoxGeometry(segW, height, t), wallMat)
   frontL.position.set(-(doorWidth / 2 + segW / 2), height / 2, half)
+  wireWall(frontL, 'wall_front', (p) => (p.x + half) / full)
   group.add(frontL)
   const frontR = frontL.clone()
   frontR.position.set(doorWidth / 2 + segW / 2, height / 2, half)
+  wireWall(frontR, 'wall_front', (p) => (p.x + half) / full)
   group.add(frontR)
 
   // Windows: three across the back wall, one on each side wall.
@@ -186,6 +206,27 @@ function addRoomWalls(content, half, height = 3.1) {
   group.add(wR)
 
   content.add(group)
+}
+
+/** A faint, clickable ceiling plane — for fans and other ceiling-mounted
+ * equipment. Kept translucent rather than invisible so it reads as a
+ * surface you can target, not empty space. */
+function addRoomCeiling(content, half, height, addClickable, onSurfaceClick) {
+  const ceiling = new THREE.Mesh(
+    new THREE.PlaneGeometry(half * 2 * 0.98, half * 2 * 0.98),
+    new THREE.MeshStandardMaterial({
+      color: '#e2e8f0', roughness: 0.9, transparent: true, opacity: 0.35, side: THREE.DoubleSide,
+    }),
+  )
+  ceiling.rotation.x = Math.PI / 2
+  ceiling.position.set(0, height - 0.02, 0)
+  addClickable(ceiling, { cursor: 'crosshair', hoverColor: '#3b82f6' })
+  ceiling.userData.onClick = (hit) => {
+    const x = Math.min(1, Math.max(0, (hit.point.x + half) / (half * 2)))
+    const y = Math.min(1, Math.max(0, (hit.point.z + half) / (half * 2)))
+    onSurfaceClick?.('ceiling', { x, y })
+  }
+  content.add(ceiling)
 }
 
 export const CampusScene3D = forwardRef(function CampusScene3D({
@@ -632,32 +673,61 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
 
     // ---------------------------------------------------------------- ROOM
     if (view === 'room') {
+      const half = ROOM_WORLD * 0.36
+      const roomHeight = 3.1
+      const full = half * 2
+      const wallT = 0.08
+
+      // One mapping used for every surface an asset can be placed on, so a
+      // wall-mounted fan and a floor-standing cabinet both end up in the
+      // right place from the same (surface, x, y) triple — x/y always mean
+      // "position along that surface's own plane", never the room's floor.
+      const surfaceWorldPos = (surface, x, y) => {
+        switch (surface) {
+          case 'wall_back': return [x * full - half, y * roomHeight, -half + wallT]
+          case 'wall_front': return [x * full - half, y * roomHeight, half - wallT]
+          case 'wall_left': return [-half + wallT, y * roomHeight, x * full - half]
+          case 'wall_right': return [half - wallT, y * roomHeight, x * full - half]
+          case 'ceiling': return [x * full - half, roomHeight - 0.15, y * full - half]
+          default: return [x * full - half, 0.26, y * full - half] // floor
+        }
+      }
+
       const floorMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(ROOM_WORLD * 0.72, ROOM_WORLD * 0.72),
+        new THREE.PlaneGeometry(full, full),
         new THREE.MeshStandardMaterial({ color: '#f1f5f9', roughness: 0.9 }),
       )
       floorMesh.rotation.x = -Math.PI / 2
-      floorMesh.userData.kind = 'clickable'
-      floorMesh.userData.cursor = 'crosshair'
+      addClickable(floorMesh, { cursor: 'crosshair', hoverColor: '#3b82f6' })
       floorMesh.userData.onClick = (hit) => {
-        const half = ROOM_WORLD * 0.36
-        const x = (hit.point.x + half) / (half * 2)
-        const y = (hit.point.z + half) / (half * 2)
-        onPlaceAsset?.({ x: Math.min(1, Math.max(0, x)), y: Math.min(1, Math.max(0, y)) })
+        const x = Math.min(1, Math.max(0, (hit.point.x + half) / full))
+        const y = Math.min(1, Math.max(0, (hit.point.z + half) / full))
+        onPlaceAsset?.({ surface: 'floor', x, y })
       }
       content.add(floorMesh)
-      addRoomWalls(content, ROOM_WORLD * 0.36)
 
-      const half = ROOM_WORLD * 0.36
+      const onSurfaceClick = (surface, pos) => onPlaceAsset?.({ surface, ...pos })
+      addRoomWalls(content, half, roomHeight, addClickable, onSurfaceClick)
+      addRoomCeiling(content, half, roomHeight, addClickable, onSurfaceClick)
+
       ;(roomAssets || []).forEach((a) => {
         if (a.pos_x == null || a.pos_y == null) return
-        const wx = a.pos_x * half * 2 - half
-        const wz = a.pos_y * half * 2 - half
-        const marker = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.42, 0.42, 0.5, 20),
-          new THREE.MeshStandardMaterial({ color: a.colour || '#10b981', roughness: 0.4 }),
-        )
-        marker.position.set(wx, 0.26, wz)
+        const surface = a.surface || 'floor'
+        const [wx, wy, wz] = surfaceWorldPos(surface, a.pos_x, a.pos_y)
+        // A cylinder "standing" on the floor reads fine; the same shape
+        // mounted on a wall or ceiling would look like it's floating at a
+        // strange angle, so wall/ceiling units get a simple sphere instead —
+        // a marker that looks reasonable regardless of which surface it's on.
+        const marker = surface === 'floor'
+          ? new THREE.Mesh(
+              new THREE.CylinderGeometry(0.42, 0.42, 0.5, 20),
+              new THREE.MeshStandardMaterial({ color: a.colour || '#10b981', roughness: 0.4 }),
+            )
+          : new THREE.Mesh(
+              new THREE.SphereGeometry(0.32, 16, 16),
+              new THREE.MeshStandardMaterial({ color: a.colour || '#10b981', roughness: 0.4 }),
+            )
+        marker.position.set(wx, wy, wz)
         addClickable(marker, {
           onClick: () => onSelectAsset?.(a),
           hoverColor: '#3b82f6',
@@ -669,24 +739,26 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
             new THREE.SphereGeometry(0.14, 12, 12),
             new THREE.MeshStandardMaterial({ color: '#ef4444' }),
           )
-          dot.position.set(wx + 0.32, 0.6, wz - 0.32)
+          dot.position.set(wx + 0.32, wy + 0.34, wz - 0.32)
           content.add(dot)
         }
 
         const label = makeLabel(a.tag, { fontSize: 22 })
-        label.position.set(wx, 0.85, wz)
+        label.position.set(wx, wy + 0.59, wz)
         content.add(label)
       })
 
       if (pendingPlacement) {
-        const wx = pendingPlacement.x * half * 2 - half
-        const wz = pendingPlacement.y * half * 2 - half
+        const [wx, wy, wz] = surfaceWorldPos(
+          pendingPlacement.surface || 'floor', pendingPlacement.x, pendingPlacement.y,
+        )
         const ghost = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.42, 0.42, 0.5, 20),
+          new THREE.SphereGeometry(0.32, 16, 16),
           new THREE.MeshStandardMaterial({ color: '#3b82f6', transparent: true, opacity: 0.55 }),
         )
-        ghost.position.set(wx, 0.26, wz)
-        ghost.userData.tick = (t) => { ghost.position.y = 0.26 + Math.sin(t * 4) * 0.08 }
+        ghost.position.set(wx, wy, wz)
+        const baseY = wy
+        ghost.userData.tick = (t) => { ghost.position.y = baseY + Math.sin(t * 4) * 0.08 }
         content.add(ghost)
       }
 
