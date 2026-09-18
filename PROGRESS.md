@@ -777,6 +777,79 @@ Every footer link resolves to something real now.
 included. Still not verified in an actual rendered browser — traced
 through the code and confirmed to build, not confirmed by looking at it.
 
+## Addendum 11 — the table-corner CSS rule never actually matched anything
+
+Kept getting told sharp corners were still showing up after Addenda 7
+and 10 supposedly handled rounding everywhere. Went looking for what
+those addenda actually missed rather than re-applying the same fix
+again.
+
+Found it: `Widget` (`components/ui/index.jsx`) always renders
+`<section className="widget"><div className="widget-body">{children}</div></section>`
+-- the body wrapper is unconditional. The corner-rounding rule added
+in Addendum 7 targeted `.widget > .table-wrap:first-child`, a *direct*
+child of `.widget`. That selector can never match anything, because
+`.table-wrap` is always one level deeper, inside `.widget-body`. It
+looked like a fix, built without error, and did nothing at all.
+
+This matters because `bodyClass="p-0"` (a flush, edge-to-edge table
+with no padding around it) is the standard pattern for nearly every
+data table in the admin section -- `AdminUsers`, `AdminAssets`,
+`AdminAI`, `AdminSystem`, `AdminOverview`, `AdminCosts`,
+`AdminTemplates`, `AdminLostFound`, `AdminConfig`, `IssueMap`, and
+others. Every one of them has had square table-header corners sitting
+inside a rounded card since Addendum 7 shipped rounded corners in the
+first place.
+
+Fixed the selector to match the real DOM (`.widget > .widget-body >
+.table-wrap`), and added the bottom corners, which the original rule
+never covered at all -- only the top of the table was ever addressed,
+even in the version that would have worked.
+
+One layer up, same bug: several of those pages put a search/filter bar
+*before* the table inside the same flush body (`AdminUsers`'s
+search+role+status row, for one) -- a plain div with no rounding of its
+own, now sitting flush against the widget's rounded top edge. Added a
+general rule for any first/last child of a flush widget body,
+`.table-wrap` excluded (handled separately above, since rounding the
+wrapper itself would need `overflow-hidden`, which would break its
+intentional horizontal scroll on narrow screens).
+
+`npm run build` verified clean. Still not confirmed in an actual
+browser.
+
+## Addendum 12 — Back to Home, and a couple of touch targets
+
+Working from a full UI/responsiveness spec covering rounded corners,
+mobile/desktop parity, touch targets, and more. Most of the ground it
+covers was already handled by Addenda 6–11 (retheme, glass, footer
+pages, the table-radius bug); this pass covers what wasn't:
+
+- **Back to Home** on every marketing page: added once to `StaticPage`
+  (the shared wrapper all 11 pages already use), rather than to each
+  page individually — same reasoning as everything else in this file,
+  fix the shared component and it reaches everywhere at once.
+- **Touch targets**: the modal close button was `h-8 w-8` (32px, under
+  the ~44px guideline for an icon-only control) — bumped to `h-11 w-11`.
+  Same for the landing navbar's mobile hamburger button (`p-2` around a
+  20px icon ≈ 36px tap area → `p-3` with a compensating `-m-1` so it
+  doesn't shift the layout, ≈44px now).
+- Audited the rest of the app for sharp-cornered "boxes" specifically —
+  found nothing else: every remaining bare `border` usage turned out to
+  be a single-edge divider (tab underlines, section separators) that
+  correctly shouldn't be rounded, not a missed card.
+
+Not done this round — the source spec's full scope (breakpoint-by-
+breakpoint testing at 320/375/390/430/768/1024/1280/1440/1920px, mobile
+vs. desktop feature-parity audit beyond what's already been touched,
+per-component responsive reflow beyond the landing page) is real,
+substantial, remaining work — not something to claim finished on the
+strength of a build passing. Flagging rather than guessing at what
+"probably" works.
+
+`npm run build` verified clean. Not verified in an actual rendered
+browser — same limitation as every addendum before this one.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
