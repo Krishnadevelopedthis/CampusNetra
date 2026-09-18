@@ -264,11 +264,17 @@ async def _send_brevo(to: str, body: str) -> SendResult:
 # SmsHorizon
 # ---------------------------------------------------------------------------
 
-SMSHORIZON_URL = "https://smshorizon.co.in/api/v2/sendsms.php"
+SMSHORIZON_URL = "https://smshorizon.com/api/v2/sendsms"
 
 
 async def _send_smshorizon(to: str, body: str) -> SendResult:
     """Send SMS through SmsHorizon."""
+
+    if not settings.SMSHORIZON_USER:
+        return SendResult(
+            delivered=False,
+            error="SMSHORIZON_USER is not configured.",
+        )
 
     if not settings.SMSHORIZON_API_KEY:
         return SendResult(
@@ -276,7 +282,23 @@ async def _send_smshorizon(to: str, body: str) -> SendResult:
             error="SMSHORIZON_API_KEY is not configured.",
         )
 
+    if not settings.SMSHORIZON_SENDER_ID:
+        return SendResult(
+            delivered=False,
+            error="SMSHORIZON_SENDER_ID is not configured.",
+        )
+
+    if not settings.SMSHORIZON_TEMPLATE_ID:
+        return SendResult(
+            delivered=False,
+            error="SMSHORIZON_TEMPLATE_ID is not configured.",
+        )
+
+    # SmsHorizon expects a 10-digit Indian mobile number.
     recipient = to_e164(to)
+
+    if recipient.startswith("+91"):
+        recipient = recipient[3:]
 
     headers = {
         "Authorization": f"Bearer {settings.SMSHORIZON_API_KEY}",
@@ -284,11 +306,13 @@ async def _send_smshorizon(to: str, body: str) -> SendResult:
     }
 
     payload = {
-        "mobile": recipient,
-        "message": body,
+        "user": settings.SMSHORIZON_USER,
+        "number": recipient,
         "senderid": settings.SMSHORIZON_SENDER_ID,
-        "tid": settings.SMSHORIZON_TEMPLATE_ID,
+        "message": body,
         "type": "txt",
+        "tid": settings.SMSHORIZON_TEMPLATE_ID,
+        "prettyprint": "1",
     }
 
     try:
@@ -301,13 +325,31 @@ async def _send_smshorizon(to: str, body: str) -> SendResult:
 
     except httpx.HTTPError as exc:
         log.error("Could not reach SmsHorizon: %s", exc)
+
         return SendResult(
             delivered=False,
             error=f"Could not reach SmsHorizon: {exc}",
         )
 
     if resp.status_code < 300:
-        log.info("SmsHorizon accepted SMS: recipient=%s", recipient)
+        try:
+            data = resp.json()
+
+            log.info(
+                "SmsHorizon accepted SMS: "
+                "recipient=%s msgid=%s sender=%s msg_count=%s",
+                recipient,
+                data.get("msgid"),
+                data.get("sender"),
+                data.get("msg_count"),
+            )
+
+        except Exception:
+            log.info(
+                "SmsHorizon accepted SMS: recipient=%s",
+                recipient,
+            )
+
         return SendResult(delivered=True)
 
     detail = _api_error(resp)
@@ -322,7 +364,6 @@ async def _send_smshorizon(to: str, body: str) -> SendResult:
         delivered=False,
         error=f"SmsHorizon error: {detail}",
     )
-
 
 
 
