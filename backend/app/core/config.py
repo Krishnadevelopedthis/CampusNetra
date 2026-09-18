@@ -121,6 +121,12 @@ class Settings(BaseSettings):
     BREVO_FROM: str = "techcareit.in@gmail.com"
     BREVO_FROM_NAME: str = "Techcare"
 
+    SMSHORIZON_USER: str = ""
+    SMSHORIZON_API_KEY: str = ""
+    SMSHORIZON_SENDER_ID: str = ""
+    SMSHORIZON_TEMPLATE_ID: str = ""
+    
+
     # Which transport handles each kind of outgoing mail. "auto" (the
     # default) uses whichever of RESEND_API_KEY / BREVO_API_KEY / SMTP_HOST
     # is configured, in that order — fine for a single-provider setup. Pin a
