@@ -137,13 +137,14 @@ export function OutdoorCampusMap({
 
     map.on('load', () => {
       clearTimeout(loadTimeout)
-      map.addSource('cn-boundary', {
-        type: 'geojson', data: boundaryCircle(lat, lng, 260),
-      })
-      map.addLayer({
-        id: 'cn-boundary-line', type: 'line', source: 'cn-boundary',
-        paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 2], 'line-opacity': 0.55 },
-      })
+      try {
+        map.addSource('cn-boundary', {
+          type: 'geojson', data: boundaryCircle(lat, lng, 260),
+        })
+        map.addLayer({
+          id: 'cn-boundary-line', type: 'line', source: 'cn-boundary',
+          paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 2], 'line-opacity': 0.55 },
+        })
 
       map.addSource('cn-buildings', {
         type: 'geojson',
@@ -184,6 +185,16 @@ export function OutdoorCampusMap({
       })
 
       readyRef.current = true
+      } catch (err) {
+        // Any exception thrown while adding sources/layers (a malformed
+        // coordinate producing invalid GeoJSON, a style that doesn't
+        // support fill-extrusion, etc.) — the 'error' event only catches
+        // MapLibre's own async failures, not application code throwing
+        // inside this handler, so without this the map silently stops
+        // partway through with nothing on screen and no visible cause.
+        console.error('OutdoorCampusMap: failed while building layers', err)
+        setLoadError(`Could not build the outdoor map layers: ${err.message || err}`)
+      }
     })
 
     return () => {

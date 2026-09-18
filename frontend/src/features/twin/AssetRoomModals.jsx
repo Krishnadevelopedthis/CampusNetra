@@ -20,7 +20,12 @@ const BLANK = {
   tag: '', name: '', category_id: '', manufacturer: '', model: '', serial_no: '',
   purchase_date: '', warranty_expiry: '', warranty_months: '', cost: '',
   annual_maintenance_cost: '', service_interval_days: '',
-  expected_life_months: '', last_service_at: '', quantity: 1,
+  expected_life_months: '', last_service_at: '', quantity: 1, pattern: 'near_start',
+}
+
+const SURFACE_LABEL = {
+  floor: 'the room floor', wall_back: 'the back wall', wall_left: 'the left wall',
+  wall_right: 'the right wall', wall_front: 'the front wall', ceiling: 'the ceiling',
 }
 
 // Warranties are sold in whole years far more often than they are quoted as an
@@ -212,9 +217,16 @@ export function AssetModal({ open, asset, roomId, campusId, categories, initialP
         ...payload,
         quantity: Math.max(1, Number(form.quantity) || 1),
         // Set when this dialog was opened by clicking a spot on the 3D room
-        // floor, so the first unit lands exactly there instead of needing a
-        // separate drag-to-place step afterwards.
-        ...(initialPosition ? { pos_x: initialPosition.x, pos_y: initialPosition.y } : {}),
+        // (floor, a wall, or the ceiling), so the first unit lands exactly
+        // there instead of needing a separate drag-to-place step afterwards.
+        ...(initialPosition ? {
+          pos_x: initialPosition.x, pos_y: initialPosition.y,
+          surface: initialPosition.surface || 'floor',
+        } : {}),
+        // Only meaningful with quantity > 1 and a clicked starting point —
+        // the backend falls back to a single point either way if either is
+        // missing, so it's harmless to always send.
+        pattern: form.pattern,
       })
     },
     onSuccess: (res) => {
@@ -263,7 +275,8 @@ export function AssetModal({ open, asset, roomId, campusId, categories, initialP
 
         {!isEdit && initialPosition && (
           <p className="text-body-sm text-info-text bg-info-bg border border-info-border rounded-xl px-3.5 py-2.5">
-            Placed at the spot you clicked on the room floor
+            Placed on {SURFACE_LABEL[initialPosition.surface] || 'the room floor'}
+            {' '}at the spot you clicked
             ({Math.round(initialPosition.x * 100)}%, {Math.round(initialPosition.y * 100)}%).
           </p>
         )}
@@ -308,6 +321,30 @@ export function AssetModal({ open, asset, roomId, campusId, categories, initialP
             </Field>
           )}
         </div>
+
+        {!isEdit && quantity > 1 && initialPosition && (
+          <Field
+            label="Layout"
+            hint={
+              form.pattern === 'fill_room'
+                ? `${quantity} units spread evenly across the whole ${
+                    initialPosition.surface === 'ceiling' ? 'ceiling' : 'floor'}.`
+              : form.pattern === 'fill_wall'
+                ? `${quantity} units spaced evenly along ${SURFACE_LABEL[initialPosition.surface] || 'the wall'}, at the height you clicked.`
+              : `${quantity} units in a small cluster near the spot you clicked.`
+            }
+          >
+            <Select value={form.pattern} onChange={set('pattern')}>
+              <option value="near_start">Cluster near the spot I clicked</option>
+              <option value="fill_room">
+                Fill the whole {initialPosition.surface === 'ceiling' ? 'ceiling' : 'room'} evenly
+              </option>
+              {initialPosition.surface?.startsWith('wall_') && (
+                <option value="fill_wall">Spread evenly along this wall</option>
+              )}
+            </Select>
+          </Field>
+        )}
 
         <div className="grid sm:grid-cols-3 gap-4">
           <Field label="Manufacturer">

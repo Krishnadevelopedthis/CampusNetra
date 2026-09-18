@@ -153,6 +153,13 @@ class Asset(UpdatedMixin, Base):
     annual_maintenance_cost: Mapped[Optional[Decimal]] = mapped_column(Numeric(12, 2))
     warranty_months: Mapped[Optional[int]] = mapped_column(Integer)
     meta: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    # Which surface pos_x/pos_y is measured against — 'floor' (default,
+    # existing behaviour unchanged), 'wall_back'/'wall_left'/'wall_right'/
+    # 'wall_front' (pos_x = position along the wall, pos_y = height up it),
+    # or 'ceiling' (same plane math as 'floor', just read against the
+    # ceiling in the 3D scene). See migration 013 for the CHECK constraint
+    # backing the allowed values — enforced at the DB level, not just here.
+    surface: Mapped[str] = mapped_column(Text, default="floor", server_default="floor", nullable=False)
 
     room: Mapped[Optional["Room"]] = relationship(back_populates="assets")
     category: Mapped["AssetCategory"] = relationship(back_populates="assets")
