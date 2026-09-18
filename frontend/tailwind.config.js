@@ -205,6 +205,7 @@ export default {
         'glow-primary': '0 0 40px -5px rgb(var(--c-primary) / 0.3), 0 0 80px -10px rgb(var(--c-primary) / 0.15)',
         'glow-cyan': '0 0 40px -5px rgb(6 182 212 / 0.3), 0 0 80px -10px rgb(6 182 212 / 0.15)',
         'glow-emerald': '0 0 40px -5px rgb(16 185 129 / 0.3), 0 0 80px -10px rgb(16 185 129 / 0.15)',
+        'glow-amber': '0 0 40px -5px rgb(245 158 11 / 0.3), 0 0 80px -10px rgb(245 158 11 / 0.15)',
       },
 
       backgroundImage: {

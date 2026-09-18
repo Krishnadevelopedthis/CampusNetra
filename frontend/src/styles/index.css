@@ -36,7 +36,7 @@
      not distortion), a bright hairline on the border for an edge to catch
      light, and a soft shadow so the translucency doesn't read as flat. */
   .widget {
-    @apply bg-surface/75 backdrop-blur-xl border border-border-subtle/70
+    @apply bg-surface/90 backdrop-blur-md border border-border-subtle/70
            rounded-2xl min-w-0 shadow-[0_1px_2px_rgb(0_0_0/0.04),0_12px_28px_-14px_rgb(0_0_0/0.16)];
   }
   .widget-header {
