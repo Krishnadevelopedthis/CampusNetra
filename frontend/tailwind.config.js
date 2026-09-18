@@ -172,15 +172,15 @@ export default {
         'mono-data':       ['13px', { lineHeight: '18px', fontWeight: '500' }],
       },
 
-      borderRadius: {
-        // Sharp corners for all elements
-        DEFAULT: '0',        // widgets, inputs, tables
-        sm: '0',
-        md: '0',
-        lg: '0',             // buttons
-        xl: '0',             // AI bubbles, status pills
-        '2xl': '0',          // page-level panels and modals
-      },
+      // No override here on purpose. Tailwind's default scale (sm 2px,
+      // DEFAULT 4px, md 6px, lg 8px, xl 12px, 2xl 16px, 3xl 24px, full
+      // 9999px) is exactly what every rounded-* class throughout this
+      // app — .widget, .btn, .input, Modal, the landing page — was
+      // written assuming. A previous version of this file zeroed the
+      // entire scale out ("Sharp corners for all elements"), which is
+      // why rounded-2xl/rounded-xl/etc. have compiled to 0px everywhere
+      // in the app this whole time, no matter how many components used
+      // them correctly.
 
       spacing: {
         gutter: '24px',
