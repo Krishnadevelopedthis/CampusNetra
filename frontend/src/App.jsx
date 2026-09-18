@@ -96,6 +96,20 @@ const NotFound = lazy(() => import('@/pages/errors/NotFound'))
 const Forbidden = lazy(() => import('@/pages/errors/Forbidden'))
 const ServerError = lazy(() => import('@/pages/errors/ServerError'))
 
+// Marketing/content pages — linked from the footer, kept out of the
+// initial bundle since none of them are the entry point.
+const About = lazy(() => import('@/pages/marketing/About'))
+const MarketingFeatures = lazy(() => import('@/pages/marketing/Features'))
+const Pricing = lazy(() => import('@/pages/marketing/Pricing'))
+const Privacy = lazy(() => import('@/pages/marketing/Privacy'))
+const Terms = lazy(() => import('@/pages/marketing/Terms'))
+const Security = lazy(() => import('@/pages/marketing/Security'))
+const Docs = lazy(() => import('@/pages/marketing/Docs'))
+const ApiReference = lazy(() => import('@/pages/marketing/ApiReference'))
+const Community = lazy(() => import('@/pages/marketing/Community'))
+const Support = lazy(() => import('@/pages/marketing/Support'))
+const Solutions = lazy(() => import('@/pages/marketing/Solutions'))
+
 /**
  * Protect authenticated routes.
  *
@@ -245,6 +259,22 @@ export default function App() {
               path="/"
               element={<LandingPage />}
             />
+
+            {/* =====================================================
+                MARKETING / CONTENT PAGES
+            ====================================================== */}
+
+            <Route path="/about" element={<About />} />
+            <Route path="/features" element={<MarketingFeatures />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/security" element={<Security />} />
+            <Route path="/docs" element={<Docs />} />
+            <Route path="/api-docs" element={<ApiReference />} />
+            <Route path="/community" element={<Community />} />
+            <Route path="/support" element={<Support />} />
+            <Route path="/solutions/:audience" element={<Solutions />} />
 
             <Route
               path="/login"

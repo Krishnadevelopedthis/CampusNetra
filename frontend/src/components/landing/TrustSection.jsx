@@ -4,6 +4,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
+import { accent } from '@/lib/accentColors'
 
 const INSTITUTION_TYPES = [
   { icon: GraduationCap, label: 'Universities', color: 'secondary', description: 'Multi-campus management' },
@@ -72,30 +73,33 @@ export function TrustSection() {
           transition={{ delay: 0.1, duration: 0.5 }}
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-16"
         >
-          {TRUST_METRICS.map(({ icon: Icon, label, sublabel, color, glow }, idx) => (
+          {TRUST_METRICS.map(({ icon: Icon, label, sublabel, color, glow }, idx) => {
+            const a = accent(color)
+            return (
             <motion.div
               key={label}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ delay: 0.15 + idx * 0.05, type: 'spring', stiffness: 300 }}
               whileHover={{ y: -4 }}
-              className={clsx('widget p-4 text-center glass-panel border border-glass-border relative overflow-hidden group', glow)}
+              className={clsx('widget p-4 text-center glass-panel border border-glass-border relative overflow-hidden group', a.glow)}
             >
               {/* Animated gradient border top */}
-              <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300', `from-${color}-400 to-${color}-500`)} style={{ background: `linear-gradient(90deg, var(--${color}-400), var(--${color}-500))` }} />
+              <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r', a.from400, a.to500)} />
 
               <div className="relative z-10">
-                <div className={clsx('w-10 h-10 rounded-xl border flex items-center justify-center mx-auto mb-3 relative overflow-hidden', `bg-${color}-500/15`, `border-${color}-400/30`, `text-${color}-400`)}>
+                <div className={clsx('w-10 h-10 rounded-xl border flex items-center justify-center mx-auto mb-3 relative overflow-hidden', a.bg15, a.border30, a.text400)}>
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Icon size={20} />
                 </div>
                 <div className="text-gradient-electric text-headline-lg font-bold">{label}</div>
                 <p className="text-body-sm text-ink-muted mt-0.5">{sublabel}</p>
                 {/* Status beacon pulse */}
-                <div className="status-beacon absolute top-2 right-2" style={{ background: `var(--${color}-500)` }} />
+                <div className={clsx('status-beacon absolute top-2 right-2', a.bg20.replace('/20', ''))} />
               </div>
             </motion.div>
-          ))}
+            )
+          })}
         </motion.div>
 
         {/* Institution Types */}
@@ -107,7 +111,9 @@ export function TrustSection() {
         >
           <h3 className="text-center text-label-caps text-ink-faint uppercase tracking-widest mb-8">Designed For Every Campus Type</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {INSTITUTION_TYPES.map(({ icon: Icon, label, color, description }, idx) => (
+            {INSTITUTION_TYPES.map(({ icon: Icon, label, color, description }, idx) => {
+              const a = accent(color)
+              return (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -117,18 +123,19 @@ export function TrustSection() {
                 className="widget p-5 flex flex-col items-center gap-3 text-center glass-panel border border-glass-border relative overflow-hidden group"
               >
                 {/* Glow on hover */}
-                <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', `glow-${color}`)} />
+                <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', a.glow)} />
 
                 <div className="relative z-10">
-                  <div className={clsx('w-14 h-14 rounded-xl border flex items-center justify-center mb-3 relative overflow-hidden', `bg-${color}-500/15`, `border-${color}-400/30`)}>
+                  <div className={clsx('w-14 h-14 rounded-xl border flex items-center justify-center mb-3 relative overflow-hidden', a.bg15, a.border30)}>
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Icon size={24} className={clsx('relative z-10', `text-${color}-400`)} />
+                    <Icon size={24} className={clsx('relative z-10', a.text400)} />
                   </div>
                   <h4 className="text-body-md font-semibold text-ink group-hover:text-secondary transition-colors duration-300">{label}</h4>
                   <p className="text-body-sm text-ink-muted">{description}</p>
                 </div>
               </motion.div>
-            ))}
+              )
+            })}
           </div>
         </motion.div>
 
@@ -165,7 +172,7 @@ export function TrustSection() {
                   <img src={avatar} alt={name} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent" />
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center text-[10px] font-bold" style={{ background: `var(--${color}-500)` }}>
+                <div className={clsx('absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center text-[10px] font-bold', accent(color).bg20.replace('/20', ''))}>
                   <Shield size={10} className="text-white" />
                 </div>
               </motion.div>

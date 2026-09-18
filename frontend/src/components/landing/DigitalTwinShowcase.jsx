@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { accent } from '@/lib/accentColors'
 import {
   Layers,
   AlertTriangle,
@@ -600,7 +601,7 @@ export function DigitalTwinShowcase() {
                         { icon: Zap, color: 'amber', label: 'Active Power Draw', value: selectedRoom.power },
                         { icon: Activity, color: 'secondary', label: 'System Status', value: selectedRoom.status.charAt(0).toUpperCase() + selectedRoom.status.slice(1) },
                         { icon: Sliders, color: 'cyan', label: 'Asset Health', value: selectedRoom.system },
-                      ].map((metric, idx) => (
+                      ].map((metric, idx) => { const a = accent(metric.color); return (
                         <motion.div
                           key={metric.label}
                           initial={{ opacity: 0, scale: 0.9 }}
@@ -609,14 +610,14 @@ export function DigitalTwinShowcase() {
                           className="p-3 rounded-xl glass-panel border border-glass-border group relative overflow-hidden"
                         >
                           {/* Glow accent on hover */}
-                          <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none', `glow-${metric.color}`)} />
+                          <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none', a.glow)} />
                           <div className="relative z-10 flex items-center gap-1.5 text-[11px] text-ink-faint mb-1">
-                            <metric.icon size={13} className={clsx(`text-${metric.color}-400`)} />
+                            <metric.icon size={13} className={clsx(a.text400)} />
                             <span>{metric.label}</span>
                           </div>
                           <p className="text-body-sm font-bold text-ink relative z-10 truncate">{metric.value}</p>
                         </motion.div>
-                      ))}
+                      )})}
                     </div>
 
                     {/* Active Subsystem Log */}

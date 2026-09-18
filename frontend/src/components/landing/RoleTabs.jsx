@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Shield, Wrench, Users, GraduationCap, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { motion, AnimatePresence } from 'framer-motion'
+import { accent } from '@/lib/accentColors'
 
 const ROLES = [
   {
@@ -167,15 +168,14 @@ export function RoleTabs() {
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
-                <Icon size={16} className={clsx('transition-colors', activeId === id ? `text-${accentColor}-400` : 'text-ink-muted')} />
+                <Icon size={16} className={clsx('transition-colors', activeId === id ? accent(accentColor).text400 : 'text-ink-muted')} />
                 {label}
                 {/* Active indicator */}
                 <motion.div
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                  className={clsx('absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full', accent(accentColor).bg500)}
                   initial={activeId !== id ? { opacity: 0, scale: 0 } : { opacity: 1, scale: 1 }}
                   animate={activeId === id ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                  style={{ backgroundColor: `var(--c-${accentColor}-400)` }}
                 />
               </motion.button>
             ))}
@@ -216,8 +216,8 @@ export function RoleTabs() {
                       transition={{ delay: 0.15 + idx * 0.05, duration: 0.3 }}
                       className="flex items-start gap-3 group"
                     >
-                      <div className={clsx('mt-1 flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-300 group-hover:scale-110', `bg-${active.accentColor}-500/10 border-${active.accentColor}-400/30`)}>
-                        <div className={clsx('w-2 h-2 rounded-full', `bg-${active.accentColor}-400`)} />
+                      <div className={clsx('mt-1 flex-shrink-0 w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-300 group-hover:scale-110', accent(active.accentColor).bg10, accent(active.accentColor).border30)}>
+                        <div className={clsx('w-2 h-2 rounded-full', accent(active.accentColor).bg500)} />
                       </div>
                       <span className="text-body-md text-ink-muted group-hover:text-ink transition-colors">{f}</span>
                     </motion.li>
@@ -247,7 +247,7 @@ export function RoleTabs() {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.25 + idx * 0.05, type: 'spring', stiffness: 300 }}
-                      className={clsx('rounded-xl p-4 glass-panel border border-glass-border transition-all duration-300 hover:shadow-glow-secondary', `bg-${active.accentColor}-500/5 border-${active.accentColor}-400/20`)}
+                      className={clsx('rounded-xl p-4 glass-panel border border-glass-border transition-all duration-300 hover:shadow-glow-secondary', accent(active.accentColor).bg10, accent(active.accentColor).border30)}
                     >
                       <p className="text-body-sm text-ink-faint mb-1">{label}</p>
                       <p className="text-headline-md text-ink font-bold">{value}</p>
