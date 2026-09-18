@@ -3,31 +3,47 @@
 Used by complaint reporting, Lost & Found and work-order evidence. Returns the
 shape the attachment schemas expect, so the caller passes the response straight
 through when creating the parent record.
+
+All images are stored privately in the bucket (never a public bucket URL) and
+served back through the /uploads/file/... route below, which requires the
+caller to be logged in before the backend fetches the bytes from storage.
 """
 from __future__ import annotations
 
 import asyncio
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi.responses import Response
 
 from app.api.deps import CurrentUser
 from app.core.routing import CommitRoute
 from app.core.config import settings
-from app.services.storage import UploadError, store_image
+from app.services.storage import UploadError, read_private_bytes, store_image
 
 router = APIRouter(route_class=CommitRoute, prefix="/uploads", tags=["Uploads"])
 
-# A phone photo is a few MB; refuse obviously wrong input before reading it all.
 MAX_FILES = 5
 
 
 def _subdir(purpose: str) -> str:
-    """Where a given kind of upload lives on disk."""
     if purpose in ("lost", "found"):
         return "lostfound"
     if purpose == "avatar":
         return "avatars"
     return "issues"
+
+
+def _served_url(relative_path: str) -> str:
+    return f"{settings.API_V1_PREFIX}/uploads/file/{relative_path}"
+
+
+@router.get("/file/{relative_path:path}")
+async def get_uploaded_file(user: CurrentUser, relative_path: str):
+    try:
+        data = await asyncio.to_thread(read_private_bytes, relative_path)
+    except UploadError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc))
+    return Response(content=data, media_type="image/jpeg")
 
 
 @router.post("/image", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -36,25 +52,18 @@ async def upload_image(
     file: UploadFile = File(...),
     purpose: str = "report",
 ):
-    """Store one image and return its URLs plus a perceptual hash.
-
-    The hash is what makes duplicate detection and Lost & Found image matching
-    work — both already score on it.
-    """
     data = await file.read()
-
     try:
-        # Pillow work is CPU-bound; keep it off the event loop.
         stored = await asyncio.to_thread(
             store_image, data, file.filename,
-            _subdir(purpose),
+            _subdir(purpose), True,
         )
     except UploadError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
 
     return {
-        "url": stored.url,
-        "thumb_url": stored.thumb_url,
+        "url": _served_url(stored.url),
+        "thumb_url": _served_url(stored.thumb_url),
         "filename": stored.filename,
         "mime_type": stored.mime_type,
         "size_bytes": stored.size_bytes,
@@ -71,8 +80,6 @@ async def upload_images(
     files: list[UploadFile] = File(...),
     purpose: str = "report",
 ):
-    """Batch variant. Partial failures are reported per file rather than failing
-    the whole request — one unreadable photo should not discard the others."""
     if len(files) > MAX_FILES:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -84,12 +91,12 @@ async def upload_images(
     for f in files:
         data = await f.read()
         try:
-            stored = await asyncio.to_thread(store_image, data, f.filename, subdir)
+            stored = await asyncio.to_thread(store_image, data, f.filename, subdir, True)
         except UploadError as exc:
             errors.append({"filename": f.filename, "error": str(exc)})
             continue
         uploaded.append({
-            "url": stored.url, "thumb_url": stored.thumb_url,
+            "url": _served_url(stored.url), "thumb_url": _served_url(stored.thumb_url),
             "filename": stored.filename, "mime_type": stored.mime_type,
             "size_bytes": stored.size_bytes, "phash": stored.phash,
             "purpose": purpose,
