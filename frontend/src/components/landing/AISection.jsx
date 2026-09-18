@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { accent } from '@/lib/accentColors'
 import {
   Brain,
   Zap,
@@ -244,7 +245,7 @@ export function AISection() {
                 { icon: Clock, title: 'Adaptive SLAs', sub: 'Dynamic hazard weighting', color: 'primary' },
                 { icon: TrendingUp, title: 'Pattern Detection', sub: 'Early failure warnings', color: 'cyan' },
                 { icon: Zap, title: 'Instant Dispatch', sub: '< 200ms processing', color: 'amber' },
-              ].map(({ icon: Icon, title, sub, color }, idx) => (
+              ].map(({ icon: Icon, title, sub, color }, idx) => { const a = accent(color); return (
                 <motion.div
                   key={title}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -253,16 +254,16 @@ export function AISection() {
                   whileHover={{ y: -2 }}
                   className="p-3.5 rounded-xl glass-panel border border-glass-border relative overflow-hidden group"
                 >
-                  <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none', `glow-${color}`)} />
+                  <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none', a.glow)} />
                   <div className="relative z-10">
-                    <div className={clsx('w-7 h-7 rounded-lg border flex items-center justify-center text-secondary mb-2', `border-${color}-400/30`, `bg-${color}-500/10`)}>
-                      <Icon size={14} className={clsx(`text-${color}-400`)} />
+                    <div className={clsx('w-7 h-7 rounded-lg border flex items-center justify-center text-secondary mb-2', a.border30, a.bg10)}>
+                      <Icon size={14} className={clsx(a.text400)} />
                     </div>
                     <p className="text-body-sm font-semibold text-ink">{title}</p>
                     <p className="text-[11px] text-ink-faint mt-0.5">{sub}</p>
                   </div>
                 </motion.div>
-              ))}
+              )})}
             </motion.div>
           </motion.div>
 
@@ -408,7 +409,7 @@ export function AISection() {
                             transition={{ delay: 0.3 + idx * 0.05 }}
                             className="flex items-start gap-2.5 p-2.5 rounded-lg glass-panel border border-glass-border text-body-sm"
                           >
-                            <span className={clsx('w-5 h-5 rounded-md flex items-center justify-center font-mono text-[11px] font-bold flex-shrink-0 mt-0.5', `bg-${idx % 2 === 0 ? 'secondary' : 'primary'}-500/20`, `text-${idx % 2 === 0 ? 'secondary' : 'primary'}-400`)}>
+                            <span className={clsx('w-5 h-5 rounded-md flex items-center justify-center font-mono text-[11px] font-bold flex-shrink-0 mt-0.5', accent(idx % 2 === 0 ? 'secondary' : 'primary').bg20, accent(idx % 2 === 0 ? 'secondary' : 'primary').text400)}>
                               {idx + 1}
                             </span>
                             <span className="text-ink font-medium text-[13px]">{step}</span>

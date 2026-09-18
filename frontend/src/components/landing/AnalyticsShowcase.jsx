@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { accent } from '@/lib/accentColors'
 import {
   BarChart,
   Bar,
@@ -179,6 +180,7 @@ export function AnalyticsShowcase() {
           >
             {DEPARTMENTS.map((dept) => {
               const isSelected = dept.id === selectedDeptId
+              const a = accent(dept.accentColor)
               return (
                 <motion.button
                   key={dept.id}
@@ -195,15 +197,14 @@ export function AnalyticsShowcase() {
                       : 'text-ink-muted hover:text-ink hover:bg-surface/60',
                   )}
                 >
-                  <Building size={14} className={clsx('transition-colors', isSelected ? `text-${dept.accentColor}-400` : 'text-ink-faint')} />
+                  <Building size={14} className={clsx('transition-colors', isSelected ? a.text400 : 'text-ink-faint')} />
                   <span>{dept.label}</span>
                   {/* Active indicator */}
                   <motion.div
-                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
+                    className={clsx('absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full', a.bg500)}
                     initial={isSelected ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
                     animate={isSelected ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                    style={{ backgroundColor: `var(--c-${dept.accentColor}-400)` }}
                   />
                 </motion.button>
               )
@@ -266,7 +267,7 @@ export function AnalyticsShowcase() {
                     <motion.span
                       animate={{ scale: [1, 1.05, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
-                      className={clsx(`text-${activeDept.accentColor}-400`)}
+                      className={clsx(accent(activeDept.accentColor).text400)}
                     >
                       ●
                     </motion.span>

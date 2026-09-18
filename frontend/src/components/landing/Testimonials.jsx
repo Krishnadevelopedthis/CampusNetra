@@ -2,6 +2,7 @@ import { Star, MessageSquare, Users, GraduationCap, Wrench, Shield, ArrowLeft, A
 import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import clsx from 'clsx'
+import { accent } from '@/lib/accentColors'
 
 const DEMO_FEEDBACK = [
   {
@@ -158,7 +159,9 @@ export function Testimonials() {
             onTouchStart={() => setIsPaused(true)}
             onTouchEnd={() => setTimeout(() => setIsPaused(false), 2500)}
           >
-            {DEMO_FEEDBACK.map(({ role, institution, quote, author, initials, accentColor, icon: Icon }, idx) => (
+            {DEMO_FEEDBACK.map(({ role, institution, quote, author, initials, accentColor, icon: Icon }, idx) => {
+              const a = accent(accentColor)
+              return (
               <motion.div
                 key={author}
                 initial={{ opacity: 0, y: 30 }}
@@ -168,10 +171,10 @@ export function Testimonials() {
                 className="widget p-6 flex flex-col justify-between glass-panel border border-glass-border relative overflow-hidden group snap-center flex-shrink-0 w-[360px] md:w-[400px]"
               >
                 {/* Animated gradient border top */}
-                <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300', `from-${accentColor}-400 via-${accentColor}-400 to-${accentColor}-500`)} style={{ background: `linear-gradient(90deg, var(--${accentColor}-400), var(--${accentColor}-400))` }} />
+                <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r', a.from400, a.to500)} />
 
                 {/* Glow on hover */}
-                <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', `glow-${accentColor}`)} />
+                <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', a.glow)} />
 
                 <div className="relative z-10">
                   {/* Stars */}
@@ -200,12 +203,13 @@ export function Testimonials() {
                   </div>
                   {/* Role badge */}
                   <div className="mt-3 flex items-center gap-2">
-                    <Icon size={12} className={clsx(`text-${accentColor}-400`)} />
+                    <Icon size={12} className={clsx(a.text400)} />
                     <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider">{role}</span>
                   </div>
                 </div>
               </motion.div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Scroll gradient indicators */}

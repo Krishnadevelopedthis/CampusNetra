@@ -1,6 +1,7 @@
 import { Brain, AlertTriangle, ClipboardList, Layers, Activity, Search, BarChart3, Zap, Server, Database, Shield, Users, Globe } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
+import { accent } from '@/lib/accentColors'
 
 const NODES = [
   { icon: AlertTriangle, label: 'Issue Engine', color: 'secondary', accentColor: 'amber', glowColor: 'glow-secondary', description: 'Real-time incident intake & classification' },
@@ -105,7 +106,7 @@ export function PlatformArchitecture() {
 
               {/* Mini capability badges around hub */}
               <div className="absolute -top-3 -right-6 flex flex-col gap-1.5">
-                {CENTER_HUB.icons.map(({ icon: Icon, label, color }, idx) => (
+                {CENTER_HUB.icons.map(({ icon: Icon, label, color }, idx) => { const a = accent(color); return (
                   <motion.div
                     key={label}
                     initial={{ opacity: 0, x: 20 }}
@@ -114,12 +115,12 @@ export function PlatformArchitecture() {
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-panel border border-glass-border shadow-glow-secondary/20"
                     whileHover={{ scale: 1.02 }}
                   >
-                    <div className={clsx('w-5 h-5 rounded-full flex items-center justify-center', `bg-${color}-500/20`, `text-${color}-400`)}>
+                    <div className={clsx('w-5 h-5 rounded-full flex items-center justify-center', a.bg20, a.text400)}>
                       <Icon size={10} />
                     </div>
                     <span className="text-[11px] font-semibold text-ink">{label}</span>
                   </motion.div>
-                ))}
+                )})}
               </div>
             </div>
           </motion.div>
@@ -131,7 +132,7 @@ export function PlatformArchitecture() {
             transition={{ delay: 0.2, duration: 0.5, ease: [0.24, 0, 0.38, 1] }}
             className="grid grid-cols-3 gap-4 mb-8"
           >
-            {NODES.slice(0, 3).map(({ icon: Icon, label, color, accentColor, glowColor, description }, idx) => (
+            {NODES.slice(0, 3).map(({ icon: Icon, label, color, accentColor, glowColor, description }, idx) => { const a = accent(color); return (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, y: 20 }}
@@ -141,21 +142,21 @@ export function PlatformArchitecture() {
                 className="widget p-5 glass-panel border border-glass-border relative overflow-hidden group"
               >
                 {/* Animated gradient border top */}
-                <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300', `from-${color}-400 to-${color}-500`)} style={{ background: `linear-gradient(90deg, var(--${color}-400), var(--${color}-500))` }} />
+                <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r', a.from400, a.to500)} />
 
                 {/* Glow on hover */}
                 <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', glowColor)} />
 
                 <div className="relative z-10 flex flex-col items-center text-center">
-                  <div className={clsx('w-14 h-14 rounded-xl border flex items-center justify-center mb-4 relative overflow-hidden', `bg-gradient-to-br from-${color}-500/20 to-${color}-400/10`, `border-${color}-400/30`)}>
+                  <div className={clsx('w-14 h-14 rounded-xl border flex items-center justify-center mb-4 relative overflow-hidden', a.bg20, a.border30)}>
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Icon size={24} className={clsx('relative z-10', `text-${color}-400`)} />
+                    <Icon size={24} className={clsx('relative z-10', a.text400)} />
                   </div>
                   <h3 className="text-headline-sm text-ink font-semibold mb-1 group-hover:text-secondary transition-colors duration-300">{label}</h3>
                   <p className="text-body-sm text-ink-muted leading-relaxed">{description}</p>
                 </div>
               </motion.div>
-            ))}
+            )})}
           </motion.div>
 
           {/* Connected modules - Bottom Row */}
@@ -165,7 +166,7 @@ export function PlatformArchitecture() {
             transition={{ delay: 0.35, duration: 0.5, ease: [0.24, 0, 0.38, 1] }}
             className="grid grid-cols-3 gap-4"
           >
-            {NODES.slice(3, 6).map(({ icon: Icon, label, color, accentColor, glowColor, description }, idx) => (
+            {NODES.slice(3, 6).map(({ icon: Icon, label, color, accentColor, glowColor, description }, idx) => { const a = accent(color); return (
               <motion.div
                 key={label}
                 initial={{ opacity: 0, y: 20 }}
@@ -175,21 +176,21 @@ export function PlatformArchitecture() {
                 className="widget p-5 glass-panel border border-glass-border relative overflow-hidden group"
               >
                 {/* Animated gradient border top */}
-                <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300', `from-${color}-400 to-${color}-500`)} style={{ background: `linear-gradient(90deg, var(--${color}-400), var(--${color}-500))` }} />
+                <div className={clsx('absolute top-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r', a.from400, a.to500)} />
 
                 {/* Glow on hover */}
                 <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', glowColor)} />
 
                 <div className="relative z-10 flex flex-col items-center text-center">
-                  <div className={clsx('w-14 h-14 rounded-xl border flex items-center justify-center mb-4 relative overflow-hidden', `bg-gradient-to-br from-${color}-500/20 to-${color}-400/10`, `border-${color}-400/30`)}>
+                  <div className={clsx('w-14 h-14 rounded-xl border flex items-center justify-center mb-4 relative overflow-hidden', a.bg20, a.border30)}>
                     <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Icon size={24} className={clsx('relative z-10', `text-${color}-400`)} />
+                    <Icon size={24} className={clsx('relative z-10', a.text400)} />
                   </div>
                   <h3 className="text-headline-sm text-ink font-semibold mb-1 group-hover:text-secondary transition-colors duration-300">{label}</h3>
                   <p className="text-body-sm text-ink-muted leading-relaxed">{description}</p>
                 </div>
               </motion.div>
-            ))}
+            )})}
           </motion.div>
 
           {/* Data flow indicators */}
@@ -204,14 +205,14 @@ export function PlatformArchitecture() {
               { label: 'Bidirectional', icon: Globe, color: 'cyan' },
               { label: 'Event Driven', icon: Activity, color: 'emerald' },
               { label: 'Secure', icon: Shield, color: 'secondary' },
-            ].map(({ label, icon: Icon, color }, idx) => (
+            ].map(({ label, icon: Icon, color }, idx) => { const a = accent(color); return (
               <div key={label} className="flex flex-col items-center gap-2">
-                <div className={clsx('w-10 h-10 rounded-xl border flex items-center justify-center', `bg-${color}-500/15`, `border-${color}-400/30`, `text-${color}-400`)}>
+                <div className={clsx('w-10 h-10 rounded-xl border flex items-center justify-center', a.bg15, a.border30, a.text400)}>
                   <Icon size={18} />
                 </div>
                 <span className="text-body-sm font-medium text-ink">{label}</span>
               </div>
-            ))}
+            )})}
           </motion.div>
         </div>
       </div>
