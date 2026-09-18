@@ -259,6 +259,76 @@ async def _send_brevo(to: str, body: str) -> SendResult:
     )
 
 
+
+# ---------------------------------------------------------------------------
+# SmsHorizon
+# ---------------------------------------------------------------------------
+
+SMSHORIZON_URL = "https://smshorizon.co.in/api/v2/sendsms.php"
+
+
+async def _send_smshorizon(to: str, body: str) -> SendResult:
+    """Send SMS through SmsHorizon."""
+
+    if not settings.SMSHORIZON_API_KEY:
+        return SendResult(
+            delivered=False,
+            error="SMSHORIZON_API_KEY is not configured.",
+        )
+
+    recipient = to_e164(to)
+
+    headers = {
+        "Authorization": f"Bearer {settings.SMSHORIZON_API_KEY}",
+        "accept": "application/json",
+    }
+
+    payload = {
+        "mobile": recipient,
+        "message": body,
+        "senderid": settings.SMSHORIZON_SENDER_ID,
+        "tid": settings.SMSHORIZON_TEMPLATE_ID,
+        "type": "txt",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                SMSHORIZON_URL,
+                headers=headers,
+                data=payload,
+            )
+
+    except httpx.HTTPError as exc:
+        log.error("Could not reach SmsHorizon: %s", exc)
+        return SendResult(
+            delivered=False,
+            error=f"Could not reach SmsHorizon: {exc}",
+        )
+
+    if resp.status_code < 300:
+        log.info("SmsHorizon accepted SMS: recipient=%s", recipient)
+        return SendResult(delivered=True)
+
+    detail = _api_error(resp)
+
+    log.error(
+        "SmsHorizon rejected SMS (%s): %s",
+        resp.status_code,
+        detail,
+    )
+
+    return SendResult(
+        delivered=False,
+        error=f"SmsHorizon error: {detail}",
+    )
+
+
+
+
+
+
+
 # ---------------------------------------------------------------------------
 # Self-hosted Android SMS Gateway
 # ---------------------------------------------------------------------------
@@ -432,6 +502,9 @@ async def _send_self_hosted(to: str, body: str) -> SendResult:
 async def send_sms(to: str, body: str) -> SendResult:
     provider = (settings.SMS_PROVIDER or "").strip().lower()
 
+    # SmsHorizon
+    if provider == "smshorizon":
+        return await _send_smshorizon(to, body)
     # Self-hosted Android SMS Gateway
     if provider == "self_hosted":
         return await _send_self_hosted(to, body)
