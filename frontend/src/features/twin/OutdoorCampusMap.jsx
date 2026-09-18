@@ -11,26 +11,28 @@ import { useEffect, useRef, useState } from 'react'
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 
 // If OpenFreeMap doesn't answer in time — a community-run, donation-funded
-// service with no uptime guarantee, and one report already showed its tiles
-// never finishing on a real network — CARTO's free raster basemap is a
-// second, independent host/CDN to try before giving up entirely. It has no
-// 3D city buildings of its own (raster, not vector), but CampusNetra's own
-// building layer below is fill-extrusion from our own GeoJSON either way,
-// so it still renders in 3D on top of a flat basemap — only the surrounding
-// OSM city context is lost, not the actual point of this view.
+// service with no uptime guarantee, confirmed unreachable on at least one
+// real network — OpenStreetMap's own standard tile server is the fallback:
+// genuinely free, no API key, no account. (CARTO's free raster tiles were
+// tried here first and turned out to now require a key — confirmed by an
+// actual "API KEY REQUIRED" watermark showing up on the live map — so this
+// is the second attempt at a fallback, not the first.) It has no 3D city
+// buildings of its own (raster, not vector), but CampusNetra's own building
+// layer below is fill-extrusion from our own GeoJSON either way, so it
+// still renders in 3D on top of a flat basemap — only the surrounding OSM
+// city context is lost, not the actual point of this view. OSM's own
+// server asks that production apps run their own tile server or use a paid
+// provider at real scale (see operations.osmfoundation.org/policies/tiles);
+// for a single campus's worth of traffic this is within normal use, but if
+// this app ever serves many campuses at once, that policy is worth revisiting.
 const FALLBACK_STYLE = {
   version: 8,
   sources: {
     'cn-fallback-raster': {
       type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-      ],
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
-      attribution: '© OpenStreetMap contributors © CARTO',
+      attribution: '© OpenStreetMap contributors',
     },
   },
   layers: [{ id: 'cn-fallback-raster-layer', type: 'raster', source: 'cn-fallback-raster' }],
@@ -38,6 +40,14 @@ const FALLBACK_STYLE = {
 
 const METERS_PER_DEG_LAT = 111_320
 const metersPerDegLng = (lat) => METERS_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180)
+
+// Half-width of the map's pannable/zoomable area around the campus centre —
+// "only as much map as the campus itself covers", not the whole city.
+// Generous enough for a typical campus plus its immediate surrounding
+// roads (a real footprint would be tighter, but CampusNetra only stores a
+// centre point per campus, not a traced boundary — see boundaryCircle
+// below for the same limitation on the visual ring).
+const CAMPUS_EXTENT_METERS = 550
 
 /** A small square footprint centred on a point, in metres, as a GeoJSON
  * polygon — fill-extrusion needs a polygon, and CampusNetra doesn't store
@@ -166,19 +176,34 @@ export function OutdoorCampusMap({
       })
     }
 
-    // isFallback=true when this is the second attempt (CARTO raster) after
-    // the primary (OpenFreeMap vector) timed out — a fallback that also
-    // fails shows the real error instead of trying a third time.
+    // isFallback=true when this is the second attempt (OSM raster) after the
+    // primary (OpenFreeMap vector) timed out — a fallback that also fails
+    // shows the real error instead of trying a third time.
     const startMap = (styleUrl, isFallback) => {
+      // Keeps the view to "the campus, roughly" rather than the whole city —
+      // requested directly: it should only show as much map as the campus
+      // itself covers, not an open-ended pannable area around it. 550m is a
+      // generous half-width for a typical campus plus its immediate
+      // surrounding roads; minZoom stops "zoom out to see the whole city"
+      // the same way maxBounds stops "pan to the whole city".
+      const halfLatDeg = CAMPUS_EXTENT_METERS / METERS_PER_DEG_LAT
+      const halfLngDeg = CAMPUS_EXTENT_METERS / metersPerDegLng(lat)
+      const maxBounds = [
+        [lng - halfLngDeg, lat - halfLatDeg],
+        [lng + halfLngDeg, lat + halfLatDeg],
+      ]
+
       const map = new MapLibreMap({
         container: mountRef.current,
         style: styleUrl,
         center: [lng, lat],
         zoom: 16.5,
+        minZoom: 15,
         pitch: 55,
         bearing: -17,
         antialias: true,
         maxPitch: 75,
+        maxBounds,
       })
       mapRef.current = map
       map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
@@ -217,7 +242,7 @@ export function OutdoorCampusMap({
           'network issue (a school/office firewall or ad-blocker may be blocking map tile ' +
           'hosts) rather than something wrong with the page. Try a different network, or ' +
           'check the browser console\'s Network tab for tiles.openfreemap.org / ' +
-          'basemaps.cartocdn.com.',
+          'tile.openstreetmap.org.',
         )
       }, 8000)
 
