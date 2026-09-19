@@ -5,42 +5,12 @@ import { useColorTheme } from './colorTheme'
 /**
  * Session timeout
  *
- * IMPORTANT:
- * Authentication is still controlled by the backend/token expiry.
- * We intentionally do NOT auto-logout the user after a short period
- * of browser inactivity because that can unexpectedly clear the
- * authenticated session while the application is being used.
- *
- * Keep this constant exported internally only if another module
- * later needs it.
+ * Inactivity-based auto-logout lives in lib/sessionTimeout.js and is wired
+ * up in App.jsx (started while `user` is present, stopped on logout). This
+ * module stays focused on authentication itself — login/logout/token
+ * storage/current-user state — and calls logout() below when the inactivity
+ * monitor decides the session should end.
  */
-const SESSION_TIMEOUT_MS = null
-
-// Kept for compatibility with any existing imports/usages.
-// No automatic inactivity logout is registered.
-const activityListenersAdded = new Set()
-
-/**
- * Kept as an exported function for compatibility with App.jsx or
- * any other existing module.
- *
- * Since inactivity-based auto logout is disabled, this function
- * intentionally does not register global listeners.
- *
- * Returning a cleanup function preserves the existing API.
- */
-export function addGlobalSessionReset() {
-  if (activityListenersAdded.has('auth')) return () => {}
-
-  activityListenersAdded.add('auth')
-
-  // No global activity listeners are required anymore because
-  // automatic inactivity logout has been disabled.
-
-  return () => {
-    activityListenersAdded.delete('auth')
-  }
-}
 
 /** Which modules each role may reach. Mirrors the backend's route guards. */
 export const ROLE_HOME = {
@@ -94,49 +64,11 @@ export const useAuth = create((set, get) => ({
   loading: false,
   initialised: false,
 
-  // Kept in the store for compatibility with existing components.
-  // It remains null because inactivity-based session expiration
-  // has been intentionally disabled.
-  sessionTimer: null,
-
   isStaff: () => STAFF.has(get().user?.role),
 
   isManager: () => MANAGER.has(get().user?.role),
 
   isAdmin: () => ADMIN.has(get().user?.role),
-
-  /**
-   * Reset the inactivity timer.
-   *
-   * Automatic inactivity logout has been disabled.
-   *
-   * The function is intentionally retained so existing components
-   * calling resetSessionTimer() do not break.
-   */
-  resetSessionTimer: () => {
-    const timer = get().sessionTimer
-
-    if (timer) {
-      clearTimeout(timer)
-    }
-
-    // No new inactivity timer is created.
-    set({ sessionTimer: null })
-  },
-
-  /**
-   * Clear the inactivity timer.
-   *
-   * Kept for compatibility with existing code.
-   */
-  clearSessionTimer: () => {
-    const timer = get().sessionTimer
-
-    if (timer) {
-      clearTimeout(timer)
-      set({ sessionTimer: null })
-    }
-  },
 
   /**
    * Revalidate the stored session against the server on boot.
@@ -155,7 +87,6 @@ export const useAuth = create((set, get) => ({
       set({
         initialised: true,
         user: null,
-        sessionTimer: null,
       })
       return
     }
@@ -189,30 +120,18 @@ export const useAuth = create((set, get) => ({
       set({
         user,
         initialised: true,
-        sessionTimer: null,
       })
-
-      /**
-       * No inactivity timer is started.
-       *
-       * Authentication validity remains controlled by the
-       * backend/token lifecycle.
-       */
-      get().clearSessionTimer()
     } catch (err) {
       /**
        * Only an explicit authentication/authorization rejection
        * should remove the local authentication state.
        */
       if (err?.status === 401 || err?.status === 403) {
-        get().clearSessionTimer()
-
         writeAuth(null)
 
         set({
           user: null,
           initialised: true,
-          sessionTimer: null,
         })
 
         return
@@ -230,7 +149,6 @@ export const useAuth = create((set, get) => ({
       set({
         user: stored.user ?? null,
         initialised: true,
-        sessionTimer: null,
       })
     }
   },
@@ -278,7 +196,6 @@ export const useAuth = create((set, get) => ({
 
       set({
         user: data.user,
-        sessionTimer: null,
       })
 
       return data.user
@@ -325,7 +242,6 @@ export const useAuth = create((set, get) => ({
 
     set({
       user: data.user,
-      sessionTimer: null,
     })
 
     return data.user
@@ -340,11 +256,6 @@ export const useAuth = create((set, get) => ({
    * Appearance preferences are intentionally NOT cleared.
    */
   async logout() {
-    /**
-     * Clear any existing timer before logging out.
-     */
-    get().clearSessionTimer()
-
     try {
       await api.post('/auth/logout')
     } catch {
@@ -368,7 +279,6 @@ export const useAuth = create((set, get) => ({
 
     set({
       user: null,
-      sessionTimer: null,
       loading: false,
     })
   },
@@ -391,9 +301,3 @@ export const useAuth = create((set, get) => ({
     set({ user })
   },
 }))
-
-/**
- * Keep the constant referenced so bundlers/linting do not treat
- * it as accidental dead code if this file is checked strictly.
- */
-void SESSION_TIMEOUT_MS
