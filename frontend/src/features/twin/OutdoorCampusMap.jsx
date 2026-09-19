@@ -147,7 +147,27 @@ export function OutdoorCampusMap({
     // style or the raster fallback, since neither of those affects our own
     // GeoJSON sources or fill-extrusion layer.
     const addOwnLayers = (map) => {
-      map.addSource('cn-boundary', { type: 'geojson', data: boundaryCircle(lat, lng, 260) })
+      // When a crop is set, its own edge IS the boundary — a separate fixed
+      // circle drawn on top would just be a second, unrelated shape that
+      // doesn't match what maxBounds actually stops at. Only a campus with
+      // no crop yet gets the generic "roughly here" circle.
+      const boundaryData = campus.map_bounds
+        ? {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [campus.map_bounds.west, campus.map_bounds.south],
+                [campus.map_bounds.east, campus.map_bounds.south],
+                [campus.map_bounds.east, campus.map_bounds.north],
+                [campus.map_bounds.west, campus.map_bounds.north],
+                [campus.map_bounds.west, campus.map_bounds.south],
+              ],
+            },
+            properties: {},
+          }
+        : boundaryCircle(lat, lng, 260)
+      map.addSource('cn-boundary', { type: 'geojson', data: boundaryData })
       map.addLayer({
         id: 'cn-boundary-line', type: 'line', source: 'cn-boundary',
         paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 2], 'line-opacity': 0.55 },
