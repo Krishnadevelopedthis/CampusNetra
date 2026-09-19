@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import {
   Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
-  PlusCircle, Search, Settings, Sparkles, User as UserIcon, X,
+  PlusCircle, Search, Settings, User as UserIcon, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -9,11 +9,11 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
 import { Logo, LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
+import { AssistantWidget } from '@/features/assistant/AssistantWidget'
 import { api, connectNotifications, mediaUrl } from '@/lib/api'
 import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { navFor } from './nav'
-import { AssistantPanel } from '@/features/assistant/AssistantPanel'
 
 function useOutsideClick(ref, handler) {
   useEffect(() => {
@@ -189,7 +189,6 @@ export default function AppLayout() {
   const { user } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [assistantOpen, setAssistantOpen] = useState(false)
   const location = useLocation()
   const items = navFor(user?.role)
   const accent = ROLE_ACCENT[user?.role] || '#1e1b4b'
@@ -246,14 +245,6 @@ export default function AppLayout() {
             <PlusCircle size={16} /> Report an Issue
           </Link>
         )}
-        <button
-          onClick={() => setAssistantOpen(true)}
-          className={clsx('btn-dark w-full', collapsed && 'px-0')}
-          title="AI Campus Assistant"
-        >
-          <Sparkles size={16} />
-          {!collapsed && 'AI Assistant'}
-        </button>
         <button
           onClick={() => setCollapsed((c) => !c)}
           className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
@@ -331,7 +322,7 @@ export default function AppLayout() {
         </footer>
       </div>
 
-      <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
+      <AssistantWidget />
     </div>
   )
 }

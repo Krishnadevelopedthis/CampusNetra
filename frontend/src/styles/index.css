@@ -137,6 +137,16 @@
   .table tbody tr { @apply min-h-[40px] transition-colors; }
   .table tbody tr:hover { @apply bg-surface-sunken/60; }
   .table-compact tbody td { @apply py-2 text-body-sm; }
+  /* Settings → Table density. Applied globally via a data-density attribute
+     on <html> (see App.jsx), not a class threaded through every table —
+     that would mean editing every page that renders one. Excludes tables
+     already hardcoded `.table-compact` (a handful of small metadata tables
+     across Analytics/Admin pages that are deliberately always dense) so the
+     user's "Comfortable" choice doesn't fight a deliberate design decision
+     on those, while every other `.table` in the app now actually responds
+     to the setting instead of it being a dead toggle. */
+  html[data-density="compact"] .table:not(.table-compact) tbody td { @apply py-2 text-body-sm; }
+  html[data-density="compact"] .table:not(.table-compact) tbody tr { @apply min-h-[32px]; }
   /* Without this the table's square corners poke out through the card's
      rounded edge -- which is *every* flush (bodyClass="p-0") table in the
      admin section, since Widget always renders a .widget-body wrapper
