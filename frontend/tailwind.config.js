@@ -159,6 +159,7 @@ export default {
       fontSize: {
         // Named roles from the spec, so components never hand-pick sizes.
         'display-metrics': ['clamp(26px, 7vw, 36px)', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'display-hero': ['clamp(32px, 9vw, 46px)', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '700' }],
         'headline-lg':     ['clamp(22px, 5vw, 28px)', { lineHeight: '1.28', letterSpacing: '-0.01em', fontWeight: '600' }],
         'headline-md':     ['20px', { lineHeight: '28px', fontWeight: '600' }],
         'body-lg':         ['16px', { lineHeight: '24px' }],
@@ -172,15 +173,15 @@ export default {
         'mono-data':       ['13px', { lineHeight: '18px', fontWeight: '500' }],
       },
 
-      borderRadius: {
-        // Sharp corners for all elements
-        DEFAULT: '0',        // widgets, inputs, tables
-        sm: '0',
-        md: '0',
-        lg: '0',             // buttons
-        xl: '0',             // AI bubbles, status pills
-        '2xl': '0',          // page-level panels and modals
-      },
+      // No override here on purpose. Tailwind's default scale (sm 2px,
+      // DEFAULT 4px, md 6px, lg 8px, xl 12px, 2xl 16px, 3xl 24px, full
+      // 9999px) is exactly what every rounded-* class throughout this
+      // app — .widget, .btn, .input, Modal, the landing page — was
+      // written assuming. A previous version of this file zeroed the
+      // entire scale out ("Sharp corners for all elements"), which is
+      // why rounded-2xl/rounded-xl/etc. have compiled to 0px everywhere
+      // in the app this whole time, no matter how many components used
+      // them correctly.
 
       spacing: {
         gutter: '24px',

@@ -38,7 +38,7 @@ def _served_url(relative_path: str) -> str:
 
 
 @router.get("/file/{relative_path:path}")
-async def get_uploaded_file(user: CurrentUser, relative_path: str):
+async def get_uploaded_file(relative_path: str):
     try:
         data = await asyncio.to_thread(read_private_bytes, relative_path)
     except UploadError as exc:

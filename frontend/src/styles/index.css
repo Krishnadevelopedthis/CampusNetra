@@ -137,11 +137,29 @@
   .table tbody tr { @apply min-h-[40px] transition-colors; }
   .table tbody tr:hover { @apply bg-surface-sunken/60; }
   .table-compact tbody td { @apply py-2 text-body-sm; }
-  /* Without this the header's square corners poke out through the card's
-     radius wherever a table is the first thing inside a widget. Matches
-     .widget's rounded-2xl above — keep these two in sync if either changes. */
-  .widget > .table-wrap:first-child .table thead th:first-child { @apply rounded-tl-2xl; }
-  .widget > .table-wrap:first-child .table thead th:last-child { @apply rounded-tr-2xl; }
+  /* Without this the table's square corners poke out through the card's
+     rounded edge -- which is *every* flush (bodyClass="p-0") table in the
+     admin section, since Widget always renders a .widget-body wrapper
+     between .widget and whatever you pass it. The old version of this
+     rule targeted `.widget > .table-wrap` directly, which can never match
+     anything -- .table-wrap always sits one level deeper, inside
+     .widget-body. Fixed to match the real DOM, and added the bottom
+     corners, which weren't handled at all before. Matches .widget's
+     rounded-2xl above — keep these in sync if either changes. */
+  .widget > .widget-body:first-child > .table-wrap:first-child .table thead th:first-child { @apply rounded-tl-2xl; }
+  .widget > .widget-body:first-child > .table-wrap:first-child .table thead th:last-child { @apply rounded-tr-2xl; }
+  .widget > .widget-body > .table-wrap:last-child .table tbody tr:last-child td:first-child { @apply rounded-bl-2xl; }
+  .widget > .widget-body > .table-wrap:last-child .table tbody tr:last-child td:last-child { @apply rounded-br-2xl; }
+  /* Same problem, one layer up: a flush widget commonly has a filter/search
+     bar (or any other plain div) as the first or last thing in the body,
+     not a table at all -- e.g. AdminUsers' search+role-filter row. That
+     element needs to round its own corners too, or it's the thing poking
+     a square edge through the card now. Excludes .table-wrap since that
+     case is already handled above at the cell level (rounding the wrapper
+     div itself would need overflow-hidden, which would break its
+     intentional horizontal scroll on narrow screens). */
+  .widget > .widget-body:first-child > *:first-child:not(.table-wrap) { @apply rounded-t-2xl; }
+  .widget > .widget-body > *:last-child:not(.table-wrap) { @apply rounded-b-2xl; }
   .table tbody tr:last-child td { @apply border-b-0; }
 
   /* ---- AI surfaces: tinted so machine output reads as non-human ---- */

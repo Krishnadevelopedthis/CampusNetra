@@ -22,6 +22,7 @@ export default function Login() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const expired = params.get('expired')
+  const expiredReason = params.get('reason')
 
   const submit = async (e) => {
     e.preventDefault()
@@ -75,7 +76,15 @@ export default function Login() {
 
         {expired && (
           <div className="ai-surface px-3 py-2.5 text-body-md text-info-text">
-            Your session expired. Please sign in again.
+            {expiredReason === 'inactivity' ? (
+              <>
+                <strong className="font-medium">Session Expired.</strong>{' '}
+                You were logged out because there was no activity for 10 minutes.
+                Please log in again to continue.
+              </>
+            ) : (
+              'Your session expired. Please sign in again.'
+            )}
           </div>
         )}
         {errors._ && (

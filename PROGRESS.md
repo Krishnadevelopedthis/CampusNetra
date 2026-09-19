@@ -777,6 +777,162 @@ Every footer link resolves to something real now.
 included. Still not verified in an actual rendered browser — traced
 through the code and confirmed to build, not confirmed by looking at it.
 
+## Addendum 11 — the table-corner CSS rule never actually matched anything
+
+Kept getting told sharp corners were still showing up after Addenda 7
+and 10 supposedly handled rounding everywhere. Went looking for what
+those addenda actually missed rather than re-applying the same fix
+again.
+
+Found it: `Widget` (`components/ui/index.jsx`) always renders
+`<section className="widget"><div className="widget-body">{children}</div></section>`
+-- the body wrapper is unconditional. The corner-rounding rule added
+in Addendum 7 targeted `.widget > .table-wrap:first-child`, a *direct*
+child of `.widget`. That selector can never match anything, because
+`.table-wrap` is always one level deeper, inside `.widget-body`. It
+looked like a fix, built without error, and did nothing at all.
+
+This matters because `bodyClass="p-0"` (a flush, edge-to-edge table
+with no padding around it) is the standard pattern for nearly every
+data table in the admin section -- `AdminUsers`, `AdminAssets`,
+`AdminAI`, `AdminSystem`, `AdminOverview`, `AdminCosts`,
+`AdminTemplates`, `AdminLostFound`, `AdminConfig`, `IssueMap`, and
+others. Every one of them has had square table-header corners sitting
+inside a rounded card since Addendum 7 shipped rounded corners in the
+first place.
+
+Fixed the selector to match the real DOM (`.widget > .widget-body >
+.table-wrap`), and added the bottom corners, which the original rule
+never covered at all -- only the top of the table was ever addressed,
+even in the version that would have worked.
+
+One layer up, same bug: several of those pages put a search/filter bar
+*before* the table inside the same flush body (`AdminUsers`'s
+search+role+status row, for one) -- a plain div with no rounding of its
+own, now sitting flush against the widget's rounded top edge. Added a
+general rule for any first/last child of a flush widget body,
+`.table-wrap` excluded (handled separately above, since rounding the
+wrapper itself would need `overflow-hidden`, which would break its
+intentional horizontal scroll on narrow screens).
+
+`npm run build` verified clean. Still not confirmed in an actual
+browser.
+
+## Addendum 12 — Back to Home, and a couple of touch targets
+
+Working from a full UI/responsiveness spec covering rounded corners,
+mobile/desktop parity, touch targets, and more. Most of the ground it
+covers was already handled by Addenda 6–11 (retheme, glass, footer
+pages, the table-radius bug); this pass covers what wasn't:
+
+- **Back to Home** on every marketing page: added once to `StaticPage`
+  (the shared wrapper all 11 pages already use), rather than to each
+  page individually — same reasoning as everything else in this file,
+  fix the shared component and it reaches everywhere at once.
+- **Touch targets**: the modal close button was `h-8 w-8` (32px, under
+  the ~44px guideline for an icon-only control) — bumped to `h-11 w-11`.
+  Same for the landing navbar's mobile hamburger button (`p-2` around a
+  20px icon ≈ 36px tap area → `p-3` with a compensating `-m-1` so it
+  doesn't shift the layout, ≈44px now).
+- Audited the rest of the app for sharp-cornered "boxes" specifically —
+  found nothing else: every remaining bare `border` usage turned out to
+  be a single-edge divider (tab underlines, section separators) that
+  correctly shouldn't be rounded, not a missed card.
+
+Not done this round — the source spec's full scope (breakpoint-by-
+breakpoint testing at 320/375/390/430/768/1024/1280/1440/1920px, mobile
+vs. desktop feature-parity audit beyond what's already been touched,
+per-component responsive reflow beyond the landing page) is real,
+substantial, remaining work — not something to claim finished on the
+strength of a build passing. Flagging rather than guessing at what
+"probably" works.
+
+`npm run build` verified clean. Not verified in an actual rendered
+browser — same limitation as every addendum before this one.
+
+## Addendum 13 — the actual root cause of every "still sharp corners" report
+
+Four rounds (Addenda 6, 7, 11, 12) of rounding fixes, and the user kept
+sending screenshots showing sharp corners everywhere, unchanged. Every
+fix was individually correct and every build was clean, which made no
+sense — until actually diffing the *compiled* CSS output instead of
+trusting that a clean build meant the classes did what they said.
+
+Found it in `tailwind.config.js`:
+
+```js
+borderRadius: {
+  // Sharp corners for all elements
+  DEFAULT: '0', sm: '0', md: '0', lg: '0', xl: '0', '2xl': '0',
+}
+```
+
+Someone had explicitly zeroed Tailwind's entire border-radius scale,
+with a comment saying exactly that. Every `rounded-2xl`/`rounded-xl`/
+`rounded-lg` class added across this whole project — `.widget`, `.btn`,
+`.input`, `Modal`, every landing-page card — was compiling to a real,
+present CSS rule, with `border-radius: 0` inside it. Not missing,
+not overridden by specificity elsewhere -- the class itself had been
+redefined to mean zero. No amount of adding `rounded-2xl` to more
+components could ever have produced a visible result against this.
+
+Removed the override entirely. Confirmed by grepping the actual built
+CSS this time, not just watching the build succeed:
+`.widget{border-radius:1rem}`, `.btn{border-radius:.75rem}`,
+`.input{border-radius:.5rem}` -- 16px/12px/8px, matching what every one
+of those components was always written to expect. One remaining
+`border-radius:0` in the built output belongs to MapLibre's own popup
+close-button, a third-party library style, unrelated and correct as-is.
+
+Lesson for real this time: a clean build only proves the code is valid
+JS/CSS syntax. It says nothing about what a class actually *resolves to*
+once the whole config is applied. Should have grepped the compiled
+output the first time corners were reported as still sharp, not the
+fourth.
+
+## Addendum 14 — hero stat layout, theme-aware stat colors, two new accent presets
+
+Three requests: make the dashboard's 4 equal stat boxes into one hero +
+smaller supporting ones (matches the Financo reference's own "one big
+card, others smaller" layout, never actually applied to the real
+Dashboard before this); make those stat colors respond to the active
+theme; add two named accent-color presets.
+
+**Stat colors were frozen regardless of theme, and here's why**: the
+backend (`dashboard.py` and others) sends a literal hex per metric —
+`#f59e0b`, `#10b981`, `#3b82f6` — always the same three values, light or
+dark mode. `Metric` used that hex directly as an inline style, so no
+theme-CSS-variable involved at all. Rather than change what the backend
+sends (that's a contract change, bigger blast radius than this needs),
+added a small recognizer in `Metric` itself: the three known hex values
+map to `var(--c-warning)`/`--c-success`/`--c-info`, anything else passes
+through unchanged. Then found the deeper gap those variables were hiding:
+`--c-success`/`--c-warning`/`--c-danger`/`--c-info`'s **base** tone
+(used directly for icons and now these stat accents) had never been
+given a dark-mode value at all — only their `-bg`/`-border`/`-text`
+siblings had. Added dark variants (brighter -400 shades, which is what
+holds contrast on a dark background where the light-mode -500 wouldn't).
+
+**Hero layout**: `Metric` takes a `size="hero"` variant now — bigger
+padding, bigger number (new `text-display-hero` scale), and a faint
+diagonal wash of its own accent color so it visually leads the row
+instead of matching the other three exactly. `Dashboard.jsx`'s metric
+grid renders the first item as hero, the rest in a small 2-column grid
+beside/below it. Scoped to `Dashboard.jsx` only this round — `AdminOverview`/
+`AdminPredictive`/anywhere else using plain `<Metric>` still render the
+old uniform way (they do get the theme-color fix automatically, since
+that's in the shared component; the layout choice wasn't extended to
+them without being asked to).
+
+**New accent presets**: added "Cobalt & Ice" (`#2457FF` / `#DFF7FF`) and
+"Magenta & Mist" (`#C2185B` / `#E0F2FE`) to the existing curated-
+combinations picker in `ColorThemeSwitcher` — that grid already wraps
+responsively (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so going from
+3 to 5 options doesn't break its layout.
+
+`npm run build` verified clean; re-confirmed the border-radius fix from
+Addendum 13 is still intact in the compiled CSS (not just assumed).
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
