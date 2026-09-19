@@ -81,9 +81,15 @@ class Settings(BaseSettings):
     NAME_MATCH_THRESHOLD: float = 0.6
 
     # AI
-    ANTHROPIC_API_KEY: str = ""
-    AI_MODEL: str = "claude-sonnet-5"
+    # AI
     AI_ENABLED: bool = True
+
+    AI_PROVIDER: Literal["anthropic", "openrouter"] = "openrouter"
+
+    AI_MODEL: str = "openrouter/free"
+
+    ANTHROPIC_API_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
 
     # Storage
     # "local" writes to UPLOAD_DIR on the server's own disk — fine for local
@@ -240,8 +246,16 @@ class Settings(BaseSettings):
 
     @property
     def ai_available(self) -> bool:
-        """AI calls only go out when a key is present; otherwise heuristics run."""
-        return self.AI_ENABLED and bool(self.ANTHROPIC_API_KEY)
+        if not self.AI_ENABLED:
+            return False
+
+        if self.AI_PROVIDER == "anthropic":
+            return bool(self.ANTHROPIC_API_KEY)
+
+        if self.AI_PROVIDER == "openrouter":
+            return bool(self.OPENROUTER_API_KEY)
+
+        return False
 
     @property
     def sms_delivers(self) -> bool:
