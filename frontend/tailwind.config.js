@@ -159,6 +159,7 @@ export default {
       fontSize: {
         // Named roles from the spec, so components never hand-pick sizes.
         'display-metrics': ['clamp(26px, 7vw, 36px)', { lineHeight: '1.2', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'display-hero': ['clamp(32px, 9vw, 46px)', { lineHeight: '1.15', letterSpacing: '-0.02em', fontWeight: '700' }],
         'headline-lg':     ['clamp(22px, 5vw, 28px)', { lineHeight: '1.28', letterSpacing: '-0.01em', fontWeight: '600' }],
         'headline-md':     ['20px', { lineHeight: '28px', fontWeight: '600' }],
         'body-lg':         ['16px', { lineHeight: '24px' }],

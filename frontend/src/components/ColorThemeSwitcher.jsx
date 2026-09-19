@@ -114,7 +114,7 @@ export function ColorThemeSwitcher() {
     handleColorChange('#f4602a') // Default brand accent (warm orange)
   }
 
-  // Curated best color combinations (3 boxes) - each with background + optimal text color
+  // Curated color combinations - each with background + optimal text color
   const curatedCombinations = [
     {
       id: 'maroon-white',
@@ -139,6 +139,22 @@ export function ColorThemeSwitcher() {
       bgColor: '#065f46',
       textColor: '#ffffff',
       textColorDark: '#f2f5fc'
+    },
+    {
+      id: 'cobalt-ice',
+      name: 'Cobalt & Ice',
+      description: 'Vivid blue, cool contrast',
+      bgColor: '#2457FF',
+      textColor: '#DFF7FF',
+      textColorDark: '#DFF7FF'
+    },
+    {
+      id: 'magenta-mist',
+      name: 'Magenta & Mist',
+      description: 'Bold pink, pale sky accent',
+      bgColor: '#C2185B',
+      textColor: '#E0F2FE',
+      textColorDark: '#E0F2FE'
     }
   ]
 
