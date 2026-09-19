@@ -17,6 +17,15 @@ from app.schemas.common import ORMModel
 AssetSurface = Literal["floor", "wall_back", "wall_left", "wall_right", "wall_front", "ceiling"]
 
 
+class MapBounds(BaseModel):
+    """{south,west,north,east} in decimal degrees — the exact area an admin
+    searched for and cropped on the outdoor map. See Campus.map_bounds."""
+    south: float = Field(ge=-90, le=90)
+    west: float = Field(ge=-180, le=180)
+    north: float = Field(ge=-90, le=90)
+    east: float = Field(ge=-180, le=180)
+
+
 class CampusOut(ORMModel):
     id: uuid.UUID
     name: str
@@ -24,6 +33,7 @@ class CampusOut(ORMModel):
     address: Optional[str] = None
     latitude: Optional[Decimal] = None
     longitude: Optional[Decimal] = None
+    map_bounds: Optional[MapBounds] = None
 
 
 class BuildingOut(ORMModel):
@@ -236,6 +246,7 @@ class CampusUpdate(BaseModel):
     address: Optional[str] = None
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+    map_bounds: Optional[MapBounds] = None
 
 
 class FloorUpdate(BaseModel):

@@ -34,6 +34,13 @@ class Campus(TimestampMixin, Base):
     address: Mapped[Optional[str]] = mapped_column(Text)
     latitude: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 7))
     longitude: Mapped[Optional[Decimal]] = mapped_column(Numeric(10, 7))
+    # The exact area an admin cropped on the outdoor map — {south,west,north,
+    # east} in decimal degrees. Nothing shows anything wider than this once
+    # it's set; before it's set, OutdoorCampusMap falls back to a generous
+    # fixed-radius box around latitude/longitude instead. A JSONB blob rather
+    # than four columns because it's only ever read/written as one unit,
+    # never queried by a single edge.
+    map_bounds: Mapped[Optional[dict]] = mapped_column(JSONB)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     buildings: Mapped[list["Building"]] = relationship(back_populates="campus", cascade="all, delete-orphan")
