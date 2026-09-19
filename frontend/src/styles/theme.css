@@ -248,19 +248,28 @@
   --c-success-bg: 6 42 32;
   --c-success-border: 16 96 63;
   --c-success-text: 110 231 183;
+  /* The base tone (used directly for icons, stat accents, text-success
+     etc., not just the bg/border/text trio above) was never given a
+     dark-mode value at all -- same amber/emerald/blue/red regardless of
+     theme. -400 shades here instead of -500: brighter, holds contrast
+     on a dark background the way the -500 light-mode value doesn't. */
+  --c-success: 52 211 153;
 
   --c-warning-bg: 43 30 5;
   --c-warning-border: 120 80 10;
   --c-warning-text: 252 211 77;
+  --c-warning: 251 191 36;
 
   --c-danger-bg: 44 17 19;
   --c-danger-border: 127 35 38;
   --c-danger-text: 252 165 165;
   --c-danger-strong: 220 38 38;
+  --c-danger: 248 113 113;
 
   --c-info-bg: 13 31 56;
   --c-info-border: 30 74 138;
   --c-info-text: 147 197 253;
+  --c-info: 96 165 250;
 
   --c-twin-decommissioned: 100 116 139;
 

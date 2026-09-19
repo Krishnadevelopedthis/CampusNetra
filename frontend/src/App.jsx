@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
 import { BrandLoader, Spinner } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
+import { broadcastSessionEnded, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -216,7 +218,10 @@ const ADMIN = [
 
 export default function App() {
   const init = useAuth((s) => s.init)
+  const user = useAuth((s) => s.user)
+  const logout = useAuth((s) => s.logout)
   const location = useLocation()
+  const navigate = useNavigate()
 
   /**
    * Restore and validate the authentication session once when
@@ -227,21 +232,46 @@ export default function App() {
   }, [init])
 
   /**
-   * IMPORTANT:
+   * Inactivity session timeout.
    *
-   * The old global activity listener that reset a 2-minute
-   * inactivity logout has intentionally been removed.
+   * Starts once a user is present, stops on logout — `user` going from
+   * null to an object (login) or back to null (logout, or a rejected
+   * /auth/me on boot) is exactly the signal this needs, so the effect's
+   * own start/cleanup pairing handles "start on login" / "stop on logout" /
+   * "restart after a fresh login" without extra bookkeeping.
    *
-   * auth.js still exports addGlobalSessionReset() for compatibility
-   * with any other existing code, but App no longer needs to
-   * register unnecessary global listeners.
-   *
-   * Backend authentication/token expiration remains responsible
-   * for session validity.
+   * `onExpire` performs the actual logout: this module only measures
+   * inactivity, it never touches tokens or storage itself.
    */
+  useEffect(() => {
+    if (!user) return undefined
+
+    const stop = startSessionTimeoutMonitor(async ({ silent } = {}) => {
+      await logout()
+      if (!silent) broadcastSessionEnded()
+      navigate('/login?expired=1&reason=inactivity', { replace: true })
+    })
+
+    return stop
+  }, [user, logout, navigate])
+
+  // SPA navigation never fires a native DOM event the activity listeners
+  // would catch, so it has to be recorded explicitly — otherwise reading
+  // through a long issue list by clicking between pages would still expire
+  // after 10 minutes of "inactivity" that was actually continuous use.
+  useEffect(() => {
+    recordActivity()
+  }, [location.pathname])
 
   return (
     <>
+      <SessionTimeoutModal
+        onLogout={async () => {
+          await logout()
+          broadcastSessionEnded()
+          navigate('/login', { replace: true })
+        }}
+      />
       {/*
         Keyed on the path so a crash on one page clears when you
         navigate away, instead of wedging the whole app until

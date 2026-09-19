@@ -69,12 +69,27 @@ export default function Dashboard() {
         </>
       ) : (
         <>
-          {/* Metric tiles */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {data.metrics.map((m) => (
-              <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} />
-            ))}
-          </div>
+          {/* Metric tiles — one hero (bigger, tinted with its own accent),
+              the rest small and even. Financo's reference does the same
+              thing for the same reason: one number leads, the rest are
+              context, not four equally-loud boxes competing. */}
+          {data.metrics.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <Metric
+                size="hero"
+                className="col-span-2 sm:col-span-1"
+                key={data.metrics[0].label}
+                label={data.metrics[0].label}
+                value={data.metrics[0].value}
+                accent={data.metrics[0].accent}
+              />
+              <div className="col-span-2 sm:col-span-1 grid grid-cols-2 gap-3">
+                {data.metrics.slice(1).map((m) => (
+                  <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {isReporter ? <ReporterBody data={data} /> : <StaffBody data={data} user={user} />}
         </>
