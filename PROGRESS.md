@@ -890,6 +890,49 @@ once the whole config is applied. Should have grepped the compiled
 output the first time corners were reported as still sharp, not the
 fourth.
 
+## Addendum 14 — hero stat layout, theme-aware stat colors, two new accent presets
+
+Three requests: make the dashboard's 4 equal stat boxes into one hero +
+smaller supporting ones (matches the Financo reference's own "one big
+card, others smaller" layout, never actually applied to the real
+Dashboard before this); make those stat colors respond to the active
+theme; add two named accent-color presets.
+
+**Stat colors were frozen regardless of theme, and here's why**: the
+backend (`dashboard.py` and others) sends a literal hex per metric —
+`#f59e0b`, `#10b981`, `#3b82f6` — always the same three values, light or
+dark mode. `Metric` used that hex directly as an inline style, so no
+theme-CSS-variable involved at all. Rather than change what the backend
+sends (that's a contract change, bigger blast radius than this needs),
+added a small recognizer in `Metric` itself: the three known hex values
+map to `var(--c-warning)`/`--c-success`/`--c-info`, anything else passes
+through unchanged. Then found the deeper gap those variables were hiding:
+`--c-success`/`--c-warning`/`--c-danger`/`--c-info`'s **base** tone
+(used directly for icons and now these stat accents) had never been
+given a dark-mode value at all — only their `-bg`/`-border`/`-text`
+siblings had. Added dark variants (brighter -400 shades, which is what
+holds contrast on a dark background where the light-mode -500 wouldn't).
+
+**Hero layout**: `Metric` takes a `size="hero"` variant now — bigger
+padding, bigger number (new `text-display-hero` scale), and a faint
+diagonal wash of its own accent color so it visually leads the row
+instead of matching the other three exactly. `Dashboard.jsx`'s metric
+grid renders the first item as hero, the rest in a small 2-column grid
+beside/below it. Scoped to `Dashboard.jsx` only this round — `AdminOverview`/
+`AdminPredictive`/anywhere else using plain `<Metric>` still render the
+old uniform way (they do get the theme-color fix automatically, since
+that's in the shared component; the layout choice wasn't extended to
+them without being asked to).
+
+**New accent presets**: added "Cobalt & Ice" (`#2457FF` / `#DFF7FF`) and
+"Magenta & Mist" (`#C2185B` / `#E0F2FE`) to the existing curated-
+combinations picker in `ColorThemeSwitcher` — that grid already wraps
+responsively (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so going from
+3 to 5 options doesn't break its layout.
+
+`npm run build` verified clean; re-confirmed the border-radius fix from
+Addendum 13 is still intact in the compiled CSS (not just assumed).
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

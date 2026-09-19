@@ -322,23 +322,55 @@ export function ErrorState({ error, onRetry }) {
 }
 
 /* ---------------- Metric tile ---------------- */
-export function Metric({ label, value, delta, deltaTone = 'neutral', accent, icon: Icon }) {
+// The backend sends a fixed hex per metric (warning/success/info intent),
+// the same value regardless of theme. Recognize the known ones and route
+// them through the theme-aware token instead of using the literal hex --
+// this is the only way these colors can actually shift with light/dark,
+// since the raw string from the API never will.
+const KNOWN_ACCENT_HEX = {
+  '#f59e0b': 'rgb(var(--c-warning))',
+  '#10b981': 'rgb(var(--c-success))',
+  '#3b82f6': 'rgb(var(--c-info))',
+  '#ef4444': 'rgb(var(--c-danger))',
+}
+function resolveAccent(hex) {
+  if (!hex) return undefined
+  return KNOWN_ACCENT_HEX[hex.toLowerCase()] || hex
+}
+
+export function Metric({ label, value, delta, deltaTone = 'neutral', accent, icon: Icon, size = 'default', className }) {
   const tones = {
     up: 'bg-success-bg text-success-text',
     down: 'bg-danger-bg text-danger-text',
     neutral: 'bg-surface-sunken text-ink-muted',
   }
+  const resolvedAccent = resolveAccent(accent)
+  const isHero = size === 'hero'
   return (
     <div
-      className="widget p-widget flex flex-col gap-2 min-w-0"
-      style={accent ? { borderLeftWidth: 3, borderLeftColor: accent } : undefined}
+      className={clsx(
+        'widget flex flex-col gap-2 min-w-0',
+        isHero ? 'p-6 sm:p-7' : 'p-widget',
+        className,
+      )}
+      style={{
+        borderLeftWidth: 3,
+        borderLeftColor: resolvedAccent,
+        // A hero tile earns a faint wash of its own accent so it visually
+        // leads the row -- everything else stays on the plain surface,
+        // matching "one accent stands out, the rest don't compete".
+        background: isHero && resolvedAccent ? `linear-gradient(135deg, color-mix(in srgb, ${resolvedAccent} 10%, transparent), transparent 60%)` : undefined,
+      }}
     >
       <div className="flex items-start justify-between gap-2">
         <span className="text-label-caps uppercase text-ink-muted">{label}</span>
-        {Icon && <Icon size={16} className="text-ink-faint shrink-0" />}
+        {Icon && <Icon size={isHero ? 20 : 16} className="text-ink-faint shrink-0" />}
       </div>
       <div className="flex items-baseline gap-2 flex-wrap">
-        <span className="text-display-metrics tabular leading-none" style={accent ? { color: accent } : undefined}>
+        <span
+          className={clsx('tabular leading-none', isHero ? 'text-display-hero' : 'text-display-metrics')}
+          style={resolvedAccent ? { color: resolvedAccent } : undefined}
+        >
           {value}
         </span>
         {delta && <span className={clsx('pill text-body-sm', tones[deltaTone])}>{delta}</span>}
