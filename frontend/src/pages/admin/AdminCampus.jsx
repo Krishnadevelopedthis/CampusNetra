@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import {
   Button, EmptyState, ErrorState, Field, Input, Modal, Spinner, Widget, toast,
 } from '@/components/ui'
+import { CampusLocationPicker } from '@/features/twin/CampusLocationPicker'
 import { useCascadingDelete } from '@/hooks/useCascadingDelete'
 import { api } from '@/lib/api'
 import { TWIN_STATE } from '@/lib/format'
@@ -59,10 +60,7 @@ export default function AdminCampus() {
   const deleteFloor = useCascadingDelete({ path: '/campus/floors', onDone: refresh })
 
   const saveLocation = useMutation({
-    mutationFn: (f) => api.patch(`/campus/campuses/${campusId}`, {
-      latitude: f.latitude === '' ? null : Number(f.latitude),
-      longitude: f.longitude === '' ? null : Number(f.longitude),
-    }),
+    mutationFn: (payload) => api.patch(`/campus/campuses/${campusId}`, payload),
     onSuccess: () => {
       toast.success('Campus location saved.')
       setLocationForm(null)
@@ -88,7 +86,8 @@ export default function AdminCampus() {
             <Button
               variant="secondary" icon={MapPin}
               onClick={() => setLocationForm({
-                latitude: campus?.latitude ?? '', longitude: campus?.longitude ?? '',
+                latitude: campus?.latitude ?? null, longitude: campus?.longitude ?? null,
+                map_bounds: campus?.map_bounds ?? null,
               })}
             >
               {campus?.latitude != null ? 'Edit location' : 'Set location'}
@@ -319,37 +318,15 @@ export default function AdminCampus() {
         )}
       </Modal>
       <Modal
-        open={!!locationForm} onClose={() => setLocationForm(null)} title="Campus location"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setLocationForm(null)}>Cancel</Button>
-            <Button loading={saveLocation.isPending} onClick={() => saveLocation.mutate(locationForm)}>
-              Save
-            </Button>
-          </>
-        }
+        open={!!locationForm} onClose={() => setLocationForm(null)} title="Campus location" size="lg"
       >
         {locationForm && (
-          <div className="space-y-4">
-            <p className="text-body-sm text-ink-muted">
-              Centres the outdoor 3D map on the Campus Map page. Look up the campus on{' '}
-              <a href="https://www.openstreetmap.org" target="_blank" rel="noreferrer"
-                 className="text-secondary hover:underline">openstreetmap.org</a>
-              {' '}— right-click a point and choose "Show address" to get its coordinates.
-            </p>
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Latitude">
-                <Input type="number" step="0.000001" min="-90" max="90" placeholder="19.076000"
-                       value={locationForm.latitude}
-                       onChange={(e) => setLocationForm((f) => ({ ...f, latitude: e.target.value }))} />
-              </Field>
-              <Field label="Longitude">
-                <Input type="number" step="0.000001" min="-180" max="180" placeholder="72.877700"
-                       value={locationForm.longitude}
-                       onChange={(e) => setLocationForm((f) => ({ ...f, longitude: e.target.value }))} />
-              </Field>
-            </div>
-          </div>
+          <CampusLocationPicker
+            initial={locationForm}
+            saving={saveLocation.isPending}
+            onCancel={() => setLocationForm(null)}
+            onSave={(payload) => saveLocation.mutate(payload)}
+          />
         )}
       </Modal>
     </div>

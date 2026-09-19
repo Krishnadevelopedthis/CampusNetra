@@ -1,4 +1,4 @@
-import { Map as MapLibreMap, NavigationControl } from 'maplibre-gl'
+import { Map as MapLibreMap, NavigationControl, Popup } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useRef, useState } from 'react'
 
@@ -91,6 +91,15 @@ function buildingFeatures(buildings, mode, heatByBuilding, heatColour) {
 /** A dashed ring around the campus centre standing in for a boundary —
  * CampusNetra has no traced campus perimeter, only the centre point, so
  * this is a visual "you are roughly here" cue rather than a real edge. */
+/** Building name/code are admin-entered free text, injected into the click
+ * popup's HTML via setHTML() — escaped so a name containing '<' or '"'
+ * can't break out of the markup. */
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ))
+}
+
 function boundaryCircle(lat, lng, radiusMeters, points = 64) {
   const coords = Array.from({ length: points + 1 }, (_, i) => {
     const angle = (i / points) * 2 * Math.PI
@@ -112,6 +121,13 @@ export function OutdoorCampusMap({
   // this surfaces it so "the map doesn't show" becomes an actual message
   // instead of silence.
   const [loadError, setLoadError] = useState(null)
+  // A plain string so the effect below can key off it in a dependency
+  // array — campus.map_bounds is a fresh object reference every time the
+  // overview query refetches, even when its actual values haven't changed,
+  // which would otherwise tear the whole map down on every refresh.
+  const mapBoundsKey = campus?.map_bounds
+    ? `${campus.map_bounds.south},${campus.map_bounds.west},${campus.map_bounds.north},${campus.map_bounds.east}`
+    : ''
 
   // Map creation: once per mount, keyed only on the campus centre — not on
   // buildings/mode/heat, for the same reason the indoor Scene3D's camera got
@@ -157,8 +173,26 @@ export function OutdoorCampusMap({
       })
 
       map.on('click', 'cn-buildings-fill', (e) => {
-        const id = e.features?.[0]?.properties?.id
-        if (id) onSelectBuilding(id)
+        const props = e.features?.[0]?.properties
+        if (!props?.id) return
+        // Shows the name first rather than jumping straight into the
+        // building — requested directly: clicking anywhere should surface
+        // what's there before committing to drilling into it.
+        new Popup({ closeButton: true, className: 'cn-building-popup', offset: 12 })
+          .setLngLat(e.lngLat)
+          .setHTML(
+            `<div style="font:600 13px system-ui;color:#0f172a;margin-bottom:2px">${escapeHtml(props.name)}</div>` +
+            `<div style="font:12px system-ui;color:#64748b;margin-bottom:8px">${escapeHtml(props.code)}</div>` +
+            `<button id="cn-open-${props.id}" style="font:600 12px system-ui;color:#fff;background:#3b82f6;` +
+            `border:none;border-radius:6px;padding:5px 10px;cursor:pointer">Open building →</button>`,
+          )
+          .addTo(map)
+        // The button lives in a plain HTML string handed to MapLibre, so it
+        // has to be wired up after the popup actually renders — the click
+        // handler can't be attached before the element exists yet.
+        document.getElementById(`cn-open-${props.id}`)?.addEventListener('click', () => {
+          onSelectBuilding(props.id)
+        })
       })
       map.on('mouseenter', 'cn-buildings-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'cn-buildings-fill', () => { map.getCanvas().style.cursor = '' })
@@ -180,25 +214,27 @@ export function OutdoorCampusMap({
     // primary (OpenFreeMap vector) timed out — a fallback that also fails
     // shows the real error instead of trying a third time.
     const startMap = (styleUrl, isFallback) => {
-      // Keeps the view to "the campus, roughly" rather than the whole city —
-      // requested directly: it should only show as much map as the campus
-      // itself covers, not an open-ended pannable area around it. 550m is a
-      // generous half-width for a typical campus plus its immediate
-      // surrounding roads; minZoom stops "zoom out to see the whole city"
-      // the same way maxBounds stops "pan to the whole city".
-      const halfLatDeg = CAMPUS_EXTENT_METERS / METERS_PER_DEG_LAT
-      const halfLngDeg = CAMPUS_EXTENT_METERS / metersPerDegLng(lat)
-      const maxBounds = [
-        [lng - halfLngDeg, lat - halfLatDeg],
-        [lng + halfLngDeg, lat + halfLatDeg],
-      ]
+      // Once an admin has cropped the exact area via CampusLocationPicker,
+      // that saved box is the map's whole world — not a generous fallback
+      // radius around it. Only a campus that's never been cropped (only
+      // latitude/longitude set, no map_bounds yet) gets the fixed-radius
+      // box; requested directly, this is the difference between "roughly
+      // here" and "exactly this, nothing more".
+      const cropped = campus.map_bounds
+      const maxBounds = cropped
+        ? [[cropped.west, cropped.south], [cropped.east, cropped.north]]
+        : (() => {
+            const halfLatDeg = CAMPUS_EXTENT_METERS / METERS_PER_DEG_LAT
+            const halfLngDeg = CAMPUS_EXTENT_METERS / metersPerDegLng(lat)
+            return [[lng - halfLngDeg, lat - halfLatDeg], [lng + halfLngDeg, lat + halfLatDeg]]
+          })()
 
       const map = new MapLibreMap({
         container: mountRef.current,
         style: styleUrl,
         center: [lng, lat],
         zoom: 16.5,
-        minZoom: 15,
+        minZoom: cropped ? undefined : 15,
         pitch: 55,
         bearing: -17,
         antialias: true,
@@ -207,6 +243,13 @@ export function OutdoorCampusMap({
       })
       mapRef.current = map
       map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
+
+      // A cropped box can be any shape or size, unlike the fixed 550m
+      // radius — fitBounds frames it properly on first load instead of
+      // guessing one zoom level fits every admin's crop equally well.
+      if (cropped) {
+        map.fitBounds(maxBounds, { padding: 20, pitch: 55, bearing: -17, duration: 0 })
+      }
 
       // A blocked/unreachable tile host, an ad-blocker, or the style URL
       // itself failing all surface here rather than as a silently blank
@@ -288,8 +331,9 @@ export function OutdoorCampusMap({
     }
     // Recreating the whole map for a lat/lng change is correct here — that
     // only happens if the campus itself is repointed, which should recentre
-    // everything anyway.
-  }, [campus?.latitude, campus?.longitude])
+    // everything anyway. mapBoundsKey covers re-cropping without moving the
+    // centre point, which the lat/lng deps alone wouldn't catch.
+  }, [campus?.latitude, campus?.longitude, mapBoundsKey])
 
   // Data refresh: update the existing source in place so pitch/bearing/zoom
   // the user has set survive a heatmap toggle or a query refetch.

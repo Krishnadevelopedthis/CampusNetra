@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import math
 import uuid
+
+import httpx
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -23,7 +25,7 @@ from app.schemas.campus import (
     AssetBulkCreate, AssetUpdate, CampusUpdate, FloorUpdate,
     AssetCategoryOut, AssetCreate, AssetMarker, AssetOut, AssetStateUpdate,
     BuildingCreate, BuildingOut, CampusOut, CampusOverviewOut, FloorCreate,
-    FloorOut, FloorPlanOut, RoomCreate, RoomOut, RoomWithMarkers, TwinEventOut,
+    FloorOut, FloorPlanOut, MapBounds, RoomCreate, RoomOut, RoomWithMarkers, TwinEventOut,
 )
 from app.schemas.common import Message, Page
 from app.services.realtime import hub
@@ -355,6 +357,11 @@ class CampusUpsert(BaseModel):
     # back to the abstract grid.
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+    # The exact area an admin searched for and cropped, from the location
+    # picker's crop tool — {south,west,north,east}. Once set, the outdoor
+    # map shows only this area; before it's set, a generous fixed-radius
+    # box around latitude/longitude is used instead.
+    map_bounds: Optional[MapBounds] = None
 
 
 class BuildingUpsert(BaseModel):
@@ -373,6 +380,50 @@ class BuildingUpsert(BaseModel):
 class FloorUpsert(BaseModel):
     name: str = Field(min_length=1, max_length=60)
     level: int = Field(ge=-10, le=200)
+
+
+@router.get("/geocode", response_model=list[dict])
+async def geocode_search(
+    user: RequireAdmin, q: str = Query(..., min_length=2, max_length=200),
+):
+    """Search for a place by name — the location picker's search box, so
+    setting a campus's coordinates means finding it on a map instead of
+    hand-typing a lat/lng, which is exactly how a campus ends up centred on
+    the wrong place entirely.
+
+    Proxied server-side rather than called directly from the browser for two
+    reasons: Nominatim's usage policy asks for a descriptive User-Agent
+    identifying the calling application, which browser fetch/XHR cannot set
+    (it's a forbidden header, browser-controlled); and proxying keeps the
+    1-request-per-second rate limit enforced from one place regardless of
+    how many admins are searching at once, rather than trusting the browser.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": q, "format": "jsonv2", "limit": 5},
+                headers={"User-Agent": "CampusNetra/1.0 (admin location picker)"},
+            )
+    except httpx.HTTPError:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Location search is temporarily unavailable.")
+
+    if resp.status_code != 200:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Location search is temporarily unavailable.")
+
+    results = resp.json()
+    return [
+        {
+            "display_name": r.get("display_name"),
+            "lat": float(r["lat"]),
+            "lon": float(r["lon"]),
+            # [south, north, west, east] as Nominatim returns it, or None —
+            # used to pre-size the crop box to roughly the searched place's
+            # own extent instead of always starting at one fixed size.
+            "bounding_box": [float(x) for x in r["boundingbox"]] if r.get("boundingbox") else None,
+        }
+        for r in results
+    ]
 
 
 @router.post("/campuses", response_model=CampusOut, status_code=201)
