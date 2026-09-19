@@ -1,0 +1,740 @@
+diff --git a/UX_OVERHAUL_PROGRESS.md b/UX_OVERHAUL_PROGRESS.md
+new file mode 100644
+index 0000000..0030f08
+--- /dev/null
++++ b/UX_OVERHAUL_PROGRESS.md
+@@ -0,0 +1,177 @@
++# CampusNetra UX/Feature Overhaul — Progress
++
++Tracks the 40-item spec (logo cleanup → global search → profile/OTP →
++Lost & Found workflow → campus map → responsiveness/accessibility/security
++audit). Work happens **1–2 items at a time**, verified against a fresh
++`git clone` + `npm run build`/`eslint` each session — not against memory of
++a previous summary. Update this file at the end of every session before
++stopping, even if a change is only partially done.
++
++Numbering below matches the original spec's numbered sections exactly, so
++either doc can be cross-referenced by number.
++
++## Session log
++- **Session 1**: synced to latest `origin/main` (`85be98a`), confirmed the
++  10-minute inactivity timeout from the previous session (`319cc7c`) is
++  safely merged in. Implemented item **#34**. Investigated and left notes
++  for **#1** and **#22** (see below) rather than guessing at a UI bug I
++  can't see rendered.
++- **Session 2** (this one, same conversation as Session 1 — re-verify
++  `origin/main` at the *start* of any future session regardless, per "How
++  to resume" below): replaced the removed sidebar AI Assistant with a
++  floating chat-bubble widget per the user's explicit follow-up request
++  (not originally item #34's literal ask, but directly requested after
++  #34 landed). Also implemented item **#12** (table density had no real
++  effect anywhere).
++
++## Done
++- **#34 — Remove AI Assistant from sidebar.** (as before)
++- **Floating AI Assistant widget** (follow-up to #34, user-requested):
++  replaced the deleted side-drawer panel with
++  `frontend/src/features/assistant/AssistantWidget.jsx` — a self-contained
++  floating action button fixed to the bottom-right corner (`bottom-5
++  right-4` on mobile, `bottom-6 right-6` on desktop, `z-40`, clear of the
++  toast layer at `z-50`). Clicking it opens the chat: an anchored card
++  above the button on desktop (`sm:` and up), a near-full-height bottom
++  sheet on mobile — the standard Intercom/Crisp-style pattern the request
++  asked for. Recovered the original panel's chat logic verbatim from git
++  history (`git show` on the commit that last had it) rather than
++  reinventing it — same `POST /ai/assistant` call, same suggestions/typing
++  indicator/message bubbles, same `Escape`-to-close and focus handling,
++  now just presented as a corner widget instead of a full-height drawer.
++  No backend changes; `backend/app/api/v1/ai.py`'s `/assistant` route was
++  never touched by the #34 removal. Mounted once in `AppLayout.jsx`
++  (authenticated shell only, matching where it lived before) with no
++  props — it owns its own open/closed state. Body-scroll is locked while
++  open (matches the existing `Modal` component's convention) so the
++  mobile bottom-sheet doesn't fight the page behind it for scroll.
++  Build + lint clean.
++- **#12 — Table density**: the Settings page control existed and *saved*
++  correctly (`PATCH /auth/me` → `preferences.display.density`), but
++  nothing ever read it — a real dead toggle, exactly as the spec
++  describes. Fixed by applying it the same way the adjacent
++  `reduce_motion` setting already does it (a global attribute on
++  `<html>`), which turned out to have the *same* underlying bug:
++  `Settings.jsx`'s effect only ran while that page itself was mounted, so
++  even reduced motion silently stopped applying the moment you navigated
++  away. Fixed both together:
++  - `App.jsx`: new effect syncing `document.documentElement`'s
++    `reduce-motion` class and `data-density` attribute from the actual
++    *saved* `user.preferences.display` — runs app-wide, on boot/login, not
++    just while Settings is open.
++  - `Settings.jsx`: kept its own local-`prefs`-driven version of the same
++    effect for **live preview** while editing, before the Save button is
++    clicked (this was the existing, deliberate behavior for
++    `reduce_motion` — "a preference about discomfort should take effect
++    the moment it is set" — now extended to density too).
++  - `styles/index.css`: `html[data-density="compact"] .table:not(.table-compact) tbody td/tr`
++    — reuses the compact padding values the codebase already had (a
++    `.table-compact` class was already hand-applied to a handful of
++    always-dense metadata tables in Analytics/Admin pages). The `:not()`
++    deliberately leaves those alone — they're an intentional "always
++    dense" design choice, not something the user's "Comfortable" pick
++    should override — while every *other* `.table` in the app (issue
++    lists, work-order lists, asset lists, etc.) now actually responds to
++    the setting.
++  Build clean; lint clean (confirmed the 4 pre-existing `Settings.jsx`
++  warnings — unused `Bell`/`SUPPORT_EMAIL`/`user` param, one stale
++  eslint-disable — predate this change by diffing against `git stash`).
++
++## Needs a screenshot / clarification before touching (do NOT guess-fix these)
++- **#1 — Logo duplicate text / duplicated "1"**: `components/Logo.jsx` and
++  `logo-dark.svg`/`logo-light.svg` were inspected — the SVGs contain no
++  `<text>` elements and no stray "1" character; `<Logo>` renders exactly
++  one icon (`LogoMark`) + one "Campus Netra" text label, used consistently
++  via the same shared component in `AppLayout.jsx`, `landing/Navbar.jsx`,
++  `landing/Footer.jsx`, `features/auth/AuthShell.jsx`, and
++  `pages/errors/ErrorPage.jsx` — i.e. it's already a single unified
++  component everywhere, not several inconsistent ones. Whatever duplicate
++  text/stray "1" the spec describes isn't visible from the source alone —
++  it may be a runtime rendering artifact (e.g. two `<Logo>` instances
++  overlapping at a specific breakpoint, or a leftover browser-tab
++  favicon/title issue) that needs an actual screenshot of the bug to
++  diagnose correctly instead of guessing and possibly breaking the
++  already-correct shared-component structure.
++- **#22 — "Affected Thumb" field**: repo-wide case-insensitive grep across
++  frontend + backend for `affected.thumb`/`affectedthumb` found nothing.
++  Either it's already been renamed/removed by an earlier session, or the
++  actual on-screen label differs from this exact wording. Needs the exact
++  page/screen it appears on (or a screenshot) before searching further —
++  grepping for guessed variations risks missing it entirely or editing the
++  wrong field.
++
++## Not started (grouped by area, roughly spec order)
++
++### Layout / navigation
++- #2 Search bar / sidebar height alignment
++- #3 + #4 Global search (Complaints + Lost & Found, single search bar,
++  result-type separation, loading/empty/error states)
++- #5 Notification panel + popover responsiveness/positioning audit
++- #6 Contextual search scoping on My Profile
++
++### Profile
++- #7 Display full registration data on My Profile — start by diffing
++  `RegisterRequest` schema (`backend/app/schemas/auth.py`) against what
++  `pages/Profile.jsx` currently renders
++- #8 OTP verification for name/phone/email updates — phone-change OTP
++  flow already exists (see prior `PROGRESS.md`: "Profile: phone via
++  request → OTP → confirm"); check whether email-change already has the
++  same, and whether name-change (OCR-based, also already partially built
++  per `PROGRESS.md`) needs the OTP step added on top of the existing ID-match step
++- #9 Name-change ID card verification + name-field validation — `services/id_verification.py`
++  and `POST /auth/me/change-name` already exist per prior `PROGRESS.md`;
++  audit against this spec's exact requirements (OCR-confidence rejection
++  message, numeric/special-character rejection) rather than rebuilding
++- #10 ID card OCR — extract course/class/etc, not just name — extend
++  `services/id_verification.py`
++- #11 Profile picture persistence — likely already fixed as part of the
++  Backblaze/R2 storage work earlier this session (images now come from
++  `/api/v1/uploads/file/...`, not a bucket URL or wiped local disk) —
++  verify specifically for avatars (`purpose=avatar` in `uploads.py`)
++  rather than assuming
++
++### Settings
++- #13 Full settings audit — notification toggles (in-app vs email) tied
++  to real backend events
++
++### Reports
++- #14 Weekly summary PDF + email
++- #15 Request a copy of data (export)
++- #16 Delete account flow
++
++### Complaint reporting
++- #17 Campus → Building → Floor → Room → Asset navigation switch
++- #18 "Not Sure / Other" manual location entry path
++- #19 Evidence/photo upload on report flow + success popup with complaint number
++- #20 `CN` + 9-alphanumeric complaint ID format (backend-generated)
++- #21 Complaint detail page + status timeline driven by real history, not
++  hardcoded stages
++
++### Lost & Found
++- #23 KPI card hierarchy (primary + 2 secondary)
++- #24 Detail view with image carousel/zoom
++- #25 `LF` + alphanumeric identifiers
++- #26 Contact disclosure (authorized parties only)
++- #27 Match/claim workflow
++- #28 Handover declaration form
++
++### Cross-cutting
++- #29 KPI card visual hierarchy audit (Dashboard/Reports/Complaints/L&F/SLA)
++- #30 + #31 Campus map: click-through details + health/fault status per building/floor/room
++- #32 Duplicate/similar-fault admin merge workflow
++- #33 Class/lab health status summary
++- #35 + #36 New "History" sidebar page, clickable through to original records
++- #37 Responsive audit at the specific listed breakpoints
++- #38 Accessibility audit
++- #39 Security audit (IDOR checks on profile/complaint/L&F endpoints,
++  server-side enforcement of everything currently only checked client-side)
++- #40 Final regression pass across all of the above
++
++## How to resume
++Pick 1–2 unstarted items (prefer ones in the same area to avoid
++re-reading unrelated code each time), re-clone/pull `origin/main` fresh
++first — don't assume a prior session's file reads are still current, this
++repo has multiple sessions/tools committing to it directly. Update this
++file's "Session log" and move the item(s) from "Not started" to "Done"
++(or to the "needs clarification" list, with the specific missing
++information named) before ending the session.
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 46b7b2f..7b69192 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -263,6 +263,20 @@ export default function App() {
+     recordActivity()
+   }, [location.pathname])
+ 
++  // Apply the saved display preferences (reduce motion, table density)
++  // globally, not just while Settings.jsx happens to be mounted — that page
++  // has its own copy of this same effect for *live* preview while a change
++  // is being made, before it's saved. This one re-applies whatever is
++  // actually persisted, so the setting still holds after navigating away,
++  // and takes effect immediately on login/boot without visiting Settings
++  // first — table density and reduced motion were otherwise dead toggles
++  // outside that one page.
++  useEffect(() => {
++    const display = user?.preferences?.display
++    document.documentElement.classList.toggle('reduce-motion', !!display?.reduce_motion)
++    document.documentElement.dataset.density = display?.density === 'compact' ? 'compact' : 'comfortable'
++  }, [user?.preferences?.display])
++
+   return (
+     <>
+       <SessionTimeoutModal
+diff --git a/frontend/src/features/assistant/AssistantPanel.jsx b/frontend/src/features/assistant/AssistantPanel.jsx
+deleted file mode 100644
+index 0e74adb..0000000
+--- a/frontend/src/features/assistant/AssistantPanel.jsx
++++ /dev/null
+@@ -1,171 +0,0 @@
+-import clsx from 'clsx'
+-import { Send, Sparkles, X } from 'lucide-react'
+-import { useEffect, useRef, useState } from 'react'
+-
+-import { Avatar } from '@/components/ui'
+-import { api } from '@/lib/api'
+-import { useAuth } from '@/lib/auth'
+-
+-const SUGGESTIONS = [
+-  'What are my open complaints?',
+-  'Which assets are currently in fault?',
+-  'How do I report a broken projector?',
+-  'Show SLA breaches this week',
+-]
+-
+-/** Level-3 overlay drawer: glassmorphic backdrop over the spatial map. */
+-export function AssistantPanel({ open, onClose }) {
+-  const { user } = useAuth()
+-  const [messages, setMessages] = useState([])
+-  const [input, setInput] = useState('')
+-  const [busy, setBusy] = useState(false)
+-  const endRef = useRef(null)
+-
+-  useEffect(() => {
+-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+-  }, [messages, busy])
+-
+-  useEffect(() => {
+-    if (!open) return
+-    const onKey = (e) => e.key === 'Escape' && onClose()
+-    document.addEventListener('keydown', onKey)
+-    return () => document.removeEventListener('keydown', onKey)
+-  }, [open, onClose])
+-
+-  const send = async (text) => {
+-    const question = (text ?? input).trim()
+-    if (!question || busy) return
+-    setInput('')
+-    setMessages((m) => [...m, { role: 'user', content: question }])
+-    setBusy(true)
+-    try {
+-      const res = await api.post('/ai/assistant', { message: question })
+-      setMessages((m) => [...m, {
+-        role: 'assistant',
+-        content: res.reply,
+-        confidence: res.confidence,
+-        sources: res.sources,
+-      }])
+-    } catch (err) {
+-      setMessages((m) => [...m, {
+-        role: 'assistant',
+-        content: err.detail || 'I could not reach the assistant service just now.',
+-        error: true,
+-      }])
+-    } finally {
+-      setBusy(false)
+-    }
+-  }
+-
+-  if (!open) return null
+-
+-  return (
+-    <div className="fixed inset-0 z-50 flex justify-end">
+-      <div className="absolute inset-0 bg-primary-950/30 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+-
+-      <aside className="relative w-full max-w-md h-full bg-surface shadow-level3 flex flex-col animate-slide-up">
+-        <header className="flex items-center justify-between px-5 h-16 border-b border-border-subtle shrink-0">
+-          <div className="flex items-center gap-2.5">
+-            <div className="w-8 h-8 rounded-lg bg-primary grid place-items-center">
+-              <Sparkles size={16} className="text-white" />
+-            </div>
+-            <div>
+-              <p className="text-headline-md leading-tight">Campus Assistant</p>
+-              <p className="text-body-sm text-ink-faint">Ask about issues, assets or policy</p>
+-            </div>
+-          </div>
+-          <button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close assistant">
+-            <X size={18} />
+-          </button>
+-        </header>
+-
+-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+-          {messages.length === 0 && (
+-            <div className="space-y-4">
+-              <div className="ai-surface p-4">
+-                <p className="text-body-lg text-ink">
+-                  Hello {user?.full_name?.split(' ')[0]}. I can look up complaints, asset
+-                  status and campus procedures for you.
+-                </p>
+-              </div>
+-              <div className="space-y-2">
+-                <p className="text-label-caps uppercase text-ink-muted">Try asking</p>
+-                {SUGGESTIONS.map((s) => (
+-                  <button
+-                    key={s} onClick={() => send(s)}
+-                    className="w-full text-left px-3 py-2.5 rounded border border-border-subtle text-body-md text-ink hover:bg-surface-sunken transition-colors"
+-                  >
+-                    {s}
+-                  </button>
+-                ))}
+-              </div>
+-            </div>
+-          )}
+-
+-          {messages.map((m, i) => (
+-            <div key={i} className={clsx('flex gap-2.5', m.role === 'user' && 'flex-row-reverse')}>
+-              {m.role === 'assistant' ? (
+-                <div className="w-7 h-7 rounded-lg bg-primary grid place-items-center shrink-0">
+-                  <Sparkles size={13} className="text-white" />
+-                </div>
+-              ) : (
+-                <Avatar name={user?.full_name} size={28} />
+-              )}
+-              <div className={clsx('max-w-[85%] rounded-xl px-3.5 py-2.5',
+-                m.role === 'user'
+-                  ? 'bg-secondary text-on-secondary'
+-                  : m.error
+-                    ? 'bg-danger-bg border border-danger-border text-danger-text'
+-                    : 'ai-surface text-ink')}>
+-                {/* AI responses use body-lg to read as conversational, per the spec. */}
+-                <p className={clsx('whitespace-pre-wrap', m.role === 'assistant' ? 'text-body-lg' : 'text-body-md')}>
+-                  {m.content}
+-                </p>
+-                {m.confidence != null && (
+-                  <span className="pill bg-info-bg text-info-text mt-2 text-body-sm">
+-                    {Math.round(m.confidence * 100)}% confidence
+-                  </span>
+-                )}
+-              </div>
+-            </div>
+-          ))}
+-
+-          {busy && (
+-            <div className="flex gap-2.5">
+-              <div className="w-7 h-7 rounded-lg bg-primary grid place-items-center shrink-0">
+-                <Sparkles size={13} className="text-white" />
+-              </div>
+-              <div className="ai-surface px-3.5 py-3 flex gap-1.5">
+-                {[0, 150, 300].map((d) => (
+-                  <span key={d} className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce"
+-                        style={{ animationDelay: `${d}ms` }} />
+-                ))}
+-              </div>
+-            </div>
+-          )}
+-          <div ref={endRef} />
+-        </div>
+-
+-        <form
+-          onSubmit={(e) => { e.preventDefault(); send() }}
+-          className="p-4 border-t border-border-subtle shrink-0"
+-        >
+-          <div className="relative">
+-            <input
+-              value={input} onChange={(e) => setInput(e.target.value)}
+-              placeholder="Ask anything about your campus…"
+-              className="input pr-11" disabled={busy}
+-            />
+-            <button
+-              type="submit" disabled={!input.trim() || busy}
+-              className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center bg-secondary text-on-secondary disabled:opacity-40"
+-              aria-label="Send"
+-            >
+-              <Send size={14} />
+-            </button>
+-          </div>
+-        </form>
+-      </aside>
+-    </div>
+-  )
+-}
+\ No newline at end of file
+diff --git a/frontend/src/features/assistant/AssistantWidget.jsx b/frontend/src/features/assistant/AssistantWidget.jsx
+new file mode 100644
+index 0000000..d07b4dc
+--- /dev/null
++++ b/frontend/src/features/assistant/AssistantWidget.jsx
+@@ -0,0 +1,245 @@
++import clsx from 'clsx'
++import { MessageCircle, Send, Sparkles, X } from 'lucide-react'
++import { useEffect, useRef, useState } from 'react'
++
++import { Avatar } from '@/components/ui'
++import { api } from '@/lib/api'
++import { useAuth } from '@/lib/auth'
++
++const SUGGESTIONS = [
++  'What are my open complaints?',
++  'Which assets are currently in fault?',
++  'How do I report a broken projector?',
++  'Show SLA breaches this week',
++]
++
++/**
++ * Floating chat widget — the standard "bubble in the corner" pattern from
++ * Intercom/Crisp-style production sites, replacing the old sidebar
++ * "AI Assistant" button + full-height side drawer.
++ *
++ * Self-contained: owns its own open/closed state, so it only needs to be
++ * mounted once (in AppLayout, alongside the rest of the authenticated
++ * shell) with no props. Talks to the same POST /ai/assistant endpoint the
++ * old panel used — nothing changed on the backend.
++ */
++export function AssistantWidget() {
++  const { user } = useAuth()
++  const [open, setOpen] = useState(false)
++  const [messages, setMessages] = useState([])
++  const [input, setInput] = useState('')
++  const [busy, setBusy] = useState(false)
++  const endRef = useRef(null)
++  const inputRef = useRef(null)
++
++  useEffect(() => {
++    endRef.current?.scrollIntoView({ behavior: 'smooth' })
++  }, [messages, busy])
++
++  // Escape closes it, matching the existing Modal component's convention.
++  useEffect(() => {
++    if (!open) return undefined
++    const onKey = (e) => e.key === 'Escape' && setOpen(false)
++    document.addEventListener('keydown', onKey)
++    return () => document.removeEventListener('keydown', onKey)
++  }, [open])
++
++  // Focus the input as soon as the panel finishes opening, and lock
++  // background scroll on mobile where the panel is a full-height sheet
++  // (same reasoning as Modal: a chat sheet you can't dismiss by scrolling
++  // the page behind it shouldn't let that page scroll either).
++  useEffect(() => {
++    if (!open) return undefined
++    const t = setTimeout(() => inputRef.current?.focus(), 50)
++    const prevOverflow = document.body.style.overflow
++    document.body.style.overflow = 'hidden'
++    return () => {
++      clearTimeout(t)
++      document.body.style.overflow = prevOverflow
++    }
++  }, [open])
++
++  const send = async (text) => {
++    const question = (text ?? input).trim()
++    if (!question || busy) return
++    setInput('')
++    setMessages((m) => [...m, { role: 'user', content: question }])
++    setBusy(true)
++    try {
++      const res = await api.post('/ai/assistant', { message: question })
++      setMessages((m) => [...m, {
++        role: 'assistant',
++        content: res.reply,
++        confidence: res.confidence,
++        sources: res.sources,
++      }])
++    } catch (err) {
++      setMessages((m) => [...m, {
++        role: 'assistant',
++        content: err.detail || 'I could not reach the assistant service just now.',
++        error: true,
++      }])
++    } finally {
++      setBusy(false)
++    }
++  }
++
++  return (
++    <>
++      {/* ---- Floating action button ----
++          Fixed to the viewport (not a page element), bottom-right, sitting
++          just above the corner rather than flush against it. z-40 keeps it
++          below the app's Modal/toast layer (z-50) so a real modal always
++          wins if both are ever open at once. */}
++      <button
++        onClick={() => setOpen((o) => !o)}
++        aria-label={open ? 'Close Campus Assistant' : 'Open Campus Assistant chat'}
++        aria-expanded={open}
++        className={clsx(
++          'fixed z-40 grid place-items-center rounded-full shadow-level3',
++          'bottom-5 right-4 h-14 w-14 sm:bottom-6 sm:right-6',
++          'bg-primary text-white transition-transform hover:scale-105 active:scale-95',
++          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
++        )}
++      >
++        {open ? <X size={22} /> : <MessageCircle size={22} />}
++      </button>
++
++      {!open ? null : (
++        <>
++          {/* Backdrop — only meaningfully visible/clickable on mobile, where
++              the panel covers most of the screen; on desktop it's there for
++              click-outside-to-close but stays transparent so the app
++              underneath remains readable, matching an anchored popover
++              rather than a full modal. */}
++          <div
++            className="fixed inset-0 z-40 bg-primary-950/30 backdrop-blur-sm sm:bg-transparent sm:backdrop-blur-0 animate-fade-in"
++            onClick={() => setOpen(false)}
++          />
++
++          <aside
++            role="dialog"
++            aria-modal="true"
++            aria-label="Campus Assistant chat"
++            className={clsx(
++              'fixed z-40 flex flex-col bg-surface/95 backdrop-blur-2xl border border-border-subtle shadow-level3 animate-slide-up',
++              // Mobile: a near-full-height bottom sheet — the same pattern
++              // production chat widgets use once the viewport is too narrow
++              // for a floating card to make sense.
++              'inset-x-0 bottom-0 h-[88vh] rounded-t-2xl',
++              // Desktop/tablet: an anchored card above the FAB, not a
++              // full-screen takeover.
++              'sm:inset-x-auto sm:bottom-24 sm:right-6 sm:h-[min(70vh,600px)] sm:w-[380px] sm:rounded-2xl',
++            )}
++          >
++            <header className="flex items-center justify-between px-4 sm:px-5 h-14 sm:h-16 border-b border-border-subtle shrink-0">
++              <div className="flex items-center gap-2.5 min-w-0">
++                <div className="w-8 h-8 rounded-lg bg-primary grid place-items-center shrink-0">
++                  <Sparkles size={16} className="text-white" />
++                </div>
++                <div className="min-w-0">
++                  <p className="text-headline-md leading-tight truncate">Campus Assistant</p>
++                  <p className="text-body-sm text-ink-faint truncate">Ask about issues, assets or policy</p>
++                </div>
++              </div>
++              <button
++                onClick={() => setOpen(false)}
++                className="btn-ghost h-8 w-8 p-0 rounded shrink-0"
++                aria-label="Close assistant"
++              >
++                <X size={18} />
++              </button>
++            </header>
++
++            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
++              {messages.length === 0 && (
++                <div className="space-y-4">
++                  <div className="ai-surface p-4">
++                    <p className="text-body-lg text-ink">
++                      Hello {user?.full_name?.split(' ')[0]}. I can look up complaints, asset
++                      status and campus procedures for you.
++                    </p>
++                  </div>
++                  <div className="space-y-2">
++                    <p className="text-label-caps uppercase text-ink-muted">Try asking</p>
++                    {SUGGESTIONS.map((s) => (
++                      <button
++                        key={s} onClick={() => send(s)}
++                        className="w-full text-left px-3 py-2.5 rounded border border-border-subtle text-body-md text-ink hover:bg-surface-sunken transition-colors"
++                      >
++                        {s}
++                      </button>
++                    ))}
++                  </div>
++                </div>
++              )}
++
++              {messages.map((m, i) => (
++                <div key={i} className={clsx('flex gap-2.5', m.role === 'user' && 'flex-row-reverse')}>
++                  {m.role === 'assistant' ? (
++                    <div className="w-7 h-7 rounded-lg bg-primary grid place-items-center shrink-0">
++                      <Sparkles size={13} className="text-white" />
++                    </div>
++                  ) : (
++                    <Avatar name={user?.full_name} size={28} />
++                  )}
++                  <div className={clsx('max-w-[85%] rounded-xl px-3.5 py-2.5',
++                    m.role === 'user'
++                      ? 'bg-secondary text-on-secondary'
++                      : m.error
++                        ? 'bg-danger-bg border border-danger-border text-danger-text'
++                        : 'ai-surface text-ink')}>
++                    <p className={clsx('whitespace-pre-wrap break-words', m.role === 'assistant' ? 'text-body-lg' : 'text-body-md')}>
++                      {m.content}
++                    </p>
++                    {m.confidence != null && (
++                      <span className="pill bg-info-bg text-info-text mt-2 text-body-sm">
++                        {Math.round(m.confidence * 100)}% confidence
++                      </span>
++                    )}
++                  </div>
++                </div>
++              ))}
++
++              {busy && (
++                <div className="flex gap-2.5">
++                  <div className="w-7 h-7 rounded-lg bg-primary grid place-items-center shrink-0">
++                    <Sparkles size={13} className="text-white" />
++                  </div>
++                  <div className="ai-surface px-3.5 py-3 flex gap-1.5">
++                    {[0, 150, 300].map((d) => (
++                      <span key={d} className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce"
++                            style={{ animationDelay: `${d}ms` }} />
++                    ))}
++                  </div>
++                </div>
++              )}
++              <div ref={endRef} />
++            </div>
++
++            <form
++              onSubmit={(e) => { e.preventDefault(); send() }}
++              className="p-3 sm:p-4 border-t border-border-subtle shrink-0"
++            >
++              <div className="relative">
++                <input
++                  ref={inputRef}
++                  value={input} onChange={(e) => setInput(e.target.value)}
++                  placeholder="Ask anything about your campus…"
++                  className="input pr-11" disabled={busy}
++                />
++                <button
++                  type="submit" disabled={!input.trim() || busy}
++                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center bg-secondary text-on-secondary disabled:opacity-40"
++                  aria-label="Send"
++                >
++                  <Send size={14} />
++                </button>
++              </div>
++            </form>
++          </aside>
++        </>
++      )}
++    </>
++  )
++}
+diff --git a/frontend/src/layouts/AppLayout.jsx b/frontend/src/layouts/AppLayout.jsx
+index 84bb8d1..a531d30 100644
+--- a/frontend/src/layouts/AppLayout.jsx
++++ b/frontend/src/layouts/AppLayout.jsx
+@@ -1,7 +1,7 @@
+ import clsx from 'clsx'
+ import {
+   Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
+-  PlusCircle, Search, Settings, Sparkles, User as UserIcon, X,
++  PlusCircle, Search, Settings, User as UserIcon, X,
+ } from 'lucide-react'
+ import { useEffect, useMemo, useRef, useState } from 'react'
+ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+@@ -9,11 +9,11 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-do
+ import { Logo, LogoMark } from '@/components/Logo'
+ import { ThemeToggle } from '@/components/ThemeToggle'
+ import { Avatar, toast } from '@/components/ui'
++import { AssistantWidget } from '@/features/assistant/AssistantWidget'
+ import { api, connectNotifications, mediaUrl } from '@/lib/api'
+ import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
+ import { ago } from '@/lib/format'
+ import { navFor } from './nav'
+-import { AssistantPanel } from '@/features/assistant/AssistantPanel'
+ 
+ function useOutsideClick(ref, handler) {
+   useEffect(() => {
+@@ -189,7 +189,6 @@ export default function AppLayout() {
+   const { user } = useAuth()
+   const [collapsed, setCollapsed] = useState(false)
+   const [mobileOpen, setMobileOpen] = useState(false)
+-  const [assistantOpen, setAssistantOpen] = useState(false)
+   const location = useLocation()
+   const items = navFor(user?.role)
+   const accent = ROLE_ACCENT[user?.role] || '#1e1b4b'
+@@ -246,14 +245,6 @@ export default function AppLayout() {
+             <PlusCircle size={16} /> Report an Issue
+           </Link>
+         )}
+-        <button
+-          onClick={() => setAssistantOpen(true)}
+-          className={clsx('btn-dark w-full', collapsed && 'px-0')}
+-          title="AI Campus Assistant"
+-        >
+-          <Sparkles size={16} />
+-          {!collapsed && 'AI Assistant'}
+-        </button>
+         <button
+           onClick={() => setCollapsed((c) => !c)}
+           className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
+@@ -331,7 +322,7 @@ export default function AppLayout() {
+         </footer>
+       </div>
+ 
+-      <AssistantPanel open={assistantOpen} onClose={() => setAssistantOpen(false)} />
++      <AssistantWidget />
+     </div>
+   )
+ }
+diff --git a/frontend/src/pages/Settings.jsx b/frontend/src/pages/Settings.jsx
+index a4047a0..d4f3e4b 100644
+--- a/frontend/src/pages/Settings.jsx
++++ b/frontend/src/pages/Settings.jsx
+@@ -146,11 +146,16 @@ export default function Settings() {
+     setDirty(true)
+   }
+ 
+-  // Motion is applied immediately rather than on save: a preference about
+-  // discomfort should take effect the moment it is set.
++  // Motion and table density are applied immediately rather than on save —
++  // both are "how this should already look/feel", not something worth a
++  // round trip to notice. Saving still persists them (see `save` above) so
++  // they survive navigating away from this page or logging in elsewhere;
++  // see App.jsx for the effect that re-applies the *saved* value on boot,
++  // since this page-local one only runs while Settings itself is mounted.
+   useEffect(() => {
+     document.documentElement.classList.toggle('reduce-motion', !!prefs.display.reduce_motion)
+-  }, [prefs.display.reduce_motion])
++    document.documentElement.dataset.density = prefs.display.density === 'compact' ? 'compact' : 'comfortable'
++  }, [prefs.display.reduce_motion, prefs.display.density])
+ 
+   return (
+     <div className="space-y-4 max-w-3xl">
+diff --git a/frontend/src/styles/index.css b/frontend/src/styles/index.css
+index 96af9c0..7a5ea2b 100644
+--- a/frontend/src/styles/index.css
++++ b/frontend/src/styles/index.css
+@@ -137,6 +137,16 @@
+   .table tbody tr { @apply min-h-[40px] transition-colors; }
+   .table tbody tr:hover { @apply bg-surface-sunken/60; }
+   .table-compact tbody td { @apply py-2 text-body-sm; }
++  /* Settings → Table density. Applied globally via a data-density attribute
++     on <html> (see App.jsx), not a class threaded through every table —
++     that would mean editing every page that renders one. Excludes tables
++     already hardcoded `.table-compact` (a handful of small metadata tables
++     across Analytics/Admin pages that are deliberately always dense) so the
++     user's "Comfortable" choice doesn't fight a deliberate design decision
++     on those, while every other `.table` in the app now actually responds
++     to the setting instead of it being a dead toggle. */
++  html[data-density="compact"] .table:not(.table-compact) tbody td { @apply py-2 text-body-sm; }
++  html[data-density="compact"] .table:not(.table-compact) tbody tr { @apply min-h-[32px]; }
+   /* Without this the table's square corners poke out through the card's
+      rounded edge -- which is *every* flush (bodyClass="p-0") table in the
+      admin section, since Widget always renders a .widget-body wrapper

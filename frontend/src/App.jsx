@@ -263,6 +263,20 @@ export default function App() {
     recordActivity()
   }, [location.pathname])
 
+  // Apply the saved display preferences (reduce motion, table density)
+  // globally, not just while Settings.jsx happens to be mounted — that page
+  // has its own copy of this same effect for *live* preview while a change
+  // is being made, before it's saved. This one re-applies whatever is
+  // actually persisted, so the setting still holds after navigating away,
+  // and takes effect immediately on login/boot without visiting Settings
+  // first — table density and reduced motion were otherwise dead toggles
+  // outside that one page.
+  useEffect(() => {
+    const display = user?.preferences?.display
+    document.documentElement.classList.toggle('reduce-motion', !!display?.reduce_motion)
+    document.documentElement.dataset.density = display?.density === 'compact' ? 'compact' : 'comfortable'
+  }, [user?.preferences?.display])
+
   return (
     <>
       <SessionTimeoutModal
