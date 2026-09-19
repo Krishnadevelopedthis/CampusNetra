@@ -91,6 +91,7 @@ async def validation_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": "Please correct the highlighted fields.", "fields": fields},
+        headers=_cors_headers(request),
     )
 
 
@@ -116,11 +117,34 @@ def _reference() -> str:
     return uuid.uuid4().hex[:8]
 
 
-def _failure(status_code: int, detail: str, ref: str | None = None) -> JSONResponse:
+def _cors_headers(request: Request) -> dict[str, str]:
+    """Re-derives the same Access-Control-Allow-* headers CORSMiddleware
+    would add — needed because a response built by one of the
+    @app.exception_handler()s below is not guaranteed to pass back through
+    CORSMiddleware the same way a normal route response does. Starlette's
+    ExceptionMiddleware (where these handlers actually run) sits inside the
+    user middleware stack, and in practice a response built there can reach
+    the client with no Access-Control-Allow-Origin header at all — which
+    the browser then reports as "blocked by CORS policy", even though the
+    real failure was a 500 from the route itself. Every endpoint that ever
+    throws an unhandled exception hits this, not just one — so the fix
+    belongs here, once, rather than patched per-route.
+    """
+    origin = request.headers.get("origin")
+    if not origin or origin not in settings.BACKEND_CORS_ORIGINS:
+        return {}
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true",
+        "Vary": "Origin",
+    }
+
+
+def _failure(request: Request, status_code: int, detail: str, ref: str | None = None) -> JSONResponse:
     body: dict[str, object] = {"detail": detail}
     if ref:
         body["reference"] = ref
-    return JSONResponse(status_code=status_code, content=body)
+    return JSONResponse(status_code=status_code, content=body, headers=_cors_headers(request))
 
 
 @app.exception_handler(StarletteHTTPException)
@@ -131,8 +155,8 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         ref = _reference()
         log.error("[%s] %s %s -> %s: %s",
                   ref, request.method, request.url.path, exc.status_code, exc.detail)
-        return _failure(exc.status_code, GENERIC_ERROR, ref)
-    return _failure(exc.status_code, exc.detail if isinstance(exc.detail, str)
+        return _failure(request, exc.status_code, GENERIC_ERROR, ref)
+    return _failure(request, exc.status_code, exc.detail if isinstance(exc.detail, str)
                     else "That request could not be completed.")
 
 
@@ -144,7 +168,7 @@ async def integrity_handler(request: Request, exc: IntegrityError):
     log.warning("[%s] integrity error on %s %s: %s",
                 ref, request.method, request.url.path, exc.orig)
     return _failure(
-        status.HTTP_409_CONFLICT,
+        request, status.HTTP_409_CONFLICT,
         "That conflicts with something already saved. Refresh and try again.",
         ref,
     )
@@ -158,7 +182,7 @@ async def operational_handler(request: Request, exc: OperationalError):
     log.error("[%s] database unavailable on %s %s: %s",
               ref, request.method, request.url.path, exc.orig)
     return _failure(
-        status.HTTP_503_SERVICE_UNAVAILABLE,
+        request, status.HTTP_503_SERVICE_UNAVAILABLE,
         "The service is temporarily unavailable. Please try again shortly.",
         ref,
     )
@@ -168,14 +192,14 @@ async def operational_handler(request: Request, exc: OperationalError):
 async def sqlalchemy_handler(request: Request, exc: SQLAlchemyError):
     ref = _reference()
     log.exception("[%s] database error on %s %s", ref, request.method, request.url.path)
-    return _failure(status.HTTP_500_INTERNAL_SERVER_ERROR, GENERIC_ERROR, ref)
+    return _failure(request, status.HTTP_500_INTERNAL_SERVER_ERROR, GENERIC_ERROR, ref)
 
 
 @app.exception_handler(Exception)
 async def unhandled_handler(request: Request, exc: Exception):
     ref = _reference()
     log.exception("[%s] unhandled error on %s %s", ref, request.method, request.url.path)
-    return _failure(status.HTTP_500_INTERNAL_SERVER_ERROR, GENERIC_ERROR, ref)
+    return _failure(request, status.HTTP_500_INTERNAL_SERVER_ERROR, GENERIC_ERROR, ref)
 
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
