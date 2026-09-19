@@ -146,11 +146,16 @@ export default function Settings() {
     setDirty(true)
   }
 
-  // Motion is applied immediately rather than on save: a preference about
-  // discomfort should take effect the moment it is set.
+  // Motion and table density are applied immediately rather than on save —
+  // both are "how this should already look/feel", not something worth a
+  // round trip to notice. Saving still persists them (see `save` above) so
+  // they survive navigating away from this page or logging in elsewhere;
+  // see App.jsx for the effect that re-applies the *saved* value on boot,
+  // since this page-local one only runs while Settings itself is mounted.
   useEffect(() => {
     document.documentElement.classList.toggle('reduce-motion', !!prefs.display.reduce_motion)
-  }, [prefs.display.reduce_motion])
+    document.documentElement.dataset.density = prefs.display.density === 'compact' ? 'compact' : 'comfortable'
+  }, [prefs.display.reduce_motion, prefs.display.density])
 
   return (
     <div className="space-y-4 max-w-3xl">
