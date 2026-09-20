@@ -49,6 +49,19 @@ export const useSessionTimeoutStore = create((set) => ({
   })),
 }))
 
+/**
+ * Close the warning popup directly, independent of the monitor's own
+ * activity/expiry logic — used when the user takes an action (Log Out)
+ * that ends the session outright, so the popup doesn't keep floating over
+ * whatever page comes next while it waits on an indirect chain (auth state
+ * clearing -> an effect noticing -> that effect's cleanup -> only then
+ * closing it) that has no guaranteed timing relative to the navigation
+ * that follows it.
+ */
+export function dismissWarning() {
+  useSessionTimeoutStore.getState()._set(false)
+}
+
 function openChannel() {
   try {
     return 'BroadcastChannel' in window ? new BroadcastChannel(CHANNEL_NAME) : null
