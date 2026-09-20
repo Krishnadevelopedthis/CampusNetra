@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 
-from app.ai.client import call_text
+from app.ai import sessions
+from app.ai.client import call_agent
 from app.ai.classifier import classify
+from app.ai.tools import TOOL_SCHEMAS, run_tool
 from app.api.deps import DB, CurrentUser, RequireManager
 from app.core.routing import CommitRoute
 from app.core.config import settings
@@ -123,27 +125,84 @@ in the app (e.g. "Track Complaints", "Digital Twin", "Lost & Found").
 - Be concise: two or three sentences unless a list is genuinely clearer.
 - Never invent issue references, asset tags, names or numbers."""
 
+# Used only by the tool-calling agent path (see call_agent below) — distinct
+# from SYSTEM above, which still backs the no-tools deterministic/plain-text
+# fallback paths unchanged.
+AGENT_SYSTEM = """You are the Campus Netra AI Agent, embedded in a campus facility \
+management platform.
+
+How CampusNetra works: students/teachers report facility issues ("complaints"), which \
+are automatically categorized and routed to a department, then tracked through a status \
+lifecycle (Reported -> Assigned -> In Progress -> Resolved -> Closed) against an SLA. \
+Lost & Found lets people report lost or found items; the system suggests matches by \
+image, description, location, category and timing. Technicians work assigned \
+complaints as work orders. Facility managers and admins see campus-wide dashboards, \
+SLA analytics, and a live spatial Digital Twin of campus/building/floor/room/asset \
+health.
+
+You have tools to look up the CURRENT user's own real data (profile, their complaints, \
+their Lost & Found reports, notifications) and shared campus data (campuses, \
+buildings, floors, rooms, assets, a role-appropriate dashboard summary, and searching \
+all open Lost & Found items on their campus). Use a tool whenever a question is about \
+real data rather than how the app works in general. Never invent a complaint \
+reference, asset tag, name, count or status — if a tool returns an error or no \
+results, say so plainly.
+
+You cannot yet create or modify complaints or Lost & Found reports on the user's \
+behalf. If asked to do either, say so directly and point to the relevant part of the \
+app ("Report an Issue", "Lost & Found -> Report") instead of claiming it was done.
+
+Be concise: two or three sentences unless a list is genuinely clearer."""
+
+
+async def _run_tool_call(name: str, arguments: dict, *, db, user) -> dict:
+    return await run_tool(name, arguments, db=db, user=user)
+
 
 @router.post("/assistant", response_model=dict)
 async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
-    """AI Campus Assistant. Degrades to a deterministic summary with no API key."""
-    context = await _gather_context(db, user)
+    """AI Campus Assistant/Agent. Degrades to a deterministic summary with no API key.
+
+    conversation_id (optional in the request, always present in the response)
+    threads a bounded, in-memory, per-user conversation so multi-turn context
+    (and, eventually, guided complaint/Lost & Found creation) works without the
+    caller resending prior turns — see app/ai/sessions.py.
+    """
+    conversation_id, session = sessions.get_or_create(payload.conversation_id, user.id)
+    sessions.append(session, "user", payload.message)
 
     if settings.ai_available:
-        reply = await call_text(
-            SYSTEM,
-            f"Campus context:\n{context}\n\nUser ({user.role.value}) asks: {payload.message}",
-            max_tokens=600,
+        result = await call_agent(
+            AGENT_SYSTEM,
+            session.messages,
+            TOOL_SCHEMAS,
+            lambda name, args: _run_tool_call(name, args, db=db, user=user),
+            max_tokens=700,
         )
-        if reply:
-            db.add(AIInvocation(
-                organization_id=user.organization_id, task="assistant",
-                model=settings.AI_MODEL, confidence=None))
-            return {"reply": reply, "confidence": 0.9, "sources": ["campus_data"],
-                    "model": settings.AI_MODEL}
 
-    # Fallback: answer from the same context with simple keyword routing, so the
-    # assistant stays useful without an API key rather than returning an error.
+        db.add(AIInvocation(
+            organization_id=user.organization_id, task="assistant",
+            model=result.model, input_tokens=result.input_tokens or None,
+            output_tokens=result.output_tokens or None, latency_ms=result.latency_ms,
+            succeeded=result.ok, used_fallback=result.used_fallback,
+            error=result.error,
+        ))
+
+        if result.ok:
+            reply = (result.data or {}).get("reply", "")
+            tools_called = (result.data or {}).get("tool_calls", [])
+            if reply:
+                sessions.append(session, "assistant", reply)
+                return {
+                    "reply": reply, "confidence": 0.9, "sources": ["campus_data"],
+                    "model": result.model, "conversation_id": str(conversation_id),
+                    "tool_used": bool(tools_called), "tools_called": tools_called,
+                }
+
+    # Fallback: answer from a lightweight context summary with simple keyword
+    # routing, so the assistant stays useful without an API key, or if the
+    # model/tool-calling path above failed for any reason.
+    context = await _gather_context(db, user)
     q = payload.message.lower()
     if any(w in q for w in ("complaint", "issue", "report", "ticket")):
         reply = ("Here is what I can see for you:\n\n" + context +
@@ -166,8 +225,10 @@ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
     db.add(AIInvocation(
         organization_id=user.organization_id, task="assistant",
         model="heuristic-v1", used_fallback=True))
+    sessions.append(session, "assistant", reply)
     return {"reply": reply, "confidence": 0.55, "sources": ["campus_data"],
-            "model": "heuristic-v1"}
+            "model": "heuristic-v1", "conversation_id": str(conversation_id),
+            "tool_used": False, "tools_called": []}
 
 
 @router.get("/review-queue", response_model=dict)
