@@ -37,8 +37,8 @@ export const ROLE_ACCENT = {
   teacher: '#8b5cf6',
   technician: '#f59e0b',
   facility_manager: '#10b981',
-  admin: '#1e1b4b',
-  super_admin: '#1e1b4b',
+  admin: 'rgb(var(--c-primary))',
+  super_admin: 'rgb(var(--c-primary))',
 }
 
 const STAFF = new Set([

@@ -189,7 +189,7 @@ export default function ReportItem() {
         </div>
       </Widget>
 
-      <Widget title="Where and when">
+      <Widget title="Where and when" className="relative z-20">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Building">
             <Select value={form.building_id || ''} onChange={set('building_id')}>
@@ -222,7 +222,8 @@ export default function ReportItem() {
         </div>
       </Widget>
 
-      <Widget title="Photo" subtitle="A clear photo is the strongest matching signal">
+      <Widget title="Photo" subtitle="A clear photo is the strongest matching signal"
+              className="relative z-10" >
         <ImageUpload
           value={photos} onChange={setPhotos} purpose={kind} max={4}
           hint="The first image is used as the primary. Image similarity is one of the five factors the matcher scores on."

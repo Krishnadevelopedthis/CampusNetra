@@ -57,7 +57,26 @@ async def find_matches(db: AsyncSession, item: LFItem) -> list[matching.MatchRes
     if not candidates:
         return []
 
-    return matching.rank_matches(_item_dict(item), [_item_dict(c) for c in candidates])
+    target = _item_dict(item)
+    candidate_dicts = [_item_dict(c) for c in candidates]
+
+    results: list[matching.MatchResult] = []
+
+    for candidate in candidate_dicts:
+        lost, found = (
+            (target, candidate)
+            if item.kind == LFKind.LOST
+            else (candidate, target)
+        )
+
+        result = await matching.match_with_ai(lost, found)
+
+        if result.score >= matching.SUGGEST_THRESHOLD:
+            results.append(result)
+
+    results.sort(key=lambda r: r.score, reverse=True)
+
+    return results[:10]
 
 
 async def persist_matches(
