@@ -19,6 +19,11 @@ const BASE =
   import.meta.env.VITE_API_BASE_URL ||
   (import.meta.env.DEV ? '/api/v1' : 'https://campusnetra.onrender.com/api/v1')
 
+// The unversioned root the backend serves alongside /api/v1 — /health lives
+// here, not under /api/v1. Derived from BASE rather than hardcoded a second
+// time, so the two can never drift apart if the backend URL ever changes.
+export const API_ORIGIN = BASE.replace(/\/api\/v1\/?$/, '')
+
 const STORAGE_KEY = 'cn.auth'
 
 /**

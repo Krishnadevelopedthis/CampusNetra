@@ -3,13 +3,19 @@ import { Activity, Database, Server, Sparkles, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { ErrorState, Metric, Spinner, Widget } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, API_ORIGIN } from '@/lib/api'
 
 export default function AdminOverview() {
   const health = useQuery({
     queryKey: ['system-health'],
-    // /health sits outside the versioned API, so call it directly from the backend.
-    queryFn: () => fetch('/health').then((r) => r.json()),
+    // /health sits outside the versioned /api/v1 prefix, so it's fetched
+    // directly rather than through api.get(). It must still be an absolute
+    // URL to the backend in production, though — a bare fetch('/health')
+    // resolves against the frontend's OWN host (campusnetra.dpdns.org),
+    // which has no such route, and silently made every check here look
+    // broken (API degraded, database unreachable, AI on heuristic
+    // fallback) regardless of the backend's actual state.
+    queryFn: () => fetch(`${API_ORIGIN}/health`).then((r) => r.json()),
     refetchInterval: 30_000,
   })
   const dashboard = useQuery({ queryKey: ['dashboard'], queryFn: () => api.get('/dashboard') })
