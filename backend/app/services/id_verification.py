@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import re
+from typing import Optional
 from dataclasses import dataclass
 
 from PIL import Image
@@ -81,6 +82,19 @@ class NameMatchResult:
     matched_tokens: list[str]
     missing_tokens: list[str]
     ocr_excerpt: str  # short, for an admin reviewing the queued request
+
+
+def extract_id_number(ocr_text: str) -> Optional[str]:
+    """Best-effort pull of a 7-digit enrollment/employee number from OCR
+    text, matching the exact format the app enforces everywhere else.
+
+    Not a substitute for `contains_identifier` (which checks against the
+    account's *known* number) -- this is for surfacing to an admin
+    reviewing a pending name-change request as extra context, since right
+    now they see the OCR excerpt but nothing pulled out of it.
+    """
+    match = re.search(r"\b\d{7}\b", ocr_text)
+    return match.group(0) if match else None
 
 
 def match_name(claimed_name: str, ocr_text: str) -> NameMatchResult:
