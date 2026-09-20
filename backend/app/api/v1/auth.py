@@ -383,7 +383,7 @@ async def request_name_change(
     otherwise it's queued for an administrator to look at.
     """
     from app.services.id_verification import (
-        OcrUnavailable, contains_identifier, extract_text, match_name,
+        OcrUnavailable, contains_identifier, extract_id_number, extract_text, match_name,
     )
     from app.services.storage import StoredImage, UploadError, store_image
     from app.schemas.auth import validate_full_name
@@ -419,6 +419,7 @@ async def request_name_change(
     ocr_excerpt: Optional[str] = None
     score: Optional[float] = None
     id_on_document = False
+    detected_id_number: Optional[str] = None
     # The number the account already carries. Without it on the card there is
     # nothing connecting the document to the person asking, so an account that
     # has none can never be decided automatically.
@@ -428,6 +429,7 @@ async def request_name_change(
         result = match_name(new_full_name, ocr_text)
         score, ocr_excerpt = result.score, result.ocr_excerpt
         id_on_document = contains_identifier(ocr_text, account_id)
+        detected_id_number = extract_id_number(ocr_text)
     except OcrUnavailable:
         # No Tesseract on this server — fall through with score=None, which
         # always queues for manual review rather than auto-deciding blind.
@@ -463,7 +465,7 @@ async def request_name_change(
             ip_address=client_ip(request), before={"full_name": old_name},
             after={"full_name": new_full_name},
         )
-        return {"status": "auto_approved", "full_name": user.full_name, "match_score": score}
+        return {"status": "auto_approved", "full_name": user.full_name, "match_score": score, "detected_id_number": detected_id_number}
 
     db.add(row)
     await db.flush()
@@ -496,7 +498,7 @@ async def request_name_change(
     else:
         detail = "Your ID could not be confidently matched, so an administrator will review it."
 
-    return {"status": "pending", "detail": detail, "match_score": score}
+    return {"status": "pending", "detail": detail, "match_score": score, "detected_id_number": detected_id_number}
 
 
 @router.get("/me/name-change-request", response_model=Optional[NameChangeRequestOut])
