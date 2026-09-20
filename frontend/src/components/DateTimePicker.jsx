@@ -121,7 +121,7 @@ export function DateTimePicker({
   ]
 
   return (
-    <div className="relative z-[100]" ref={ref}>
+    <div className="relative z-[999999]" ref={ref}>
       <button
         type="button" id={id}
         onClick={() => setOpen((o) => !o)}
@@ -136,7 +136,7 @@ export function DateTimePicker({
       </button>
 
       {open && (
-        <div className="absolute z-[9999] mt-2 w-[310px] bg-surface border border-border-subtle rounded-xl shadow-popover p-3 animate-slide-up">
+        <div className="absolute z-[999999] mt-2 w-[310px] bg-surface border border-border-subtle rounded-xl shadow-popover p-3 animate-slide-up">
           <div className="flex flex-wrap gap-1.5 mb-3">
             {presets.map(([label, make]) => {
               const d = make()
