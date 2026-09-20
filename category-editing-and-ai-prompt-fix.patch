@@ -1,0 +1,277 @@
+diff --git a/backend/app/ai/classifier.py b/backend/app/ai/classifier.py
+index 4938842..41b3bc9 100644
+--- a/backend/app/ai/classifier.py
++++ b/backend/app/ai/classifier.py
+@@ -188,6 +188,16 @@ _SYSTEM = """You are the triage engine for Campus Netra, a campus facility \
+ management platform. Classify the reported issue into exactly one of the supplied \
+ categories and assign a priority.
+ 
++Classify by genuinely understanding what the reporter is describing, not by literal \
++keyword overlap. The word list shown next to each category below is a handful of \
++illustrative examples an administrator typed in — not an exhaustive or authoritative \
++list, and not something to string-match against. A report can belong to a category \
++even if none of its listed example words appear verbatim, and a report can mention one \
++of those words while genuinely belonging elsewhere (e.g. a report about a malfunctioning \
++electronic "smartboard" is audio-visual equipment, not furniture, even though the word \
++"board" also appears among a furniture category's examples — reason about what the \
++object or system actually is, not which list happens to contain a shared substring).
++
+ Priority guidance:
+ - critical: danger to life or safety (fire, smoke, exposed live wiring, gas leak, structural failure, flooding)
+ - high: blocks teaching/work for many people, or will worsen fast (no power in a block, burst pipe, server room AC down)
+@@ -196,7 +206,7 @@ Priority guidance:
+ 
+ Respond with ONLY a JSON object:
+ {"category_code": "<code>", "priority": "low|medium|high|critical",
+- "confidence": 0.0-1.0, "reasoning": "<one sentence>",
++ "confidence": 0.0-1.0, "reasoning": "<one sentence explaining the actual meaning, not a keyword match>",
+  "alternatives": [{"code": "<code>", "score": 0.0-1.0}]}"""
+ 
+ 
+@@ -213,7 +223,8 @@ async def classify(
+ 
+     catalogue = "\n".join(
+         f"- {c['code']}: {c['name']}"
+-        + (f" (typical: {', '.join((c.get('keywords') or [])[:6])})" if c.get("keywords") else "")
++        + (f" (example words, illustrative only: {', '.join((c.get('keywords') or [])[:6])})"
++           if c.get("keywords") else "")
+         for c in categories
+     )
+     prompt = (
+diff --git a/backend/app/api/v1/admin.py b/backend/app/api/v1/admin.py
+index fcf0288..a912ba2 100644
+--- a/backend/app/api/v1/admin.py
++++ b/backend/app/api/v1/admin.py
+@@ -342,6 +342,63 @@ async def issue_config(user: RequireManager, db: DB):
+     ]
+ 
+ 
++class IssueCategoryUpdate(BaseModel):
++    """Keywords drive the fallback classifier and are also handed to the AI
++    model as hints in its prompt — a bad keyword (too generic, or one that
++    collides with another category) can mislead classification either way,
++    so this is worth being able to fix without a deploy."""
++    default_priority: Optional[Priority] = None
++    keywords: Optional[list[str]] = None
++
++    @field_validator("keywords")
++    @classmethod
++    def _clean_keywords(cls, value: Optional[list[str]]) -> Optional[list[str]]:
++        if value is None:
++            return value
++        seen: set[str] = set()
++        cleaned: list[str] = []
++        for kw in value:
++            kw = (kw or "").strip().lower()
++            if kw and kw not in seen:
++                seen.add(kw)
++                cleaned.append(kw)
++        return cleaned
++
++
++@router.patch("/issue-categories/{category_id}", response_model=Message)
++async def update_issue_category(
++    category_id: uuid.UUID, payload: IssueCategoryUpdate, admin: RequireAdmin, db: DB, request: Request,
++):
++    category = await db.scalar(
++        select(IssueCategory).where(
++            IssueCategory.id == category_id,
++            IssueCategory.organization_id == admin.organization_id,
++        )
++    )
++    if category is None:
++        raise HTTPException(status.HTTP_404_NOT_FOUND, "Category not found")
++
++    before = {
++        "default_priority": category.default_priority.value,
++        "keywords": list(category.keywords),
++    }
++
++    changes = payload.model_dump(exclude_unset=True)
++    for field, value in changes.items():
++        setattr(category, field, value)
++
++    await db.flush()
++
++    await record_audit(
++        db, action="issue_category.update", actor_id=admin.id,
++        organization_id=admin.organization_id, entity_type="issue_category", entity_id=category.id,
++        before=before,
++        after={"default_priority": category.default_priority.value, "keywords": list(category.keywords)},
++        ip_address=client_ip(request),
++    )
++    return Message(detail=f"{category.name} updated.")
++
++
+ class SLAUpdate(BaseModel):
+     response_mins: int = Field(ge=1)
+     resolve_mins: int = Field(ge=1)
+diff --git a/frontend/src/pages/admin/AdminConfig.jsx b/frontend/src/pages/admin/AdminConfig.jsx
+index 3474018..7f0a34a 100644
+--- a/frontend/src/pages/admin/AdminConfig.jsx
++++ b/frontend/src/pages/admin/AdminConfig.jsx
+@@ -6,20 +6,39 @@ import { Button, ErrorState, Input, PriorityPill, Spinner, Widget, toast } from
+ import { api } from '@/lib/api'
+ import { dt } from '@/lib/format'
+ 
++const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical']
++
+ /* ---------------- Issue categories & AI routing rules ---------------- */
+ export function AdminIssueConfig() {
++  const qc = useQueryClient()
++  // Per-row draft: { priority?, keywordsText? } — keywordsText is the raw
++  // comma-separated input so a mid-edit trailing comma or space doesn't
++  // fight the user; it's only split/cleaned when actually saved.
++  const [edits, setEdits] = useState({})
++  const [expanded, setExpanded] = useState({})
++
+   const { data, isLoading, error, refetch } = useQuery({
+     queryKey: ['issue-config'],
+     queryFn: () => api.get('/admin/issue-categories'),
+   })
+ 
++  const save = useMutation({
++    mutationFn: ({ id, body }) => api.patch(`/admin/issue-categories/${id}`, body),
++    onSuccess: (d, vars) => {
++      toast.success(d.detail)
++      setEdits((e) => { const n = { ...e }; delete n[vars.id]; return n })
++      qc.invalidateQueries({ queryKey: ['issue-config'] })
++    },
++    onError: (err) => toast.error(err.detail || 'Could not update category'),
++  })
++
+   if (isLoading) return <Spinner label="Loading configuration…" />
+   if (error) return <ErrorState error={error} onRetry={refetch} />
+ 
+   return (
+     <Widget
+       title="Issue Categories"
+-      subtitle="Keywords drive the fallback classifier and seed the AI prompt. Each category owns a department and an SLA."
++      subtitle="Keywords drive the fallback classifier and are also given to the AI model as hints — a generic or colliding keyword (e.g. 'board' matching both furniture and a smartboard) can misroute either path, so they're editable here without a deploy."
+       bodyClass="p-0"
+     >
+       <div className="table-wrap">
+@@ -28,36 +47,97 @@ export function AdminIssueConfig() {
+             <tr>
+               <th>Category</th><th>Routes to</th><th>Default priority</th>
+               <th>SLA (respond / resolve)</th><th>Keywords</th>
+-              <th className="text-right">Issues</th>
++              <th className="text-right">Issues</th><th />
+             </tr>
+           </thead>
+           <tbody>
+-            {data.map((c) => (
+-              <tr key={c.id}>
+-                <td>
+-                  <p className="text-ink">{c.name}</p>
+-                  <p className="font-mono text-[11px] text-ink-faint">{c.code}</p>
+-                </td>
+-                <td className="text-ink-muted">{c.department || '—'}</td>
+-                <td><PriorityPill priority={c.default_priority} /></td>
+-                <td className="tabular text-ink-muted whitespace-nowrap">
+-                  {c.sla_response_mins}m / {Math.round(c.sla_resolve_mins / 60)}h
+-                </td>
+-                <td className="max-w-sm">
+-                  <div className="flex flex-wrap gap-1">
+-                    {c.keywords.slice(0, 6).map((k) => (
+-                      <span key={k} className="pill bg-surface-sunken text-ink-muted text-body-sm">{k}</span>
+-                    ))}
+-                    {c.keywords.length > 6 && (
+-                      <span className="text-body-sm text-ink-faint self-center">
+-                        +{c.keywords.length - 6}
+-                      </span>
++            {data.map((c) => {
++              const edit = edits[c.id] || {}
++              const keywordsText = edit.keywordsText
++                ?? c.keywords.join(', ')
++              const dirty = edit.priority != null
++                || (edit.keywordsText != null
++                    && edit.keywordsText.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean).join(',')
++                       !== [...c.keywords].sort().join(','))
++              const isOpen = !!expanded[c.id]
++
++              return (
++                <tr key={c.id}>
++                  <td>
++                    <p className="text-ink">{c.name}</p>
++                    <p className="font-mono text-[11px] text-ink-faint">{c.code}</p>
++                  </td>
++                  <td className="text-ink-muted">{c.department || '—'}</td>
++                  <td>
++                    <select
++                      className="input h-8 py-0 w-32 capitalize"
++                      value={edit.priority ?? c.default_priority}
++                      onChange={(e) => setEdits((s) => ({
++                        ...s, [c.id]: { ...s[c.id], priority: e.target.value },
++                      }))}
++                    >
++                      {PRIORITY_OPTIONS.map((p) => (
++                        <option key={p} value={p} className="capitalize">{p}</option>
++                      ))}
++                    </select>
++                  </td>
++                  <td className="tabular text-ink-muted whitespace-nowrap">
++                    {c.sla_response_mins}m / {Math.round(c.sla_resolve_mins / 60)}h
++                  </td>
++                  <td className="max-w-sm">
++                    {isOpen ? (
++                      <textarea
++                        className="input text-body-sm w-full min-h-[64px]"
++                        placeholder="comma, separated, keywords"
++                        value={keywordsText}
++                        onChange={(e) => setEdits((s) => ({
++                          ...s, [c.id]: { ...s[c.id], keywordsText: e.target.value },
++                        }))}
++                      />
++                    ) : (
++                      <button
++                        type="button"
++                        className="flex flex-wrap gap-1 text-left"
++                        onClick={() => setExpanded((s) => ({ ...s, [c.id]: true }))}
++                        title="Click to edit keywords"
++                      >
++                        {c.keywords.slice(0, 6).map((k) => (
++                          <span key={k} className="pill bg-surface-sunken text-ink-muted text-body-sm">{k}</span>
++                        ))}
++                        {c.keywords.length > 6 && (
++                          <span className="text-body-sm text-ink-faint self-center">
++                            +{c.keywords.length - 6}
++                          </span>
++                        )}
++                        {c.keywords.length === 0 && (
++                          <span className="text-body-sm text-ink-faint italic">No keywords — click to add</span>
++                        )}
++                      </button>
+                     )}
+-                  </div>
+-                </td>
+-                <td className="text-right tabular">{c.issue_count}</td>
+-              </tr>
+-            ))}
++                  </td>
++                  <td className="text-right tabular">{c.issue_count}</td>
++                  <td>
++                    {dirty && (
++                      <Button
++                        size="sm" icon={Save} loading={save.isPending}
++                        onClick={() => {
++                          const body = {}
++                          if (edit.priority != null) body.default_priority = edit.priority
++                          if (edit.keywordsText != null) {
++                            body.keywords = edit.keywordsText
++                              .split(',').map((k) => k.trim()).filter(Boolean)
++                          }
++                          save.mutate({ id: c.id, body })
++                          setExpanded((s) => ({ ...s, [c.id]: false }))
++                        }}
++                      >
++                        Save
++                      </Button>
++                    )}
++                  </td>
++                </tr>
++              )
++            })}
+           </tbody>
+         </table>
+       </div>
