@@ -263,6 +263,146 @@ async def call_json(
         )
 
 
+async def call_agent(
+    system: str,
+    messages: list[dict[str, Any]],
+    tools: list[dict],
+    run_tool,
+    *,
+    max_tokens: int = 800,
+    max_tool_hops: int = 4,
+) -> AIResult:
+    """Tool-calling chat loop, for the CampusNetra AI Agent.
+
+    `run_tool(name, arguments)` is awaited for each tool call the model
+    requests; its JSON-serializable result is fed back as a `tool` message
+    and the loop continues until the model replies with plain text, or
+    `max_tool_hops` is reached as a hard stop against a runaway loop.
+    `AIResult.data["reply"]` is the final text; `AIResult.data["tool_calls"]`
+    lists which tools ran, in order, for telemetry/response metadata.
+
+    Only wired up for OpenRouter's OpenAI-compatible API (the current
+    provider per settings.AI_PROVIDER) — returns an
+    `unsupported_ai_provider` result for anything else rather than silently
+    falling back to a tool-less reply, so a provider misconfiguration is
+    visible instead of quietly losing tool access.
+    """
+    started = time.perf_counter()
+    client = _get_client()
+
+    if client is None:
+        return AIResult(
+            data=None, model="fallback", latency_ms=0,
+            used_fallback=True, error="ai_unavailable",
+        )
+
+    if settings.AI_PROVIDER != "openrouter":
+        return AIResult(
+            data=None, model=settings.AI_MODEL,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            used_fallback=True, error="unsupported_ai_provider",
+        )
+
+    convo: list[dict[str, Any]] = [{"role": "system", "content": system}, *messages]
+    total_input = 0
+    total_output = 0
+    tool_calls_made: list[str] = []
+
+    try:
+        for _hop in range(max_tool_hops):
+            resp = await client.chat.completions.create(
+                model=settings.AI_MODEL,
+                max_tokens=max_tokens,
+                temperature=0.2,
+                messages=convo,
+                tools=tools,
+                tool_choice="auto",
+            )
+
+            usage = getattr(resp, "usage", None)
+            total_input += getattr(usage, "prompt_tokens", 0) or 0
+            total_output += getattr(usage, "completion_tokens", 0) or 0
+
+            if not resp.choices:
+                return AIResult(
+                    data=None,
+                    model=getattr(resp, "model", None) or settings.AI_MODEL,
+                    latency_ms=int((time.perf_counter() - started) * 1000),
+                    input_tokens=total_input, output_tokens=total_output,
+                    used_fallback=True, error="empty_response",
+                )
+
+            message = resp.choices[0].message
+            requested = getattr(message, "tool_calls", None)
+
+            if not requested:
+                return AIResult(
+                    data={
+                        "reply": message.content or "",
+                        "tool_calls": tool_calls_made,
+                    },
+                    model=getattr(resp, "model", None) or settings.AI_MODEL,
+                    latency_ms=int((time.perf_counter() - started) * 1000),
+                    input_tokens=total_input, output_tokens=total_output,
+                )
+
+            # The assistant's own tool-call message has to go back into the
+            # transcript before the tool results, or the next turn is
+            # rejected as malformed by the API.
+            convo.append({
+                "role": "assistant",
+                "content": message.content,
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in requested
+                ],
+            })
+
+            for tc in requested:
+                name = tc.function.name
+                try:
+                    args = json.loads(tc.function.arguments or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+
+                result = await run_tool(name, args)
+                tool_calls_made.append(name)
+
+                convo.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result, default=str)[:4000],
+                })
+
+        # Hit max_tool_hops without a final plain-text reply — stop rather
+        # than loop forever; the caller degrades to the deterministic
+        # fallback exactly as it would for any other AI failure.
+        return AIResult(
+            data=None, model=settings.AI_MODEL,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            input_tokens=total_input, output_tokens=total_output,
+            used_fallback=True, error="tool_loop_limit_reached",
+        )
+
+    except Exception as exc:
+        log.warning(
+            "AI agent call failed (%s); falling back to heuristics", exc,
+        )
+        return AIResult(
+            data=None, model=settings.AI_MODEL,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            input_tokens=total_input, output_tokens=total_output,
+            used_fallback=True, error=str(exc)[:200],
+        )
+
+
 async def call_text(
     system: str,
     prompt: str,
