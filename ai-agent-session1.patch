@@ -1,0 +1,1104 @@
+diff --git a/AI_AGENT_PROGRESS.md b/AI_AGENT_PROGRESS.md
+new file mode 100644
+index 0000000..5a6fd13
+--- /dev/null
++++ b/AI_AGENT_PROGRESS.md
+@@ -0,0 +1,155 @@
++# CampusNetra AI Agent — Progress
++
++Tracks upgrading `/api/v1/ai/assistant` from a plain-text Q&A endpoint into
++a tool-using agent (real data lookups + eventually guided complaint/Lost &
++Found creation). Separate initiative from `UX_OVERHAUL_PROGRESS.md` — this
++one is backend-only. Same rule: **inspect the actual repo state fresh each
++session** (`git fetch && git reset --hard origin/main`) before assuming a
++prior session's notes are still accurate — several other tools/sessions
++commit to this repo directly.
++
++## Session 1 (this one)
++
++### Done — read-only tool-calling
++The assistant can now actually look up real data instead of only answering
++from a pre-baked context paragraph, while keeping every existing safety
++property (no API key → deterministic fallback; frontend response shape
++unchanged, just extended).
++
++**New files:**
++- `backend/app/ai/tools.py` — 13 read-only tools (see list below), each a
++  thin wrapper around an **existing, already-authorized route handler**
++  (`list_issues`, `get_issue`, `list_items`, `get_item`, `list_campuses`,
++  `list_buildings`, `list_floors`, `room_assets`, `list_notifications`,
++  `dashboard`), called directly as plain async functions rather than
++  through the ASGI layer. This means RBAC/org-scoping is 100% inherited
++  from the real endpoint — zero duplicated authorization logic, and it
++  stays correct if that endpoint's logic ever changes. The one genuinely
++  new query is `get_rooms` (no standalone "list rooms for a floor"
++  endpoint existed to wrap — added a small org-scoped read of its own).
++  Every tool signature is `(db, user, **kwargs)`; **nothing accepts a
++  caller-supplied user_id/organization_id/role** — this is the load-bearing
++  security property the spec asked for, and it's structural (the LLM
++  physically cannot pass those in) rather than a prompt instruction.
++- `backend/app/ai/sessions.py` — bounded in-memory conversation store keyed
++  by `conversation_id` (already an unused field on `AssistantRequest`
++  before this session — now wired up). Isolated per `user_id`; a
++  conversation_id from another user, or an expired/unknown one, silently
++  starts a fresh session rather than ever handing back someone else's
++  history. In-memory, matching the existing single-worker Render
++  deployment and the precedent already set by the SMS-Gateway relay's
++  `pending_requests` dict — no new infrastructure.
++- `backend/tests/test_ai_sessions.py`, `backend/tests/test_ai_tools_registry.py`
++  — see Testing section below.
++
++**Modified:**
++- `backend/app/ai/client.py` — added `call_agent()`: an OpenAI/OpenRouter
++  tool-calling loop (up to 4 tool round-trips per turn, then stops rather
++  than looping forever). Existing `call_json`/`call_text` untouched — the
++  classifier and anything else using them is unaffected.
++- `backend/app/api/v1/ai.py` — `/assistant` now: gets/creates a session,
++  calls `call_agent` with the 13 tool schemas when `settings.ai_available`,
++  logs full telemetry to `AIInvocation` (latency/tokens/success/fallback —
++  the model/table already had all these columns, they just weren't being
++  populated), and **only on any failure** (no key, provider error, tool
++  loop limit, empty response) falls through to the **exact same
++  deterministic keyword-routed reply as before** — that whole branch is
++  untouched. Response gained `conversation_id`, `tool_used`, `tools_called`
++  — additive fields; `reply`/`confidence`/`sources`/`model` (what
++  `AssistantWidget.jsx` actually reads) are unchanged, so the frontend
++  needs no changes for this session's work.
++- `backend/requirements.txt` — added `pytest`/`pytest-asyncio` (testing
++  only, not a runtime dependency — see Testing below, none of the
++  application's own code imports them).
++
++**Tools implemented:** `get_my_profile`, `get_my_complaints`, `get_complaint`,
++`get_my_lost_found`, `get_lost_found_item`, `search_lost_found`,
++`get_campuses`, `get_buildings`, `get_floors`, `get_rooms`, `get_assets`,
++`get_notifications`, `get_dashboard_summary`.
++
++### Explicitly NOT done this session — and why
++- **`create_complaint`, `update_complaint`, `create_lost_found`** — the
++  spec's "conversational form" flow (ask only for missing fields, remember
++  what's already given, summarize, require explicit confirmation before
++  actually creating anything) is a materially bigger, riskier piece of
++  work than the read-only tools: it needs a slot-filling state machine
++  living in `Session.pending_action` (the field is already there,
++  unused, reserved for exactly this), the *actual* required fields read
++  from `Issue`/`LFItem`'s creation schemas (not yet inspected this
++  session), and — critically — this cannot be responsibly built and
++  called "done" without actually exercising a live multi-turn
++  conversation against a real model, which this sandbox can't do (no
++  `OPENROUTER_API_KEY` configured here, no live DB). Committing this
++  half-verified risked exactly the failure mode the spec explicitly warns
++  about: a flow that *claims* a complaint was created when it wasn't.
++  Next session should build this deliberately slower: inspect
++  `IssueCreate`/`LFItemCreate` (or equivalent) schemas first, design the
++  state machine, implement, then this needs to be tested against a real
++  OpenRouter key before being trusted.
++- **Knowledge-base/documentation grounding** — `AGENT_SYSTEM` (the new
++  prompt) has a hand-written summary of how CampusNetra works, but the
++  spec's "centralized CampusNetra knowledge source based on the actual
++  implementation" (something more systematic — e.g. generated from actual
++  route/feature inventory) wasn't built. The hand-written version is a
++  reasonable stopgap, not the real thing.
++- **RequireManager/RequireStaff-only tools** — all 13 tools work for any
++  authenticated user at whatever their own role already permits (a
++  student's `get_my_complaints` only ever sees their own; a manager's
++  `get_dashboard_summary` gets the manager view) because they inherit
++  scoping from the wrapped endpoint. No *admin-only* tool (e.g. a
++  hypothetical "merge duplicate complaints" tool) exists yet, so there's
++  nothing yet that specifically needs a `RequireManager`/`RequireAdmin`
++  gate at the tool-dispatch layer beyond what each wrapped endpoint
++  already enforces — worth a specific test once a privileged tool exists.
++
++### Testing
++**This repo had zero test infrastructure before this session** — no
++`pytest` in `requirements.txt`, no `conftest.py`, no test files anywhere.
++Setting up the full stack the spec's 16 scenarios need (async DB test
++fixtures — likely a throwaway SQLite or a test Postgres schema, an
++authenticated `httpx.AsyncClient` with `CurrentUser`/`DB` dependency
++overrides, factory helpers for users/issues/LF items) is itself a
++non-trivial, separate task. Rather than skip testing entirely **or**
++claim scenarios were tested when they weren't, this session:
++
++- Added `pytest` + `pytest-asyncio` + `backend/pytest.ini`
++  (`asyncio_mode = auto`).
++- Wrote and **ran** `backend/tests/test_ai_sessions.py` (6 tests) and
++  `backend/tests/test_ai_tools_registry.py` (4 tests) — the parts of this
++  session's work that genuinely need no database or authenticated
++  request: session creation/resumption, **cross-user session isolation**
++  (spec's test #15, directly), message-history bounding, stale-session
++  eviction, the tool registry/schema consistency, and `run_tool`'s error
++  containment (unknown tool name, a raised `ToolError`, an unexpected
++  exception — none of them propagate or crash the caller).
++- Ran `python -m compileall app` — clean.
++- Actually imported every new/changed module (`app.ai.tools`,
++  `app.ai.sessions`, `app.ai.client`, `app.api.v1.ai`) and the **full**
++  `app.main` FastAPI app via `fastapi.testclient.TestClient`, and confirmed
++  `/api/v1/ai/assistant` is correctly registered among all 131 routes in
++  the live OpenAPI schema — this catches import-time and router-wiring
++  errors that `compileall` alone (syntax-only) would miss.
++- Manually verified `call_agent()` degrades to the fallback path cleanly
++  with no provider configured (`ok=False, error="ai_unavailable",
++  used_fallback=True`) — the core FALLBACK requirement.
++
++**Result: 10/10 written tests pass.** The remaining ~10 of the spec's 16
++scenarios (actual complaint/LF creation flows, cross-user *data* access
++attempts through a live authenticated request, AI-provider-failure via a
++real API call, tool/database-failure against a real DB) need the test
++infrastructure described above and are correctly **not** claimed as done.
++
++## How to resume
++1. `git fetch origin && git reset --hard origin/main` — don't trust this
++   file's "Done" list without re-confirming against the real repo first.
++2. Read this file's "Explicitly NOT done" section — that's the actual
++   backlog, in priority order.
++3. Before building the create_complaint/create_lost_found conversational
++   flow: inspect `backend/app/schemas/issues.py` and
++   `backend/app/schemas/lostfound.py` for the real required-field list
++   (don't guess), and the existing `POST /issues` / `POST /lostfound/items`
++   route handlers to reuse their creation logic exactly like the read
++   tools reuse the GET handlers.
++4. Set up the async-DB + authenticated-TestClient test fixture as its own
++   step before attempting the rest of the 16 scenarios — trying to write
++   those tests without it will produce tests that don't actually run.
+diff --git a/backend/app/ai/client.py b/backend/app/ai/client.py
+index aea8955..0f9e8b4 100644
+--- a/backend/app/ai/client.py
++++ b/backend/app/ai/client.py
+@@ -263,6 +263,146 @@ async def call_json(
+         )
+ 
+ 
++async def call_agent(
++    system: str,
++    messages: list[dict[str, Any]],
++    tools: list[dict],
++    run_tool,
++    *,
++    max_tokens: int = 800,
++    max_tool_hops: int = 4,
++) -> AIResult:
++    """Tool-calling chat loop, for the CampusNetra AI Agent.
++
++    `run_tool(name, arguments)` is awaited for each tool call the model
++    requests; its JSON-serializable result is fed back as a `tool` message
++    and the loop continues until the model replies with plain text, or
++    `max_tool_hops` is reached as a hard stop against a runaway loop.
++    `AIResult.data["reply"]` is the final text; `AIResult.data["tool_calls"]`
++    lists which tools ran, in order, for telemetry/response metadata.
++
++    Only wired up for OpenRouter's OpenAI-compatible API (the current
++    provider per settings.AI_PROVIDER) — returns an
++    `unsupported_ai_provider` result for anything else rather than silently
++    falling back to a tool-less reply, so a provider misconfiguration is
++    visible instead of quietly losing tool access.
++    """
++    started = time.perf_counter()
++    client = _get_client()
++
++    if client is None:
++        return AIResult(
++            data=None, model="fallback", latency_ms=0,
++            used_fallback=True, error="ai_unavailable",
++        )
++
++    if settings.AI_PROVIDER != "openrouter":
++        return AIResult(
++            data=None, model=settings.AI_MODEL,
++            latency_ms=int((time.perf_counter() - started) * 1000),
++            used_fallback=True, error="unsupported_ai_provider",
++        )
++
++    convo: list[dict[str, Any]] = [{"role": "system", "content": system}, *messages]
++    total_input = 0
++    total_output = 0
++    tool_calls_made: list[str] = []
++
++    try:
++        for _hop in range(max_tool_hops):
++            resp = await client.chat.completions.create(
++                model=settings.AI_MODEL,
++                max_tokens=max_tokens,
++                temperature=0.2,
++                messages=convo,
++                tools=tools,
++                tool_choice="auto",
++            )
++
++            usage = getattr(resp, "usage", None)
++            total_input += getattr(usage, "prompt_tokens", 0) or 0
++            total_output += getattr(usage, "completion_tokens", 0) or 0
++
++            if not resp.choices:
++                return AIResult(
++                    data=None,
++                    model=getattr(resp, "model", None) or settings.AI_MODEL,
++                    latency_ms=int((time.perf_counter() - started) * 1000),
++                    input_tokens=total_input, output_tokens=total_output,
++                    used_fallback=True, error="empty_response",
++                )
++
++            message = resp.choices[0].message
++            requested = getattr(message, "tool_calls", None)
++
++            if not requested:
++                return AIResult(
++                    data={
++                        "reply": message.content or "",
++                        "tool_calls": tool_calls_made,
++                    },
++                    model=getattr(resp, "model", None) or settings.AI_MODEL,
++                    latency_ms=int((time.perf_counter() - started) * 1000),
++                    input_tokens=total_input, output_tokens=total_output,
++                )
++
++            # The assistant's own tool-call message has to go back into the
++            # transcript before the tool results, or the next turn is
++            # rejected as malformed by the API.
++            convo.append({
++                "role": "assistant",
++                "content": message.content,
++                "tool_calls": [
++                    {
++                        "id": tc.id,
++                        "type": "function",
++                        "function": {
++                            "name": tc.function.name,
++                            "arguments": tc.function.arguments,
++                        },
++                    }
++                    for tc in requested
++                ],
++            })
++
++            for tc in requested:
++                name = tc.function.name
++                try:
++                    args = json.loads(tc.function.arguments or "{}")
++                except json.JSONDecodeError:
++                    args = {}
++
++                result = await run_tool(name, args)
++                tool_calls_made.append(name)
++
++                convo.append({
++                    "role": "tool",
++                    "tool_call_id": tc.id,
++                    "content": json.dumps(result, default=str)[:4000],
++                })
++
++        # Hit max_tool_hops without a final plain-text reply — stop rather
++        # than loop forever; the caller degrades to the deterministic
++        # fallback exactly as it would for any other AI failure.
++        return AIResult(
++            data=None, model=settings.AI_MODEL,
++            latency_ms=int((time.perf_counter() - started) * 1000),
++            input_tokens=total_input, output_tokens=total_output,
++            used_fallback=True, error="tool_loop_limit_reached",
++        )
++
++    except Exception as exc:
++        log.warning(
++            "AI agent call failed (%s); falling back to heuristics", exc,
++        )
++        return AIResult(
++            data=None, model=settings.AI_MODEL,
++            latency_ms=int((time.perf_counter() - started) * 1000),
++            input_tokens=total_input, output_tokens=total_output,
++            used_fallback=True, error=str(exc)[:200],
++        )
++
++
+ async def call_text(
+     system: str,
+     prompt: str,
+diff --git a/backend/app/ai/sessions.py b/backend/app/ai/sessions.py
+new file mode 100644
+index 0000000..4a52730
+--- /dev/null
++++ b/backend/app/ai/sessions.py
+@@ -0,0 +1,80 @@
++"""Bounded in-process conversation state for the AI Agent.
++
++Chat history for an in-progress assistant conversation lives here, keyed by
++a server-issued conversation_id. In-memory only — this deployment already
++runs a single worker (see render startup logs: `WEB_CONCURRENCY=1`), and
++the SMS-Gateway cloud relay in this same codebase (cloud-gateway/main.py's
++`pending_requests` dict) already establishes that pattern for short-lived
++server-side state here. A session resetting on redeploy loses an open chat
++window, not application data — an acceptable trade-off for "no new
++infrastructure" versus a genuine loss.
++
++Every lookup is scoped to the user_id that started the session: a
++conversation_id from another user (or a stale/unknown one) never returns
++someone else's history, it just starts a fresh session instead. This is
++what "the session must not leak information between users" means in
++practice here — conversation_id values are server-generated UUIDs handed
++back to the caller, not guessable, but this check is cheap insurance
++regardless.
++"""
++from __future__ import annotations
++
++import time
++import uuid
++from dataclasses import dataclass, field
++
++MAX_MESSAGES = 20                  # user+assistant turns kept per session
++SESSION_TTL_SECONDS = 60 * 60      # idle sessions are dropped after an hour
++MAX_SESSIONS = 2000                # hard cap independent of TTL eviction
++
++
++@dataclass
++class Session:
++    user_id: uuid.UUID
++    messages: list[dict] = field(default_factory=list)
++    # Slot-filling state for an in-progress guided create flow. Unused for
++    # now — read-only tools don't need it — reserved for the
++    # create_complaint/create_lost_found conversational flow (see
++    # AI_AGENT_PROGRESS.md for why that isn't built yet).
++    pending_action: dict | None = None
++    last_active: float = field(default_factory=time.monotonic)
++
++
++_sessions: dict[uuid.UUID, Session] = {}
++
++
++def _evict_stale() -> None:
++    now = time.monotonic()
++    stale = [sid for sid, s in _sessions.items() if now - s.last_active > SESSION_TTL_SECONDS]
++    for sid in stale:
++        _sessions.pop(sid, None)
++
++    if len(_sessions) > MAX_SESSIONS:
++        overflow = len(_sessions) - MAX_SESSIONS
++        oldest = sorted(_sessions.items(), key=lambda kv: kv[1].last_active)[:overflow]
++        for sid, _ in oldest:
++            _sessions.pop(sid, None)
++
++
++def get_or_create(conversation_id: "uuid.UUID | None", user_id: uuid.UUID) -> tuple[uuid.UUID, Session]:
++    _evict_stale()
++
++    if conversation_id is not None:
++        existing = _sessions.get(conversation_id)
++        if existing is not None and existing.user_id == user_id:
++            existing.last_active = time.monotonic()
++            return conversation_id, existing
++        # Unknown, expired, or (defensively) another user's session id —
++        # start fresh rather than failing the request.
++
++    new_id = uuid.uuid4()
++    session = Session(user_id=user_id)
++    _sessions[new_id] = session
++    return new_id, session
++
++
++def append(session: Session, role: str, content: str) -> None:
++    session.messages.append({"role": role, "content": content})
++    session.last_active = time.monotonic()
++    if len(session.messages) > MAX_MESSAGES:
++        session.messages = session.messages[-MAX_MESSAGES:]
+diff --git a/backend/app/ai/tools.py b/backend/app/ai/tools.py
+new file mode 100644
+index 0000000..e543420
+--- /dev/null
++++ b/backend/app/ai/tools.py
+@@ -0,0 +1,391 @@
++"""Read-only tool functions for the CampusNetra AI Agent.
++
++Every tool here wraps an existing, already-authorized route handler
++directly rather than re-querying the database from scratch — the exact
++same RBAC/org-scoping the REST API enforces applies with zero duplicated
++logic, and stays correct automatically if that underlying logic ever
++changes. FastAPI route functions are just async Python functions; calling
++one directly (outside the ASGI app) simply skips the framework's own
++Depends()-based injection, so `user`/`db`/pagination are passed in exactly
++as the endpoint already has them.
++
++Security invariant, load-bearing: every tool takes `user: User` from the
++assistant endpoint's own `CurrentUser` dependency (the authenticated
++caller, derived from their JWT) and `db` from that same request's session.
++NOTHING here accepts a caller/LLM-supplied user_id, organization_id, or
++role — the model can choose *which* tool to call and *what* to ask it for
++(a complaint reference, a search term, a campus id already visible to this
++user), never *who* it executes as. A tool that doesn't scope a query to
++`user` does so because the wrapped endpoint doesn't need to (e.g. a public
++reference lookup already 404s for another org's record).
++
++Mutating tools (create_complaint, create_lost_found, update_complaint, ...)
++are intentionally NOT implemented yet — see AI_AGENT_PROGRESS.md. They
++need the multi-turn slot-filling + explicit-confirmation flow the spec
++describes, which is a separate, larger piece of work building on the
++conversation-session state added alongside this file.
++"""
++from __future__ import annotations
++
++import uuid
++from typing import Any, Callable, Coroutine
++
++from app.api.deps import Pagination
++from app.models.identity import User
++
++log_prefix = "[ai.tools]"
++
++
++class ToolError(Exception):
++    """Raised for anything the model should be told about in plain text
++    rather than a stack trace — a bad id, a not-found record, etc."""
++
++
++def _uuid(value: Any, field: str) -> uuid.UUID:
++    try:
++        return uuid.UUID(str(value))
++    except (ValueError, AttributeError, TypeError):
++        raise ToolError(f"'{field}' is not a valid id.")
++
++
++# ---------------------------------------------------------------------------
++# Profile
++# ---------------------------------------------------------------------------
++
++async def get_my_profile(db, user: User, **_: Any) -> dict:
++    from app.schemas.auth import UserOut
++
++    return UserOut.model_validate(user).model_dump(mode="json")
++
++
++# ---------------------------------------------------------------------------
++# Complaints / Issues
++# ---------------------------------------------------------------------------
++
++async def get_my_complaints(db, user: User, status: str | None = None, limit: int = 10, **_: Any) -> dict:
++    from app.api.v1.issues import list_issues
++    from app.core.enums import IssueStatus
++
++    status_in = None
++    if status:
++        try:
++            status_in = [IssueStatus(status)]
++        except ValueError:
++            raise ToolError(
++                f"'{status}' is not a valid status. Use one of: "
++                + ", ".join(s.value for s in IssueStatus)
++            )
++
++    page = await list_issues(
++        user=user, db=db,
++        paging=Pagination(page=1, page_size=min(max(limit, 1), 25)),
++        mine=True, status_in=status_in,
++    )
++    return page.model_dump(mode="json")
++
++
++async def get_complaint(db, user: User, reference_or_id: str, **_: Any) -> dict:
++    """Accepts either the human-facing reference (e.g. CMP-1042) or the raw id."""
++    from fastapi import HTTPException
++
++    from app.api.v1.issues import get_issue
++    from app.models.issues import Issue
++    from sqlalchemy import select
++
++    issue_id = None
++    try:
++        issue_id = uuid.UUID(str(reference_or_id))
++    except (ValueError, AttributeError, TypeError):
++        row = await db.scalar(
++            select(Issue).where(
++                Issue.organization_id == user.organization_id,
++                Issue.reference == reference_or_id,
++            )
++        )
++        if row is None:
++            raise ToolError(f"No complaint found with reference '{reference_or_id}'.")
++        issue_id = row.id
++
++    try:
++        detail = await get_issue(issue_id=issue_id, user=user, db=db)
++    except HTTPException as exc:
++        raise ToolError(exc.detail if isinstance(exc.detail, str) else "That complaint is not available.")
++
++    return detail.model_dump(mode="json")
++
++
++# ---------------------------------------------------------------------------
++# Lost & Found
++# ---------------------------------------------------------------------------
++
++async def get_my_lost_found(db, user: User, kind: str | None = None, limit: int = 10, **_: Any) -> dict:
++    from app.api.v1.lostfound import list_items
++    from app.core.enums import LFKind
++
++    kind_val = None
++    if kind:
++        try:
++            kind_val = LFKind(kind)
++        except ValueError:
++            raise ToolError(f"'{kind}' is not a valid kind. Use 'lost' or 'found'.")
++
++    page = await list_items(
++        user=user, db=db,
++        paging=Pagination(page=1, page_size=min(max(limit, 1), 25)),
++        mine=True, kind=kind_val, open_only=False,
++    )
++    return page.model_dump(mode="json")
++
++
++async def get_lost_found_item(db, user: User, reference_or_id: str, **_: Any) -> dict:
++    from fastapi import HTTPException
++
++    from app.api.v1.lostfound import get_item
++    from app.models.lostfound import LFItem
++    from sqlalchemy import select
++
++    item_id = None
++    try:
++        item_id = uuid.UUID(str(reference_or_id))
++    except (ValueError, AttributeError, TypeError):
++        row = await db.scalar(
++            select(LFItem).where(
++                LFItem.organization_id == user.organization_id,
++                LFItem.reference == reference_or_id,
++            )
++        )
++        if row is None:
++            raise ToolError(f"No Lost & Found item found with reference '{reference_or_id}'.")
++        item_id = row.id
++
++    try:
++        detail = await get_item(item_id=item_id, user=user, db=db)
++    except HTTPException as exc:
++        raise ToolError(exc.detail if isinstance(exc.detail, str) else "That item is not available.")
++
++    return detail.model_dump(mode="json")
++
++
++async def search_lost_found(db, user: User, query: str, kind: str | None = None, limit: int = 10, **_: Any) -> dict:
++    from app.api.v1.lostfound import list_items
++    from app.core.enums import LFKind
++
++    kind_val = None
++    if kind:
++        try:
++            kind_val = LFKind(kind)
++        except ValueError:
++            raise ToolError(f"'{kind}' is not a valid kind. Use 'lost' or 'found'.")
++
++    page = await list_items(
++        user=user, db=db,
++        paging=Pagination(page=1, page_size=min(max(limit, 1), 25)),
++        mine=False, kind=kind_val, q=query, open_only=True,
++    )
++    return page.model_dump(mode="json")
++
++
++# ---------------------------------------------------------------------------
++# Campus / spatial
++# ---------------------------------------------------------------------------
++
++async def get_campuses(db, user: User, **_: Any) -> dict:
++    from app.api.v1.campus import list_campuses
++
++    rows = await list_campuses(user=user, db=db)
++    return {"items": [r.model_dump(mode="json") for r in rows]}
++
++
++async def get_buildings(db, user: User, campus_id: str, **_: Any) -> dict:
++    from app.api.v1.campus import list_buildings
++
++    rows = await list_buildings(campus_id=_uuid(campus_id, "campus_id"), user=user, db=db)
++    return {"items": [r.model_dump(mode="json") for r in rows]}
++
++
++async def get_floors(db, user: User, building_id: str, **_: Any) -> dict:
++    from app.api.v1.campus import list_floors
++
++    rows = await list_floors(building_id=_uuid(building_id, "building_id"), user=user, db=db)
++    return {"items": [r.model_dump(mode="json") for r in rows]}
++
++
++async def get_rooms(db, user: User, floor_id: str, **_: Any) -> dict:
++    # No standalone "list rooms for a floor" endpoint exists (rooms are
++    # otherwise only returned nested inside the heavier floor-plan payload,
++    # or created via POST) — this is a small, org-scoped, read-only query
++    # of its own rather than force-fitting a bigger endpoint's response.
++    from sqlalchemy import select
++
++    from app.models.spatial import Building, Campus, Floor, Room
++    from app.schemas.campus import RoomOut
++
++    fid = _uuid(floor_id, "floor_id")
++    rows = (await db.scalars(
++        select(Room)
++        .join(Floor, Floor.id == Room.floor_id)
++        .join(Building, Building.id == Floor.building_id)
++        .join(Campus, Campus.id == Building.campus_id)
++        .where(Room.floor_id == fid, Campus.organization_id == user.organization_id)
++        .order_by(Room.code)
++    )).all()
++    return {"items": [RoomOut.model_validate(r).model_dump(mode="json") for r in rows]}
++
++
++async def get_assets(db, user: User, room_id: str, **_: Any) -> dict:
++    from app.api.v1.campus import room_assets
++
++    rows = await room_assets(room_id=_uuid(room_id, "room_id"), user=user, db=db)
++    return {"items": [r.model_dump(mode="json") for r in rows]}
++
++
++# ---------------------------------------------------------------------------
++# Notifications / dashboard
++# ---------------------------------------------------------------------------
++
++async def get_notifications(db, user: User, unread_only: bool = False, limit: int = 10, **_: Any) -> dict:
++    from app.api.v1.notifications import list_notifications
++
++    return await list_notifications(
++        user=user, db=db, limit=min(max(limit, 1), 25), unread_only=unread_only,
++    )
++
++
++async def get_dashboard_summary(db, user: User, **_: Any) -> dict:
++    from app.api.v1.dashboard import dashboard
++
++    return await dashboard(user=user, db=db)
++
++
++# ---------------------------------------------------------------------------
++# Registry — name -> (callable, OpenAI-style JSON schema)
++# ---------------------------------------------------------------------------
++
++ToolFn = Callable[..., Coroutine[Any, Any, dict]]
++
++TOOLS: dict[str, ToolFn] = {
++    "get_my_profile": get_my_profile,
++    "get_my_complaints": get_my_complaints,
++    "get_complaint": get_complaint,
++    "get_my_lost_found": get_my_lost_found,
++    "get_lost_found_item": get_lost_found_item,
++    "search_lost_found": search_lost_found,
++    "get_campuses": get_campuses,
++    "get_buildings": get_buildings,
++    "get_floors": get_floors,
++    "get_rooms": get_rooms,
++    "get_assets": get_assets,
++    "get_notifications": get_notifications,
++    "get_dashboard_summary": get_dashboard_summary,
++}
++
++TOOL_SCHEMAS: list[dict] = [
++    {"type": "function", "function": {
++        "name": "get_my_profile",
++        "description": "Get the current authenticated user's own profile.",
++        "parameters": {"type": "object", "properties": {}},
++    }},
++    {"type": "function", "function": {
++        "name": "get_my_complaints",
++        "description": "List complaints/issues reported by the current user.",
++        "parameters": {"type": "object", "properties": {
++            "status": {"type": "string", "description": "Optional status filter, e.g. 'reported', 'in_progress', 'resolved'."},
++            "limit": {"type": "integer", "description": "Max results, default 10."},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_complaint",
++        "description": "Get full details of one complaint by its reference (e.g. CMP-1042) or id. Only returns it if the current user is allowed to view it.",
++        "parameters": {"type": "object", "required": ["reference_or_id"], "properties": {
++            "reference_or_id": {"type": "string"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_my_lost_found",
++        "description": "List Lost & Found items reported by the current user.",
++        "parameters": {"type": "object", "properties": {
++            "kind": {"type": "string", "enum": ["lost", "found"]},
++            "limit": {"type": "integer"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_lost_found_item",
++        "description": "Get full details of one Lost & Found item by its reference (e.g. LF7K29A4X) or id.",
++        "parameters": {"type": "object", "required": ["reference_or_id"], "properties": {
++            "reference_or_id": {"type": "string"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "search_lost_found",
++        "description": "Search all open Lost & Found items on the user's campus by keyword (not just the user's own).",
++        "parameters": {"type": "object", "required": ["query"], "properties": {
++            "query": {"type": "string"},
++            "kind": {"type": "string", "enum": ["lost", "found"]},
++            "limit": {"type": "integer"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_campuses",
++        "description": "List campuses in the user's organization.",
++        "parameters": {"type": "object", "properties": {}},
++    }},
++    {"type": "function", "function": {
++        "name": "get_buildings",
++        "description": "List buildings on a given campus.",
++        "parameters": {"type": "object", "required": ["campus_id"], "properties": {
++            "campus_id": {"type": "string"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_floors",
++        "description": "List floors in a given building.",
++        "parameters": {"type": "object", "required": ["building_id"], "properties": {
++            "building_id": {"type": "string"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_rooms",
++        "description": "List rooms on a given floor.",
++        "parameters": {"type": "object", "required": ["floor_id"], "properties": {
++            "floor_id": {"type": "string"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_assets",
++        "description": "List assets in a given room.",
++        "parameters": {"type": "object", "required": ["room_id"], "properties": {
++            "room_id": {"type": "string"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_notifications",
++        "description": "List the current user's recent notifications.",
++        "parameters": {"type": "object", "properties": {
++            "unread_only": {"type": "boolean"},
++            "limit": {"type": "integer"},
++        }},
++    }},
++    {"type": "function", "function": {
++        "name": "get_dashboard_summary",
++        "description": "Get the role-appropriate dashboard summary (open issue counts, SLA breaches, asset faults, etc.) for the current user.",
++        "parameters": {"type": "object", "properties": {}},
++    }},
++]
++
++
++async def run_tool(name: str, arguments: dict, *, db, user: User) -> dict:
++    """Execute one tool call by name. Never raises — the agent loop always
++    gets a JSON-serializable result (or a structured error) to feed back to
++    the model, so a bad argument or a 404 becomes a sentence the model can
++    relay, not a crash."""
++    fn = TOOLS.get(name)
++    if fn is None:
++        return {"error": f"Unknown tool '{name}'."}
++
++    try:
++        result = await fn(db=db, user=user, **(arguments or {}))
++        return {"ok": True, "result": result}
++    except ToolError as exc:
++        return {"ok": False, "error": str(exc)}
++    except Exception as exc:  # noqa: BLE001 — deliberately broad, see docstring
++        return {"ok": False, "error": "That request could not be completed."}
+diff --git a/backend/app/api/v1/ai.py b/backend/app/api/v1/ai.py
+index fa83ec3..b179fec 100644
+--- a/backend/app/api/v1/ai.py
++++ b/backend/app/api/v1/ai.py
+@@ -9,8 +9,10 @@ from pydantic import BaseModel, Field
+ from sqlalchemy import func, select
+ from sqlalchemy.orm import aliased
+ 
+-from app.ai.client import call_text
++from app.ai import sessions
++from app.ai.client import call_agent
+ from app.ai.classifier import classify
++from app.ai.tools import TOOL_SCHEMAS, run_tool
+ from app.api.deps import DB, CurrentUser, RequireManager
+ from app.core.routing import CommitRoute
+ from app.core.config import settings
+@@ -123,27 +125,84 @@ in the app (e.g. "Track Complaints", "Digital Twin", "Lost & Found").
+ - Be concise: two or three sentences unless a list is genuinely clearer.
+ - Never invent issue references, asset tags, names or numbers."""
+ 
++# Used only by the tool-calling agent path (see call_agent below) — distinct
++# from SYSTEM above, which still backs the no-tools deterministic/plain-text
++# fallback paths unchanged.
++AGENT_SYSTEM = """You are the Campus Netra AI Agent, embedded in a campus facility \
++management platform.
++
++How CampusNetra works: students/teachers report facility issues ("complaints"), which \
++are automatically categorized and routed to a department, then tracked through a status \
++lifecycle (Reported -> Assigned -> In Progress -> Resolved -> Closed) against an SLA. \
++Lost & Found lets people report lost or found items; the system suggests matches by \
++image, description, location, category and timing. Technicians work assigned \
++complaints as work orders. Facility managers and admins see campus-wide dashboards, \
++SLA analytics, and a live spatial Digital Twin of campus/building/floor/room/asset \
++health.
++
++You have tools to look up the CURRENT user's own real data (profile, their complaints, \
++their Lost & Found reports, notifications) and shared campus data (campuses, \
++buildings, floors, rooms, assets, a role-appropriate dashboard summary, and searching \
++all open Lost & Found items on their campus). Use a tool whenever a question is about \
++real data rather than how the app works in general. Never invent a complaint \
++reference, asset tag, name, count or status — if a tool returns an error or no \
++results, say so plainly.
++
++You cannot yet create or modify complaints or Lost & Found reports on the user's \
++behalf. If asked to do either, say so directly and point to the relevant part of the \
++app ("Report an Issue", "Lost & Found -> Report") instead of claiming it was done.
++
++Be concise: two or three sentences unless a list is genuinely clearer."""
++
++
++async def _run_tool_call(name: str, arguments: dict, *, db, user) -> dict:
++    return await run_tool(name, arguments, db=db, user=user)
++
+ 
+ @router.post("/assistant", response_model=dict)
+ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
+-    """AI Campus Assistant. Degrades to a deterministic summary with no API key."""
+-    context = await _gather_context(db, user)
++    """AI Campus Assistant/Agent. Degrades to a deterministic summary with no API key.
++
++    conversation_id (optional in the request, always present in the response)
++    threads a bounded, in-memory, per-user conversation so multi-turn context
++    (and, eventually, guided complaint/Lost & Found creation) works without the
++    caller resending prior turns — see app/ai/sessions.py.
++    """
++    conversation_id, session = sessions.get_or_create(payload.conversation_id, user.id)
++    sessions.append(session, "user", payload.message)
+ 
+     if settings.ai_available:
+-        reply = await call_text(
+-            SYSTEM,
+-            f"Campus context:\n{context}\n\nUser ({user.role.value}) asks: {payload.message}",
+-            max_tokens=600,
++        result = await call_agent(
++            AGENT_SYSTEM,
++            session.messages,
++            TOOL_SCHEMAS,
++            lambda name, args: _run_tool_call(name, args, db=db, user=user),
++            max_tokens=700,
+         )
+-        if reply:
+-            db.add(AIInvocation(
+-                organization_id=user.organization_id, task="assistant",
+-                model=settings.AI_MODEL, confidence=None))
+-            return {"reply": reply, "confidence": 0.9, "sources": ["campus_data"],
+-                    "model": settings.AI_MODEL}
+-
+-    # Fallback: answer from the same context with simple keyword routing, so the
+-    # assistant stays useful without an API key rather than returning an error.
++
++        db.add(AIInvocation(
++            organization_id=user.organization_id, task="assistant",
++            model=result.model, input_tokens=result.input_tokens or None,
++            output_tokens=result.output_tokens or None, latency_ms=result.latency_ms,
++            succeeded=result.ok, used_fallback=result.used_fallback,
++            error=result.error,
++        ))
++
++        if result.ok:
++            reply = (result.data or {}).get("reply", "")
++            tools_called = (result.data or {}).get("tool_calls", [])
++            if reply:
++                sessions.append(session, "assistant", reply)
++                return {
++                    "reply": reply, "confidence": 0.9, "sources": ["campus_data"],
++                    "model": result.model, "conversation_id": str(conversation_id),
++                    "tool_used": bool(tools_called), "tools_called": tools_called,
++                }
++
++    # Fallback: answer from a lightweight context summary with simple keyword
++    # routing, so the assistant stays useful without an API key, or if the
++    # model/tool-calling path above failed for any reason.
++    context = await _gather_context(db, user)
+     q = payload.message.lower()
+     if any(w in q for w in ("complaint", "issue", "report", "ticket")):
+         reply = ("Here is what I can see for you:\n\n" + context +
+@@ -166,8 +225,10 @@ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
+     db.add(AIInvocation(
+         organization_id=user.organization_id, task="assistant",
+         model="heuristic-v1", used_fallback=True))
++    sessions.append(session, "assistant", reply)
+     return {"reply": reply, "confidence": 0.55, "sources": ["campus_data"],
+-            "model": "heuristic-v1"}
++            "model": "heuristic-v1", "conversation_id": str(conversation_id),
++            "tool_used": False, "tools_called": []}
+ 
+ 
+ @router.get("/review-queue", response_model=dict)
+diff --git a/backend/pytest.ini b/backend/pytest.ini
+new file mode 100644
+index 0000000..2f4c80e
+--- /dev/null
++++ b/backend/pytest.ini
+@@ -0,0 +1,2 @@
++[pytest]
++asyncio_mode = auto
+diff --git a/backend/requirements.txt b/backend/requirements.txt
+index d5b6776..815e6d1 100644
+--- a/backend/requirements.txt
++++ b/backend/requirements.txt
+@@ -53,3 +53,7 @@ greenlet>=3.2.0
+ 
+ # TLS certificate bundle — python.org builds ship no system CA store on macOS
+ certifi>=2024.0.0
++
++# --- Testing (not required to run the application itself) ---
++pytest>=8.3.0
++pytest-asyncio>=0.24.0
+diff --git a/backend/tests/test_ai_sessions.py b/backend/tests/test_ai_sessions.py
+new file mode 100644
+index 0000000..e5eee8b
+--- /dev/null
++++ b/backend/tests/test_ai_sessions.py
+@@ -0,0 +1,96 @@
++"""Unit tests for app/ai/sessions.py — pure in-memory logic, no DB/network,
++runnable with just `pytest` (no fixtures, no event loop needed since nothing
++here is async). See AI_AGENT_PROGRESS.md for why the rest of the spec's 16
++test scenarios aren't automated yet — they need an async DB test fixture and
++an authenticated TestClient this project doesn't have set up yet.
++"""
++import time
++import uuid
++
++from app.ai import sessions
++
++
++def _fresh_module_state():
++    """Each test gets a clean session store — module-level state otherwise
++    leaks between tests in the same process, same as any other singleton."""
++    sessions._sessions.clear()  # noqa: SLF001 — intentional test access
++
++
++def test_new_conversation_gets_a_fresh_id():
++    _fresh_module_state()
++    user_id = uuid.uuid4()
++
++    conv_id, session = sessions.get_or_create(None, user_id)
++
++    assert conv_id in sessions._sessions
++    assert session.user_id == user_id
++    assert session.messages == []
++
++
++def test_existing_conversation_is_resumed_for_the_same_user():
++    _fresh_module_state()
++    user_id = uuid.uuid4()
++
++    conv_id, session = sessions.get_or_create(None, user_id)
++    sessions.append(session, "user", "hello")
++
++    conv_id_2, session_2 = sessions.get_or_create(conv_id, user_id)
++
++    assert conv_id_2 == conv_id
++    assert session_2 is session
++    assert session_2.messages == [{"role": "user", "content": "hello"}]
++
++
++def test_session_isolation_between_two_users():
++    """Test #15 from the spec: a conversation_id must never hand back
++    another user's history."""
++    _fresh_module_state()
++    user_a = uuid.uuid4()
++    user_b = uuid.uuid4()
++
++    conv_id, session_a = sessions.get_or_create(None, user_a)
++    sessions.append(session_a, "user", "user A's message")
++
++    # User B presents (or guesses) user A's conversation id.
++    conv_id_b, session_b = sessions.get_or_create(conv_id, user_b)
++
++    assert conv_id_b != conv_id, "must not resume someone else's session"
++    assert session_b.messages == []
++    assert session_b is not session_a
++
++
++def test_unknown_conversation_id_starts_fresh_instead_of_erroring():
++    _fresh_module_state()
++    user_id = uuid.uuid4()
++
++    conv_id, session = sessions.get_or_create(uuid.uuid4(), user_id)
++
++    assert session.messages == []
++    assert conv_id in sessions._sessions
++
++
++def test_message_history_is_bounded():
++    _fresh_module_state()
++    user_id = uuid.uuid4()
++    _, session = sessions.get_or_create(None, user_id)
++
++    for i in range(sessions.MAX_MESSAGES + 10):
++        sessions.append(session, "user", f"message {i}")
++
++    assert len(session.messages) == sessions.MAX_MESSAGES
++    # The oldest messages were dropped, not the newest.
++    assert session.messages[-1]["content"] == f"message {sessions.MAX_MESSAGES + 9}"
++
++
++def test_stale_sessions_are_evicted():
++    _fresh_module_state()
++    user_id = uuid.uuid4()
++    conv_id, session = sessions.get_or_create(None, user_id)
++
++    # Simulate the session having gone idle past the TTL.
++    session.last_active = time.monotonic() - sessions.SESSION_TTL_SECONDS - 1
++
++    # Any call to get_or_create runs eviction first.
++    sessions.get_or_create(None, uuid.uuid4())
++
++    assert conv_id not in sessions._sessions
+diff --git a/backend/tests/test_ai_tools_registry.py b/backend/tests/test_ai_tools_registry.py
+new file mode 100644
+index 0000000..ed32119
+--- /dev/null
++++ b/backend/tests/test_ai_tools_registry.py
+@@ -0,0 +1,53 @@
++"""Unit tests for the app/ai/tools.py registry plumbing that don't require a
++real database: unknown-tool handling and exception containment in run_tool.
++The individual tool functions themselves (get_my_complaints, get_complaint,
++...) each need a real async DB session and an authenticated user and are
++NOT covered here — see AI_AGENT_PROGRESS.md.
++"""
++import pytest
++
++from app.ai.tools import TOOL_SCHEMAS, TOOLS, ToolError, run_tool
++
++
++def test_every_schema_has_a_matching_registered_tool():
++    schema_names = {s["function"]["name"] for s in TOOL_SCHEMAS}
++    assert schema_names == set(TOOLS.keys())
++
++
++@pytest.mark.asyncio
++async def test_unknown_tool_name_returns_an_error_not_an_exception():
++    result = await run_tool("delete_everything", {}, db=None, user=None)
++
++    assert result == {"error": "Unknown tool 'delete_everything'."}
++
++
++@pytest.mark.asyncio
++async def test_tool_error_is_reported_not_raised():
++    async def _always_fails(db, user, **kwargs):
++        raise ToolError("that reference does not exist")
++
++    TOOLS["_test_fails"] = _always_fails
++    try:
++        result = await run_tool("_test_fails", {}, db=None, user=None)
++    finally:
++        del TOOLS["_test_fails"]
++
++    assert result == {"ok": False, "error": "that reference does not exist"}
++
++
++@pytest.mark.asyncio
++async def test_unexpected_exception_is_contained_not_propagated():
++    """A bug in a tool must degrade to a message the agent can relay, never
++    crash the request — this is what keeps a single bad tool call from
++    taking down the whole conversation."""
++    async def _boom(db, user, **kwargs):
++        raise RuntimeError("boom")
++
++    TOOLS["_test_boom"] = _boom
++    try:
++        result = await run_tool("_test_boom", {}, db=None, user=None)
++    finally:
++        del TOOLS["_test_boom"]
++
++    assert result["ok"] is False
++    assert "error" in result

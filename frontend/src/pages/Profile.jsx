@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import { Avatar, Button, Input, Modal, Widget, toast } from '@/components/ui'
 import { api, mediaUrl, upload } from '@/lib/api'
@@ -35,6 +35,14 @@ const RESEND_COOLDOWN_SECONDS = 30
 
 export default function Profile() {
   const { user, setUser } = useAuth()
+  const location = useLocation()
+
+  // Contextual search (header) sends people here with a #section hash.
+  useEffect(() => {
+    if (!location.hash) return
+    const el = document.getElementById(location.hash.slice(1))
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [location.hash])
 
   const departments = useQuery({
     queryKey: ['departments'],
@@ -72,7 +80,7 @@ export default function Profile() {
 
       <ContactCard user={user} setUser={setUser} />
 
-      <Widget title="Campus record" subtitle="Set by your administrator — contact them to correct anything here">
+      <Widget id="campus-record" title="Campus record" subtitle="Set by your administrator — contact them to correct anything here">
         <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
           <ReadOnlyRow icon={ShieldCheck} label="Role" value={ROLE_LABEL[user?.role] || '—'} />
           {/* A student has a course; staff belong to a maintenance team. Showing
@@ -372,7 +380,7 @@ function ContactCard({ user, setUser }) {
   ]
 
   return (
-    <Widget title="Details" subtitle="Your name, number and address need verifying when they change">
+    <Widget id="profile-details" title="Details" subtitle="Your name, number and address need verifying when they change">
       <div className="divide-y divide-border-subtle -my-2">
         <NameRow
           icon={UserIcon} label="Full name" value={user?.full_name}

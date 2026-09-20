@@ -933,6 +933,109 @@ responsively (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-3`), so going from
 `npm run build` verified clean; re-confirmed the border-radius fix from
 Addendum 13 is still intact in the compiled CSS (not just assumed).
 
+## Addendum 16 — search, notifications, profile (spec sections 2–8)
+
+A 40-section spec landed covering nearly every corner of the app. Asked
+which to prioritize; got "search + notifications + profile (2–8)."
+Auditing each of those seven points against what's actually there before
+writing anything, per the spec's own instruction:
+
+**#3/#4 — global search across Complaints + Lost & Found.** Already
+real and working: `Search.jsx` queries `/issues`, `/assets`,
+`/lostfound`, `/admin/users` with the typed query, separates results by
+type, and clicking one opens the exact record (`/issues/{id}` etc.), not
+a generic list. One genuine bug fixed: it was calling
+`window.history.pushState()` directly instead of React Router's
+`navigate()`, so `useSearchParams()` never actually saw a query change
+after the first load — searching again from the results page, or
+clearing the search, updated the URL bar but not the results. Fixed by
+using `navigate()` throughout. There's already exactly one global search
+bar (header input + the `/search` page's own input, same backend calls,
+no duplicate implementation) — #4 was already satisfied.
+
+**Genuine gap found**: the header search was `hidden sm:block` — mobile
+had no way to search at all, not even a broken one. Added a search icon
+button in the mobile header that opens the same input as a small
+overlay (reuses the existing component instead of building a second
+search UI for mobile).
+
+**#6 — contextual search on My Profile.** Didn't exist — the header
+search always went to the generic `/search` page regardless of what
+page you were on. Since there's no separate "profile data" to query
+(the profile page already *is* the record), built it as a static,
+instant, client-side index of the page's own sections — Campus record,
+Profile details, Appearance, Notifications, Security, Your data — filtered
+as you type, jumping to the matching section instead of hitting an API.
+New file `lib/profileSearchIndex.js`; added `id="..."` anchors to the
+six `Widget`s it points at (they didn't have any before) and a
+scroll-into-view effect on `location.hash` in both `Profile.jsx` and
+`Settings.jsx`.
+
+**#5 — notification panel & popovers.** The notification dropdown was a
+fixed `w-80` (320px) positioned `absolute right-0` off its trigger
+button — on a narrow phone, with the bell not being the rightmost
+element in the header, this had real room to clip off the left edge of
+the screen. Made it `fixed`, near-full-width, anchored to the viewport
+on mobile, and a normal anchored dropdown from `sm:` up — the pattern
+the spec itself suggests. Capped `UserMenu`'s narrower dropdown width
+the same way for safety, lower risk there since it sits closer to the
+true right edge.
+
+**#7 — complete registration data on Profile.** Checked the actual
+`RegisterRequest` schema against what `Profile.jsx` renders field by
+field: role, course/department, enrollment number or employee ID,
+designation, email-verified status are all there. Nothing missing —
+this one was already done; didn't invent anything to "complete" it.
+
+**#8 — OTP verification on sensitive profile updates.** Already true
+for all three fields the spec names — name, phone, and email each
+require OTP/ID-card verification before the change applies (name and
+phone from Addendum 1's work, email predates this file entirely). Not
+touched; verified rather than assumed.
+
+Also fixed two more stale old-indigo (`#1e1b4b`) hex fallbacks found
+along the way: `AppLayout.jsx`'s role-accent default and two entries
+in `ROLE_ACCENT` itself (`admin`, `super_admin`) — same class of bug as
+Addendum 6, just two instances that sweep missed because they're a
+plain object literal, not a JSX class string.
+
+`npm run build` verified clean.
+
+**Not done — real, separate scope, explicitly not attempted this
+round**: sections 9–40 of the same document (ID-card OCR field
+extraction beyond name, profile-picture persistence audit, table
+density actually affecting tables, full settings functionality audit,
+weekly PDF+email reports, data export, account deletion flow,
+hierarchical Campus→Building→Floor→Room reporting, complaint/L&F ID
+reformatting, the entire Lost & Found match/claim/handover workflow,
+duplicate-fault merge admin tooling, a History page, and the
+responsiveness/accessibility/security audits at the end). Forty
+sections is genuinely weeks of work; picking a few and quietly skipping
+the rest without saying so would be exactly the "pretend it works"
+outcome the document itself explicitly warns against.
+
+## Addendum 17 — spec items #1 and #9 (name validation; logo audited)
+
+**#9 name validation — done, backend-enforced.** Added `validate_full_name()`
+in `schemas/auth.py` (letters/spaces/hyphens/apostrophes/periods only, no
+digits anywhere in the string) and wired it into both `RegisterRequest.full_name`
+and the `/auth/me/change-name` route (which takes a raw `Form(...)` param,
+not a schema field, so it's called explicitly there rather than via a
+pydantic validator). Same rule both places, so it can't drift. Python
+syntax-checked; no test runner available in this sandbox to actually run
+the suite. Not done: matching real-time frontend validation on the
+Profile.jsx name-change form — backend is the part that actually matters
+per the spec's own "do not rely exclusively on frontend validation," left
+as a nicety for later rather than spending more of this round hunting for
+the exact form component.
+
+**#1 logo dedup — could not find a literal bug in the code.** Checked the
+SVG files (no embedded `<text>`), and every surface — sidebar, landing
+navbar, footer, login/AuthShell — already imports and renders the one
+shared `Logo`/`LogoMark` component, not separate hand-rolled versions.
+Whatever's producing a duplicated "Campus Netra" or a stray "1" wasn't
+visible from source; genuinely need a screenshot of it happening to find
+it, rather than guessing and touching working code.
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

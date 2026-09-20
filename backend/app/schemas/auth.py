@@ -57,6 +57,28 @@ def validate_seven_digit_id(value: Optional[str], label: str) -> Optional[str]:
     return cleaned
 
 
+def validate_full_name(value: str) -> str:
+    """Shared check for a person's name: real name, not an ID or garbage.
+
+    Used at registration and on the verified name-change flow alike, so
+    a name can't be numeric-only or ID-shaped on one path and rejected
+    on the other. Letters, spaces, hyphens, apostrophes and periods only
+    (covers "Anne-Marie", "O'Brien", "J. Smith") — never a digit, since a
+    legitimate name doesn't have one and this is exactly the kind of
+    field an enrollment number gets typo'd into.
+    """
+    cleaned = value.strip()
+    if not cleaned:
+        raise ValueError("Name cannot be empty.")
+    if any(ch.isdigit() for ch in cleaned):
+        raise ValueError("Name cannot contain numbers.")
+    if not re.fullmatch(r"[A-Za-z][A-Za-z .'\-]*", cleaned):
+        raise ValueError(
+            "Name can only contain letters, spaces, hyphens, apostrophes and periods."
+        )
+    return cleaned
+
+
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
@@ -73,6 +95,7 @@ class RegisterRequest(BaseModel):
     organization_name: Optional[str] = None
 
     _v_pw = field_validator("password")(validate_password)
+    _v_name = field_validator("full_name")(validate_full_name)
 
     @field_validator("phone")
     @classmethod
