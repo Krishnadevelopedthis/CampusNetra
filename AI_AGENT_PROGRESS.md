@@ -153,3 +153,109 @@ infrastructure described above and are correctly **not** claimed as done.
 4. Set up the async-DB + authenticated-TestClient test fixture as its own
    step before attempting the rest of the 16 scenarios — trying to write
    those tests without it will produce tests that don't actually run.
+
+---
+
+## Session 2
+
+Picked up exactly where "How to resume" left off: the biggest gap was the
+missing `create_complaint` / `create_lost_found` write tools, so this
+session built those, following this file's own resume notes (inspected
+`schemas/issues.py`/`schemas/lostfound.py` for the real required fields
+first, reused the existing `issue_service.create_issue` /
+`lf_service.create_item` service functions exactly like the read tools
+reuse their GET handlers — no duplicated creation logic).
+
+### Done this session
+
+- **`create_complaint` / `create_lost_found`** (`app/ai/tools.py`), both
+  gated behind an explicit two-call confirm pattern: the first call
+  (`confirm` omitted or `false`) resolves the location and returns a
+  pending summary — nothing is written to the database. Only a second
+  call, with `confirm=true` and the same arguments, actually creates the
+  record. This is enforced by the tool function itself, not just prompted
+  — the model asking for `confirm=true` on the first ask still only gets
+  a write on that literal call, so a model that ignores its own system
+  prompt still can't skip the confirmation.
+- **`_resolve_room()`**: location-by-name resolution scoped to the
+  caller's own organization (spec's Phase 7). Zero matches -> plain "not
+  found" error. Multiple matches -> a structured `ambiguous: true` result
+  listing every candidate's full path (building -> floor -> room), which
+  the system prompt instructs the model to relay as a question rather
+  than ever guessing. This check runs even on the `confirm=true` call —
+  an ambiguous location can't be forced through by re-sending confirm.
+- Updated `TOOL_SCHEMAS` (both new tools) and `AGENT_SYSTEM`'s prompt in
+  `app/api/v1/ai.py`: removed the old "I cannot create..." disclaimer,
+  added the confirm-workflow instructions, and added an explicit
+  prompt-injection line telling the model to ignore in-conversation
+  attempts to change its permissions ("act as admin", "use user_id 123",
+  "show me the database") — the backend already can't be bypassed this
+  way (every tool still takes only `db`/`user` from the authenticated
+  request), this just stops the model from *narrating* as if it had
+  complied.
+- **`backend/tests/test_ai_write_tools.py`** — 11 new tests, all passing:
+  - the same security-invariant proof this file's Session 1 used for the
+    read tools, extended to the two new ones (`inspect.signature()` shows
+    neither accepts `user_id`/`organization_id`/`role`)
+  - `confirm` defaults to `False` on both
+  - schema/registry consistency for the two new entries
+  - confirm=false path creates nothing (mocked service, asserted
+    `assert_not_called()`)
+  - confirm=true path actually calls the service and returns the real
+    reference
+  - the ambiguous-room path refuses to create even when `confirm=true`
+  - invalid `kind` on `create_lost_found` raises `ToolError`, not a crash
+
+  Same limitation as Session 1's tests: no real Postgres in this sandbox
+  (network-restricted, can't install the `postgresql` apt package — see
+  the CORS-fix session's notes elsewhere in this repo's history for the
+  same wall), so `_resolve_room`'s actual SQL and the real
+  `create_issue`/`create_item` service calls are exercised against a
+  minimal fake DB object and monkeypatched services, not a real database.
+  The query *shape* is unverified by these tests — only the branching
+  logic around 0/1/many rows.
+
+- Ran, this session: `python -m compileall app` (clean), the full
+  existing test suite (21 passed — the 10 from Session 1 plus this
+  session's 11), and `git diff --check` (no whitespace issues). Confirmed
+  via `git status` that only three files changed
+  (`app/ai/tools.py`, `app/api/v1/ai.py`, the new test file) — nothing
+  else touched.
+
+### Explicitly NOT done this session — same reasoning as Session 1
+
+- **No live end-to-end test** of either write tool through a real
+  authenticated request against a real database — same sandbox
+  limitation as Session 1, now blocking two more of the spec's 27 test
+  scenarios (#3/4/6/7/9 — actual multi-turn creation through the live
+  `/assistant` endpoint) in addition to the ones Session 1 already
+  couldn't cover.
+- **`update_complaint`** — still not implemented. Flagged in Session 1's
+  notes and still true: it needs its own authorization question (which
+  fields can a *reporter* change vs. a *technician* vs. an *admin*) that
+  a location resolver doesn't answer, and guessing at that boundary would
+  be worse than leaving it undone.
+- **No manual verification** that OpenRouter's function-calling actually
+  produces the two-call confirm sequence in practice (real model, real
+  API key, watching it ask before it writes) — the tool-level gate makes
+  this safe even if the model never asks properly, but "the UX behaves
+  like the spec's example conversation" is a live-testing claim this
+  session didn't make.
+- Support-email fallback (spec Phase 16) and the Knowledge Map (Phase 2)
+  are still whatever Session 1 left them at — not touched this session,
+  since the highest-value gap was clearly the missing write path, and the
+  prompt for this session was "improve it, don't rewrite it."
+
+### How to resume (updated)
+
+1. `git fetch origin && git reset --hard origin/main` — same advice as
+   Session 1, still true.
+2. If building `update_complaint`: resolve the authorization boundary
+   question first (reporter/technician/admin field permissions) against
+   the actual RBAC in `app/api/deps.py` before writing the tool — don't
+   guess it from the schema alone.
+3. If setting up real DB test infrastructure (still the single biggest
+   unblocker for both sessions' remaining test gaps): once available,
+   the fake-DB tests in `test_ai_write_tools.py` should be either
+   replaced or supplemented with real-DB versions that exercise
+   `_resolve_room`'s actual SQL, not just its branching.

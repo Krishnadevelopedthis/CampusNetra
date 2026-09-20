@@ -19,11 +19,15 @@ user), never *who* it executes as. A tool that doesn't scope a query to
 `user` does so because the wrapped endpoint doesn't need to (e.g. a public
 reference lookup already 404s for another org's record).
 
-Mutating tools (create_complaint, create_lost_found, update_complaint, ...)
-are intentionally NOT implemented yet — see AI_AGENT_PROGRESS.md. They
-need the multi-turn slot-filling + explicit-confirmation flow the spec
-describes, which is a separate, larger piece of work building on the
-conversation-session state added alongside this file.
+Mutating tools (create_complaint, create_lost_found) are gated behind an
+explicit two-call confirm pattern rather than a separate "are you sure"
+tool: the first call (confirm omitted/false) resolves the location and
+returns a pending summary without touching the database; only a second
+call with confirm=true, from a later turn after the user has actually
+agreed, performs the write. update_complaint is intentionally still not
+implemented — it needs its own authorization question (who is allowed to
+update which fields, technician vs. reporter) that a location-only
+resolver like the one below doesn't answer, and isn't worth guessing at.
 """
 from __future__ import annotations
 
@@ -258,6 +262,166 @@ async def get_dashboard_summary(db, user: User, **_: Any) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Location resolution — shared by create_complaint / create_lost_found
+# ---------------------------------------------------------------------------
+
+async def _resolve_room(db, user: User, room_name: str | None, building_name: str | None):
+    """Best-effort match of a spoken room/building name to a real, org-scoped
+    room. Never guesses across an ambiguity — returns a structured "which one
+    did you mean" result instead, per the location-resolution requirement:
+    a wrong silent guess here means a complaint gets filed against the wrong
+    physical room, which is worse than one extra question.
+
+    Returns (room_or_none, ambiguous_options_or_none, campus_id_or_none).
+    """
+    from sqlalchemy import select
+
+    from app.models.spatial import Building, Campus, Floor, Room
+
+    if not room_name:
+        return None, None, None
+
+    q = (
+        select(Room, Floor, Building)
+        .join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .join(Campus, Campus.id == Building.campus_id)
+        .where(
+            Campus.organization_id == user.organization_id,
+            Room.name.ilike(f"%{room_name}%") | Room.code.ilike(f"%{room_name}%"),
+        )
+    )
+    if building_name:
+        q = q.where(Building.name.ilike(f"%{building_name}%") | Building.code.ilike(f"%{building_name}%"))
+
+    rows = (await db.execute(q.limit(6))).all()
+    if not rows:
+        return None, None, None
+    if len(rows) == 1:
+        room, floor, building = rows[0]
+        return room, None, building.campus_id
+    options = [
+        {
+            "room_id": str(room.id), "room_name": room.name,
+            "path": f"{building.name} \u2192 {floor.name} \u2192 {room.name}",
+        }
+        for room, floor, building in rows
+    ]
+    return None, options, None
+
+
+def _summarise_issue(title: str, description: str, room, building_name, room_name) -> dict:
+    location = None
+    if room is not None:
+        location = room.name
+    elif building_name or room_name:
+        location = " / ".join(x for x in (building_name, room_name) if x)
+    return {"title": title, "description": description, "location": location}
+
+
+async def create_complaint(
+    db, user: User, title: str, description: str,
+    room_name: str | None = None, building_name: str | None = None,
+    confirm: bool = False, **_: Any,
+) -> dict:
+    """Report a facility issue, gated behind an explicit confirmation.
+
+    First call (confirm omitted or false): resolves the location and returns
+    a pending summary — nothing is created yet. The agent must show this
+    summary to the user and only call this tool again, with confirm=true and
+    the SAME arguments, once the user has explicitly agreed. This mirrors the
+    conversational-form + explicit-confirmation requirement: the model can
+    describe an action, but only the backend, on a second, explicit call,
+    ever actually performs it.
+    """
+    from app.core.enums import Priority
+    from app.services import issues as issue_service
+
+    room, options, campus_id = await _resolve_room(db, user, room_name, building_name)
+    if options:
+        return {"ambiguous": True, "options": options,
+                "message": "Multiple rooms match that name. Ask the user which one they mean."}
+    if room_name and room is None:
+        return {"ok": False,
+                "error": f"No room matching '{room_name}' was found on this campus."}
+    if room is None and campus_id is None:
+        # No location given at all — fall back to the user's default campus
+        # rather than blocking creation outright; campus_id is genuinely
+        # required by create_issue, everything else is optional there too.
+        from sqlalchemy import select
+
+        from app.models.spatial import Campus
+        campus_id = await db.scalar(
+            select(Campus.id).where(Campus.organization_id == user.organization_id).limit(1))
+        if campus_id is None:
+            return {"ok": False, "error": "No campus is configured for this organization yet."}
+
+    if not confirm:
+        return {"ok": True, "pending": True,
+                "summary": _summarise_issue(title, description, room, building_name, room_name)}
+
+    issue, candidates = await issue_service.create_issue(
+        db, user, title=title, description=description, campus_id=campus_id,
+        room_id=room.id if room else None,
+    )
+    await db.flush()
+    likely = [c for c in candidates if c.verdict == "likely"]
+    return {
+        "ok": True, "created": True,
+        "reference": issue.reference, "id": str(issue.id),
+        "possible_duplicate_of": likely[0].reference if likely else None,
+    }
+
+
+async def create_lost_found(
+    db, user: User, kind: str, title: str, description: str | None = None,
+    colour: str | None = None, brand: str | None = None,
+    room_name: str | None = None, building_name: str | None = None,
+    confirm: bool = False, **_: Any,
+) -> dict:
+    """Report a lost or found item, gated behind the same explicit-confirm
+    pattern as create_complaint — see its docstring."""
+    from datetime import datetime, timezone
+
+    from app.services import lostfound as lf_service
+
+    if kind not in ("lost", "found"):
+        raise ToolError("kind must be 'lost' or 'found'.")
+
+    room, options, campus_id = await _resolve_room(db, user, room_name, building_name)
+    if options:
+        return {"ambiguous": True, "options": options,
+                "message": "Multiple rooms match that name. Ask the user which one they mean."}
+    if room_name and room is None:
+        return {"ok": False,
+                "error": f"No room matching '{room_name}' was found on this campus."}
+
+    if not confirm:
+        return {"ok": True, "pending": True, "summary": {
+            "kind": kind, "title": title, "description": description,
+            "colour": colour, "brand": brand,
+            "location": room.name if room else (building_name or room_name),
+        }}
+
+    fields = {
+        "kind": kind, "title": title, "description": description,
+        "colour": colour, "brand": brand,
+        "category_id": None, "campus_id": campus_id, "building_id": None,
+        "room_id": room.id if room else None, "location_note": None, "zone_code": None,
+        "occurred_at": datetime.now(timezone.utc), "contact_pref": "in_app",
+        "holding_location": None,
+    }
+    item, matches = await lf_service.create_item(db, user, fields, [])
+    await db.flush()
+    strong = [m for m in matches if float(m.score) >= 0.8]
+    return {
+        "ok": True, "created": True,
+        "reference": item.reference, "id": str(item.id),
+        "match_count": len(matches), "strong_match_count": len(strong),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Registry — name -> (callable, OpenAI-style JSON schema)
 # ---------------------------------------------------------------------------
 
@@ -267,9 +431,11 @@ TOOLS: dict[str, ToolFn] = {
     "get_my_profile": get_my_profile,
     "get_my_complaints": get_my_complaints,
     "get_complaint": get_complaint,
+    "create_complaint": create_complaint,
     "get_my_lost_found": get_my_lost_found,
     "get_lost_found_item": get_lost_found_item,
     "search_lost_found": search_lost_found,
+    "create_lost_found": create_lost_found,
     "get_campuses": get_campuses,
     "get_buildings": get_buildings,
     "get_floors": get_floors,
@@ -322,6 +488,43 @@ TOOL_SCHEMAS: list[dict] = [
             "query": {"type": "string"},
             "kind": {"type": "string", "enum": ["lost", "found"]},
             "limit": {"type": "integer"},
+        }},
+    }},
+    {"type": "function", "function": {
+        "name": "create_complaint",
+        "description": (
+            "Report a facility issue on the user's behalf. ALWAYS call this first with "
+            "confirm omitted (or false) once title, description and location are known — "
+            "it resolves the location and returns a summary WITHOUT creating anything. "
+            "Show that summary to the user and ask them to confirm. Only call it again, "
+            "with confirm=true and the exact same arguments, after the user explicitly "
+            "agrees (e.g. 'yes', 'confirm', 'go ahead', 'submit'). If the result says "
+            "ambiguous, ask the user to pick one of the listed options before proceeding."
+        ),
+        "parameters": {"type": "object", "required": ["title", "description"], "properties": {
+            "title": {"type": "string", "description": "Short summary, e.g. 'AC not working'."},
+            "description": {"type": "string", "description": "What's wrong, in the user's words."},
+            "building_name": {"type": "string", "description": "Building name/code, if known."},
+            "room_name": {"type": "string", "description": "Room name/code, if known, e.g. 'Lab 3', '204'."},
+            "confirm": {"type": "boolean", "description": "true only after the user has explicitly confirmed. Defaults to false."},
+        }},
+    }},
+    {"type": "function", "function": {
+        "name": "create_lost_found",
+        "description": (
+            "Report a lost or found item on the user's behalf. Same two-step pattern as "
+            "create_complaint: call with confirm=false first to get a summary, show it to "
+            "the user, then call again with confirm=true only after they explicitly agree."
+        ),
+        "parameters": {"type": "object", "required": ["kind", "title"], "properties": {
+            "kind": {"type": "string", "enum": ["lost", "found"]},
+            "title": {"type": "string", "description": "What the item is, e.g. 'black wallet'."},
+            "description": {"type": "string"},
+            "colour": {"type": "string"},
+            "brand": {"type": "string"},
+            "building_name": {"type": "string"},
+            "room_name": {"type": "string"},
+            "confirm": {"type": "boolean", "description": "true only after the user has explicitly confirmed. Defaults to false."},
         }},
     }},
     {"type": "function", "function": {
