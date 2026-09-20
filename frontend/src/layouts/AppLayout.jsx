@@ -13,6 +13,7 @@ import { AssistantWidget } from '@/features/assistant/AssistantWidget'
 import { api, connectNotifications, mediaUrl } from '@/lib/api'
 import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
+import { searchProfileIndex } from '@/lib/profileSearchIndex'
 import { navFor } from './nav'
 
 function useOutsideClick(ref, handler) {
@@ -23,6 +24,82 @@ function useOutsideClick(ref, handler) {
     document.addEventListener('mousedown', onDown)
     return () => document.removeEventListener('mousedown', onDown)
   }, [ref, handler])
+}
+
+function HeaderSearch({ mobileOpen, onMobileClose }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const isProfileContext = location.pathname.startsWith('/profile') || location.pathname.startsWith('/settings')
+  const [value, setValue] = useState('')
+  const ref = useRef(null)
+  useOutsideClick(ref, () => setValue(''))
+
+  const matches = isProfileContext ? searchProfileIndex(value) : []
+
+  const goToMatch = (route) => {
+    navigate(route)
+    setValue('')
+    onMobileClose?.()
+  }
+
+  const onKeyDown = (e) => {
+    if (e.key !== 'Enter' || !e.currentTarget.value.trim()) return
+    if (isProfileContext) {
+      if (matches[0]) goToMatch(matches[0].route)
+    } else {
+      window.location.assign(`/search?q=${encodeURIComponent(e.currentTarget.value.trim())}`)
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={clsx(
+        'relative flex-1 max-w-md',
+        mobileOpen
+          ? 'fixed inset-x-3 top-3 z-40 max-w-none sm:static sm:inset-auto sm:z-auto'
+          : 'hidden sm:block',
+      )}
+    >
+      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+      <input
+        autoFocus={mobileOpen}
+        className="input pl-9"
+        placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, assets, items…'}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+      {mobileOpen && (
+        <button
+          type="button"
+          onClick={() => { setValue(''); onMobileClose?.() }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost h-7 w-7 p-0 rounded-md sm:hidden"
+          aria-label="Close search"
+        >
+          <X size={14} />
+        </button>
+      )}
+      {isProfileContext && value && (
+        <div className="absolute left-0 right-0 mt-1.5 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up">
+          {matches.length === 0 ? (
+            <p className="px-4 py-3 text-body-sm text-ink-faint">No matching settings.</p>
+          ) : (
+            matches.map((m) => (
+              <button
+                key={m.route}
+                type="button"
+                onClick={() => goToMatch(m.route)}
+                className="w-full text-left px-4 py-2.5 text-body-md text-ink hover:bg-surface-sunken transition-colors"
+              >
+                {m.label}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function NotificationBell() {
@@ -96,7 +173,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up">
+        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-h-[calc(100vh-5rem)] sm:max-h-none bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
             <span className="text-headline-md">Notifications</span>
             {unread > 0 && (
@@ -105,7 +182,7 @@ function NotificationBell() {
               </button>
             )}
           </div>
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-96 sm:max-h-96 flex-1 min-h-0 overflow-y-auto">
             {items.length === 0 ? (
               <p className="px-4 py-8 text-center text-body-md text-ink-faint">You're all caught up.</p>
             ) : (
@@ -152,7 +229,7 @@ function UserMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-56 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 py-1 overflow-hidden animate-slide-up">
+        <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-1.5rem)] bg-surface rounded-xl shadow-popover border border-border-subtle z-50 py-1 overflow-hidden animate-slide-up">
           <div className="px-4 py-3 border-b border-border-subtle">
             <p className="text-body-md font-medium truncate">{user?.full_name}</p>
             <p className="text-body-sm text-ink-faint truncate">{user?.email}</p>
@@ -189,9 +266,11 @@ export default function AppLayout() {
   const { user } = useAuth()
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+
   const location = useLocation()
   const items = navFor(user?.role)
-  const accent = ROLE_ACCENT[user?.role] || '#1e1b4b'
+  const accent = ROLE_ACCENT[user?.role] || 'rgb(var(--c-primary))'
 
   // NavLink's own matching cannot express this: prefix mode lights up both
   // /issues and /issues/new at once, while exact mode leaves /issues/:id with
@@ -290,19 +369,16 @@ export default function AppLayout() {
             <Menu size={20} />
           </button>
 
-          <div className="relative flex-1 max-w-md hidden sm:block">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
-            <input
-              className="input pl-9" placeholder="Search issues, assets, items…"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && e.currentTarget.value.trim()) {
-                  window.location.assign(`/search?q=${encodeURIComponent(e.currentTarget.value.trim())}`)
-                }
-              }}
-            />
-          </div>
+          <HeaderSearch mobileOpen={mobileSearchOpen} onMobileClose={() => setMobileSearchOpen(false)} />
 
           <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setMobileSearchOpen(true)}
+              className="btn-ghost h-9 w-9 p-0 rounded-lg sm:hidden"
+              aria-label="Search"
+            >
+              <Search size={18} />
+            </button>
             <ThemeToggle />
             <NotificationBell />
             <UserMenu />
