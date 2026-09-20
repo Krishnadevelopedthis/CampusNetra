@@ -6,11 +6,30 @@ import { Button, ErrorState, Input, PriorityPill, Spinner, Widget, toast } from 
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 
+const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical']
+
 /* ---------------- Issue categories & AI routing rules ---------------- */
 export function AdminIssueConfig() {
+  const qc = useQueryClient()
+  // Per-row draft: { priority?, keywordsText? } — keywordsText is the raw
+  // comma-separated input so a mid-edit trailing comma or space doesn't
+  // fight the user; it's only split/cleaned when actually saved.
+  const [edits, setEdits] = useState({})
+  const [expanded, setExpanded] = useState({})
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['issue-config'],
     queryFn: () => api.get('/admin/issue-categories'),
+  })
+
+  const save = useMutation({
+    mutationFn: ({ id, body }) => api.patch(`/admin/issue-categories/${id}`, body),
+    onSuccess: (d, vars) => {
+      toast.success(d.detail)
+      setEdits((e) => { const n = { ...e }; delete n[vars.id]; return n })
+      qc.invalidateQueries({ queryKey: ['issue-config'] })
+    },
+    onError: (err) => toast.error(err.detail || 'Could not update category'),
   })
 
   if (isLoading) return <Spinner label="Loading configuration…" />
@@ -19,7 +38,7 @@ export function AdminIssueConfig() {
   return (
     <Widget
       title="Issue Categories"
-      subtitle="Keywords drive the fallback classifier and seed the AI prompt. Each category owns a department and an SLA."
+      subtitle="Keywords drive the fallback classifier and are also given to the AI model as hints — a generic or colliding keyword (e.g. 'board' matching both furniture and a smartboard) can misroute either path, so they're editable here without a deploy."
       bodyClass="p-0"
     >
       <div className="table-wrap">
@@ -28,36 +47,97 @@ export function AdminIssueConfig() {
             <tr>
               <th>Category</th><th>Routes to</th><th>Default priority</th>
               <th>SLA (respond / resolve)</th><th>Keywords</th>
-              <th className="text-right">Issues</th>
+              <th className="text-right">Issues</th><th />
             </tr>
           </thead>
           <tbody>
-            {data.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <p className="text-ink">{c.name}</p>
-                  <p className="font-mono text-[11px] text-ink-faint">{c.code}</p>
-                </td>
-                <td className="text-ink-muted">{c.department || '—'}</td>
-                <td><PriorityPill priority={c.default_priority} /></td>
-                <td className="tabular text-ink-muted whitespace-nowrap">
-                  {c.sla_response_mins}m / {Math.round(c.sla_resolve_mins / 60)}h
-                </td>
-                <td className="max-w-sm">
-                  <div className="flex flex-wrap gap-1">
-                    {c.keywords.slice(0, 6).map((k) => (
-                      <span key={k} className="pill bg-surface-sunken text-ink-muted text-body-sm">{k}</span>
-                    ))}
-                    {c.keywords.length > 6 && (
-                      <span className="text-body-sm text-ink-faint self-center">
-                        +{c.keywords.length - 6}
-                      </span>
+            {data.map((c) => {
+              const edit = edits[c.id] || {}
+              const keywordsText = edit.keywordsText
+                ?? c.keywords.join(', ')
+              const dirty = edit.priority != null
+                || (edit.keywordsText != null
+                    && edit.keywordsText.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean).join(',')
+                       !== [...c.keywords].sort().join(','))
+              const isOpen = !!expanded[c.id]
+
+              return (
+                <tr key={c.id}>
+                  <td>
+                    <p className="text-ink">{c.name}</p>
+                    <p className="font-mono text-[11px] text-ink-faint">{c.code}</p>
+                  </td>
+                  <td className="text-ink-muted">{c.department || '—'}</td>
+                  <td>
+                    <select
+                      className="input h-8 py-0 w-32 capitalize"
+                      value={edit.priority ?? c.default_priority}
+                      onChange={(e) => setEdits((s) => ({
+                        ...s, [c.id]: { ...s[c.id], priority: e.target.value },
+                      }))}
+                    >
+                      {PRIORITY_OPTIONS.map((p) => (
+                        <option key={p} value={p} className="capitalize">{p}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="tabular text-ink-muted whitespace-nowrap">
+                    {c.sla_response_mins}m / {Math.round(c.sla_resolve_mins / 60)}h
+                  </td>
+                  <td className="max-w-sm">
+                    {isOpen ? (
+                      <textarea
+                        className="input text-body-sm w-full min-h-[64px]"
+                        placeholder="comma, separated, keywords"
+                        value={keywordsText}
+                        onChange={(e) => setEdits((s) => ({
+                          ...s, [c.id]: { ...s[c.id], keywordsText: e.target.value },
+                        }))}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex flex-wrap gap-1 text-left"
+                        onClick={() => setExpanded((s) => ({ ...s, [c.id]: true }))}
+                        title="Click to edit keywords"
+                      >
+                        {c.keywords.slice(0, 6).map((k) => (
+                          <span key={k} className="pill bg-surface-sunken text-ink-muted text-body-sm">{k}</span>
+                        ))}
+                        {c.keywords.length > 6 && (
+                          <span className="text-body-sm text-ink-faint self-center">
+                            +{c.keywords.length - 6}
+                          </span>
+                        )}
+                        {c.keywords.length === 0 && (
+                          <span className="text-body-sm text-ink-faint italic">No keywords — click to add</span>
+                        )}
+                      </button>
                     )}
-                  </div>
-                </td>
-                <td className="text-right tabular">{c.issue_count}</td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="text-right tabular">{c.issue_count}</td>
+                  <td>
+                    {dirty && (
+                      <Button
+                        size="sm" icon={Save} loading={save.isPending}
+                        onClick={() => {
+                          const body = {}
+                          if (edit.priority != null) body.default_priority = edit.priority
+                          if (edit.keywordsText != null) {
+                            body.keywords = edit.keywordsText
+                              .split(',').map((k) => k.trim()).filter(Boolean)
+                          }
+                          save.mutate({ id: c.id, body })
+                          setExpanded((s) => ({ ...s, [c.id]: false }))
+                        }}
+                      >
+                        Save
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
