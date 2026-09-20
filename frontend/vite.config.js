@@ -25,6 +25,11 @@ export default defineConfig(({ mode }) => {
         // served under /api/v1/campus/ws/:campusId, not a separate /ws prefix.
         '/api': { target: apiTarget, changeOrigin: true, ws: true },
         '/media': { target: apiTarget, changeOrigin: true },
+        // /health is unversioned (outside /api/v1) but still lives on the
+        // backend, not the Vite dev server — without this, the System
+        // Health widget's fetch('/health') hits Vite itself and 404s,
+        // same class of bug as the production API_ORIGIN fix.
+        '/health': { target: apiTarget, changeOrigin: true },
       },
     },
   }
