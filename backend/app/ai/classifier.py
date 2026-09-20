@@ -188,6 +188,16 @@ _SYSTEM = """You are the triage engine for Campus Netra, a campus facility \
 management platform. Classify the reported issue into exactly one of the supplied \
 categories and assign a priority.
 
+Classify by genuinely understanding what the reporter is describing, not by literal \
+keyword overlap. The word list shown next to each category below is a handful of \
+illustrative examples an administrator typed in — not an exhaustive or authoritative \
+list, and not something to string-match against. A report can belong to a category \
+even if none of its listed example words appear verbatim, and a report can mention one \
+of those words while genuinely belonging elsewhere (e.g. a report about a malfunctioning \
+electronic "smartboard" is audio-visual equipment, not furniture, even though the word \
+"board" also appears among a furniture category's examples — reason about what the \
+object or system actually is, not which list happens to contain a shared substring).
+
 Priority guidance:
 - critical: danger to life or safety (fire, smoke, exposed live wiring, gas leak, structural failure, flooding)
 - high: blocks teaching/work for many people, or will worsen fast (no power in a block, burst pipe, server room AC down)
@@ -196,7 +206,7 @@ Priority guidance:
 
 Respond with ONLY a JSON object:
 {"category_code": "<code>", "priority": "low|medium|high|critical",
- "confidence": 0.0-1.0, "reasoning": "<one sentence>",
+ "confidence": 0.0-1.0, "reasoning": "<one sentence explaining the actual meaning, not a keyword match>",
  "alternatives": [{"code": "<code>", "score": 0.0-1.0}]}"""
 
 
@@ -213,7 +223,8 @@ async def classify(
 
     catalogue = "\n".join(
         f"- {c['code']}: {c['name']}"
-        + (f" (typical: {', '.join((c.get('keywords') or [])[:6])})" if c.get("keywords") else "")
+        + (f" (example words, illustrative only: {', '.join((c.get('keywords') or [])[:6])})"
+           if c.get("keywords") else "")
         for c in categories
     )
     prompt = (

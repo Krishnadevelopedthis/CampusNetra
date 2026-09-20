@@ -342,6 +342,63 @@ async def issue_config(user: RequireManager, db: DB):
     ]
 
 
+class IssueCategoryUpdate(BaseModel):
+    """Keywords drive the fallback classifier and are also handed to the AI
+    model as hints in its prompt — a bad keyword (too generic, or one that
+    collides with another category) can mislead classification either way,
+    so this is worth being able to fix without a deploy."""
+    default_priority: Optional[Priority] = None
+    keywords: Optional[list[str]] = None
+
+    @field_validator("keywords")
+    @classmethod
+    def _clean_keywords(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        if value is None:
+            return value
+        seen: set[str] = set()
+        cleaned: list[str] = []
+        for kw in value:
+            kw = (kw or "").strip().lower()
+            if kw and kw not in seen:
+                seen.add(kw)
+                cleaned.append(kw)
+        return cleaned
+
+
+@router.patch("/issue-categories/{category_id}", response_model=Message)
+async def update_issue_category(
+    category_id: uuid.UUID, payload: IssueCategoryUpdate, admin: RequireAdmin, db: DB, request: Request,
+):
+    category = await db.scalar(
+        select(IssueCategory).where(
+            IssueCategory.id == category_id,
+            IssueCategory.organization_id == admin.organization_id,
+        )
+    )
+    if category is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Category not found")
+
+    before = {
+        "default_priority": category.default_priority.value,
+        "keywords": list(category.keywords),
+    }
+
+    changes = payload.model_dump(exclude_unset=True)
+    for field, value in changes.items():
+        setattr(category, field, value)
+
+    await db.flush()
+
+    await record_audit(
+        db, action="issue_category.update", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="issue_category", entity_id=category.id,
+        before=before,
+        after={"default_priority": category.default_priority.value, "keywords": list(category.keywords)},
+        ip_address=client_ip(request),
+    )
+    return Message(detail=f"{category.name} updated.")
+
+
 class SLAUpdate(BaseModel):
     response_mins: int = Field(ge=1)
     resolve_mins: int = Field(ge=1)
