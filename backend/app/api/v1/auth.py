@@ -386,8 +386,12 @@ async def request_name_change(
         OcrUnavailable, contains_identifier, extract_text, match_name,
     )
     from app.services.storage import StoredImage, UploadError, store_image
+    from app.schemas.auth import validate_full_name
 
-    new_full_name = new_full_name.strip()
+    try:
+        new_full_name = validate_full_name(new_full_name)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc))
     if new_full_name == user.full_name:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "That is already your name")
 
