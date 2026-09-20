@@ -267,7 +267,6 @@ export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
-
   const location = useLocation()
   const items = navFor(user?.role)
   const accent = ROLE_ACCENT[user?.role] || 'rgb(var(--c-primary))'

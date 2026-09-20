@@ -1014,6 +1014,28 @@ sections is genuinely weeks of work; picking a few and quietly skipping
 the rest without saying so would be exactly the "pretend it works"
 outcome the document itself explicitly warns against.
 
+## Addendum 17 — spec items #1 and #9 (name validation; logo audited)
+
+**#9 name validation — done, backend-enforced.** Added `validate_full_name()`
+in `schemas/auth.py` (letters/spaces/hyphens/apostrophes/periods only, no
+digits anywhere in the string) and wired it into both `RegisterRequest.full_name`
+and the `/auth/me/change-name` route (which takes a raw `Form(...)` param,
+not a schema field, so it's called explicitly there rather than via a
+pydantic validator). Same rule both places, so it can't drift. Python
+syntax-checked; no test runner available in this sandbox to actually run
+the suite. Not done: matching real-time frontend validation on the
+Profile.jsx name-change form — backend is the part that actually matters
+per the spec's own "do not rely exclusively on frontend validation," left
+as a nicety for later rather than spending more of this round hunting for
+the exact form component.
+
+**#1 logo dedup — could not find a literal bug in the code.** Checked the
+SVG files (no embedded `<text>`), and every surface — sidebar, landing
+navbar, footer, login/AuthShell — already imports and renders the one
+shared `Logo`/`LogoMark` component, not separate hand-rolled versions.
+Whatever's producing a duplicated "Campus Netra" or a stray "1" wasn't
+visible from source; genuinely need a screenshot of it happening to find
+it, rather than guessing and touching working code.
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
