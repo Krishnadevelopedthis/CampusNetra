@@ -6,7 +6,7 @@ import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
 import { BrandLoader, Spinner } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
-import { broadcastSessionEnded, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
+import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
@@ -281,6 +281,13 @@ export default function App() {
     <>
       <SessionTimeoutModal
         onLogout={async () => {
+          // Closed directly, first, rather than waiting on the indirect
+          // chain (auth state clears -> an effect notices -> its cleanup
+          // -> only then closes it) that this button's click used to rely
+          // on entirely — that chain has no guaranteed timing relative to
+          // the navigate() below, which is what let the popup keep
+          // floating over the login page after a manual Log Out click.
+          dismissWarning()
           await logout()
           broadcastSessionEnded()
           navigate('/login', { replace: true })
