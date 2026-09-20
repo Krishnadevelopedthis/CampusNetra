@@ -17,7 +17,7 @@ import {
   Bell,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import { ColorThemeSwitcher } from '@/components/ColorThemeSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -80,6 +80,16 @@ export default function Settings() {
   const { user, setUser, logout } = useAuth()
   const colorTheme = useColorTheme((s) => s.colorTheme)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Contextual search (header) sends people here with a #section hash --
+  // jump to it once the page has actually rendered rather than on every
+  // location change, so it doesn't fight normal scrolling afterward.
+  useEffect(() => {
+    if (!location.hash) return
+    const el = document.getElementById(location.hash.slice(1))
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [location.hash])
 
   const [prefs, setPrefs] = useState(() => merge(user?.preferences))
   const [dirty, setDirty] = useState(false)
@@ -171,6 +181,7 @@ export default function Settings() {
 
       {/* ---------------- Appearance ---------------- */}
       <Widget
+        id="appearance"
         title={<span className="flex items-center gap-2"><Palette size={17} /> Appearance</span>}
         subtitle="Applies on this device only"
       >
@@ -244,6 +255,7 @@ export default function Settings() {
 
       {/* ---------------- Notifications ---------------- */}
       <Widget
+        id="notifications"
         title={<span className="flex items-center gap-2"><AlertCircle size={17} /> Notifications</span>}
         subtitle="What you are told about, and where"
       >
@@ -303,6 +315,7 @@ export default function Settings() {
 
       {/* ---------------- Data ---------------- */}
       <Widget
+        id="data-privacy"
         title={<span className="flex items-center gap-2"><ShieldAlert size={17} /> Your data</span>}
       >
         <div className="space-y-1">
@@ -414,6 +427,7 @@ function SecuritySection({ user, logout, navigate }) {
 
   return (
     <Widget
+      id="security"
       title={<span className="flex items-center gap-2"><KeyRound size={17} /> Security</span>}
       subtitle="Changing your password signs out every other device"
     >

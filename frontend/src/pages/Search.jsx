@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Search as SearchIcon, X, Loader2 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 
@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce'
 
 export default function Search() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const query = searchParams.get('q') || ''
   const [debouncedQuery] = useDebounce(query, 300)
   const [results, setResults] = useState(null)
@@ -53,7 +54,7 @@ export default function Search() {
   }, [debouncedQuery])
 
   const clearSearch = () => {
-    window.history.pushState({}, '', '/search')
+    navigate('/search', { replace: true })
     inputRef.current?.focus()
   }
 
@@ -90,7 +91,7 @@ export default function Search() {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
                     const params = new URLSearchParams()
                     params.set('q', e.currentTarget.value.trim())
-                    window.history.pushState({}, '', `/search?${params.toString()}`)
+                    navigate(`/search?${params.toString()}`, { replace: true })
                     inputRef.current?.blur()
                   }
                 }}
