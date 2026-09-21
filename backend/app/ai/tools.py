@@ -88,17 +88,19 @@ async def get_my_complaints(db, user: User, status: str | None = None, limit: in
     return page.model_dump(mode="json")
 
 
-async def get_complaint(db, user: User, reference_or_id: str, **_: Any) -> dict:
-    """Accepts either the human-facing reference (e.g. CMP-1042) or the raw id."""
-    from fastapi import HTTPException
-
-    from app.api.v1.issues import get_issue
+async def _resolve_issue(db, user: User, reference_or_id: str):
+    """Shared by get_complaint and update_complaint: accepts either the
+    human-facing reference (e.g. CMP-1042) or the raw id, always scoped to
+    the caller's own organization — a reference from another org simply
+    doesn't match this WHERE clause, so it 404s exactly like a genuinely
+    nonexistent one rather than leaking whether it exists elsewhere."""
     from app.models.issues import Issue
     from sqlalchemy import select
 
-    issue_id = None
     try:
         issue_id = uuid.UUID(str(reference_or_id))
+        row = await db.scalar(
+            select(Issue).where(Issue.id == issue_id, Issue.organization_id == user.organization_id))
     except (ValueError, AttributeError, TypeError):
         row = await db.scalar(
             select(Issue).where(
@@ -106,16 +108,77 @@ async def get_complaint(db, user: User, reference_or_id: str, **_: Any) -> dict:
                 Issue.reference == reference_or_id,
             )
         )
-        if row is None:
-            raise ToolError(f"No complaint found with reference '{reference_or_id}'.")
-        issue_id = row.id
+    if row is None:
+        raise ToolError(f"No complaint found matching '{reference_or_id}'.")
+    return row
 
+
+async def get_complaint(db, user: User, reference_or_id: str, **_: Any) -> dict:
+    """Accepts either the human-facing reference (e.g. CMP-1042) or the raw id."""
+    from fastapi import HTTPException
+
+    from app.api.v1.issues import get_issue
+
+    issue = await _resolve_issue(db, user, reference_or_id)
     try:
-        detail = await get_issue(issue_id=issue_id, user=user, db=db)
+        detail = await get_issue(issue_id=issue.id, user=user, db=db)
     except HTTPException as exc:
         raise ToolError(exc.detail if isinstance(exc.detail, str) else "That complaint is not available.")
 
     return detail.model_dump(mode="json")
+
+
+async def update_complaint(
+    db, user: User, reference_or_id: str, status: str,
+    note: str | None = None, confirm: bool = False, **_: Any,
+) -> dict:
+    """Change a complaint's status — technician/facility_manager/admin/
+    super_admin only, mirroring /issues/{id}/transition's own RBAC exactly.
+    That role check is enforced HERE, independently, rather than assumed:
+    a tool call never goes through that route's FastAPI dependency, so
+    nothing stops a student's session from reaching this function except
+    this explicit check.
+
+    Same confirm gate as create_complaint/create_lost_found: the first
+    call (confirm omitted/false) validates the target status and returns
+    a pending summary — nothing changes yet. Only confirm=true actually
+    applies it, reusing the exact validation transition_issue() already
+    enforces (only certain status moves are legal from a given state), so
+    an illegal transition is reported back as the same specific message
+    the human staff UI would show, not a generic failure.
+    """
+    from fastapi import HTTPException
+
+    from app.api.deps import STAFF_ROLES
+    from app.core.enums import IssueStatus
+    from app.services import issues as issue_service
+
+    if user.role not in STAFF_ROLES:
+        raise ToolError(
+            "Only facility staff (technician, facility manager, or admin) can change a "
+            "complaint's status — reporters can view and upvote their own, not update them."
+        )
+
+    issue = await _resolve_issue(db, user, reference_or_id)
+
+    try:
+        target = IssueStatus(status)
+    except ValueError:
+        valid = ", ".join(s.value for s in IssueStatus)
+        raise ToolError(f"'{status}' isn't a valid status. Valid values: {valid}.")
+
+    if not confirm:
+        return {"ok": True, "pending": True, "summary": {
+            "reference": issue.reference, "from_status": issue.status.value,
+            "to_status": target.value, "note": note,
+        }}
+
+    try:
+        await issue_service.transition_issue(db, issue, target, user, note)
+    except HTTPException as exc:
+        raise ToolError(exc.detail if isinstance(exc.detail, str) else "That status change isn't allowed.")
+    await db.flush()
+    return {"ok": True, "updated": True, "reference": issue.reference, "new_status": target.value}
 
 
 # ---------------------------------------------------------------------------
@@ -432,6 +495,7 @@ TOOLS: dict[str, ToolFn] = {
     "get_my_complaints": get_my_complaints,
     "get_complaint": get_complaint,
     "create_complaint": create_complaint,
+    "update_complaint": update_complaint,
     "get_my_lost_found": get_my_lost_found,
     "get_lost_found_item": get_lost_found_item,
     "search_lost_found": search_lost_found,
@@ -524,6 +588,25 @@ TOOL_SCHEMAS: list[dict] = [
             "brand": {"type": "string"},
             "building_name": {"type": "string"},
             "room_name": {"type": "string"},
+            "confirm": {"type": "boolean", "description": "true only after the user has explicitly confirmed. Defaults to false."},
+        }},
+    }},
+    {"type": "function", "function": {
+        "name": "update_complaint",
+        "description": (
+            "Change a complaint's status. Staff only (technician/facility_manager/admin) "
+            "— if the user isn't staff, this returns an error explaining that instead of "
+            "changing anything. Same two-step confirm pattern as create_complaint: call "
+            "with confirm=false first to see the proposed change and whether it's a legal "
+            "transition, then call again with confirm=true only after the user agrees."
+        ),
+        "parameters": {"type": "object", "required": ["reference_or_id", "status"], "properties": {
+            "reference_or_id": {"type": "string", "description": "The complaint's reference, e.g. 'CMP-1042'."},
+            "status": {"type": "string", "description": (
+                "One of: reported, triaged, assigned, in_progress, on_hold, resolved, "
+                "verified, closed, rejected, duplicate."
+            )},
+            "note": {"type": "string", "description": "Optional note explaining the change."},
             "confirm": {"type": "boolean", "description": "true only after the user has explicitly confirmed. Defaults to false."},
         }},
     }},
