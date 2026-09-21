@@ -89,7 +89,16 @@ class RegisterRequest(BaseModel):
     enrollment_no: Optional[str] = None
     employee_id: Optional[str] = None
     designation: Optional[str] = None
+    # Operational department (Electrical & Maintenance, AV & Media, ...) —
+    # who a technician's/facility staff's work orders route through. NOT
+    # what a student/teacher picks; see programme_code for that.
     department_code: Optional[str] = None
+    # Academic programme (BSc IT, AI & DS, BCom, ...) — a student's or
+    # teacher's course/department, deliberately a separate concept from
+    # department_code above (see AcademicProgramme's own docstring: sharing
+    # one list would make a degree course selectable as a maintenance team).
+    programme_code: Optional[str] = None
+    academic_year: Optional[int] = Field(None, ge=1, le=10)
     organization_id: Optional[uuid.UUID] = None
     # Enterprise signup creates the tenant alongside the first admin user.
     organization_name: Optional[str] = None
