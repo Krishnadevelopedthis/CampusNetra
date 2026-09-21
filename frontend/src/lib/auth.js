@@ -198,7 +198,13 @@ export const useAuth = create((set, get) => ({
         user: data.user,
       })
 
-      return data.user
+      // first_login rides along on the returned user object (rather than
+      // changing this function's return shape) so Login.jsx can tell a
+      // genuinely first-ever sign-in apart from a returning one — see
+      // AuthResponse.first_login on the backend. Every other consumer of
+      // this return value already only reads the UserOut fields, so one
+      // extra property is harmless to them.
+      return { ...data.user, first_login: !!data.first_login }
     } finally {
       set({ loading: false })
     }
