@@ -1,0 +1,292 @@
+diff --git a/backend/app/api/v1/auth.py b/backend/app/api/v1/auth.py
+index ee074de..19097ff 100644
+--- a/backend/app/api/v1/auth.py
++++ b/backend/app/api/v1/auth.py
+@@ -18,7 +18,7 @@ from app.core.security import (
+     create_captcha_token, generate_captcha_text, hash_password, verify_captcha_token,
+     verify_password,
+ )
+-from app.models.identity import NameChangeRequest, User
++from app.models.identity import AcademicProgramme, Department, NameChangeRequest, User
+ from app.schemas.auth import (
+     AuthResponse, CaptchaOut, ChangeEmailRequest, ChangePasswordRequest, ChangePhoneRequest,
+     ForgotPasswordRequest, LoginRequest, NameChangeRequestOut, RefreshRequest, RegisterRequest,
+@@ -58,6 +58,46 @@ async def get_captcha():
+     return CaptchaOut(captcha_token=token, image=image)
+ 
+ 
++@router.get("/register-options", response_model=dict)
++async def register_options(db: DB, email: Optional[str] = None):
++    """Department (technician/facility staff) and academic programme
++    (student/teacher) picklists for the registration form — two
++    deliberately separate lists (see AcademicProgramme's own docstring: a
++    degree course must never be selectable as the maintenance team
++    responsible for a broken tap).
++
++    Public — registration itself happens before there's anything to
++    authenticate with. `email` is optional and, when given, resolves the
++    same campus register() itself would (matching an organization's
++    configured email domain); without it, or if that resolution is
++    ambiguous/unconfigured, this returns empty lists rather than an error
++    so the registration page still renders — actual enforcement happens at
++    submit time either way.
++    """
++    org_id, _rejection = await auth_service.resolve_organization(db, email or "")
++    if org_id is None:
++        return {"departments": [], "programmes": []}
++
++    departments = (await db.scalars(
++        select(Department).where(
++            Department.organization_id == org_id, Department.is_active.is_(True),
++        ).order_by(Department.name)
++    )).all()
++
++    programmes = (await db.scalars(
++        select(AcademicProgramme).where(
++            AcademicProgramme.organization_id == org_id, AcademicProgramme.is_active.is_(True),
++        ).order_by(AcademicProgramme.name)
++    )).all()
++
++    return {
++        "departments": [{"code": d.code, "name": d.name} for d in departments],
++        "programmes": [
++            {"code": p.code, "name": p.name, "level": p.level} for p in programmes
++        ],
++    }
++
++
+ @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
+ async def register(payload: RegisterRequest, db: DB, request: Request):
+     """Creates the account and emails a 6-digit verification code."""
+diff --git a/backend/app/schemas/auth.py b/backend/app/schemas/auth.py
+index eab82a1..993632b 100644
+--- a/backend/app/schemas/auth.py
++++ b/backend/app/schemas/auth.py
+@@ -89,7 +89,16 @@ class RegisterRequest(BaseModel):
+     enrollment_no: Optional[str] = None
+     employee_id: Optional[str] = None
+     designation: Optional[str] = None
++    # Operational department (Electrical & Maintenance, AV & Media, ...) —
++    # who a technician's/facility staff's work orders route through. NOT
++    # what a student/teacher picks; see programme_code for that.
+     department_code: Optional[str] = None
++    # Academic programme (BSc IT, AI & DS, BCom, ...) — a student's or
++    # teacher's course/department, deliberately a separate concept from
++    # department_code above (see AcademicProgramme's own docstring: sharing
++    # one list would make a degree course selectable as a maintenance team).
++    programme_code: Optional[str] = None
++    academic_year: Optional[int] = Field(None, ge=1, le=10)
+     organization_id: Optional[uuid.UUID] = None
+     # Enterprise signup creates the tenant alongside the first admin user.
+     organization_name: Optional[str] = None
+diff --git a/backend/app/services/auth.py b/backend/app/services/auth.py
+index 9f1e38b..380e7c7 100644
+--- a/backend/app/services/auth.py
++++ b/backend/app/services/auth.py
+@@ -16,7 +16,9 @@ from app.core.security import (
+     create_access_token, create_refresh_token, decode_token, generate_opaque_token,
+     generate_otp, hash_password, sha256, verify_password, REFRESH_TOKEN,
+ )
+-from app.models.identity import Department, Organization, RefreshToken, User, VerificationCode
++from app.models.identity import (
++    AcademicProgramme, Department, Organization, RefreshToken, User, VerificationCode,
++)
+ from app.schemas.auth import RegisterRequest, TokenPair
+ from app.services.audit import record_login
+ from app.services.email import send_otp
+@@ -222,8 +224,13 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
+             f"The {role.value} role must be provisioned by an administrator",
+         )
+ 
++    # Operational department — technicians/facility staff only. A student or
++    # teacher submitting department_code is ignored here rather than
++    # rejected outright: the frontend shouldn't offer this field for those
++    # roles at all, but a stale client is a reason to no-op, not to fail
++    # the whole registration.
+     department_id = None
+-    if payload.department_code and org_id:
++    if payload.department_code and org_id and role in (UserRole.TECHNICIAN, UserRole.FACILITY_MANAGER):
+         department_id = await db.scalar(
+             select(Department.id).where(
+                 Department.organization_id == org_id,
+@@ -231,6 +238,17 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
+             )
+         )
+ 
++    # Academic programme — students/teachers only, and a distinct table from
++    # Department above (see AcademicProgramme's docstring).
++    programme_id = None
++    if payload.programme_code and org_id and role in (UserRole.STUDENT, UserRole.TEACHER):
++        programme_id = await db.scalar(
++            select(AcademicProgramme.id).where(
++                AcademicProgramme.organization_id == org_id,
++                AcademicProgramme.code == payload.programme_code,
++            )
++        )
++
+     user = User(
+         email=payload.email,
+         password_hash=hash_password(payload.password),
+@@ -239,6 +257,8 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
+         phone=payload.phone,
+         organization_id=org_id,
+         department_id=department_id,
++        programme_id=programme_id,
++        academic_year=payload.academic_year if role == UserRole.STUDENT else None,
+         enrollment_no=payload.enrollment_no,
+         employee_id=payload.employee_id,
+         designation=payload.designation,
+diff --git a/frontend/src/pages/Register.jsx b/frontend/src/pages/Register.jsx
+index fa41579..72e082c 100644
+--- a/frontend/src/pages/Register.jsx
++++ b/frontend/src/pages/Register.jsx
+@@ -1,9 +1,10 @@
+-import { useState } from 'react'
++import { useEffect, useState } from 'react'
+ import { Link, useNavigate } from 'react-router-dom'
+ 
+ import { AuthShell } from '@/features/auth/AuthShell'
+ import { REGISTER_TABS, RoleTabs } from '@/features/auth/RoleTabs'
+ import { Button, Field, Input, Select, toast } from '@/components/ui'
++import { api } from '@/lib/api'
+ import { useAuth } from '@/lib/auth'
+ 
+ /** Extra fields each account type needs beyond name/email/password. */
+@@ -19,25 +20,46 @@ const EXTRA_FIELDS = {
+                { name: 'designation', label: 'Your designation', placeholder: 'Facilities Director' }],
+ }
+ 
+-const DEPARTMENTS = [
+-  { code: 'ELEC', name: 'Electrical & Maintenance' },
+-  { code: 'PLUMB', name: 'Plumbing & Sanitation' },
+-  { code: 'IT', name: 'IT Support' },
+-  { code: 'AV', name: 'AV & Media' },
+-  { code: 'CIVIL', name: 'Civil & Facility' },
+-]
++const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+ 
+ export default function Register() {
+   const [role, setRole] = useState('student')
+   const [form, setForm] = useState({})
+   const [errors, setErrors] = useState({})
+   const [submitting, setSubmitting] = useState(false)
++  // Two deliberately separate picklists: departments are the maintenance
++  // org chart (who a technician's work orders route to); programmes are
++  // academic courses (a student's/teacher's degree/subject). Mixing them —
++  // the bug this replaced — let a course like "Computer Science" show up
++  // as a candidate team for a broken tap, and vice versa.
++  const [options, setOptions] = useState({ departments: [], programmes: [] })
+   const { register } = useAuth()
+   const navigate = useNavigate()
+ 
+   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+   const extras = EXTRA_FIELDS[role] || []
+   const isEnterprise = role === 'enterprise'
++  const isAcademic = role === 'student' || role === 'teacher'
++  const isTechnician = role === 'technician'
++
++  // Loaded once up front for the common single-campus deployment (no email
++  // needed to know which organization's lists to show), and re-loaded once
++  // the person finishes typing a plausible email — a multi-campus
++  // deployment resolves the organization from the email's domain, so the
++  // right lists may only become known at that point.
++  useEffect(() => {
++    api.get('/auth/register-options')
++      .then(setOptions)
++      .catch(() => {}) // Registration itself still works with empty lists.
++  }, [])
++
++  const refreshOptionsForEmail = () => {
++    const email = form.email?.trim()
++    if (!email || !EMAIL_RE.test(email)) return
++    api.get(`/auth/register-options?email=${encodeURIComponent(email)}`)
++      .then(setOptions)
++      .catch(() => {})
++  }
+ 
+   const submit = async (e) => {
+     e.preventDefault()
+@@ -80,7 +102,9 @@ export default function Register() {
+         enrollment_no: form.enrollment_no || null,
+         employee_id: form.employee_id || null,
+         designation: form.designation || null,
+-        department_code: form.department_code || null,
++        department_code: isTechnician ? (form.department_code || null) : null,
++        programme_code: isAcademic ? (form.programme_code || null) : null,
++        academic_year: (role === 'student' && form.academic_year) ? Number(form.academic_year) : null,
+         organization_name: isEnterprise ? form.organization_name : null,
+       })
+       toast.success(res?.detail || 'Account created. Check your email for the verification code.')
+@@ -127,7 +151,8 @@ export default function Register() {
+         </Field>
+ 
+         <Field label="Email address" error={errors.email} required>
+-          <Input type="email" value={form.email || ''} onChange={set('email')} placeholder="you@campus.edu" error={errors.email} />
++          <Input type="email" value={form.email || ''} onChange={set('email')} onBlur={refreshOptionsForEmail}
++                 placeholder="you@campus.edu" error={errors.email} />
+         </Field>
+ 
+         {extras.map((f) => (
+@@ -139,14 +164,54 @@ export default function Register() {
+           </Field>
+         ))}
+ 
+-        {/* Department is required for ALL roles - work orders and issues are
+-            routed to the right department based on this assignment */}
+-        <Field label="Department" hint="Work orders and issues will route to this department">
+-          <Select value={form.department_code || ''} onChange={set('department_code')}>
+-            <option value="">Select a department</option>
+-            {DEPARTMENTS.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+-          </Select>
+-        </Field>
++        {/* Academic programme — students and teachers. A course (Computer
++            Science, Data Science, Mass Media, Finance, ...), never the
++            maintenance org chart below. */}
++        {isAcademic && (
++          <Field label="Course / Department" hint="Your academic programme">
++            <Select value={form.programme_code || ''} onChange={set('programme_code')}>
++              <option value="">Select your course</option>
++              {options.programmes.map((p) => (
++                <option key={p.code} value={p.code}>{p.name}</option>
++              ))}
++            </Select>
++            {options.programmes.length === 0 && (
++              <p className="hint mt-1">
++                No courses are configured yet — you can add this later from your profile.
++              </p>
++            )}
++          </Field>
++        )}
++
++        {role === 'student' && (
++          <Field label="Academic year" hint="Which year of your course you're in">
++            <Select value={form.academic_year || ''} onChange={set('academic_year')}>
++              <option value="">Select a year</option>
++              {[1, 2, 3, 4, 5].map((y) => (
++                <option key={y} value={y}>Year {y}</option>
++              ))}
++            </Select>
++          </Field>
++        )}
++
++        {/* Operational department — technicians only. The team a
++            technician's work orders route through (Electrical & Maintenance,
++            AV & Media, ...), never an academic course. */}
++        {isTechnician && (
++          <Field label="Department" hint="Work orders and issues will route to this department">
++            <Select value={form.department_code || ''} onChange={set('department_code')}>
++              <option value="">Select a department</option>
++              {options.departments.map((d) => (
++                <option key={d.code} value={d.code}>{d.name}</option>
++              ))}
++            </Select>
++            {options.departments.length === 0 && (
++              <p className="hint mt-1">
++                No departments are configured yet — an administrator can assign one later.
++              </p>
++            )}
++          </Field>
++        )}
+ 
+         <Field label="Phone" error={errors.phone}
+                hint="Optional — used for urgent notifications">

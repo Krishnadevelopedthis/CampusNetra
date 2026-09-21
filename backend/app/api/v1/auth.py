@@ -18,7 +18,7 @@ from app.core.security import (
     create_captcha_token, generate_captcha_text, hash_password, verify_captcha_token,
     verify_password,
 )
-from app.models.identity import NameChangeRequest, User
+from app.models.identity import AcademicProgramme, Department, NameChangeRequest, User
 from app.schemas.auth import (
     AuthResponse, CaptchaOut, ChangeEmailRequest, ChangePasswordRequest, ChangePhoneRequest,
     ForgotPasswordRequest, LoginRequest, NameChangeRequestOut, RefreshRequest, RegisterRequest,
@@ -56,6 +56,46 @@ async def get_captcha():
     png = render_captcha_png(text)
     image = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
     return CaptchaOut(captcha_token=token, image=image)
+
+
+@router.get("/register-options", response_model=dict)
+async def register_options(db: DB, email: Optional[str] = None):
+    """Department (technician/facility staff) and academic programme
+    (student/teacher) picklists for the registration form — two
+    deliberately separate lists (see AcademicProgramme's own docstring: a
+    degree course must never be selectable as the maintenance team
+    responsible for a broken tap).
+
+    Public — registration itself happens before there's anything to
+    authenticate with. `email` is optional and, when given, resolves the
+    same campus register() itself would (matching an organization's
+    configured email domain); without it, or if that resolution is
+    ambiguous/unconfigured, this returns empty lists rather than an error
+    so the registration page still renders — actual enforcement happens at
+    submit time either way.
+    """
+    org_id, _rejection = await auth_service.resolve_organization(db, email or "")
+    if org_id is None:
+        return {"departments": [], "programmes": []}
+
+    departments = (await db.scalars(
+        select(Department).where(
+            Department.organization_id == org_id, Department.is_active.is_(True),
+        ).order_by(Department.name)
+    )).all()
+
+    programmes = (await db.scalars(
+        select(AcademicProgramme).where(
+            AcademicProgramme.organization_id == org_id, AcademicProgramme.is_active.is_(True),
+        ).order_by(AcademicProgramme.name)
+    )).all()
+
+    return {
+        "departments": [{"code": d.code, "name": d.name} for d in departments],
+        "programmes": [
+            {"code": p.code, "name": p.name, "level": p.level} for p in programmes
+        ],
+    }
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
