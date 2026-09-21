@@ -256,16 +256,23 @@ export const useAuth = create((set, get) => ({
    * Appearance preferences are intentionally NOT cleared.
    */
   async logout() {
-    try {
-      await api.post('/auth/logout')
-    } catch {
-      /**
-       * Local logout is more important than the server round trip.
-       *
-       * If the backend is unavailable, the browser still removes
-       * the local authentication state.
-       */
-    }
+    /**
+     * Fire-and-forget, deliberately not awaited.
+     *
+     * Local logout must never wait on this: the previous version awaited
+     * it first, so a slow or stuck connection left the person looking
+     * fully logged in for up to REQUEST_TIMEOUT_MS (30s) after tapping
+     * "Log Out" — exactly the situation a session-inactivity warning's own
+     * Log Out button hits hardest, since the phone/tab has typically just
+     * spent several idle minutes with its screen off/backgrounded right
+     * before that tap, which is when a mobile browser's network stack is
+     * most likely to be suspended or slow to resume. The comment below
+     * always described the intended behavior; the code just didn't
+     * actually implement it.
+     */
+    api.post('/auth/logout').catch(() => {
+      // Server-side revocation is best-effort — see above.
+    })
 
     /**
      * IMPORTANT:
