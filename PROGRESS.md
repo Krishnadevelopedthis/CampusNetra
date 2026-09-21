@@ -1124,7 +1124,6 @@ current app; nothing to remove.
 
 Was "CMP-1042" (complaints, atomic DB sequence), "LR-2026-0082"/"LF-2026-0082"
 (lost vs found, year+sequence, split prefix), "CLM-2026-0011" (claims).
-
 Spec wants `CN` + 9 random alphanumeric for complaints, `LF` for Lost &
 Found uniformly (lost and found both — the split LR/LF prefix went away),
 collision-resistant, not sequential.
