@@ -1120,6 +1120,37 @@ current app; nothing to remove.
 
 `npm run build` verified clean.
 
+## Addendum 21 — items #20, #25: professional reference IDs
+
+Was "CMP-1042" (complaints, atomic DB sequence), "LR-2026-0082"/"LF-2026-0082"
+(lost vs found, year+sequence, split prefix), "CLM-2026-0011" (claims).
+Spec wants `CN` + 9 random alphanumeric for complaints, `LF` for Lost &
+Found uniformly (lost and found both — the split LR/LF prefix went away),
+collision-resistant, not sequential.
+
+Added `next_public_id()` in `references.py`: random 9-char code from a
+32-character alphabet with 0/O/1/I/L excluded (so a code read aloud or
+typed by hand doesn't turn into a coin-flip), checked against the real
+table for a collision before being handed back rather than trusted blind
+— the `reference` column already has a uniqueness constraint, so an
+uncaught collision would 500 instead of just retrying. Left the
+underlying `next_reference()`/`next_year_reference()` SQL-sequence path
+completely alone — work orders still use it, and the spec didn't ask to
+touch those.
+
+Checked whether anything depends on the old dashed/year-numbered shape
+before changing it — nothing in the frontend parses or matches against
+reference format, they're handled as opaque display strings throughout,
+so this is a clean swap with nothing else to update.
+
+Not done in this pass: retrofitting *existing* rows to the new format
+(out of scope — spec describes new-record generation, and rewriting
+history isn't implied) and "matching records" getting their own public
+ID (`LFMatch` isn't user-facing anywhere yet, so there's no display
+surface that would use one).
+
+Backend syntax-checked.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
