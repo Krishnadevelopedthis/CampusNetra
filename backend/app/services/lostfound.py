@@ -15,7 +15,7 @@ from app.models.identity import User
 from app.models.lostfound import LFAttachment, LFCategory, LFClaim, LFItem, LFMatch
 from app.models.platform import AIInvocation
 from app.services import notifications as notify_svc
-from app.services.references import next_year_reference
+from app.services.references import next_public_id
 
 # A found report is only compared against lost reports inside this window.
 MATCH_WINDOW_DAYS = 60
@@ -154,8 +154,7 @@ async def create_item(
                             "Your account is not linked to an organization")
 
     kind = LFKind(payload["kind"])
-    prefix = "LR" if kind == LFKind.LOST else "LF"
-    reference = await next_year_reference(db, org_id, prefix)
+    reference = await next_public_id(db, LFItem, "LF")
 
     category = None
     if payload.get("category_id"):
@@ -226,7 +225,7 @@ async def submit_claim(
         raise HTTPException(status.HTTP_409_CONFLICT,
                             f"You already have an open claim ({existing.reference})")
 
-    reference = await next_year_reference(db, claimant.organization_id, "CLM")
+    reference = await next_public_id(db, LFClaim, "CLM")
     claim = LFClaim(
         reference=reference, item_id=item.id, match_id=match_id,
         claimant_id=claimant.id, status=ClaimStatus.SUBMITTED,
