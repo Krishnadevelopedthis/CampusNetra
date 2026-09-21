@@ -39,7 +39,14 @@ export default function Login() {
       // The admin tab covers both admin and facility_manager accounts, so it
       // authenticates without a role constraint and routes on the result.
       const user = await login(email.trim(), password, role === 'admin' ? null : role, captcha)
-      toast.success(`Welcome back, ${user.full_name.split(' ')[0]}.`)
+      // A genuinely first-ever sign-in (an admin-provisioned account whose
+      // owner never went through the register->verify-email auto-login
+      // flow) shouldn't be told "welcome back" — there's no "back" yet.
+      toast.success(
+        user.first_login
+          ? `Welcome, ${user.full_name.split(' ')[0]}.`
+          : `Welcome back, ${user.full_name.split(' ')[0]}.`
+      )
       navigate(ROLE_HOME[user.role] || '/dashboard', { replace: true })
     } catch (err) {
       const fields = err.fields

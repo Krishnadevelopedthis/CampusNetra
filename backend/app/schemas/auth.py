@@ -260,6 +260,10 @@ class UserOut(ORMModel):
 class AuthResponse(BaseModel):
     user: UserOut
     tokens: TokenPair
+    # True only for a genuinely first-ever sign-in (last_login_at was unset
+    # going into this request) — lets the frontend say "Welcome" instead of
+    # "Welcome back" without guessing from anything client-side.
+    first_login: bool = False
 
 
 class UpdateProfileRequest(BaseModel):
