@@ -1066,6 +1066,37 @@ route.
 Backend changes syntax-checked (`py_compile`); no test runner available
 in this sandbox to run the actual suite.
 
+## Addendum 19 — items #12-14: table density, settings audit, weekly report
+
+**#12 table density — already done** by concurrent work (`data-density`
+attribute + CSS, applied both live in Settings and on boot in App.jsx).
+Verified, not rebuilt.
+
+**#13 settings audit — mostly already real.** Checked each control against
+what it's supposed to do: notification channel toggles are genuinely
+enforced server-side (`services/templates.py`'s `wants()` — per-channel,
+per-event-type, with an always-deliver exception for urgent codes even
+if email is off); data export and delete-account both hit real,
+already-solid endpoints. Also confirmed #34 (remove AI Assistant from
+sidebar) is moot — no dead sidebar entry exists; it's already the real
+floating assistant widget a concurrent session built.
+
+**#14 weekly summary — built, one honest scope note.** New
+`services/weekly_report.py`: real 7-day query (issues reported/resolved,
+SLA breaches, Lost & Found reports and claims, scoped to the requester
+like `data_export.py` already is), `POST /auth/me/weekly-report` emails
+it, button added next to "Request a copy of your data" in Settings
+(there's no separate "Report page" anywhere in this app for the spec's
+assumed location, so it lives where the equivalent self-service export
+already does). **Scope trade-off, stated plainly**: this sends a rich
+HTML/text email, not a PDF attachment. `send_email()` has no attachment
+support at all right now — adding it means extending two provider
+integrations (Resend, Brevo) plus a new PDF-generation dependency,
+bigger than this round. Real, delivered content either way, including
+an honest zero-count week — not a stub.
+
+Backend syntax-checked; frontend `npm run build` clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

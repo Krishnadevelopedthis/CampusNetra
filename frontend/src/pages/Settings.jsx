@@ -123,6 +123,12 @@ export default function Settings() {
     onError: (err) => toast.error(err.detail || 'Could not prepare your data export.'),
   })
 
+  const weeklyReport = useMutation({
+    mutationFn: () => api.post('/auth/me/weekly-report'),
+    onSuccess: (d) => toast.success(d.detail),
+    onError: (err) => toast.error(err.detail || 'Could not prepare your weekly summary.'),
+  })
+
   const deletion = useQuery({
     queryKey: ['my-deletion-request'],
     queryFn: () => api.get('/auth/me/delete-request'),
@@ -331,6 +337,20 @@ export default function Settings() {
               size="sm" variant="secondary"
               loading={exportData.isPending}
               onClick={() => exportData.mutate()}
+            >
+              Email it to me
+            </Button>
+          </Row>
+          <Row
+            icon={Mail}
+            title="Weekly activity summary"
+            desc="Issues, resolutions, SLA breaches and Lost & Found activity from the last 7 days."
+            compact
+          >
+            <Button
+              size="sm" variant="secondary"
+              loading={weeklyReport.isPending}
+              onClick={() => weeklyReport.mutate()}
             >
               Email it to me
             </Button>
