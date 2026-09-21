@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { AuthShell } from '@/features/auth/AuthShell'
 import { REGISTER_TABS, RoleTabs } from '@/features/auth/RoleTabs'
 import { Button, Field, Input, Select, toast } from '@/components/ui'
+import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 
 /** Extra fields each account type needs beyond name/email/password. */
@@ -19,25 +20,46 @@ const EXTRA_FIELDS = {
                { name: 'designation', label: 'Your designation', placeholder: 'Facilities Director' }],
 }
 
-const DEPARTMENTS = [
-  { code: 'ELEC', name: 'Electrical & Maintenance' },
-  { code: 'PLUMB', name: 'Plumbing & Sanitation' },
-  { code: 'IT', name: 'IT Support' },
-  { code: 'AV', name: 'AV & Media' },
-  { code: 'CIVIL', name: 'Civil & Facility' },
-]
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export default function Register() {
   const [role, setRole] = useState('student')
   const [form, setForm] = useState({})
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  // Two deliberately separate picklists: departments are the maintenance
+  // org chart (who a technician's work orders route to); programmes are
+  // academic courses (a student's/teacher's degree/subject). Mixing them —
+  // the bug this replaced — let a course like "Computer Science" show up
+  // as a candidate team for a broken tap, and vice versa.
+  const [options, setOptions] = useState({ departments: [], programmes: [] })
   const { register } = useAuth()
   const navigate = useNavigate()
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const extras = EXTRA_FIELDS[role] || []
   const isEnterprise = role === 'enterprise'
+  const isAcademic = role === 'student' || role === 'teacher'
+  const isTechnician = role === 'technician'
+
+  // Loaded once up front for the common single-campus deployment (no email
+  // needed to know which organization's lists to show), and re-loaded once
+  // the person finishes typing a plausible email — a multi-campus
+  // deployment resolves the organization from the email's domain, so the
+  // right lists may only become known at that point.
+  useEffect(() => {
+    api.get('/auth/register-options')
+      .then(setOptions)
+      .catch(() => {}) // Registration itself still works with empty lists.
+  }, [])
+
+  const refreshOptionsForEmail = () => {
+    const email = form.email?.trim()
+    if (!email || !EMAIL_RE.test(email)) return
+    api.get(`/auth/register-options?email=${encodeURIComponent(email)}`)
+      .then(setOptions)
+      .catch(() => {})
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -80,7 +102,9 @@ export default function Register() {
         enrollment_no: form.enrollment_no || null,
         employee_id: form.employee_id || null,
         designation: form.designation || null,
-        department_code: form.department_code || null,
+        department_code: isTechnician ? (form.department_code || null) : null,
+        programme_code: isAcademic ? (form.programme_code || null) : null,
+        academic_year: (role === 'student' && form.academic_year) ? Number(form.academic_year) : null,
         organization_name: isEnterprise ? form.organization_name : null,
       })
       toast.success(res?.detail || 'Account created. Check your email for the verification code.')
@@ -127,7 +151,8 @@ export default function Register() {
         </Field>
 
         <Field label="Email address" error={errors.email} required>
-          <Input type="email" value={form.email || ''} onChange={set('email')} placeholder="you@campus.edu" error={errors.email} />
+          <Input type="email" value={form.email || ''} onChange={set('email')} onBlur={refreshOptionsForEmail}
+                 placeholder="you@campus.edu" error={errors.email} />
         </Field>
 
         {extras.map((f) => (
@@ -139,14 +164,54 @@ export default function Register() {
           </Field>
         ))}
 
-        {/* Department is required for ALL roles - work orders and issues are
-            routed to the right department based on this assignment */}
-        <Field label="Department" hint="Work orders and issues will route to this department">
-          <Select value={form.department_code || ''} onChange={set('department_code')}>
-            <option value="">Select a department</option>
-            {DEPARTMENTS.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
-          </Select>
-        </Field>
+        {/* Academic programme — students and teachers. A course (Computer
+            Science, Data Science, Mass Media, Finance, ...), never the
+            maintenance org chart below. */}
+        {isAcademic && (
+          <Field label="Course / Department" hint="Your academic programme">
+            <Select value={form.programme_code || ''} onChange={set('programme_code')}>
+              <option value="">Select your course</option>
+              {options.programmes.map((p) => (
+                <option key={p.code} value={p.code}>{p.name}</option>
+              ))}
+            </Select>
+            {options.programmes.length === 0 && (
+              <p className="hint mt-1">
+                No courses are configured yet — you can add this later from your profile.
+              </p>
+            )}
+          </Field>
+        )}
+
+        {role === 'student' && (
+          <Field label="Academic year" hint="Which year of your course you're in">
+            <Select value={form.academic_year || ''} onChange={set('academic_year')}>
+              <option value="">Select a year</option>
+              {[1, 2, 3, 4, 5].map((y) => (
+                <option key={y} value={y}>Year {y}</option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {/* Operational department — technicians only. The team a
+            technician's work orders route through (Electrical & Maintenance,
+            AV & Media, ...), never an academic course. */}
+        {isTechnician && (
+          <Field label="Department" hint="Work orders and issues will route to this department">
+            <Select value={form.department_code || ''} onChange={set('department_code')}>
+              <option value="">Select a department</option>
+              {options.departments.map((d) => (
+                <option key={d.code} value={d.code}>{d.name}</option>
+              ))}
+            </Select>
+            {options.departments.length === 0 && (
+              <p className="hint mt-1">
+                No departments are configured yet — an administrator can assign one later.
+              </p>
+            )}
+          </Field>
+        )}
 
         <Field label="Phone" error={errors.phone}
                hint="Optional — used for urgent notifications">

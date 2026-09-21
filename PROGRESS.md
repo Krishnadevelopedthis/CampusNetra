@@ -1036,6 +1036,91 @@ shared `Logo`/`LogoMark` component, not separate hand-rolled versions.
 Whatever's producing a duplicated "Campus Netra" or a stray "1" wasn't
 visible from source; genuinely need a screenshot of it happening to find
 it, rather than guessing and touching working code.
+## Addendum 18 — items #10 and #11
+
+**#10 ID card OCR extraction — done, scoped.** Added `extract_id_number()`
+to `id_verification.py` (pulls a 7-digit number from OCR text, same
+format enforced everywhere else) and wired it into the change-name
+endpoint's response as `detected_id_number`. Didn't build course/class
+extraction — no real consumer for it anywhere in the app right now, and
+guessing at regex heuristics for fields nothing displays would be exactly
+the unused/placeholder functionality the spec says not to ship.
+
+**#11 profile picture persistence — investigated, no reproducible bug
+found, one real inconsistency fixed.** Traced the whole path: upload →
+`store_image(..., private=True)` → `PATCH /auth/me` (generic setattr +
+flush, confirmed it actually persists) → `UserOut` (confirmed
+`avatar_url` is included) → `mediaUrl()` on the frontend (confirmed
+correct URL construction) → `Avatar` component (confirmed the
+stuck-on-initials bug from Addendum 6 is still fixed). Structurally,
+this should already work. What I did find: `uploads.py`'s docstring
+claimed the serving route "requires the caller to be logged in," but the
+actual route has no auth check at all -- these said different things.
+Fixed the docstring to describe what's actually there, and flagged
+in-line that making it match the *original* intent (add real auth) would
+require switching every plain `<img src>` using it to an authenticated
+fetch first, same pattern as the admin ID-photo viewer already uses --
+not something to change blind without checking what else points at that
+route.
+
+Backend changes syntax-checked (`py_compile`); no test runner available
+in this sandbox to run the actual suite.
+
+## Addendum 19 — items #12-14: table density, settings audit, weekly report
+
+**#12 table density — already done** by concurrent work (`data-density`
+attribute + CSS, applied both live in Settings and on boot in App.jsx).
+Verified, not rebuilt.
+
+**#13 settings audit — mostly already real.** Checked each control against
+what it's supposed to do: notification channel toggles are genuinely
+enforced server-side (`services/templates.py`'s `wants()` — per-channel,
+per-event-type, with an always-deliver exception for urgent codes even
+if email is off); data export and delete-account both hit real,
+already-solid endpoints. Also confirmed #34 (remove AI Assistant from
+sidebar) is moot — no dead sidebar entry exists; it's already the real
+floating assistant widget a concurrent session built.
+
+**#14 weekly summary — built, one honest scope note.** New
+`services/weekly_report.py`: real 7-day query (issues reported/resolved,
+SLA breaches, Lost & Found reports and claims, scoped to the requester
+like `data_export.py` already is), `POST /auth/me/weekly-report` emails
+it, button added next to "Request a copy of your data" in Settings
+(there's no separate "Report page" anywhere in this app for the spec's
+assumed location, so it lives where the equivalent self-service export
+already does). **Scope trade-off, stated plainly**: this sends a rich
+HTML/text email, not a PDF attachment. `send_email()` has no attachment
+support at all right now — adding it means extending two provider
+integrations (Resend, Brevo) plus a new PDF-generation dependency,
+bigger than this round. Real, delivered content either way, including
+an honest zero-count week — not a stub.
+
+Backend syntax-checked; frontend `npm run build` clean.
+
+
+=======
+## Addendum 20 — items #15, #16, #22
+
+**#15 data export — already verified done** in Addendum 19's audit
+(real endpoint, scoped correctly, sends only to the account's own
+email). No further changes.
+
+**#16 delete account — real bug fixed.** The flow itself was already
+solid (creates a reviewed admin request, not instant deletion; withdraw
+while pending; states shown inline) but the confirmation step used raw
+browser `confirm()` and `prompt()` — exactly the pattern this whole spec
+explicitly says not to use, unstyled, not theme-aware, inconsistent
+across browsers. Replaced with a proper `Modal` (reused, not rebuilt):
+explains the consequence in real sentences instead of a `\n`-joined
+confirm() string, optional reason as a real textarea, Cancel / Send
+request actions matching the rest of the app.
+
+**#22 "Affected Thumb" field — doesn't exist.** Searched the whole
+codebase, frontend and backend, for anything matching that name or
+`affected_thumb`. Nothing. Whatever this referred to isn't in the
+current app; nothing to remove.
+
+`npm run build` verified clean.
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

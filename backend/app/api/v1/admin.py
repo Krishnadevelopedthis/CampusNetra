@@ -323,6 +323,67 @@ async def list_permissions(user: RequireManager, db: DB):
 
 
 # ---------------- Configuration ----------------
+class IssueCategoryCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    code: str = Field(min_length=1, max_length=20)
+    department_id: Optional[uuid.UUID] = None
+    default_priority: Priority = Priority.MEDIUM
+    keywords: list[str] = Field(default_factory=list)
+    sla_response_mins: int = Field(240, ge=1)
+    sla_resolve_mins: int = Field(1440, ge=1)
+
+    @field_validator("code")
+    @classmethod
+    def _normalise_code(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @field_validator("keywords")
+    @classmethod
+    def _clean_keywords(cls, value: list[str]) -> list[str]:
+        seen: set[str] = set()
+        cleaned: list[str] = []
+        for kw in value:
+            kw = (kw or "").strip().lower()
+            if kw and kw not in seen:
+                seen.add(kw)
+                cleaned.append(kw)
+        return cleaned
+
+
+@router.post("/issue-categories", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_issue_category(payload: IssueCategoryCreate, admin: RequireAdmin, db: DB, request: Request):
+    if payload.sla_response_mins > payload.sla_resolve_mins:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "Response time cannot exceed resolution time")
+
+    existing = await db.scalar(
+        select(IssueCategory).where(
+            IssueCategory.organization_id == admin.organization_id,
+            IssueCategory.code == payload.code,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"A category with code '{payload.code}' already exists")
+
+    category = IssueCategory(
+        organization_id=admin.organization_id,
+        name=payload.name, code=payload.code, department_id=payload.department_id,
+        default_priority=payload.default_priority, keywords=payload.keywords,
+        sla_response_mins=payload.sla_response_mins, sla_resolve_mins=payload.sla_resolve_mins,
+    )
+    db.add(category)
+    await db.flush()
+
+    await record_audit(
+        db, action="issue_category.create", actor_id=admin.id,
+        organization_id=admin.organization_id, entity_type="issue_category", entity_id=category.id,
+        after={"name": category.name, "code": category.code, "keywords": category.keywords},
+        ip_address=client_ip(request),
+    )
+    return {"id": str(category.id), "name": category.name, "code": category.code}
+
+
 @router.get("/issue-categories", response_model=list[dict])
 async def issue_config(user: RequireManager, db: DB):
     rows = (await db.execute(
