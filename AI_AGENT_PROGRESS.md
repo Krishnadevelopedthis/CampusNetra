@@ -322,3 +322,64 @@ end-to-end test against a real database, and manual verification against
 a real OpenRouter call. Add: no attempt made at per-question retrieval —
 the whole knowledge block goes into every agent call, which is the
 tradeoff `knowledge.py`'s docstring names explicitly.
+
+---
+
+## Session 4 — update_complaint, the authorization boundary resolved
+
+Session 2/3's notes both flagged the same open item: `update_complaint`
+needed its own answer to "which fields can a reporter vs. technician vs.
+admin change" before it was worth building, rather than guessed at. That
+question is now actually answered, from the real RBAC, not assumed:
+
+- Read `app/api/v1/issues.py`'s existing `/issues/{id}/transition` route
+  first: it's `RequireStaff`-only (`STAFF_ROLES` =
+  technician/facility_manager/admin/super_admin), and reporters have no
+  update path on their own complaint at all beyond upvoting someone
+  else's. That answers the boundary question exactly — there's no
+  partial reporter-editable-fields case to design for, because none
+  exists in the real app.
+- **`update_complaint`** (`app/ai/tools.py`) mirrors that boundary
+  exactly: `user.role not in STAFF_ROLES` raises a plain `ToolError`
+  before anything else runs, so a student's session reaching this tool
+  (nothing stops the model from trying — tool calls don't go through the
+  route's FastAPI dependency) gets refused the same way the HTTP route
+  would. Same confirm gate as the other two write tools. Reuses
+  `issue_service.transition_issue()` directly — same state-machine
+  validation the human staff UI hits, so an illegal transition (closed ->
+  reported) surfaces the *actual* "Cannot move from X to Y. Allowed: Z"
+  message, not a generic failure - `HTTPException` from that service call
+  is caught and re-raised as `ToolError(exc.detail)` specifically so that
+  detail isn't lost.
+- Extracted `_resolve_issue()` out of `get_complaint`'s inline reference-
+  or-id lookup so `update_complaint` doesn't duplicate it — same
+  org-scoped lookup, same 404-not-leak-existence behaviour, used by both.
+- `AGENT_SYSTEM` updated to mention update_complaint alongside the other
+  two write tools, including the two failure modes worth relaying
+  plainly rather than retrying differently (not staff; illegal
+  transition).
+
+### Tests
+
+8 new tests added to `test_ai_write_tools.py` (19 total there now):
+non-staff rejected without the transition service ever being called;
+confirm=false changes nothing; confirm=true actually transitions;
+invalid status string raises `ToolError` before touching the service; a
+real `HTTPException` from `transition_issue` (mocked to behave like an
+illegal transition) surfaces its specific message through `ToolError`,
+not a generic one; the same signature-based identity-can't-be-injected
+proof Sessions 1-3 already used, extended to this tool; confirm defaults
+to `False`; schema/registry consistency.
+
+Full suite: 43 passed (35 prior + 8 new). `compileall`: clean. `git diff
+--check`: clean. Three files touched (`tools.py`, `ai.py`, the existing
+test file) — nothing unrelated.
+
+### Still not done
+
+Same two items as every prior session: no live end-to-end test against a
+real database, no manual verification against a real OpenRouter call.
+That's now the complete remaining gap against the original write-tool
+list — nothing else from the spec's mutating-action set is still
+unimplemented; only real-environment verification remains, which needs
+infrastructure this sandbox doesn't have, not more code.

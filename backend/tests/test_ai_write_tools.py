@@ -206,3 +206,150 @@ async def test_create_lost_found_rejects_invalid_kind():
 
     with pytest.raises(ToolError):
         await create_lost_found(_FakeDB([]), _User(), kind="misplaced", title="A thing")
+
+
+# ---------------------------------------------------------------------------
+# update_complaint: RBAC boundary + confirm gate + legal-transition reuse
+# ---------------------------------------------------------------------------
+
+class _Issue:
+    def __init__(self, status):
+        self.id = uuid.uuid4()
+        self.reference = "CMP-1042"
+        self.status = status
+        self.organization_id = uuid.uuid4()
+
+
+def _staff_user(role="technician"):
+    u = _User()
+    u.role = role
+    return u
+
+
+def _student_user():
+    u = _User()
+    u.role = "student"
+    return u
+
+
+@pytest.mark.asyncio
+async def test_update_complaint_rejects_non_staff_without_touching_anything(monkeypatch):
+    from app.core.enums import IssueStatus
+    from app.ai.tools import ToolError, update_complaint
+
+    db = _FakeDB([])
+    db.scalar = AsyncMock(return_value=_Issue(IssueStatus.REPORTED))
+    transition_issue = AsyncMock()
+    monkeypatch.setattr("app.services.issues.transition_issue", transition_issue)
+
+    with pytest.raises(ToolError, match="staff"):
+        await update_complaint(
+            db, _student_user(), reference_or_id="CMP-1042",
+            status="assigned", confirm=True,
+        )
+    transition_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_complaint_without_confirm_returns_pending_and_changes_nothing(monkeypatch):
+    from app.core.enums import IssueStatus
+    from app.ai.tools import update_complaint
+
+    db = _FakeDB([])
+    db.scalar = AsyncMock(return_value=_Issue(IssueStatus.REPORTED))
+    transition_issue = AsyncMock()
+    monkeypatch.setattr("app.services.issues.transition_issue", transition_issue)
+
+    result = await update_complaint(
+        db, _staff_user(), reference_or_id="CMP-1042",
+        status="assigned", confirm=False,
+    )
+
+    assert result["ok"] is True
+    assert result["pending"] is True
+    assert result["summary"]["from_status"] == "reported"
+    assert result["summary"]["to_status"] == "assigned"
+    transition_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_update_complaint_with_confirm_true_actually_transitions(monkeypatch):
+    from app.core.enums import IssueStatus
+    from app.ai.tools import update_complaint
+
+    db = _FakeDB([])
+    db.scalar = AsyncMock(return_value=_Issue(IssueStatus.REPORTED))
+    transition_issue = AsyncMock()
+    monkeypatch.setattr("app.services.issues.transition_issue", transition_issue)
+
+    result = await update_complaint(
+        db, _staff_user(), reference_or_id="CMP-1042",
+        status="assigned", confirm=True,
+    )
+
+    assert result["ok"] is True
+    assert result["updated"] is True
+    assert result["new_status"] == "assigned"
+    transition_issue.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_update_complaint_rejects_invalid_status_string():
+    from app.core.enums import IssueStatus
+    from app.ai.tools import ToolError, update_complaint
+
+    db = _FakeDB([])
+    db.scalar = AsyncMock(return_value=_Issue(IssueStatus.REPORTED))
+
+    with pytest.raises(ToolError, match="isn't a valid status"):
+        await update_complaint(
+            db, _staff_user(), reference_or_id="CMP-1042",
+            status="halfway_done", confirm=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_update_complaint_surfaces_the_real_transition_service_error(monkeypatch):
+    """An illegal transition (e.g. closed -> reported) is rejected by the
+    same transition_issue() the human staff UI uses — this proves that
+    specific, useful message reaches the model instead of being swallowed
+    into a generic failure string."""
+    from fastapi import HTTPException, status as http_status
+
+    from app.core.enums import IssueStatus
+    from app.ai.tools import ToolError, update_complaint
+
+    db = _FakeDB([])
+    db.scalar = AsyncMock(return_value=_Issue(IssueStatus.CLOSED))
+    transition_issue = AsyncMock(
+        side_effect=HTTPException(http_status.HTTP_409_CONFLICT, "Cannot move from closed to reported."))
+    monkeypatch.setattr("app.services.issues.transition_issue", transition_issue)
+
+    with pytest.raises(ToolError, match="Cannot move from closed to reported"):
+        await update_complaint(
+            db, _staff_user(), reference_or_id="CMP-1042",
+            status="reported", confirm=True,
+        )
+
+
+def test_update_complaint_cannot_accept_an_identity_from_the_caller():
+    from app.ai.tools import update_complaint
+
+    params = set(inspect.signature(update_complaint).parameters)
+    assert "user_id" not in params
+    assert "organization_id" not in params
+    assert "role" not in params
+
+
+def test_update_complaint_confirm_defaults_to_false():
+    from app.ai.tools import update_complaint
+
+    assert inspect.signature(update_complaint).parameters["confirm"].default is False
+
+
+def test_update_complaint_is_registered_and_schema_matches():
+    from app.ai.tools import update_complaint
+
+    assert TOOLS["update_complaint"] is update_complaint
+    schema_names = {s["function"]["name"] for s in TOOL_SCHEMAS}
+    assert "update_complaint" in schema_names
