@@ -18,7 +18,7 @@ from app.core.security import (
     create_captcha_token, generate_captcha_text, hash_password, verify_captcha_token,
     verify_password,
 )
-from app.models.identity import NameChangeRequest, User
+from app.models.identity import AcademicProgramme, Department, NameChangeRequest, User
 from app.schemas.auth import (
     AuthResponse, CaptchaOut, ChangeEmailRequest, ChangePasswordRequest, ChangePhoneRequest,
     ForgotPasswordRequest, LoginRequest, NameChangeRequestOut, RefreshRequest, RegisterRequest,
@@ -56,6 +56,46 @@ async def get_captcha():
     png = render_captcha_png(text)
     image = "data:image/png;base64," + base64.b64encode(png).decode("ascii")
     return CaptchaOut(captcha_token=token, image=image)
+
+
+@router.get("/register-options", response_model=dict)
+async def register_options(db: DB, email: Optional[str] = None):
+    """Department (technician/facility staff) and academic programme
+    (student/teacher) picklists for the registration form — two
+    deliberately separate lists (see AcademicProgramme's own docstring: a
+    degree course must never be selectable as the maintenance team
+    responsible for a broken tap).
+
+    Public — registration itself happens before there's anything to
+    authenticate with. `email` is optional and, when given, resolves the
+    same campus register() itself would (matching an organization's
+    configured email domain); without it, or if that resolution is
+    ambiguous/unconfigured, this returns empty lists rather than an error
+    so the registration page still renders — actual enforcement happens at
+    submit time either way.
+    """
+    org_id, _rejection = await auth_service.resolve_organization(db, email or "")
+    if org_id is None:
+        return {"departments": [], "programmes": []}
+
+    departments = (await db.scalars(
+        select(Department).where(
+            Department.organization_id == org_id, Department.is_active.is_(True),
+        ).order_by(Department.name)
+    )).all()
+
+    programmes = (await db.scalars(
+        select(AcademicProgramme).where(
+            AcademicProgramme.organization_id == org_id, AcademicProgramme.is_active.is_(True),
+        ).order_by(AcademicProgramme.name)
+    )).all()
+
+    return {
+        "departments": [{"code": d.code, "name": d.name} for d in departments],
+        "programmes": [
+            {"code": p.code, "name": p.name, "level": p.level} for p in programmes
+        ],
+    }
 
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
@@ -383,7 +423,7 @@ async def request_name_change(
     otherwise it's queued for an administrator to look at.
     """
     from app.services.id_verification import (
-        OcrUnavailable, contains_identifier, extract_text, match_name,
+        OcrUnavailable, contains_identifier, extract_id_number, extract_text, match_name,
     )
     from app.services.storage import StoredImage, UploadError, store_image
     from app.schemas.auth import validate_full_name
@@ -419,6 +459,7 @@ async def request_name_change(
     ocr_excerpt: Optional[str] = None
     score: Optional[float] = None
     id_on_document = False
+    detected_id_number: Optional[str] = None
     # The number the account already carries. Without it on the card there is
     # nothing connecting the document to the person asking, so an account that
     # has none can never be decided automatically.
@@ -428,6 +469,7 @@ async def request_name_change(
         result = match_name(new_full_name, ocr_text)
         score, ocr_excerpt = result.score, result.ocr_excerpt
         id_on_document = contains_identifier(ocr_text, account_id)
+        detected_id_number = extract_id_number(ocr_text)
     except OcrUnavailable:
         # No Tesseract on this server — fall through with score=None, which
         # always queues for manual review rather than auto-deciding blind.
@@ -463,7 +505,7 @@ async def request_name_change(
             ip_address=client_ip(request), before={"full_name": old_name},
             after={"full_name": new_full_name},
         )
-        return {"status": "auto_approved", "full_name": user.full_name, "match_score": score}
+        return {"status": "auto_approved", "full_name": user.full_name, "match_score": score, "detected_id_number": detected_id_number}
 
     db.add(row)
     await db.flush()
@@ -496,7 +538,7 @@ async def request_name_change(
     else:
         detail = "Your ID could not be confidently matched, so an administrator will review it."
 
-    return {"status": "pending", "detail": detail, "match_score": score}
+    return {"status": "pending", "detail": detail, "match_score": score, "detected_id_number": detected_id_number}
 
 
 @router.get("/me/name-change-request", response_model=Optional[NameChangeRequestOut])
@@ -509,6 +551,45 @@ async def my_name_change_request(user: CurrentUser, db: DB):
     if row is None:
         return None
     return NameChangeRequestOut.model_validate(row, from_attributes=True)
+
+
+@router.post("/me/weekly-report", response_model=Message)
+async def email_weekly_report(user: CurrentUser, db: DB):
+    """Email the requester their own last-7-days activity summary.
+
+    Same reasoning as the data export just above: sent only to the
+    address already on the account, never a destination the caller
+    supplies.
+    """
+    from app.services.weekly_report import collect, render
+    from app.services.email import send_email
+
+    if not settings.email_delivers:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Email is not configured on this server, so the report cannot be sent. "
+            "Contact your administrator.",
+        )
+
+    summary = await collect(db, user)
+    text, html = render(summary)
+    result = await send_email(
+        user.email,
+        subject="Your CampusNetra weekly summary",
+        text=text,
+        html=html,
+    )
+    if not result.delivered:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The summary was prepared but could not be emailed. Please try again shortly.",
+        )
+
+    total = (
+        len(summary.issues_reported) + len(summary.issues_resolved)
+        + len(summary.lf_reported) + len(summary.lf_claims)
+    )
+    return Message(detail=f"Sent to {user.email} — {total} item(s) from the last 7 days.")
 
 
 @router.post("/me/export", response_model=Message)

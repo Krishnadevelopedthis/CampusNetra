@@ -16,7 +16,9 @@ from app.core.security import (
     create_access_token, create_refresh_token, decode_token, generate_opaque_token,
     generate_otp, hash_password, sha256, verify_password, REFRESH_TOKEN,
 )
-from app.models.identity import Department, Organization, RefreshToken, User, VerificationCode
+from app.models.identity import (
+    AcademicProgramme, Department, Organization, RefreshToken, User, VerificationCode,
+)
 from app.schemas.auth import RegisterRequest, TokenPair
 from app.services.audit import record_login
 from app.services.email import send_otp
@@ -222,12 +224,28 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
             f"The {role.value} role must be provisioned by an administrator",
         )
 
+    # Operational department — technicians/facility staff only. A student or
+    # teacher submitting department_code is ignored here rather than
+    # rejected outright: the frontend shouldn't offer this field for those
+    # roles at all, but a stale client is a reason to no-op, not to fail
+    # the whole registration.
     department_id = None
-    if payload.department_code and org_id:
+    if payload.department_code and org_id and role in (UserRole.TECHNICIAN, UserRole.FACILITY_MANAGER):
         department_id = await db.scalar(
             select(Department.id).where(
                 Department.organization_id == org_id,
                 Department.code == payload.department_code,
+            )
+        )
+
+    # Academic programme — students/teachers only, and a distinct table from
+    # Department above (see AcademicProgramme's docstring).
+    programme_id = None
+    if payload.programme_code and org_id and role in (UserRole.STUDENT, UserRole.TEACHER):
+        programme_id = await db.scalar(
+            select(AcademicProgramme.id).where(
+                AcademicProgramme.organization_id == org_id,
+                AcademicProgramme.code == payload.programme_code,
             )
         )
 
@@ -239,6 +257,8 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
         phone=payload.phone,
         organization_id=org_id,
         department_id=department_id,
+        programme_id=programme_id,
+        academic_year=payload.academic_year if role == UserRole.STUDENT else None,
         enrollment_no=payload.enrollment_no,
         employee_id=payload.employee_id,
         designation=payload.designation,

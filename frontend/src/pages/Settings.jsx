@@ -21,7 +21,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import { ColorThemeSwitcher } from '@/components/ColorThemeSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { Button, Field, Input, Select, Widget, toast } from '@/components/ui'
+import { Button, Field, Input, Modal, Select, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useColorTheme } from '@/lib/colorTheme'
@@ -123,6 +123,15 @@ export default function Settings() {
     onError: (err) => toast.error(err.detail || 'Could not prepare your data export.'),
   })
 
+  const weeklyReport = useMutation({
+    mutationFn: () => api.post('/auth/me/weekly-report'),
+    onSuccess: (d) => toast.success(d.detail),
+    onError: (err) => toast.error(err.detail || 'Could not prepare your weekly summary.'),
+  })
+
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteReason, setDeleteReason] = useState('')
+
   const deletion = useQuery({
     queryKey: ['my-deletion-request'],
     queryFn: () => api.get('/auth/me/delete-request'),
@@ -131,7 +140,7 @@ export default function Settings() {
 
   const requestDeletion = useMutation({
     mutationFn: (reason) => api.post('/auth/me/delete-request', { reason }),
-    onSuccess: (d) => { toast.success(d.detail); deletion.refetch() },
+    onSuccess: (d) => { toast.success(d.detail); deletion.refetch(); setDeleteModalOpen(false); setDeleteReason('') },
     onError: (err) => toast.error(err.detail || 'Could not send your request.'),
   })
 
@@ -336,6 +345,20 @@ export default function Settings() {
             </Button>
           </Row>
           <Row
+            icon={Mail}
+            title="Weekly activity summary"
+            desc="Issues, resolutions, SLA breaches and Lost & Found activity from the last 7 days."
+            compact
+          >
+            <Button
+              size="sm" variant="secondary"
+              loading={weeklyReport.isPending}
+              onClick={() => weeklyReport.mutate()}
+            >
+              Email it to me
+            </Button>
+          </Row>
+          <Row
             icon={Trash2}
             title="Delete my account"
             desc="Reports you filed stay on the record; your name is removed from them."
@@ -349,17 +372,7 @@ export default function Settings() {
             ) : (
               <Button
                 size="sm" variant="secondary" className="text-danger-text"
-                loading={requestDeletion.isPending}
-                onClick={() => {
-                  if (!confirm(
-                    'Ask an administrator to remove your account?\n\n'
-                    + 'It is reviewed first. If approved, your name and contact details '
-                    + 'are removed and you can no longer sign in — the reports you filed '
-                    + 'stay on the campus record without your name.',
-                  )) return
-                  const reason = prompt('Anything the administrator should know? (optional)')
-                  requestDeletion.mutate(reason || null)
-                }}
+                onClick={() => setDeleteModalOpen(true)}
               >
                 Request
               </Button>
@@ -383,6 +396,44 @@ export default function Settings() {
           )}
         </div>
       </Widget>
+
+      <Modal
+        open={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        title="Delete my account"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
+            <Button
+              variant="secondary" className="text-danger-text"
+              loading={requestDeletion.isPending}
+              onClick={() => requestDeletion.mutate(deleteReason.trim() || null)}
+            >
+              Send request to an administrator
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-body-md text-ink">
+            This sends a request to your campus administrator, not an
+            immediate deletion. If they approve it:
+          </p>
+          <ul className="text-body-md text-ink-muted list-disc pl-5 space-y-1">
+            <li>Your name and contact details are removed from your account.</li>
+            <li>You will no longer be able to sign in.</li>
+            <li>Reports and work orders you filed stay on the campus record, without your name attached.</li>
+          </ul>
+          <Field label="Anything the administrator should know? (optional)">
+            <textarea
+              className="input min-h-20"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Optional context for the reviewer"
+            />
+          </Field>
+        </div>
+      </Modal>
 
       <p className="text-body-sm text-ink-faint text-center pb-2 flex items-center justify-center gap-1.5">
         <Sparkles size={13} /> Campus Netra · Precision Intelligence
