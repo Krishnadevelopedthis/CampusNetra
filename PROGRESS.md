@@ -1097,6 +1097,30 @@ an honest zero-count week — not a stub.
 
 Backend syntax-checked; frontend `npm run build` clean.
 
+
+=======
+## Addendum 20 — items #15, #16, #22
+
+**#15 data export — already verified done** in Addendum 19's audit
+(real endpoint, scoped correctly, sends only to the account's own
+email). No further changes.
+
+**#16 delete account — real bug fixed.** The flow itself was already
+solid (creates a reviewed admin request, not instant deletion; withdraw
+while pending; states shown inline) but the confirmation step used raw
+browser `confirm()` and `prompt()` — exactly the pattern this whole spec
+explicitly says not to use, unstyled, not theme-aware, inconsistent
+across browsers. Replaced with a proper `Modal` (reused, not rebuilt):
+explains the consequence in real sentences instead of a `\n`-joined
+confirm() string, optional reason as a real textarea, Cancel / Send
+request actions matching the rest of the app.
+
+**#22 "Affected Thumb" field — doesn't exist.** Searched the whole
+codebase, frontend and backend, for anything matching that name or
+`affected_thumb`. Nothing. Whatever this referred to isn't in the
+current app; nothing to remove.
+
+`npm run build` verified clean.
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
