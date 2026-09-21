@@ -513,6 +513,45 @@ async def my_name_change_request(user: CurrentUser, db: DB):
     return NameChangeRequestOut.model_validate(row, from_attributes=True)
 
 
+@router.post("/me/weekly-report", response_model=Message)
+async def email_weekly_report(user: CurrentUser, db: DB):
+    """Email the requester their own last-7-days activity summary.
+
+    Same reasoning as the data export just above: sent only to the
+    address already on the account, never a destination the caller
+    supplies.
+    """
+    from app.services.weekly_report import collect, render
+    from app.services.email import send_email
+
+    if not settings.email_delivers:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Email is not configured on this server, so the report cannot be sent. "
+            "Contact your administrator.",
+        )
+
+    summary = await collect(db, user)
+    text, html = render(summary)
+    result = await send_email(
+        user.email,
+        subject="Your CampusNetra weekly summary",
+        text=text,
+        html=html,
+    )
+    if not result.delivered:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "The summary was prepared but could not be emailed. Please try again shortly.",
+        )
+
+    total = (
+        len(summary.issues_reported) + len(summary.issues_resolved)
+        + len(summary.lf_reported) + len(summary.lf_claims)
+    )
+    return Message(detail=f"Sent to {user.email} — {total} item(s) from the last 7 days.")
+
+
 @router.post("/me/export", response_model=Message)
 async def export_my_data(user: CurrentUser, db: DB):
     """Email the requester a copy of everything held about them.
