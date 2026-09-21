@@ -1036,6 +1036,36 @@ shared `Logo`/`LogoMark` component, not separate hand-rolled versions.
 Whatever's producing a duplicated "Campus Netra" or a stray "1" wasn't
 visible from source; genuinely need a screenshot of it happening to find
 it, rather than guessing and touching working code.
+## Addendum 18 — items #10 and #11
+
+**#10 ID card OCR extraction — done, scoped.** Added `extract_id_number()`
+to `id_verification.py` (pulls a 7-digit number from OCR text, same
+format enforced everywhere else) and wired it into the change-name
+endpoint's response as `detected_id_number`. Didn't build course/class
+extraction — no real consumer for it anywhere in the app right now, and
+guessing at regex heuristics for fields nothing displays would be exactly
+the unused/placeholder functionality the spec says not to ship.
+
+**#11 profile picture persistence — investigated, no reproducible bug
+found, one real inconsistency fixed.** Traced the whole path: upload →
+`store_image(..., private=True)` → `PATCH /auth/me` (generic setattr +
+flush, confirmed it actually persists) → `UserOut` (confirmed
+`avatar_url` is included) → `mediaUrl()` on the frontend (confirmed
+correct URL construction) → `Avatar` component (confirmed the
+stuck-on-initials bug from Addendum 6 is still fixed). Structurally,
+this should already work. What I did find: `uploads.py`'s docstring
+claimed the serving route "requires the caller to be logged in," but the
+actual route has no auth check at all -- these said different things.
+Fixed the docstring to describe what's actually there, and flagged
+in-line that making it match the *original* intent (add real auth) would
+require switching every plain `<img src>` using it to an authenticated
+fetch first, same pattern as the admin ID-photo viewer already uses --
+not something to change blind without checking what else points at that
+route.
+
+Backend changes syntax-checked (`py_compile`); no test runner available
+in this sandbox to run the actual suite.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

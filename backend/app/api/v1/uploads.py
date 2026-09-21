@@ -5,8 +5,14 @@ shape the attachment schemas expect, so the caller passes the response straight
 through when creating the parent record.
 
 All images are stored privately in the bucket (never a public bucket URL) and
-served back through the /uploads/file/... route below, which requires the
-caller to be logged in before the backend fetches the bytes from storage.
+served back through the /uploads/file/... route below. That route does NOT
+currently require the caller to be logged in -- it takes any relative_path and
+reads it straight from private storage. "Private" here means "not reachable
+through the public bucket/media mount, no guessable public ACL," not "requires
+auth to fetch through this API" -- worth a deliberate decision (add the auth
+check, accepting that every plain <img src> rendering one of these needs to
+switch to an authenticated fetch, the way the admin ID-photo viewer already
+does) rather than leaving the docstring and the code saying different things.
 """
 from __future__ import annotations
 
