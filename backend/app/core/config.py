@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     API_V1_PREFIX: str = "/api/v1"
     BACKEND_CORS_ORIGINS: Any = []
+    # Already used verbatim on the public Support marketing page — centralised
+    # here rather than hardcoded a second time (the AI Agent's "I don't have
+    # enough verified information" fallback points here too), so the two
+    # can't drift apart if this is ever changed.
+    SUPPORT_EMAIL: str = "support@campusnetra.dpdns.org"
 
     # Database
     DATABASE_URL: str = ""

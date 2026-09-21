@@ -259,3 +259,66 @@ reuse their GET handlers — no duplicated creation logic).
    the fake-DB tests in `test_ai_write_tools.py` should be either
    replaced or supplemented with real-DB versions that exercise
    `_resolve_room`'s actual SQL, not just its branching.
+
+---
+
+## Session 3 — the Knowledge Map (Phase 2), actually built this time
+
+Session 2's notes said the Knowledge Map "still whatever Session 1 left
+it at — not touched." That was true, and it was the one genuinely
+missing piece the original spec treated as central. Built it properly
+this session, derived from the real implementation, not a generic
+description of what a campus app "probably" does:
+
+- **`app/ai/knowledge.py`**: `KNOWLEDGE_MAP`, a structured dict — one
+  entry per feature area (complaints, lost_found, campus_structure,
+  digital_twin, notifications, dashboards, profile_and_account, roles) —
+  each with what/who/where/required fields/workflow/common problems,
+  filled in from the actual enums and service code, not assumed:
+  `IssueStatus`'s real 10 values, `LFStatus`'s real 7, SLA as a genuine
+  per-category `sla_resolve_mins` deadline (not a made-up "24 hours"),
+  the Lost & Found match-notify threshold (0.80, read directly out of
+  `matching.py`), the real six `UserRole` values and what each can
+  actually do.
+- **`render_knowledge()`**: renders that structured map into one text
+  block (~1,400 tokens) injected into `AGENT_SYSTEM`. Deliberately not a
+  retrieval step (embeddings/vector search) — at CampusNetra's actual
+  feature-surface size, summarised, that would be more infrastructure
+  than the problem needs; the module's own docstring says so, so this
+  isn't a corner cut silently, it's a stated tradeoff to revisit only if
+  the product's surface grows enough to justify it.
+- **`SUPPORT_EMAIL`** added to `Settings` (`config.py`) —
+  `support@campusnetra.dpdns.org`, which already existed hardcoded on the
+  public marketing Support page (`frontend/src/pages/marketing/Support.jsx`);
+  centralised rather than a second hardcoded copy invented for this,
+  per the spec's own instruction not to make up a support address.
+- `AGENT_SYSTEM` (`app/api/v1/ai.py`): replaced the old four-sentence "how
+  CampusNetra works" summary with the full rendered knowledge map, and
+  added the Phase 16 fallback instruction — an unanswerable-and-
+  unverifiable CampusNetra question gets "I don't have enough verified
+  information" plus the support email, not a guess.
+- **`backend/tests/test_ai_knowledge.py`** — 14 new tests: the renderer
+  doesn't crash and produces real content; no stray malformed bullets
+  (a regression test for a real bug caught and fixed while writing this —
+  the `roles` section has a different shape than every other section, and
+  the first draft of the renderer produced an empty trailing bullet for
+  it before that was handled explicitly); coverage of every major feature
+  term; every real `UserRole` enum value appears in the rendered text
+  (checked against the enum itself, not hardcoded expectations); the
+  support fallback uses the configured setting, not a literal string;
+  every non-`roles` section actually has a `what` key; and — the one that
+  actually matters for whether this is doing anything — `AGENT_SYSTEM`
+  provably contains the rendered knowledge map and the fallback
+  instruction, not just that the standalone module works in isolation.
+
+Full suite after this: 35 passed (21 prior + 14 new). `compileall`: clean.
+`git status`: four files touched (`knowledge.py`, its test file, `ai.py`,
+`config.py`) — nothing unrelated.
+
+### Still not done
+
+Same three items Session 2 listed, unchanged: `update_complaint`, a live
+end-to-end test against a real database, and manual verification against
+a real OpenRouter call. Add: no attempt made at per-question retrieval —
+the whole knowledge block goes into every agent call, which is the
+tradeoff `knowledge.py`'s docstring names explicitly.
