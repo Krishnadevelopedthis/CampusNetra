@@ -1,12 +1,147 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Save } from 'lucide-react'
+import { Plus, Save } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, ErrorState, Input, PriorityPill, Spinner, Widget, toast } from '@/components/ui'
+import { Button, ErrorState, Input, Modal, PriorityPill, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical']
+
+const CREATE_DEFAULTS = {
+  name: '', code: '', department_id: '', default_priority: 'medium',
+  sla_response_mins: 240, sla_resolve_mins: 1440, keywordsText: '',
+}
+
+function CreateCategoryModal({ open, onClose }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState(CREATE_DEFAULTS)
+
+  // Only fetched once the modal is actually open — no point loading the
+  // department list on every visit to this page just in case someone
+  // clicks "Add Category".
+  const { data: departments } = useQuery({
+    queryKey: ['departments-for-category-form'],
+    queryFn: () => api.get('/admin/departments'),
+    enabled: open,
+  })
+
+  const create = useMutation({
+    mutationFn: (body) => api.post('/admin/issue-categories', body),
+    onSuccess: () => {
+      toast.success('Category created')
+      qc.invalidateQueries({ queryKey: ['issue-config'] })
+      setForm(CREATE_DEFAULTS)
+      onClose()
+    },
+    onError: (err) => toast.error(err.detail || 'Could not create category'),
+  })
+
+  const submit = (e) => {
+    e.preventDefault()
+    create.mutate({
+      name: form.name.trim(),
+      code: form.code.trim(),
+      department_id: form.department_id || null,
+      default_priority: form.default_priority,
+      sla_response_mins: Number(form.sla_response_mins) || 240,
+      sla_resolve_mins: Number(form.sla_resolve_mins) || 1440,
+      keywords: form.keywordsText.split(',').map((k) => k.trim()).filter(Boolean),
+    })
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => { setForm(CREATE_DEFAULTS); onClose() }}
+      title="New Issue Category"
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} loading={create.isPending} disabled={!form.name.trim() || !form.code.trim()}>
+            Create
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1 block">
+            <span className="text-body-sm text-ink-muted">Name</span>
+            <Input
+              value={form.name} placeholder="e.g. Audio Visual" required
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="text-body-sm text-ink-muted">Code</span>
+            <Input
+              value={form.code} placeholder="e.g. AV" required
+              onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
+            />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1 block">
+            <span className="text-body-sm text-ink-muted">Routes to department</span>
+            <select
+              className="input"
+              value={form.department_id}
+              onChange={(e) => setForm((f) => ({ ...f, department_id: e.target.value }))}
+            >
+              <option value="">— None —</option>
+              {(departments || []).map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1 block">
+            <span className="text-body-sm text-ink-muted">Default priority</span>
+            <select
+              className="input capitalize"
+              value={form.default_priority}
+              onChange={(e) => setForm((f) => ({ ...f, default_priority: e.target.value }))}
+            >
+              {PRIORITY_OPTIONS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="space-y-1 block">
+            <span className="text-body-sm text-ink-muted">SLA respond (minutes)</span>
+            <Input
+              type="number" min="1" value={form.sla_response_mins}
+              onChange={(e) => setForm((f) => ({ ...f, sla_response_mins: e.target.value }))}
+            />
+          </label>
+          <label className="space-y-1 block">
+            <span className="text-body-sm text-ink-muted">SLA resolve (minutes)</span>
+            <Input
+              type="number" min="1" value={form.sla_resolve_mins}
+              onChange={(e) => setForm((f) => ({ ...f, sla_resolve_mins: e.target.value }))}
+            />
+          </label>
+        </div>
+
+        <label className="space-y-1 block">
+          <span className="text-body-sm text-ink-muted">Keywords (comma-separated)</span>
+          <textarea
+            className="input min-h-[72px] w-full"
+            placeholder="e.g. smartboard, digital board, interactive panel"
+            value={form.keywordsText}
+            onChange={(e) => setForm((f) => ({ ...f, keywordsText: e.target.value }))}
+          />
+          <span className="text-body-sm text-ink-faint">
+            Illustrative examples only — the AI classifies by meaning, not literal keyword match.
+          </span>
+        </label>
+      </form>
+    </Modal>
+  )
+}
 
 /* ---------------- Issue categories & AI routing rules ---------------- */
 export function AdminIssueConfig() {
@@ -16,6 +151,7 @@ export function AdminIssueConfig() {
   // fight the user; it's only split/cleaned when actually saved.
   const [edits, setEdits] = useState({})
   const [expanded, setExpanded] = useState({})
+  const [createOpen, setCreateOpen] = useState(false)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['issue-config'],
@@ -39,8 +175,11 @@ export function AdminIssueConfig() {
     <Widget
       title="Issue Categories"
       subtitle="Keywords drive the fallback classifier and are also given to the AI model as hints — a generic or colliding keyword (e.g. 'board' matching both furniture and a smartboard) can misroute either path, so they're editable here without a deploy."
+      action={<Button size="sm" icon={Plus} onClick={() => setCreateOpen(true)}>Add Category</Button>}
       bodyClass="p-0"
     >
+      <CreateCategoryModal open={createOpen} onClose={() => setCreateOpen(false)} />
+
       <div className="table-wrap">
         <table className="table">
           <thead>
