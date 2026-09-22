@@ -450,3 +450,68 @@ endpoint against a real database, and a real OpenRouter call producing
 the confirm sequence in practice. Everything else nameable from the
 original spec's test list that doesn't require that infrastructure has
 now been written.
+
+---
+
+## Session 6 — Phase 19 telemetry: tool-level success, not just call-level
+
+Every prior session's tests proved a *tool's* failure never gets reported
+as success to the *user*. This session found and fixed the adjacent gap:
+a tool's failure wasn't reaching *telemetry* either — `run_tool` computes
+`ok: true/false` for every call, but `client.py`'s tool loop only ever
+kept the bare tool name (`tool_calls_made.append(name)`), discarding that
+result before it reached `AIInvocation`. An AI reply that read "I
+couldn't create that complaint" would still log as a fully successful
+invocation with no trace that `create_complaint` itself had failed
+inside it.
+
+- **`app/ai/client.py`**: `tool_calls_made` now holds
+  `{"name": ..., "ok": ...}` per call instead of a bare string.
+- **`AIInvocation` model** (`app/models/platform.py`): new `tools` JSONB
+  column — the same list, logged per invocation. Migration
+  `015_ai_invocation_tools.sql` (nullable, non-breaking, same pattern as
+  013/014's own ALTER TABLE ADD COLUMN — **not yet applied to any live
+  database**, same as every migration this project's sessions have
+  added; whoever deploys this needs to run it, same manual step 013/014
+  needed).
+- **`app/api/v1/ai.py`**: reordered so `tools_called` is extracted
+  *before* the `AIInvocation` row is built, not after — it was
+  previously read from `result.data` only once the reply was already
+  being returned, by which point the log entry had already been written
+  without it.
+- Checked whether any admin endpoint or frontend already reads
+  `tools_called`/`AIInvocation.tools` before changing its shape from
+  `list[str]` to `list[dict]` — nothing does yet (grepped both
+  `AssistantWidget` and every backend route for it), so this was free to
+  change without a compatibility concern.
+
+### Tests
+
+**`backend/tests/test_ai_client.py`**, 4 new — the first tests to
+exercise `call_agent`'s actual tool loop against mocked OpenAI-SDK-shaped
+response objects (`SimpleNamespace`s matching the exact attributes
+`client.py` reads), rather than testing around it:
+- a successful tool call tracks `{"name": ..., "ok": true}`
+- **the actual regression this session fixes**: a tool that fails inside
+  an otherwise-coherent AI reply tracks `{"ok": false}` for that specific
+  call — proven directly, not inferred
+- two tool calls in one turn are tracked independently (one can succeed
+  while the other fails, and both show correctly)
+- a plain informational question with no tool call at all produces an
+  empty list, not an error, and never calls the tool function
+
+Full suite: 60 passed (56 prior + 4 new). `compileall`: clean. Five files
+touched (`client.py`, `ai.py`, `platform.py`, the new test file, the new
+migration) — nothing unrelated.
+
+### Still not done
+
+Same boundary as every prior session — no live database, no live
+OpenRouter call — plus one new, concrete item this session's own work
+created: **migration 015 needs to actually be run** against whichever
+database this deploys to, the same manual step 013 and 014 needed and
+got in earlier rounds of this same conversation (013 was confirmed
+applied; 014 was reported missing and then fixed). Nothing else from the
+original spec's 32 phases is still nameable as unaddressed at the code
+level — what's left everywhere is verification against real
+infrastructure, not more design or implementation.

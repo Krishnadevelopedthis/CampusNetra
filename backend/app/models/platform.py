@@ -77,6 +77,13 @@ class AIInvocation(TimestampMixin, Base):
     # True when the deterministic fallback ran because the LLM was unreachable.
     used_fallback: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     error: Mapped[Optional[str]] = mapped_column(Text)
+    # [{"name": "create_complaint", "ok": true}, ...] — which tools the AI
+    # Agent called during this invocation, and whether each one actually
+    # succeeded. Distinct from `succeeded` above: the AI call as a whole can
+    # succeed (a coherent reply came back) while a tool it called inside
+    # that reply failed, and that distinction was previously computed and
+    # then discarded before ever reaching this table.
+    tools: Mapped[Optional[list]] = mapped_column(JSONB)
 
 
 class AIFeedback(TimestampMixin, Base):

@@ -306,7 +306,7 @@ async def call_agent(
     convo: list[dict[str, Any]] = [{"role": "system", "content": system}, *messages]
     total_input = 0
     total_output = 0
-    tool_calls_made: list[str] = []
+    tool_calls_made: list[dict] = []
 
     try:
         for _hop in range(max_tool_hops):
@@ -373,7 +373,14 @@ async def call_agent(
                     args = {}
 
                 result = await run_tool(name, args)
-                tool_calls_made.append(name)
+                # Previously just the bare name — the *success* of the tool
+                # call itself was computed right here (run_tool's own "ok"
+                # field) and then discarded before it ever reached the
+                # invocation log, so telemetry could show the AI call as a
+                # whole succeeding while a create_complaint inside it
+                # silently failed. Kept alongside the name now, all the way
+                # out to AIInvocation.
+                tool_calls_made.append({"name": name, "ok": bool(result.get("ok"))})
 
                 convo.append({
                     "role": "tool",
