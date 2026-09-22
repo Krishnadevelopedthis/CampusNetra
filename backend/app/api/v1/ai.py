@@ -201,17 +201,22 @@ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
             max_tokens=700,
         )
 
+        # Extracted before building the invocation row below, not after —
+        # tools were previously read from result.data only once the reply
+        # was already being returned, by which point the invocation log
+        # entry above had already been written without them.
+        tools_called = (result.data or {}).get("tool_calls", [])
+
         db.add(AIInvocation(
             organization_id=user.organization_id, task="assistant",
             model=result.model, input_tokens=result.input_tokens or None,
             output_tokens=result.output_tokens or None, latency_ms=result.latency_ms,
             succeeded=result.ok, used_fallback=result.used_fallback,
-            error=result.error,
+            error=result.error, tools=tools_called or None,
         ))
 
         if result.ok:
             reply = (result.data or {}).get("reply", "")
-            tools_called = (result.data or {}).get("tool_calls", [])
             if reply:
                 sessions.append(session, "assistant", reply)
                 return {
