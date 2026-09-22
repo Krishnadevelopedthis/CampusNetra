@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Check, Copy, MapPin, Sparkles, ThumbsUp, Wrench } from 'lucide-react'
 import { useState } from 'react'
+import clsx from 'clsx'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import {
@@ -18,6 +19,53 @@ import {
 import { api, mediaUrl } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ago, dt, slaLabel, titleCase } from '@/lib/format'
+
+const PIPELINE = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed']
+
+// The event log below this already shows what happened and when — this is
+// the complementary "where does this sit in the whole journey" view, with
+// future stages visibly pending rather than just absent, the way a parcel-
+// tracking page shows the stops still ahead of you. Derived from the
+// actual issue.status, never a hardcoded set of "done" steps.
+function StatusStepper({ status }) {
+  if (status === 'rejected') {
+    return (
+      <div className="p-widget flex items-center gap-2">
+        <StatusPill status="rejected" />
+        <span className="text-body-sm text-ink-muted">This report was rejected and won't move through the usual pipeline.</span>
+      </div>
+    )
+  }
+  const effectiveIdx = PIPELINE.indexOf(status === 'on_hold' ? 'in_progress' : status)
+  return (
+    <ol className="flex items-start gap-0 p-widget overflow-x-auto">
+      {PIPELINE.map((step, i) => {
+        const done = effectiveIdx >= 0 && i < effectiveIdx
+        const active = i === effectiveIdx
+        return (
+          <li key={step} className="flex items-center flex-1 min-w-[84px]">
+            <div className="flex flex-col items-center gap-1.5 flex-1">
+              <span className={clsx(
+                'w-7 h-7 rounded-full grid place-items-center text-body-sm font-semibold border-2 shrink-0 transition-colors',
+                done && 'bg-success border-success text-white',
+                active && 'border-secondary text-secondary bg-secondary/10',
+                !done && !active && 'border-border-subtle text-ink-faint',
+              )}>
+                {done ? <Check size={14} /> : i + 1}
+              </span>
+              <span className={clsx('text-[11px] text-center whitespace-nowrap', active ? 'text-ink font-medium' : 'text-ink-faint')}>
+                {step === 'in_progress' && status === 'on_hold' ? 'On Hold' : titleCase(step)}
+              </span>
+            </div>
+            {i < PIPELINE.length - 1 && (
+              <span className={clsx('h-0.5 flex-1 -mt-5', done ? 'bg-success' : 'bg-border-subtle')} />
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
 
 export default function IssueDetail() {
   const { id } = useParams()
@@ -356,6 +404,8 @@ export default function IssueDetail() {
             title="Issue Timeline"
             bodyClass="p-0"
           >
+            <StatusStepper status={issue.status} />
+            <div className="border-t border-border-subtle" />
             <ol className="p-widget space-y-0">
               {timeline.map(
                 (e, i) => {
