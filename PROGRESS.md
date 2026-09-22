@@ -1151,6 +1151,22 @@ surface that would use one).
 
 Backend syntax-checked.
 
+## Addendum 22 — item #21: order-tracking style status stepper
+
+The existing "Issue Timeline" on `IssueDetail.jsx` was a real, data-driven
+event log — but only of what already happened, not the spec's specific
+ask: a pipeline view with future stages visibly pending (Resolved○,
+Closed○) the way a parcel-tracking page shows stops still ahead. Added
+`StatusStepper`, driven off `issue.status` (never a hardcoded "done"
+set) — Reported → Triaged → Assigned → In Progress → Resolved → Closed,
+with `on_hold` shown as a highlighted variant of "In Progress" and
+`rejected` breaking out of the pipeline entirely with its own line
+rather than pretending a rejected report is "on its way somewhere."
+Sits above the existing event log rather than replacing it — the log's
+timestamps and detail still have real value the stepper doesn't give.
+
+`npm run build` verified clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
