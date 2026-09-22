@@ -276,8 +276,18 @@ async def authenticate(
     db: AsyncSession, email: str, password: str,
     expected_role: Optional[UserRole] = None,
     ip: Optional[str] = None, ua: Optional[str] = None,
-) -> User:
-    """Verifies credentials, enforcing lockout. Failure messages stay generic."""
+) -> tuple[User, bool]:
+    """Verifies credentials, enforcing lockout. Failure messages stay generic.
+
+    Returns (user, is_first_login) — is_first_login is True only when
+    last_login_at was still unset going into this call, i.e. this is
+    genuinely the first time this account has ever signed in through this
+    endpoint. Most users' actual first sign-in happens via verify_email()
+    instead (registration signs them straight in), so this mainly matters
+    for accounts an admin created directly (see admin.py's create_user,
+    which activates an account without that verification step) — their
+    true first login is here.
+    """
     user = await db.scalar(select(User).where(User.email == email))
 
     async def fail(reason: str, code: int = status.HTTP_401_UNAUTHORIZED, detail: str = "Incorrect email or password"):
@@ -317,11 +327,13 @@ async def authenticate(
         await fail(user.status.value, status.HTTP_403_FORBIDDEN,
                    f"This account is {user.status.value}")
 
+    is_first_login = user.last_login_at is None
+
     user.failed_login_count = 0
     user.locked_until = None
     user.last_login_at = _now()
     await record_login(db, email=email, succeeded=True, user_id=user.id, ip_address=ip, user_agent=ua)
-    return user
+    return user, is_first_login
 
 
 async def rotate_refresh_token(

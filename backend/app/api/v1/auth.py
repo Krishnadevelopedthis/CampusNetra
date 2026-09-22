@@ -144,7 +144,9 @@ async def verify_email(payload: VerifyEmailRequest, db: DB, request: Request):
     await auth_service.persist_refresh_token(
         db, user, raw, client_ip(request), request.headers.get("user-agent")
     )
-    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens)
+    # Always true here by construction — this endpoint only ever runs once,
+    # right after registration, and signs the account in for the first time.
+    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens, first_login=True)
 
 
 @router.post("/resend-code", response_model=Message)
@@ -168,7 +170,7 @@ async def resend_code(payload: ResendCodeRequest, db: DB):
 @router.post("/login", response_model=AuthResponse)
 async def login(payload: LoginRequest, db: DB, request: Request):
     _require_captcha(payload.captcha_token, payload.captcha_answer)
-    user = await auth_service.authenticate(
+    user, is_first_login = await auth_service.authenticate(
         db, payload.email, payload.password, payload.role,
         client_ip(request), request.headers.get("user-agent"),
     )
@@ -176,7 +178,7 @@ async def login(payload: LoginRequest, db: DB, request: Request):
     await auth_service.persist_refresh_token(
         db, user, raw, client_ip(request), request.headers.get("user-agent")
     )
-    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens)
+    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens, first_login=is_first_login)
 
 
 @router.post("/refresh", response_model=TokenPair)
