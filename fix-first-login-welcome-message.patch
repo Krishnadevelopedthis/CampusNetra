@@ -1,0 +1,127 @@
+diff --git a/backend/app/api/v1/auth.py b/backend/app/api/v1/auth.py
+index 739537a..945fd4f 100644
+--- a/backend/app/api/v1/auth.py
++++ b/backend/app/api/v1/auth.py
+@@ -144,7 +144,9 @@ async def verify_email(payload: VerifyEmailRequest, db: DB, request: Request):
+     await auth_service.persist_refresh_token(
+         db, user, raw, client_ip(request), request.headers.get("user-agent")
+     )
+-    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens)
++    # Always true here by construction — this endpoint only ever runs once,
++    # right after registration, and signs the account in for the first time.
++    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens, first_login=True)
+ 
+ 
+ @router.post("/resend-code", response_model=Message)
+@@ -168,7 +170,7 @@ async def resend_code(payload: ResendCodeRequest, db: DB):
+ @router.post("/login", response_model=AuthResponse)
+ async def login(payload: LoginRequest, db: DB, request: Request):
+     _require_captcha(payload.captcha_token, payload.captcha_answer)
+-    user = await auth_service.authenticate(
++    user, is_first_login = await auth_service.authenticate(
+         db, payload.email, payload.password, payload.role,
+         client_ip(request), request.headers.get("user-agent"),
+     )
+@@ -176,7 +178,7 @@ async def login(payload: LoginRequest, db: DB, request: Request):
+     await auth_service.persist_refresh_token(
+         db, user, raw, client_ip(request), request.headers.get("user-agent")
+     )
+-    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens)
++    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens, first_login=is_first_login)
+ 
+ 
+ @router.post("/refresh", response_model=TokenPair)
+diff --git a/backend/app/schemas/auth.py b/backend/app/schemas/auth.py
+index 993632b..3182ad1 100644
+--- a/backend/app/schemas/auth.py
++++ b/backend/app/schemas/auth.py
+@@ -260,6 +260,10 @@ class UserOut(ORMModel):
+ class AuthResponse(BaseModel):
+     user: UserOut
+     tokens: TokenPair
++    # True only for a genuinely first-ever sign-in (last_login_at was unset
++    # going into this request) — lets the frontend say "Welcome" instead of
++    # "Welcome back" without guessing from anything client-side.
++    first_login: bool = False
+ 
+ 
+ class UpdateProfileRequest(BaseModel):
+diff --git a/backend/app/services/auth.py b/backend/app/services/auth.py
+index 380e7c7..3f368c3 100644
+--- a/backend/app/services/auth.py
++++ b/backend/app/services/auth.py
+@@ -276,8 +276,18 @@ async def authenticate(
+     db: AsyncSession, email: str, password: str,
+     expected_role: Optional[UserRole] = None,
+     ip: Optional[str] = None, ua: Optional[str] = None,
+-) -> User:
+-    """Verifies credentials, enforcing lockout. Failure messages stay generic."""
++) -> tuple[User, bool]:
++    """Verifies credentials, enforcing lockout. Failure messages stay generic.
++
++    Returns (user, is_first_login) — is_first_login is True only when
++    last_login_at was still unset going into this call, i.e. this is
++    genuinely the first time this account has ever signed in through this
++    endpoint. Most users' actual first sign-in happens via verify_email()
++    instead (registration signs them straight in), so this mainly matters
++    for accounts an admin created directly (see admin.py's create_user,
++    which activates an account without that verification step) — their
++    true first login is here.
++    """
+     user = await db.scalar(select(User).where(User.email == email))
+ 
+     async def fail(reason: str, code: int = status.HTTP_401_UNAUTHORIZED, detail: str = "Incorrect email or password"):
+@@ -317,11 +327,13 @@ async def authenticate(
+         await fail(user.status.value, status.HTTP_403_FORBIDDEN,
+                    f"This account is {user.status.value}")
+ 
++    is_first_login = user.last_login_at is None
++
+     user.failed_login_count = 0
+     user.locked_until = None
+     user.last_login_at = _now()
+     await record_login(db, email=email, succeeded=True, user_id=user.id, ip_address=ip, user_agent=ua)
+-    return user
++    return user, is_first_login
+ 
+ 
+ async def rotate_refresh_token(
+diff --git a/frontend/src/lib/auth.js b/frontend/src/lib/auth.js
+index 96cf6de..28d03a5 100644
+--- a/frontend/src/lib/auth.js
++++ b/frontend/src/lib/auth.js
+@@ -198,7 +198,13 @@ export const useAuth = create((set, get) => ({
+         user: data.user,
+       })
+ 
+-      return data.user
++      // first_login rides along on the returned user object (rather than
++      // changing this function's return shape) so Login.jsx can tell a
++      // genuinely first-ever sign-in apart from a returning one — see
++      // AuthResponse.first_login on the backend. Every other consumer of
++      // this return value already only reads the UserOut fields, so one
++      // extra property is harmless to them.
++      return { ...data.user, first_login: !!data.first_login }
+     } finally {
+       set({ loading: false })
+     }
+diff --git a/frontend/src/pages/Login.jsx b/frontend/src/pages/Login.jsx
+index 76a00d1..a0035d0 100644
+--- a/frontend/src/pages/Login.jsx
++++ b/frontend/src/pages/Login.jsx
+@@ -39,7 +39,14 @@ export default function Login() {
+       // The admin tab covers both admin and facility_manager accounts, so it
+       // authenticates without a role constraint and routes on the result.
+       const user = await login(email.trim(), password, role === 'admin' ? null : role, captcha)
+-      toast.success(`Welcome back, ${user.full_name.split(' ')[0]}.`)
++      // A genuinely first-ever sign-in (an admin-provisioned account whose
++      // owner never went through the register->verify-email auto-login
++      // flow) shouldn't be told "welcome back" — there's no "back" yet.
++      toast.success(
++        user.first_login
++          ? `Welcome, ${user.full_name.split(' ')[0]}.`
++          : `Welcome back, ${user.full_name.split(' ')[0]}.`
++      )
+       navigate(ROLE_HOME[user.role] || '/dashboard', { replace: true })
+     } catch (err) {
+       const fields = err.fields
