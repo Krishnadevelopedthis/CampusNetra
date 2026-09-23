@@ -21,7 +21,7 @@ from app.models.issues import (
 from app.models.platform import AIInvocation
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.services import notifications as notify_svc
-from app.services.references import next_reference
+from app.services.references import next_public_id
 from app.services.twin import record_event, sync_asset_to_issue_status
 
 
@@ -115,7 +115,7 @@ async def create_issue(
     if org_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Your account is not linked to an organization")
 
-    reference = await next_reference(db, org_id, "CMP")
+    reference = await next_public_id(db, Issue, "CN")
 
     issue = Issue(
         reference=reference, organization_id=org_id, campus_id=campus_id,
