@@ -77,6 +77,16 @@ async def collect(db: AsyncSession, user: User, limit: int = 200) -> list[Histor
             )).all()
         }
         for e in events:
+            # The very first event on an issue (from_status is None, the
+            # initial "Reported") is already covered above by the
+            # issue.created entry. Showing it again here would both
+            # duplicate that entry and leak the note's real audience —
+            # e.note on this first event carries internal detail (which
+            # classifier ran, at what confidence) meant for the issue's
+            # own technical timeline, not a second appearance in a
+            # student's plain-language activity feed.
+            if e.from_status is None:
+                continue
             issue = issue_map.get(e.issue_id)
             if issue is None:
                 continue
