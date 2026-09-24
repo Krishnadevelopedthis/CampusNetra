@@ -636,6 +636,36 @@ async def verify_sms_connection() -> SendResult:
     provider = (settings.SMS_PROVIDER or "").strip().lower()
 
     # ---------------------------------------------------------
+    # SmsHorizon
+    # ---------------------------------------------------------
+    # SmsHorizon has no separate "check credentials" call — sending is the
+    # only API it exposes (see _send_smshorizon above) — so unlike Brevo
+    # and Twilio this can't make a real network round-trip without firing
+    # an actual text. What it CAN do, and what this was missing entirely,
+    # is confirm the four credentials _send_smshorizon requires are all
+    # present, so this stops falling through to the generic "no provider
+    # configured" branch below and reporting that even when SmsHorizon is
+    # the active, fully-configured provider. This still can't promise a
+    # message will arrive — that's what POST /admin/sms/test is for.
+
+    if provider == "smshorizon":
+        missing = [
+            name for name, value in (
+                ("SMSHORIZON_USER", settings.SMSHORIZON_USER),
+                ("SMSHORIZON_API_KEY", settings.SMSHORIZON_API_KEY),
+                ("SMSHORIZON_SENDER_ID", settings.SMSHORIZON_SENDER_ID),
+                ("SMSHORIZON_TEMPLATE_ID", settings.SMSHORIZON_TEMPLATE_ID),
+            )
+            if not value
+        ]
+        if missing:
+            return SendResult(
+                delivered=False,
+                error=f"{', '.join(missing)} {'is' if len(missing) == 1 else 'are'} not configured.",
+            )
+        return SendResult(delivered=True)
+
+    # ---------------------------------------------------------
     # Self-hosted Android SMS Gateway
     # ---------------------------------------------------------
 
