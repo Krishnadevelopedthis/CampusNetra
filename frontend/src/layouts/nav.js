@@ -18,8 +18,13 @@ const REPORTER = [
   { to: '/issues', label: 'Track Complaints', icon: ClipboardList },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
   { to: '/map', label: 'Campus Map', icon: MapPinned },
-  { to: '/history', label: 'History', icon: Clock },
 ]
+
+// GET /history is scoped to the caller and works for any authenticated
+// role (issues reported, L&F activity, profile-change audit entries) —
+// it isn't reporter-specific, so every role gets a link to it, always
+// last so its position doesn't jump around between roles.
+const HISTORY_LINK = { to: '/history', label: 'History', icon: Clock }
 
 const TECHNICIAN = [
   { to: '/work-orders', label: 'My Work Orders', icon: Wrench },
@@ -61,14 +66,14 @@ const ADMIN = [
 export function navFor(role) {
   switch (role) {
     case 'technician':
-      return [...COMMON, ...TECHNICIAN]
+      return [...COMMON, ...TECHNICIAN, HISTORY_LINK]
     case 'facility_manager':
-      return [...COMMON, ...MANAGER]
+      return [...COMMON, ...MANAGER, HISTORY_LINK]
     case 'admin':
     case 'super_admin':
-      return [...COMMON, ...ADMIN]
+      return [...COMMON, ...ADMIN, HISTORY_LINK]
     default:
-      return [...COMMON, ...REPORTER]
+      return [...COMMON, ...REPORTER, HISTORY_LINK]
   }
 }
 
