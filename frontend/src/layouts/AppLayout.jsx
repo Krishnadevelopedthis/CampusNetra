@@ -318,11 +318,6 @@ export default function AppLayout() {
       </nav>
 
       <div className="p-3 border-t border-border-subtle space-y-2">
-        {canReport && !collapsed && (
-          <Link to="/issues/new" className="btn-dark w-full">
-            <PlusCircle size={16} /> Report an Issue
-          </Link>
-        )}
         <button
           onClick={() => setCollapsed((c) => !c)}
           className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
