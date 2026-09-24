@@ -3,8 +3,8 @@ from fastapi import APIRouter
 
 from app.core.routing import CommitRoute
 from app.api.v1 import (
-    admin, ai, analytics, auth, campus, dashboard, inspections, issues, lostfound,
-    notifications, uploads, work_orders,
+    admin, ai, analytics, auth, campus, dashboard, history, inspections, issues,
+    lostfound, notifications, uploads, work_orders,
 )
 
 # Every route commits its transaction before answering — see CommitRoute for
@@ -22,3 +22,4 @@ api_router.include_router(ai.router)
 api_router.include_router(analytics.router)
 api_router.include_router(admin.router)
 api_router.include_router(uploads.router)
+api_router.include_router(history.router)
