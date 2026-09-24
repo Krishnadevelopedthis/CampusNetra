@@ -1,5 +1,5 @@
 import {
-  Activity, Banknote, BarChart3, Bell, Boxes, Building2, ClipboardCheck, ClipboardList, Cpu,
+  Activity, Banknote, BarChart3, Bell, Boxes, Building2, ClipboardCheck, ClipboardList, Clock, Cpu,
   FileSearch, Gauge, History, LayoutDashboard, ListChecks, MapPinned, Package,
   PlusCircle, Search, Settings, Shield, ShieldAlert, Sparkles, TrendingUp,
   Users, Wrench,
@@ -11,6 +11,7 @@ import {
  */
 const COMMON = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/history', label: 'History', icon: Clock },
 ]
 
 const REPORTER = [

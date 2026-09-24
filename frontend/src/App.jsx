@@ -19,6 +19,7 @@ import VerifyEmail from '@/pages/VerifyEmail'
 
 // Everything behind the app shell is split out of the initial bundle.
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const History = lazy(() => import('@/pages/History'))
 const ReportIssue = lazy(() => import('@/pages/ReportIssue'))
 const IssueList = lazy(() => import('@/pages/IssueList'))
 const IssueDetail = lazy(() => import('@/pages/IssueDetail'))
@@ -381,6 +382,11 @@ export default function App() {
               <Route
                 path="/dashboard"
                 element={<Dashboard />}
+              />
+
+              <Route
+                path="/history"
+                element={<History />}
               />
 
               {/* =================================================

@@ -1327,6 +1327,44 @@ app are untouched; real, separate scope.
 
 `npm run build` verified clean.
 
+## Addendum 29 — items #35-36 (History page) + a real #39 security spot-check
+
+**#35/#36 — built, using real existing data, not a new logging system.**
+`GET /history` (`services/history.py`) pulls from the tables that
+already record what happened — `Issue`/`IssueEvent` for complaints,
+`LFItem`/`LFClaim` for Lost & Found, a whitelisted subset of `AuditLog`
+for account changes (email/phone/name/password) — scoped to the caller,
+merged and sorted by time. Every entry that has a real record behind it
+(`entity_type`/`entity_id`) is a clickable link straight to that record
+(`/issues/{id}`, `/lost-found/{id}`), not a generic list page — #36's
+explicit requirement. New `History.jsx`, added to the sidebar for every
+role right under Dashboard (`Clock` icon — `History` the lucide icon was
+already used for Event Replay in the same file, different meaning).
+
+Deliberately not logged as "history": routine reads, notification
+delivery, anything that isn't something the person themselves did —
+matches "don't log every mouse movement."
+
+**#39 — a real, targeted spot-check, not a full audit.** Checked the
+two things the spec names most specifically: issue-detail access
+(`_get_issue_or_404` does check `organization_id` before returning
+anything — a user genuinely cannot fetch another org's issue by
+guessing an ID) and the admin user-detail endpoint (`RequireManager` +
+org-scoped query, reuses the same data collector as the self-service
+export so what an admin can see and what a user can export can't drift
+apart). Both correctly enforced. This is two endpoints checked deeply,
+not forty checked shallowly — the rest of #39's list (OTP server-side
+enforcement, name-verification bypass, admin-merge protection, etc.)
+genuinely wasn't gone through this round.
+
+**Found, not fixed**: `GET /issues/{id}` has leftover debug `print()`
+calls with request timing (`[ISSUE_DETAIL] START...`) — not a security
+issue, but production code logging on every request. Left alone rather
+than removing someone's active debugging without knowing if it's
+currently in use for a real investigation.
+
+`npm run build` verified clean; backend syntax-checked.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
