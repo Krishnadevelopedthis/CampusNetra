@@ -37,13 +37,21 @@ export function ImageUpload({
         toast.error('Only image files can be attached.')
       }
 
+      // Matches the backend's MAX_UPLOAD_MB (10) — no reason to make someone
+      // wait through an upload just to be told after the fact it was too big.
+      const MAX_MB = 10
+      const withinSize = images.filter((f) => f.size <= MAX_MB * 1024 * 1024)
+      if (withinSize.length < images.length) {
+        toast.error(`Image is over ${MAX_MB} MB — please choose a smaller photo.`)
+      }
+
       const room = max - value.length - pending.length
       if (room <= 0) {
         toast.error(`You can attach at most ${max} images.`)
         return
       }
-      const batch = images.slice(0, room)
-      if (batch.length < images.length) {
+      const batch = withinSize.slice(0, room)
+      if (batch.length < withinSize.length) {
         toast.info(`Only the first ${room} image(s) were added — limit is ${max}.`)
       }
 
