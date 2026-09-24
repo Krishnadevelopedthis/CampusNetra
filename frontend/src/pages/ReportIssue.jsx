@@ -134,6 +134,11 @@ export default function ReportIssue() {
         <div className="lg:col-span-2 space-y-5">
           {/* 1. Location */}
           <Widget title={<span className="flex items-center gap-2"><MapPin size={18} className="text-secondary" /> 1. Identify Location</span>}>
+            <p className="text-body-sm text-ink-faint -mt-1 mb-3">
+              Don't know the exact building, floor or room? Leave those
+              blank and describe where it is in the note below instead —
+              only the campus is required.
+            </p>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Campus" error={errors.campus_id} required>
                 <Select value={campusId} onChange={(e) => setCampusId(e.target.value)}>
@@ -145,7 +150,7 @@ export default function ReportIssue() {
                   value={buildingId}
                   onChange={(e) => { setBuildingId(e.target.value); setFloorId(''); setRoomId(''); setAssetId('') }}
                 >
-                  <option value="">Select building</option>
+                  <option value="">Select building — or leave blank if unsure</option>
                   {(buildings.data || []).map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </Select>
               </Field>
@@ -171,7 +176,7 @@ export default function ReportIssue() {
               </Field>
             </div>
             <Field label="Extra location detail" className="mt-4"
-                   hint="e.g. 'near the back wall, second row'">
+                   hint="e.g. 'near the back wall, second row' — or, if you skipped building/floor above, describe the location here instead">
               <Textarea
                 rows={2} className="min-h-0" value={locationNote}
                 onChange={(e) => setLocationNote(e.target.value)}
@@ -215,7 +220,9 @@ export default function ReportIssue() {
           >
             {!selectedRoom ? (
               <p className="text-body-md text-ink-faint py-6 text-center">
-                Pick a building, floor and room to list the equipment there.
+                Pick a building, floor and room above to list the equipment
+                there — or skip that and just describe what's affected in
+                the Issue Details on the left.
               </p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">

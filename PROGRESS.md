@@ -1185,6 +1185,29 @@ the other three sit smaller beside/below it.
 
 `npm run build` verified clean.
 
+## Addendum 24 — items #17, #18: location picker was already there, just hidden
+
+Checked `ReportIssue.jsx` expecting to build a Campus→Building→Floor→Room→
+Asset picker from scratch — it already exists, and `building_id`/
+`floor_id`/`room_id` were already optional server-side (only `campus_id`
++ title + description are required). The actual gap was discoverability:
+nothing told a reporter they *could* skip building/floor/room, so the
+UI read as a hard requirement even though it wasn't one. Added an
+explicit hint above the pickers ("only the campus is required"),
+softened the building/room placeholder text, and reworded the asset
+panel's empty state so skipping location reads as a real path rather
+than a blocker. `ReportItem.jsx` (Lost & Found) was already fully
+optional-location with no changes needed.
+
+Genuinely not built: a distinct "Not Sure / Other" *mode toggle* as its
+own UI element, the way the spec sketches it — what's here achieves the
+same outcome (every location field optional, described in words when
+you skip it) through the fields that already exist, not a separate
+switch. If a literal toggle control matters more than the outcome for
+its own sake, that's still open.
+
+`npm run build` verified clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
