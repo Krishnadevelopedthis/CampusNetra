@@ -379,7 +379,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-margin min-w-0">
+        <main className="flex-1 px-4 pt-1 pb-4 lg:px-margin lg:pt-1 lg:pb-margin min-w-0">
           <Outlet />
         </main>
 
