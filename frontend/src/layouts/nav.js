@@ -11,7 +11,6 @@ import {
  */
 const COMMON = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/history', label: 'History', icon: Clock },
 ]
 
 const REPORTER = [
@@ -19,6 +18,7 @@ const REPORTER = [
   { to: '/issues', label: 'Track Complaints', icon: ClipboardList },
   { to: '/lost-found', label: 'Lost & Found', icon: Search },
   { to: '/map', label: 'Campus Map', icon: MapPinned },
+  { to: '/history', label: 'History', icon: Clock },
 ]
 
 const TECHNICIAN = [
