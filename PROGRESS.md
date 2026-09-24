@@ -1208,6 +1208,38 @@ its own sake, that's still open.
 
 `npm run build` verified clean.
 
+## Addendum 25 — items #24, #26, #28: L&F image gallery + handover declaration
+
+**#24 done.** `LostFoundItem.jsx` only ever showed the single primary
+attachment. Added a real gallery: prev/next on the main image, a
+thumbnail strip, and a click-to-zoom modal with its own navigation —
+`item.attachments` was already an array, this was purely a missing UI.
+
+**#26/#28 — adapted, not built literally.** The spec sketches a
+peer-to-peer disclosure/handover between the loser and founder directly.
+That's not this app's actual model: claims are staff-mediated (campus
+staff verify and physically hand items over), which is also the safer
+design for a campus context — not changing that. What #28 actually
+requires — a handover can't be marked complete without a declaration
+being submitted first — genuinely wasn't enforced: `mark_collected` took
+no body at all before this. Now requires a proof photo and a written
+declaration, both required, both recorded.
+
+No database migration. I looked for one in this repo and couldn't find
+a mechanism I could verify actually runs against the live database, so
+rather than add a column that might never reach production, this reuses
+`handover_proof_url` (already on `LFClaim`, unused by any endpoint until
+now) for the photo, and writes the declaration text to the existing
+generic `AuditLog` table (`entity_type="lf_claim"`) instead of adding a
+new field for it.
+
+New `HandoverDeclaration` schema; `POST /lost-found/claims/{id}/collected`
+now requires it. Frontend: the "Mark collected" button in
+`AdminLostFound.jsx` opens a modal (photo + declaration textarea,
+Confirm disabled until both are filled) instead of firing immediately.
+
+Backend syntax-checked; `npm run build` verified clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

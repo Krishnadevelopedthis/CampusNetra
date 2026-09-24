@@ -157,6 +157,20 @@ class ClaimDecision(BaseModel):
     reason: Optional[str] = Field(None, max_length=1000)
 
 
+class HandoverDeclaration(BaseModel):
+    """What #28 in the spec calls the handover declaration form. Scoped to
+    what the existing schema actually supports without a migration this
+    session can't verify gets applied to the real database: proof of the
+    physical handover (a photo — evidence attached the same way a report's
+    evidence is) plus the claimant's written declaration, both required.
+    A name/ID/address-collecting multi-field form would need new columns;
+    this reuses handover_proof_url, which was on the model already but had
+    no endpoint setting it until now.
+    """
+    handover_proof_url: str = Field(min_length=1, max_length=2000)
+    declaration_text: str = Field(min_length=10, max_length=2000)
+
+
 class LFDashboard(BaseModel):
     totals: dict
     recent_lost: list[LFItemListItem]

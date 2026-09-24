@@ -9,6 +9,7 @@ import {
   Button, EmptyState, ErrorState, Field, Metric, Modal, Spinner, StatusPill,
   Textarea, Widget, toast,
 } from '@/components/ui'
+import { ImageUpload } from '@/components/ImageUpload'
 import { api, mediaUrl } from '@/lib/api'
 import { ago, dt } from '@/lib/format'
 
@@ -17,6 +18,9 @@ export default function AdminLostFound() {
   const [tab, setTab] = useState('claims')
   const [rejecting, setRejecting] = useState(null)
   const [reason, setReason] = useState('')
+  const [handoverClaim, setHandoverClaim] = useState(null)
+  const [handoverPhoto, setHandoverPhoto] = useState([])
+  const [declarationText, setDeclarationText] = useState('')
 
   const dashboard = useQuery({
     queryKey: ['lf-dashboard'], queryFn: () => api.get('/lost-found/dashboard'),
@@ -52,8 +56,13 @@ export default function AdminLostFound() {
   })
 
   const collected = useMutation({
-    mutationFn: (id) => api.post(`/lost-found/claims/${id}/collected`),
-    onSuccess: (d) => { toast.success(d.detail); refresh() },
+    mutationFn: ({ id, handover_proof_url, declaration_text }) =>
+      api.post(`/lost-found/claims/${id}/collected`, { handover_proof_url, declaration_text }),
+    onSuccess: (d) => {
+      toast.success(d.detail)
+      setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('')
+      refresh()
+    },
     onError: (e) => toast.error(e.detail),
   })
 
@@ -129,8 +138,8 @@ export default function AdminLostFound() {
 
                       <div className="flex gap-2 shrink-0">
                         {c.status === 'approved' ? (
-                          <Button size="sm" icon={PackageCheck} loading={collected.isPending}
-                                  onClick={() => collected.mutate(c.id)}>
+                          <Button size="sm" icon={PackageCheck}
+                                  onClick={() => setHandoverClaim(c)}>
                             Mark collected
                           </Button>
                         ) : (
@@ -296,6 +305,47 @@ export default function AdminLostFound() {
         <Field label="Reason" required>
           <Textarea value={reason} onChange={(e) => setReason(e.target.value)}
                     placeholder="e.g. The described contents do not match what was handed in." />
+        </Field>
+      </Modal>
+
+      <Modal
+        open={!!handoverClaim}
+        onClose={() => { setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('') }}
+        title={`Handover — claim ${handoverClaim?.reference || ''}`}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('') }}>
+              Cancel
+            </Button>
+            <Button
+              icon={PackageCheck}
+              loading={collected.isPending}
+              disabled={!handoverPhoto.length || declarationText.trim().length < 10}
+              onClick={() => collected.mutate({
+                id: handoverClaim.id,
+                handover_proof_url: handoverPhoto[0]?.url,
+                declaration_text: declarationText.trim(),
+              })}
+            >
+              Confirm handover
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body-md text-ink-muted mb-3">
+          Required before this claim can be marked complete — a photo of the
+          handover and the claimant's written declaration, both recorded
+          against the claim.
+        </p>
+        <Field label="Proof of handover" required hint="A photo of the item being handed over, or the claimant's signature/ID">
+          <ImageUpload value={handoverPhoto} onChange={setHandoverPhoto} purpose="report" max={1} />
+        </Field>
+        <Field label="Claimant's declaration" required className="mt-4"
+               hint="e.g. confirmation they're receiving this item and accept responsibility for the information they provided">
+          <Textarea
+            value={declarationText} onChange={(e) => setDeclarationText(e.target.value)}
+            placeholder="I confirm that I am receiving this item from the registered founder and accept responsibility for the information provided and the handover process."
+          />
         </Field>
       </Modal>
     </div>
