@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AuthShell } from '@/features/auth/AuthShell'
-import { Button, Field, Input, toast } from '@/components/ui'
+import { Button, Field, Input, PasswordInput, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { OtpInput } from './VerifyEmail'
 
@@ -79,12 +79,12 @@ export default function ResetPassword() {
         </Field>
 
         <Field label="New password" error={errors.new_password} required>
-          <Input type="password" autoComplete="new-password" value={password}
+          <PasswordInput autoComplete="new-password" value={password}
                  onChange={(e) => setPassword(e.target.value)} error={errors.new_password} />
         </Field>
 
         <Field label="Confirm new password" error={errors.confirm} required>
-          <Input type="password" autoComplete="new-password" value={confirm}
+          <PasswordInput autoComplete="new-password" value={confirm}
                  onChange={(e) => setConfirm(e.target.value)} error={errors.confirm} />
         </Field>
 

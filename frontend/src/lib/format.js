@@ -118,3 +118,19 @@ export const ROOM_KIND_LABELS = {
   utility: 'Utility',
   other: 'Other',
 }
+
+/** Rough, honest password-strength feedback — length dominates, variety
+    helps. Shared by every place a password gets set (register, reset,
+    change-password) so the bar means the same thing everywhere. */
+export function scorePassword(value) {
+  if (!value) return { score: 0, label: '' }
+  let score = 0
+  if (value.length >= 8) score += 1
+  if (value.length >= 12) score += 1
+  if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1
+  if (/\d/.test(value) && /[^\w\s]/.test(value)) score += 1
+  return {
+    score,
+    label: ['Too short', 'Weak', 'Reasonable', 'Strong', 'Very strong'][score] || '',
+  }
+}

@@ -1297,6 +1297,36 @@ rollout.
 
 `npm run build` verified clean.
 
+## Addendum 28 — Dashboard crash hardening; password field icons + strength meter
+
+**Dashboard crash** (reported with a screenshot of the error-boundary
+page, not a real 404 despite how it looked): `Dashboard.jsx` had
+several array accesses with no guard against the field being absent —
+`data.recent_activity.length`/`.map()`, `data.alerts.length`/`.map()`,
+`data.trend` passed raw into the bar chart. Any one throwing during
+render produces exactly this screen. Hardened all of them with `|| []`
+fallbacks, including the hero-metric block from Addendum 14. **Stated
+plainly**: I can't see the actual browser console, so I can't confirm
+which specific line threw — this is the strongest candidate found by
+reading every risky line in the file, not a confirmed root cause. If it
+recurs, the real fix needs the actual error message.
+
+**Password fields**: new shared `PasswordInput` (lock icon + show/hide
+toggle) in `components/ui`, applied to Settings, Register, and Reset
+Password — Login already had its own equivalent, untouched. The
+strength-bar meter already existed on Settings (just invisible on an
+empty field, which is correct) — extracted into a shared
+`PasswordStrengthMeter` component and `scorePassword` moved to
+`lib/format.js` so it's one implementation, not a copy per page. Added
+to Register, where it didn't exist before, arguably the more important
+spot since that's where a password is first chosen.
+
+**Not done**: the broader "icon on every input box" ask — only password
+fields got this. Email/phone/name/search fields across the rest of the
+app are untouched; real, separate scope.
+
+`npm run build` verified clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

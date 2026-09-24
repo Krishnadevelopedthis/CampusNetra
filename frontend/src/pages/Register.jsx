@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
 import { AuthShell } from '@/features/auth/AuthShell'
 import { REGISTER_TABS, RoleTabs } from '@/features/auth/RoleTabs'
-import { Button, Field, Input, Select, toast } from '@/components/ui'
+import { Button, Field, Input, PasswordInput, PasswordStrengthMeter, Select, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { scorePassword } from '@/lib/format'
 
 /** Extra fields each account type needs beyond name/email/password. */
 const EXTRA_FIELDS = {
@@ -26,6 +27,7 @@ export default function Register() {
   const [role, setRole] = useState('student')
   const [form, setForm] = useState({})
   const [errors, setErrors] = useState({})
+  const strength = useMemo(() => scorePassword(form.password), [form.password])
   const [submitting, setSubmitting] = useState(false)
   // Two deliberately separate picklists: departments are the maintenance
   // org chart (who a technician's work orders route to); programmes are
@@ -221,12 +223,13 @@ export default function Register() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Password" error={errors.password} required>
-            <Input type="password" autoComplete="new-password" value={form.password || ''} onChange={set('password')} error={errors.password} />
+            <PasswordInput autoComplete="new-password" value={form.password || ''} onChange={set('password')} error={errors.password} />
           </Field>
           <Field label="Confirm password" error={errors.confirm} required>
-            <Input type="password" autoComplete="new-password" value={form.confirm || ''} onChange={set('confirm')} error={errors.confirm} />
+            <PasswordInput autoComplete="new-password" value={form.confirm || ''} onChange={set('confirm')} error={errors.confirm} />
           </Field>
         </div>
+        {form.password && <PasswordStrengthMeter score={strength.score} label={strength.label} />}
         <p className="hint -mt-2">
           Use at least 8 characters with an uppercase letter, a lowercase letter and a digit.
         </p>
