@@ -10,6 +10,7 @@ import {
   EmptyState,
   ErrorState,
   Metric,
+  MetricRow,
   RefreshButton,
   Select,
   Spinner,
@@ -266,13 +267,13 @@ export default function CampusMap() {
       </header>
 
       {busy ? <SkeletonMetrics /> : overview.data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricRow>
           <Metric label="Buildings" value={overview.data.totals.buildings} accent="rgb(var(--c-brand))" />
           <Metric label="Rooms" value={overview.data.totals.rooms} accent="#3b82f6" />
           <Metric label="Assets" value={overview.data.totals.assets} accent="#8b5cf6" />
           <Metric label="Open issues" value={overview.data.totals.open_issues}
                   accent={overview.data.totals.open_issues > 0 ? '#f59e0b' : '#10b981'} />
-        </div>
+        </MetricRow>
       )}
 
       <Widget bodyClass="p-0" className="overflow-hidden">

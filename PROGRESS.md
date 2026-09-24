@@ -1264,6 +1264,39 @@ a different treatment, not `MetricRow`, and wasn't touched.
 
 `npm run build` verified clean on everything actually changed.
 
+## Addendum 27 — items #30-33: already substantially real, verified not assumed
+
+Expected to build campus-map interactivity and duplicate-fault handling
+largely from scratch. Read the actual code before writing anything —
+all four were already there, more thoroughly than the spec's own
+examples:
+
+- **#30/#31 building/floor/room click details + health status**:
+  `campus_overview` computes per-building asset-state breakdowns and
+  open-issue counts with real grouped queries against `Asset`/`Issue` —
+  not a hardcoded status anywhere. Room-level detail panel already shows
+  type, capacity, area, open issue count, and the asset list; asset-level
+  detail already shows status, open issues (linked, with reference and
+  live `StatusPill`), and condition history. Clicking through
+  Campus → Building → Floor → Room already works, with breadcrumbs.
+- **#32 duplicate-fault merge**: `POST /issues/{id}/mark-duplicate` and
+  `/dismiss-duplicates` already exist, already `RequireStaff`-gated,
+  already wired into `IssueDetail.jsx` (not dead backend code). Merging
+  sets `duplicate_of` and a `DUPLICATE` status rather than deleting
+  anything, logs an `IssueEvent` with the master reference, carries the
+  upvote across — matches "preserve historical info, don't silently
+  delete" exactly.
+- **#33 class/lab health**: covered by the same room-detail panel as
+  #30 — capacity, assets, open issues are the same data whether the
+  spec calls it "room health" or "room detail."
+
+The one real gap found while in this file: `CampusMap.jsx`'s own totals
+row (Buildings/Rooms/Assets/Open issues) was the same flat-grid pattern
+from #29 — switched to `MetricRow`, consistent with the rest of that
+rollout.
+
+`npm run build` verified clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
