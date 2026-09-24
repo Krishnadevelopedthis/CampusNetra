@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, Database, Server, Sparkles, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { ErrorState, Metric, Spinner, Widget } from '@/components/ui'
+import { ErrorState, Metric, MetricRow, Spinner, Widget } from '@/components/ui'
 import { api, API_ORIGIN } from '@/lib/api'
 
 export default function AdminOverview() {
@@ -30,14 +30,14 @@ export default function AdminOverview() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         <Metric label="Total users" value={totalUsers} accent="rgb(var(--c-primary))" icon={Users} />
         <Metric label="Open issues" value={dashboard.data.metrics[0]?.value ?? 0} accent="#f59e0b" />
         <Metric label="Asset health" value={`${dashboard.data.health_score}%`}
                 accent={dashboard.data.health_score >= 90 ? '#10b981' : '#f59e0b'} />
         <Metric label="SLA breaches" value={dashboard.data.sla_breaches}
                 accent={dashboard.data.sla_breaches > 0 ? '#ef4444' : '#10b981'} />
-      </div>
+      </MetricRow>
 
       <div className="grid lg:grid-cols-2 gap-5">
         <Widget title={<span className="flex items-center gap-2"><Server size={17} /> System Health</span>}>

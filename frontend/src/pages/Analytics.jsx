@@ -21,7 +21,7 @@ import {
   Field,
   Input,
   Metric,
-  RefreshButton,
+  MetricRow,  RefreshButton,
   Select,
   Spinner,
   Widget,
@@ -119,14 +119,14 @@ function Overview({ data }) {
 
   return (
     <>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         <Metric label="Total issues" value={data.issues.total} accent="rgb(var(--c-brand))" />
         <Metric label="Currently open" value={data.issues.open} accent="#f59e0b" />
         <Metric label="SLA compliance" value={`${data.sla.compliance_pct}%`}
                 accent={data.sla.compliance_pct >= 90 ? '#10b981' : '#f59e0b'} />
         <Metric label="Mean time to resolve"
                 value={data.sla.mttr_hours != null ? `${data.sla.mttr_hours}h` : '—'} accent="#3b82f6" />
-      </div>
+      </MetricRow>
 
       <div className="grid lg:grid-cols-2 gap-5">
         <Widget title="Issues by Category">
@@ -369,14 +369,14 @@ function SimulationPanel() {
         </Widget>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <MetricRow>
             <Metric label="Complaints" value={result.complaint_count} accent="rgb(var(--c-brand))" />
             <Metric label="Total capacity" value={result.capacity.total_capacity} accent="#3b82f6" />
             <Metric label="Backlog" value={result.capacity.total_backlog}
                     accent={result.capacity.total_backlog > 0 ? '#ef4444' : '#10b981'} />
             <Metric label="Projected SLA" value={`${result.sla_projection.projected_compliance_pct}%`}
                     accent={result.sla_projection.projected_compliance_pct >= 90 ? '#10b981' : '#f59e0b'} />
-          </div>
+          </MetricRow>
 
           <Widget title="AI Classification → Department Routing" bodyClass="p-0">
             <div className="table-wrap">

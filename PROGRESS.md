@@ -1240,6 +1240,30 @@ Confirm disabled until both are filled) instead of firing immediately.
 
 Backend syntax-checked; `npm run build` verified clean.
 
+## Addendum 26 — item #29: KPI hierarchy, shared component, partial rollout
+
+Dashboard and Lost & Found already got the hero-stat treatment
+individually (Addenda 14, 23). #29 asks for it everywhere — found 16
+more instances of the same flat equal-box grid across 14 files. Rather
+than restructure each one by hand, added `MetricRow` to
+`components/ui/index.jsx`: wraps existing `<Metric>` children as-is
+(no data-shape changes needed), makes the first one hero-sized, puts
+the rest in a small grid beside it. Swap the surrounding `<div
+className="grid...">` for `<MetricRow>` and it's done — matches "fix
+the reusable component, not each page" from the code-quality section.
+
+Applied to 5 pages this round: `AdminOverview.jsx`, `IssueMap.jsx`,
+`Analytics.jsx` (both its stat rows), `AssetList.jsx`.
+
+**Not yet applied** — same fix, same one-line-per-instance change, just
+not done yet: `AdminAI.jsx`, `AdminAssets.jsx`, `AdminCosts.jsx`,
+`AdminPredictive.jsx`, `AdminSystem.jsx`, `CampusMap.jsx` (2 instances),
+`DigitalTwin.jsx` (2 instances), `Inspections.jsx`. `AdminCampus.jsx`'s
+grid is a `<dl>` of plain stats, not `<Metric>` components, so it needs
+a different treatment, not `MetricRow`, and wasn't touched.
+
+`npm run build` verified clean on everything actually changed.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
