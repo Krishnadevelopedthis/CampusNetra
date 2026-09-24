@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Metric, PageHeader, Select, SkeletonRows, Widget,
+  Button, EmptyState, ErrorState, Metric, MetricRow, PageHeader, Select, SkeletonRows, Widget,
 } from '@/components/ui'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
@@ -73,7 +73,7 @@ export default function AssetList() {
         refreshing={refreshing}
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         <Metric label="Total assets" value={totals.data?.total ?? '—'} accent="rgb(var(--c-brand))" icon={Boxes} />
         <Metric label="Need attention" icon={AlertTriangle}
                 value={summary.filter((a) => a.state !== 'healthy').length}
@@ -82,7 +82,7 @@ export default function AssetList() {
                 accent="#ef4444" />
         <Metric label="Out of warranty" icon={ShieldOff}
                 value={summary.filter((a) => a.warranty_expired).length} accent="#64748b" />
-      </div>
+      </MetricRow>
 
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">

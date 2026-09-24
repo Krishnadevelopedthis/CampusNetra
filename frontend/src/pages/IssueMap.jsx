@@ -7,6 +7,7 @@ import {
   EmptyState,
   ErrorState,
   Metric,
+  MetricRow,
   RefreshButton,
   Select,
   Spinner,
@@ -116,13 +117,13 @@ export default function IssueMap() {
         </div>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         {counts.map((c) => (
           <Metric key={c.priority} label={`${c.priority} priority`} value={c.count}
                   accent={{ critical: '#ef4444', high: '#f59e0b',
                             medium: '#3b82f6', low: '#94a3b8' }[c.priority]} />
         ))}
-      </div>
+      </MetricRow>
 
       <div className="flex flex-wrap items-center gap-2">
         <Select value={buildingId}

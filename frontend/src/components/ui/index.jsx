@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { Children, cloneElement, forwardRef, useEffect, useRef, useState } from 'react'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
@@ -375,6 +375,30 @@ export function Metric({ label, value, delta, deltaTone = 'neutral', accent, ico
         </span>
         {delta && <span className={clsx('pill text-body-sm', tones[deltaTone])}>{delta}</span>}
       </div>
+    </div>
+  )
+}
+
+// Wraps a set of <Metric> elements so the first visually leads (bigger,
+// tinted) and the rest sit smaller beside/below it -- the "one primary,
+// several supporting" KPI hierarchy every page with a stat row should
+// have, applied by wrapping the existing <Metric> children rather than
+// restructuring each page's own metric list into a separate data shape.
+export function MetricRow({ children, className }) {
+  const items = Children.toArray(children).filter(Boolean)
+  if (items.length === 0) return null
+  const [hero, ...rest] = items
+  return (
+    <div className={clsx('grid grid-cols-2 gap-3', className)}>
+      {cloneElement(hero, {
+        size: 'hero',
+        className: clsx('col-span-2 sm:col-span-1', hero.props.className),
+      })}
+      {rest.length > 0 && (
+        <div className="col-span-2 sm:col-span-1 grid grid-cols-2 gap-3">
+          {rest}
+        </div>
+      )}
     </div>
   )
 }
