@@ -65,11 +65,13 @@ export default function LostFound() {
       />
 
       {t && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Metric label="Lost — open" value={t.lost_open} accent="#f59e0b" />
-          <Metric label="Found — unclaimed" value={t.found_open} accent="#3b82f6" />
-          <Metric label="Returned to owner" value={t.returned} accent="#10b981" />
-          <Metric label="AI matches pending" value={t.pending_matches} accent="#8b5cf6" />
+        <div className="grid grid-cols-2 gap-3">
+          <Metric size="hero" className="col-span-2 sm:col-span-1" label="Lost — open" value={t.lost_open} accent="#f59e0b" />
+          <div className="col-span-2 sm:col-span-1 grid grid-cols-2 gap-3">
+            <Metric label="Found — unclaimed" value={t.found_open} accent="#3b82f6" />
+            <Metric label="Returned to owner" value={t.returned} accent="#10b981" />
+            <Metric label="AI matches pending" value={t.pending_matches} accent="#8b5cf6" />
+          </div>
         </div>
       )}
 

@@ -1167,6 +1167,24 @@ timestamps and detail still have real value the stepper doesn't give.
 
 `npm run build` verified clean.
 
+## Addendum 23 — items #19, #23
+
+**#19 evidence upload — real gap fixed.** `ImageUpload` already had type
+validation, multi-file, camera capture, preview and remove — everything
+except the file-size check the spec explicitly asks for. Backend already
+enforces `MAX_UPLOAD_MB` (10) and rejects oversized files with a clear
+message; there was just no matching client-side check, so someone with a
+large photo would wait through a full upload attempt just to be told no.
+Added the same 10 MB check client-side, same number as the backend so
+they can't drift apart.
+
+**#23 Lost & Found KPI hierarchy — done, reusing #29's own pattern.**
+Was the same flat 4-equal-box grid Dashboard had before Addendum 14.
+Same fix, same `Metric size="hero"` component: "Lost — open" leads,
+the other three sit smaller beside/below it.
+
+`npm run build` verified clean.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
