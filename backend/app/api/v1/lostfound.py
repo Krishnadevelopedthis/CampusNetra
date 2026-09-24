@@ -17,11 +17,12 @@ from app.models.lostfound import LFAttachment, LFCategory, LFClaim, LFItem, LFMa
 from app.models.spatial import Building, Room
 from app.schemas.common import Message, Page, UserBrief
 from app.schemas.lostfound import (
-    ClaimCreate, ClaimDecision, ClaimOut, LFAttachmentOut, LFCategoryOut, LFDashboard,
-    LFItemCreate, LFItemCreateResponse, LFItemDetail, LFItemListItem, LFMatchOut,
-    MatchDecision, MatchFactorsOut,
+    ClaimCreate, ClaimDecision, ClaimOut, HandoverDeclaration, LFAttachmentOut,
+    LFCategoryOut, LFDashboard, LFItemCreate, LFItemCreateResponse, LFItemDetail,
+    LFItemListItem, LFMatchOut, MatchDecision, MatchFactorsOut,
 )
 from app.services import lostfound as lf_service
+from app.services.audit import record_audit
 
 router = APIRouter(route_class=CommitRoute, prefix="/lost-found", tags=["Lost & Found"])
 
@@ -379,7 +380,11 @@ async def decide_claim(
 
 
 @router.post("/claims/{claim_id}/collected", response_model=Message)
-async def mark_collected(claim_id: uuid.UUID, user: RequireStaff, db: DB):
+async def mark_collected(claim_id: uuid.UUID, payload: HandoverDeclaration, user: RequireStaff, db: DB):
+    """Requires the handover declaration + proof before the claim can be
+    marked complete — the spec's #28 ("do not allow the final handover
+    state to be marked complete until the required form is submitted").
+    """
     claim = await db.scalar(select(LFClaim).where(LFClaim.id == claim_id))
     if claim is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Claim not found")
@@ -389,10 +394,21 @@ async def mark_collected(claim_id: uuid.UUID, user: RequireStaff, db: DB):
 
     claim.status = ClaimStatus.COLLECTED
     claim.collected_at = datetime.now(timezone.utc)
+    claim.handover_proof_url = payload.handover_proof_url
     item = await db.scalar(select(LFItem).where(LFItem.id == claim.item_id))
     if item:
         item.status = LFStatus.RETURNED
         item.resolved_at = datetime.now(timezone.utc)
+
+    await record_audit(
+        db, action="lostfound.claim.handover_declared", actor_id=user.id,
+        organization_id=user.organization_id, entity_type="lf_claim", entity_id=claim.id,
+        after={
+            "declaration_text": payload.declaration_text,
+            "handover_proof_url": payload.handover_proof_url,
+            "recorded_by": str(user.id),
+        },
+    )
     return Message(detail="Item marked as collected and returned to its owner.")
 
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, PackageSearch, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, PackageSearch, ShieldCheck, Sparkles, X, ZoomIn } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -24,6 +24,8 @@ export default function LostFoundItem() {
   const { isStaff } = useAuth()
   const [claimOpen, setClaimOpen] = useState(false)
   const [proof, setProof] = useState('')
+  const [activeImage, setActiveImage] = useState(0)
+  const [zoomOpen, setZoomOpen] = useState(false)
 
   const { data: item, isLoading, error, refetch } = useQuery({
     queryKey: ['lf-item', id],
@@ -55,7 +57,11 @@ export default function LostFoundItem() {
   if (isLoading) return <Spinner label="Loading item…" />
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
-  const primary = item.attachments.find((a) => a.is_primary) || item.attachments[0]
+  const images = item?.attachments?.length ? item.attachments : []
+  const orderedImages = images.length
+    ? [...images].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
+    : []
+  const current = orderedImages[activeImage] || orderedImages[0]
 
   return (
     <div className="space-y-5 max-w-6xl">
@@ -87,13 +93,66 @@ export default function LostFoundItem() {
       <div className="grid lg:grid-cols-3 gap-5 items-start">
         {/* Item card */}
         <Widget bodyClass="p-0">
-          <div className="h-56 bg-surface-sunken grid place-items-center overflow-hidden">
-            {primary ? (
-              <img src={mediaUrl(primary.url)} alt={item.title} className="w-full h-full object-contain" />
+          <div className="relative h-56 bg-surface-sunken group">
+            {current ? (
+              <>
+                <img
+                  src={mediaUrl(current.url)} alt={item.title}
+                  className="w-full h-full object-contain cursor-zoom-in"
+                  onClick={() => setZoomOpen(true)}
+                />
+                <button
+                  type="button" onClick={() => setZoomOpen(true)}
+                  className="absolute top-2 right-2 btn-ghost h-8 w-8 p-0 rounded-lg bg-surface/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Zoom image"
+                >
+                  <ZoomIn size={16} />
+                </button>
+                {orderedImages.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setActiveImage((i) => (i - 1 + orderedImages.length) % orderedImages.length)}
+                      className="absolute left-1.5 top-1/2 -translate-y-1/2 btn-ghost h-9 w-9 p-0 rounded-full bg-surface/80 backdrop-blur-sm"
+                      aria-label="Previous image"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveImage((i) => (i + 1) % orderedImages.length)}
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 btn-ghost h-9 w-9 p-0 rounded-full bg-surface/80 backdrop-blur-sm"
+                      aria-label="Next image"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                    <span className="absolute bottom-2 right-2 pill bg-surface/80 backdrop-blur-sm text-[11px]">
+                      {activeImage + 1} / {orderedImages.length}
+                    </span>
+                  </>
+                )}
+              </>
             ) : (
-              <PackageSearch size={40} className="text-ink-faint" />
+              <div className="w-full h-full grid place-items-center">
+                <PackageSearch size={40} className="text-ink-faint" />
+              </div>
             )}
           </div>
+          {orderedImages.length > 1 && (
+            <div className="flex gap-1.5 p-2 overflow-x-auto border-b border-border-subtle">
+              {orderedImages.map((img, i) => (
+                <button
+                  key={img.id || img.url} type="button"
+                  onClick={() => setActiveImage(i)}
+                  className={`w-12 h-12 rounded-lg overflow-hidden shrink-0 border-2 transition-colors ${
+                    i === activeImage ? 'border-secondary' : 'border-transparent opacity-70 hover:opacity-100'
+                  }`}
+                >
+                  <img src={mediaUrl(img.thumb_url || img.url)} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
           <div className="p-widget">
             <h2 className="text-headline-md text-ink">{item.title}</h2>
             <dl className="mt-3 space-y-2.5">
@@ -104,6 +163,30 @@ export default function LostFoundItem() {
             </dl>
           </div>
         </Widget>
+
+        <Modal
+          open={zoomOpen} onClose={() => setZoomOpen(false)}
+          title={item.title} size="xl"
+        >
+          {current && (
+            <div className="relative">
+              <img src={mediaUrl(current.url)} alt={item.title} className="w-full max-h-[70vh] object-contain" />
+              {orderedImages.length > 1 && (
+                <div className="flex items-center justify-center gap-3 mt-3">
+                  <Button size="sm" variant="secondary" icon={ChevronLeft}
+                          onClick={() => setActiveImage((i) => (i - 1 + orderedImages.length) % orderedImages.length)}>
+                    Previous
+                  </Button>
+                  <span className="text-body-sm text-ink-muted">{activeImage + 1} / {orderedImages.length}</span>
+                  <Button size="sm" variant="secondary" icon={ChevronRight}
+                          onClick={() => setActiveImage((i) => (i + 1) % orderedImages.length)}>
+                    Next
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
 
         <div className="lg:col-span-2 space-y-5">
           <Widget title={item.kind === 'found' ? 'Found Information' : 'Loss Information'}>
