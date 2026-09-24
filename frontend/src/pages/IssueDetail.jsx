@@ -71,8 +71,13 @@ export default function IssueDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { user, isStaff } = useAuth()
+  const { user, isStaff, isManager } = useAuth()
   const staff = isStaff()
+  // Merging is an administrative call (backend now enforces RequireManager
+  // on mark-duplicate/dismiss-duplicates) — gated separately from the
+  // broader `staff` flag so a technician isn't shown a button that would
+  // 403 when clicked.
+  const manager = isManager()
 
   const [transitionTo, setTransitionTo] = useState(null)
   const [note, setNote] = useState('')
@@ -345,7 +350,7 @@ export default function IssueDetail() {
         </div>
       )}
 
-      {staff &&
+      {manager &&
         issue.duplicate_candidates?.length >
           0 && (
           <DuplicatePanel

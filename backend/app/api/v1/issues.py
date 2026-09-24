@@ -331,7 +331,12 @@ async def reclassify(issue_id: uuid.UUID, payload: IssueReclassify, user: Requir
 
 @router.post("/{issue_id}/mark-duplicate", response_model=IssueDetail)
 async def mark_duplicate(
-    issue_id: uuid.UUID, payload: MarkDuplicateRequest, user: RequireStaff, db: DB
+    # Merging complaint history/reporter attribution/SLA tracking is an
+    # administrative decision, not a repair task — the spec is explicit
+    # that only Admin-level staff should do it, so this is RequireManager
+    # (facility_manager/admin/super_admin), not the broader RequireStaff
+    # that would let any technician merge another person's report.
+    issue_id: uuid.UUID, payload: MarkDuplicateRequest, user: RequireManager, db: DB
 ):
     issue = await _get_issue_or_404(db, issue_id, user)
     await issue_service.mark_duplicate(db, issue, payload.master_issue_id, user)
@@ -346,7 +351,7 @@ async def mark_duplicate(
 
 
 @router.post("/{issue_id}/dismiss-duplicates", response_model=Message)
-async def dismiss_duplicates(issue_id: uuid.UUID, user: RequireStaff, db: DB):
+async def dismiss_duplicates(issue_id: uuid.UUID, user: RequireManager, db: DB):
     issue = await _get_issue_or_404(db, issue_id, user)
     result = await db.execute(
         IssueDuplicateCandidate.__table__.update()
