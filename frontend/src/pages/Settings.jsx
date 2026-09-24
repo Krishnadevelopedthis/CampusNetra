@@ -21,10 +21,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 
 import { ColorThemeSwitcher } from '@/components/ColorThemeSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { Button, Field, Input, Modal, Select, Widget, toast } from '@/components/ui'
+import { Button, Field, Input, Modal, PasswordInput, PasswordStrengthMeter, Select, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useColorTheme } from '@/lib/colorTheme'
+import { scorePassword } from '@/lib/format'
 
 const SUPPORT_EMAIL = 'techcareit.in@gmail.com'
 
@@ -484,8 +485,8 @@ function SecuritySection({ user, logout, navigate }) {
     >
       <form onSubmit={submit} className="space-y-4">
         <Field label="Current password" error={errors.current_password} required>
-          <Input
-            type="password" autoComplete="current-password"
+          <PasswordInput
+            autoComplete="current-password"
             value={pw.current_password}
             onChange={(e) => setPw((p) => ({ ...p, current_password: e.target.value }))}
           />
@@ -493,40 +494,22 @@ function SecuritySection({ user, logout, navigate }) {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="New password" error={errors.new_password} required>
-            <Input
-              type="password" autoComplete="new-password"
+            <PasswordInput
+              autoComplete="new-password"
               value={pw.new_password}
               onChange={(e) => setPw((p) => ({ ...p, new_password: e.target.value }))}
             />
           </Field>
           <Field label="Confirm new password" error={errors.confirm} required>
-            <Input
-              type="password" autoComplete="new-password"
+            <PasswordInput
+              autoComplete="new-password"
               value={pw.confirm}
               onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))}
             />
           </Field>
         </div>
 
-        {pw.new_password && (
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-1.5 rounded-full bg-surface-sunken overflow-hidden flex gap-0.5">
-              {[0, 1, 2, 3].map((i) => (
-                <span
-                  key={i}
-                  className={clsx(
-                    'flex-1 rounded-full transition-colors',
-                    i < strength.score
-                      ? strength.score <= 1 ? 'bg-danger'
-                        : strength.score === 2 ? 'bg-warning' : 'bg-success'
-                      : 'bg-transparent',
-                  )}
-                />
-              ))}
-            </div>
-            <span className="text-body-sm text-ink-muted w-28 text-right">{strength.label}</span>
-          </div>
-        )}
+        {pw.new_password && <PasswordStrengthMeter score={strength.score} label={strength.label} />}
 
         <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
           <button
@@ -548,20 +531,6 @@ function SecuritySection({ user, logout, navigate }) {
       </form>
     </Widget>
   )
-}
-
-/** Rough, honest feedback — length dominates, variety helps. */
-function scorePassword(value) {
-  if (!value) return { score: 0, label: '' }
-  let score = 0
-  if (value.length >= 8) score += 1
-  if (value.length >= 12) score += 1
-  if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score += 1
-  if (/\d/.test(value) && /[^\w\s]/.test(value)) score += 1
-  return {
-    score,
-    label: ['Too short', 'Weak', 'Reasonable', 'Strong', 'Very strong'][score] || '',
-  }
 }
 
 /* ---------------- Small pieces ---------------- */

@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { AlertCircle, Check, ChevronDown, Loader2, RefreshCw, X } from 'lucide-react'
+import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw, X } from 'lucide-react'
 import { Children, cloneElement, forwardRef, useEffect, useRef, useState } from 'react'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
@@ -190,6 +190,62 @@ export const Input = forwardRef(function Input({ error, className, id, ...rest }
     />
   )
 })
+
+// A password field with a lock icon and a show/hide toggle — every
+// password box in the app (login, register, reset, change-password)
+// used a plain <Input type="password">, no visual cue it holds a secret
+// and no way to check what you typed before submitting.
+export const PasswordInput = forwardRef(function PasswordInput({ error, className, ...rest }, ref) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="relative">
+      <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+      <input
+        ref={ref}
+        type={visible ? 'text' : 'password'}
+        className={clsx('input pl-9 pr-9', error && 'input-error', className)}
+        {...rest}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        onClick={() => setVisible((v) => !v)}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink-muted transition-colors"
+        aria-label={visible ? 'Hide password' : 'Show password'}
+      >
+        {visible ? <EyeOff size={15} /> : <Eye size={15} />}
+      </button>
+    </div>
+  )
+})
+
+// The 4-segment strength bar shown under a new-password field. Takes the
+// already-computed score from scorePassword (lib/format.js) rather than
+// the raw value, so it stays a dumb rendering component -- every place
+// that sets a password (register, reset, change) shares the one scoring
+// function and the one bar, not a copy of each.
+export function PasswordStrengthMeter({ score, label }) {
+  if (!label) return null
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-1.5 rounded-full bg-surface-sunken overflow-hidden flex gap-0.5">
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className={clsx(
+              'flex-1 rounded-full transition-colors',
+              i < score
+                ? score <= 1 ? 'bg-danger'
+                  : score === 2 ? 'bg-warning' : 'bg-success'
+                : 'bg-transparent',
+            )}
+          />
+        ))}
+      </div>
+      <span className="text-body-sm text-ink-muted w-28 text-right">{label}</span>
+    </div>
+  )
+}
 
 export const Textarea = forwardRef(function Textarea({ error, className, ...rest }, ref) {
   return <textarea ref={ref} className={clsx('textarea', error && 'input-error', className)} {...rest} />

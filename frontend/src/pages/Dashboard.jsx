@@ -73,7 +73,7 @@ export default function Dashboard() {
               the rest small and even. Financo's reference does the same
               thing for the same reason: one number leads, the rest are
               context, not four equally-loud boxes competing. */}
-          {data.metrics.length > 0 && (
+          {(data.metrics || []).length > 0 && (
             <div className="grid grid-cols-2 gap-3">
               <Metric
                 size="hero"
@@ -108,7 +108,7 @@ function ReporterBody({ data }) {
         action={<Link to="/issues" className="text-body-md text-secondary hover:underline">View all</Link>}
         bodyClass="p-0"
       >
-        {data.recent_activity.length === 0 ? (
+        {(data.recent_activity || []).length === 0 ? (
           <EmptyState
             icon={ClipboardList} title="Nothing reported yet"
             description="When you report an issue it will appear here with live status."
@@ -123,7 +123,7 @@ function ReporterBody({ data }) {
                 </tr>
               </thead>
               <tbody>
-                {data.recent_activity.map((i) => (
+                {(data.recent_activity || []).map((i) => (
                   <tr key={i.id}>
                     <td className="font-mono text-mono-data text-secondary whitespace-nowrap">{i.reference}</td>
                     <td>
@@ -233,7 +233,7 @@ function StaffBody({ data, user }) {
 
         <Widget className="lg:col-span-2" title="Created vs Resolved" subtitle="Last 7 days">
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data.trend} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+            <BarChart data={data.trend || []} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -279,14 +279,14 @@ function StaffBody({ data, user }) {
       <Widget
         title={<span className="flex items-center gap-2"><AlertTriangle size={18} className="text-danger" /> Active Alerts</span>}
         action={<Link to="/issues" className="text-body-md text-secondary hover:underline">View all</Link>}
-        bodyClass={data.alerts.length ? 'p-widget' : 'p-0'}
+        bodyClass={(data.alerts || []).length ? 'p-widget' : 'p-0'}
       >
-        {data.alerts.length === 0 ? (
+        {(data.alerts || []).length === 0 ? (
           <EmptyState icon={Activity} title="No critical or high-priority issues"
                       description="Everything urgent has been handled." />
         ) : (
           <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {data.alerts.map((a) => {
+            {(data.alerts || []).map((a) => {
               const critical = a.priority === 'critical'
               return (
                 <Link
