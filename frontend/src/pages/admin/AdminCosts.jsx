@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 
 import { SkeletonChart, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
-import { EmptyState, ErrorState, Metric, Select, Widget } from '@/components/ui'
+import { EmptyState, ErrorState, Metric, MetricRow, Select, Widget } from '@/components/ui'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
@@ -165,7 +165,7 @@ export default function AdminCosts() {
         <>
           <div className="grid xl:grid-cols-[1fr_340px] gap-4 items-start">
           <div className="space-y-4 min-w-0">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <MetricRow>
             <Metric
               label="Maintenance spend" value={money(d.totals.maintenance)}
               icon={Banknote} accent="rgb(var(--c-brand))"
@@ -177,7 +177,7 @@ export default function AdminCosts() {
                     icon={TrendingUp} />
             <Metric label="Asset purchase value" value={money(d.totals.capital)}
                     icon={CircleDollarSign} />
-          </div>
+          </MetricRow>
 
           <Widget
             title="Spend over time"

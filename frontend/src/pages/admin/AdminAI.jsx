@@ -3,7 +3,7 @@ import { Check, Copy, Sparkles, ThumbsUp, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Button, EmptyState, ErrorState, Metric, Select, Spinner, Widget, toast } from '@/components/ui'
+import { Button, EmptyState, ErrorState, Metric, MetricRow, Select, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 
@@ -61,7 +61,7 @@ export default function AdminAI() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         <Metric label="Model" value={perf.data?.mode === 'live' ? 'Live' : 'Heuristic'}
                 accent={perf.data?.mode === 'live' ? '#10b981' : '#f59e0b'} icon={Sparkles} />
         <Metric label="Decisions made" value={totalCalls} accent="#3b82f6" />
@@ -70,7 +70,7 @@ export default function AdminAI() {
         <Metric label="Accuracy"
                 value={accuracyTask ? `${Math.round(accuracyTask.accuracy * 100)}%` : '—'}
                 accent="#10b981" />
-      </div>
+      </MetricRow>
 
       <div className="ai-surface p-widget">
         <p className="text-body-md text-ink">

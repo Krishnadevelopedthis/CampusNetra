@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, RefreshButton, Spinner,
+  Button, EmptyState, ErrorState, Metric, MetricRow, RefreshButton, Spinner,
   StatusPill, Widget, toast,
 } from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
@@ -202,21 +202,13 @@ export default function DigitalTwin() {
 
       {/* Campus totals */}
       {overview.data && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            ['Buildings', overview.data.totals.buildings],
-            ['Rooms', overview.data.totals.rooms],
-            ['Assets', overview.data.totals.assets],
-            ['Open issues', overview.data.totals.open_issues],
-          ].map(([label, value], i) => (
-            <div key={label} className="widget px-widget py-3">
-              <p className="text-label-caps uppercase text-ink-muted">{label}</p>
-              <p className={`text-headline-lg tabular mt-1 ${i === 3 && value > 0 ? 'text-warning-text' : 'text-ink'}`}>
-                {value}
-              </p>
-            </div>
-          ))}
-        </div>
+        <MetricRow>
+          <Metric label="Buildings" value={overview.data.totals.buildings} accent="rgb(var(--c-brand))" />
+          <Metric label="Rooms" value={overview.data.totals.rooms} accent="#3b82f6" />
+          <Metric label="Assets" value={overview.data.totals.assets} accent="#8b5cf6" />
+          <Metric label="Open issues" value={overview.data.totals.open_issues}
+                  accent={overview.data.totals.open_issues > 0 ? '#f59e0b' : '#10b981'} />
+        </MetricRow>
       )}
 
       <div className="grid lg:grid-cols-[280px_1fr] gap-5 items-start">

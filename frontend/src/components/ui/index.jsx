@@ -13,7 +13,38 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose?.()
+
+    // Move focus into the dialog when it opens, and trap Tab/Shift+Tab
+    // inside it while it's up — without this, a keyboard user can Tab
+    // straight past the modal into whatever's behind it, which for a
+    // dialog that's blocking the page is a real accessibility failure,
+    // not just a nicety.
+    const node = ref.current
+    const focusables = () => node
+      ? Array.from(node.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'))
+        .filter((el) => !el.disabled && el.offsetParent !== null)
+      : []
+    const toFocus = focusables()[0] || node
+    toFocus?.focus()
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.()
+        return
+      }
+      if (e.key !== 'Tab') return
+      const items = focusables()
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
     document.addEventListener('keydown', onKey)
     // Prevent the page behind the overlay from scrolling.
     const prev = document.body.style.overflow
@@ -34,7 +65,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
         onClick={onClose}
       />
       <div
-        ref={ref} role="dialog" aria-modal="true" aria-label={title}
+        ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}
         className={clsx(
           'relative w-full bg-surface/90 backdrop-blur-2xl rounded-2xl border border-border-subtle/70 shadow-level3 animate-slide-up',
           'max-h-[90vh] flex flex-col', widths[size],

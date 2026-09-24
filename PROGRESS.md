@@ -1365,6 +1365,54 @@ currently in use for a real investigation.
 
 `npm run build` verified clean; backend syntax-checked.
 
+## Addendum 30 — finishing #29, a real #38 fix, and an honest #37/#40 dead end
+
+**#29 actually finished this time.** The 9 remaining instances: 6 were
+real `<Metric>` grids (AdminAI, AdminCosts, AdminPredictive, AdminSystem,
+Inspections, and a second one in DigitalTwin.jsx that turned out to be a
+duplicate hand-rolled version of the same stat row CampusMap.jsx already
+had — rebuilt using real `<Metric>` + `MetricRow` for consistency, not
+left as its own bespoke pattern). 2 were **false positives** from the
+original grep — `AdminAssets.jsx`'s "grid" was a Campus/Building/Floor/
+Room location picker (`<Field>`/`<Select>`, not `<Metric>`) that happened
+to share the same Tailwind classes; wrapping it in `MetricRow` would have
+actually broken it, since `MetricRow` calls `cloneElement` assuming a
+`<Metric>`-shaped child. Caught by reading each file instead of trusting
+the grep list. 1 (DigitalTwin's room-detail panel) is a `<Row>` detail
+grid, correctly left alone, same as CampusMap's equivalent.
+
+**#38 — one real, concrete fix**: `Modal` had `role="dialog"` and
+`aria-modal` but no actual focus management — opening it didn't move
+focus into it, and Tab could cycle a keyboard user straight past the
+modal into the page behind it. Added: focus moves to the first focusable
+element on open, and Tab/Shift+Tab now trap inside the dialog while it's
+open. Also checked (found already fine, not fixed because nothing was
+wrong): every `<img>` in the app has real alt text (grep found zero bare
+`<img>` tags), and `StatusPill`/`PriorityPill` both already carry a text
+label, not color alone.
+
+**Tried to get real browser access for #37/#40, hit an actual wall,
+reporting it plainly rather than pretending it worked**: installed
+Playwright (legitimate, official package) to attempt live rendering and
+breakpoint testing. The npm package installs fine, but the actual
+browser binary has to download from `cdn.playwright.dev`, which is not
+in this sandbox's network egress allowlist — confirmed by the literal
+403 error, not assumed. That's an account-level network setting, not
+something fixable from inside this session. Uninstalled it again rather
+than leave a dependency that can't function. Surfaced the "Browser Use"
+plugin from the actual catalog as the real path to live verification,
+since it runs through separate infrastructure this sandbox's network
+restriction doesn't apply to.
+
+`npm run build` verified clean.
+
+**Where this leaves #37/#40 honestly**: still not done with real browser
+verification. Everything fixable through reading code has been checked
+and fixed across this whole session; what's left genuinely needs eyes on
+a rendered page — either the "Browser Use" plugin, or continuing to send
+screenshots the way the Dashboard crash and password-field asks did,
+which is real and has worked every time it's been tried this session.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.

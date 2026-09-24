@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Info, TrendingUp, Wrench } from 'lucide-react'
 import { useState } from 'react'
 
-import { Button, EmptyState, ErrorState, Metric, Spinner, Widget, toast } from '@/components/ui'
+import { Button, EmptyState, ErrorState, Metric, MetricRow, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 
@@ -41,13 +41,13 @@ export default function AdminPredictive() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         <Metric label="High risk" value={data.summary.high_risk}
                 accent={data.summary.high_risk > 0 ? '#ef4444' : '#10b981'} />
         <Metric label="Medium risk" value={data.summary.medium_risk} accent="#f59e0b" />
         <Metric label="Already scheduled" value={data.summary.already_scheduled} accent="#3b82f6" />
         <Metric label="Assets flagged" value={data.predictions.length} accent="rgb(var(--c-primary))" />
-      </div>
+      </MetricRow>
 
       {/* How the score is built — a manager has to justify spending on a working machine. */}
       <div className="ai-surface p-widget">

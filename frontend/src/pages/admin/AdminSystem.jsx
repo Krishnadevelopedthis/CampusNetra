@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Boxes, CircleCheck, TriangleAlert, Workflow } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
-import { ErrorState, Metric, Spinner, Widget } from '@/components/ui'
+import { ErrorState, Metric, MetricRow, Spinner, Widget } from '@/components/ui'
 import { api } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 
@@ -136,7 +136,7 @@ export function AdminTwinConfig() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <MetricRow>
         <Metric label="Rooms mapped" value={`${c.rooms_mapped_pct}%`}
                 accent={c.rooms_mapped_pct === 100 ? '#10b981' : '#f59e0b'} />
         <Metric label="Assets placed" value={`${c.assets_placed_pct}%`}
@@ -145,7 +145,7 @@ export function AdminTwinConfig() {
         <Metric label="Plan images"
                 value={`${data.floors.filter((f) => f.has_plan_image).length}/${data.floors.length}`}
                 accent="#8b5cf6" />
-      </div>
+      </MetricRow>
 
       <Widget title="Spatial data health"
               subtitle="Anything listed here exists in the database but cannot be drawn">

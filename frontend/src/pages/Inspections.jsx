@@ -9,6 +9,7 @@ import {
   ErrorState,
   Field,
   Metric,
+  MetricRow,
   Modal,
   PageHeader,
   Select,
@@ -66,7 +67,7 @@ export default function Inspections() {
       />
 
       {t && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MetricRow>
           <Metric label="Scheduled" value={t.scheduled} accent="#3b82f6" />
           <Metric label="Overdue" value={t.overdue}
                   accent={t.overdue > 0 ? '#ef4444' : '#10b981'} />
@@ -74,7 +75,7 @@ export default function Inspections() {
           <Metric label="Average score"
                   value={t.average_score != null ? `${t.average_score}%` : '—'}
                   accent={t.average_score >= 80 ? '#10b981' : '#f59e0b'} />
-        </div>
+        </MetricRow>
       )}
 
       <Widget bodyClass="p-0">
