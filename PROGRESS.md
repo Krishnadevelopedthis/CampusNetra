@@ -1413,6 +1413,53 @@ a rendered page — either the "Browser Use" plugin, or continuing to send
 screenshots the way the Dashboard crash and password-field asks did,
 which is real and has worked every time it's been tried this session.
 
+## Addendum 31 — a real #40 test run, and #39 pushed further
+
+**#40 — genuinely new capability, genuinely used.** This sandbox never
+had Python dependencies installed before now (only syntax-checked files
+all session). Got a real environment working (`pip install -r
+requirements.txt`, working around a `PyJWT` uninstall conflict with
+`--ignore-installed`) and actually ran the backend's test suite —
+**60/60 passing**, not assumed clean from a syntax check. Needed
+`ENVIRONMENT=development` and a syntactically-valid (never
+connected-to) `DATABASE_URL` to get past module-level config validation
+that otherwise refuses to import outside a real deployment — nothing
+about the app itself changed to make this possible.
+
+Several of those 60 tests are directly relevant to #39, not just #40:
+`test_cross_organization_reference_resolves_to_not_found_not_someone_elses_data`,
+`test_injected_user_id_is_ignored_not_used`,
+`test_write_tools_cannot_accept_an_identity_from_the_caller`, and the
+whole prompt-injection-resistance suite in `test_ai_security.py` — all
+passing, all specifically about the AI agent surface not being a way
+around normal authorization.
+
+**#39 — three more of the spec's named items actually verified by
+reading the logic, not assumed:**
+- **OTP enforced server-side**: `consume_verification_code` stores
+  codes hashed (never plaintext), checks expiry and a 5-attempt cap
+  server-side, and compares by re-deriving the hash — a client claiming
+  "verified" achieves nothing without the server independently agreeing.
+- **Name verification can't be bypassed from the frontend**: the
+  change-name endpoint's only inputs are the requested name and the
+  image file itself — no `verified`/`match_confirmed` flag exists for a
+  client to set. The match determination runs entirely server-side
+  against OCR of the uploaded image.
+- **Lost & Found contact protection**: `LFItemDetail` (what item pages
+  return) exposes only `contact_pref` (a preference string like
+  "in_app"), not a reporter's actual phone or email.
+
+Tried Playwright again given a real environment; browser binary
+download still blocked by the sandbox's network allowlist (same wall as
+before, not re-litigated).
+
+**Where #37/#40 genuinely still stand**: the test suite passing is real
+regression confidence for the backend logic it covers — it is not a
+frontend build check (already run separately, also clean) and it is
+not a rendered-page check. No test suite, however green, substitutes
+for someone actually looking at a page on a phone. That part of #37 and
+#40 stays open without the Browser Use plugin or more screenshots.
+
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing any
 status report, including this one.
