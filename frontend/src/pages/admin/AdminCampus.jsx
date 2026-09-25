@@ -70,6 +70,21 @@ export default function AdminCampus() {
     onError: (e) => toast.error(e.detail || 'Could not save the location'),
   })
 
+  // Deliberately not useCascadingDelete: the backend never offers a cascade
+  // path for a whole campus (unlike a building/floor/room) -- it always
+  // refuses while any building still exists, full stop. Offering a second
+  // "delete everything inside?" confirm here would just hit the same
+  // refusal again, so this stays a single confirm with the server's own
+  // (already specific) reason surfaced on failure.
+  const deleteCampus = useMutation({
+    mutationFn: () => api.del(`/campus/campuses/${campusId}`),
+    onSuccess: (d) => {
+      toast.success(d.detail)
+      qc.invalidateQueries({ queryKey: ['campuses'] })
+    },
+    onError: (e) => toast.error(e.detail || 'Could not delete the campus'),
+  })
+
   if (campuses.isLoading || overview.isLoading) return <Spinner label="Loading campus…" />
   if (overview.error) return <ErrorState error={overview.error} onRetry={overview.refetch} />
 
@@ -94,6 +109,20 @@ export default function AdminCampus() {
             </Button>
             <Button icon={Plus} onClick={() => setBuildingForm({ floors_count: 1 })}>
               Add building
+            </Button>
+            <Button
+              variant="ghost" icon={Trash2} className="text-danger-text"
+              loading={deleteCampus.isPending}
+              onClick={() => {
+                if (!campus) return
+                if (!confirm(
+                  `Delete ${campus.name}? This only works while it has no buildings left in it — ` +
+                  'you\'ll be told exactly what\'s still inside if it refuses.'
+                )) return
+                deleteCampus.mutate()
+              }}
+            >
+              Delete campus
             </Button>
           </div>
         }
