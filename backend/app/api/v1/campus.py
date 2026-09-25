@@ -52,6 +52,59 @@ def _worst(states: list[AssetState]) -> AssetState:
     return AssetState.HEALTHY
 
 
+# ---- org-scoped lookups --------------------------------------------------
+# Building/Floor/Room carry no organization_id of their own -- only Campus
+# does -- so a bare `select(Building).where(Building.id == building_id)` (and
+# the same for Floor/Room) returns another organization's row just as
+# happily as the caller's own. These helpers join back up to Campus and
+# check organization_id there, the same way _get_issue_or_404 etc. do for
+# their own tables elsewhere in the API.
+
+async def _get_building_or_404(db, building_id: uuid.UUID, user) -> Building:
+    building = await db.scalar(
+        select(Building).join(Campus, Campus.id == Building.campus_id)
+        .where(Building.id == building_id, Campus.organization_id == user.organization_id)
+    )
+    if building is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+    return building
+
+
+async def _get_floor_or_404(db, floor_id: uuid.UUID, user) -> Floor:
+    floor = await db.scalar(
+        select(Floor).join(Building, Building.id == Floor.building_id)
+        .join(Campus, Campus.id == Building.campus_id)
+        .where(Floor.id == floor_id, Campus.organization_id == user.organization_id)
+    )
+    if floor is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+    return floor
+
+
+async def _get_room_or_404(db, room_id: uuid.UUID, user) -> Room:
+    room = await db.scalar(
+        select(Room).join(Floor, Floor.id == Room.floor_id)
+        .join(Building, Building.id == Floor.building_id)
+        .join(Campus, Campus.id == Building.campus_id)
+        .where(Room.id == room_id, Campus.organization_id == user.organization_id)
+    )
+    if room is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+    return room
+
+
+async def _get_asset_or_404(db, asset_id: uuid.UUID, user) -> Asset:
+    # Every asset has a required (non-nullable) category, and categories are
+    # organization-scoped directly -- same join list_assets already uses.
+    asset = await db.scalar(
+        select(Asset).join(AssetCategory, AssetCategory.id == Asset.category_id)
+        .where(Asset.id == asset_id, AssetCategory.organization_id == user.organization_id)
+    )
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    return asset
+
+
 LEGEND = {
     s.value: {"colour": STATE_COLOURS[s.value], "label": STATE_LABELS[s.value]}
     for s in AssetState
@@ -250,6 +303,7 @@ async def list_buildings(campus_id: uuid.UUID, user: CurrentUser, db: DB):
 
 @router.get("/buildings/{building_id}/floors", response_model=list[FloorOut])
 async def list_floors(building_id: uuid.UUID, user: CurrentUser, db: DB):
+    await _get_building_or_404(db, building_id, user)
     rows = (await db.scalars(
         select(Floor).where(Floor.building_id == building_id).order_by(Floor.level)
     )).all()
@@ -491,9 +545,7 @@ async def delete_campus(campus_id: uuid.UUID, user: RequireAdmin, db: DB):
 async def update_floor(
     floor_id: uuid.UUID, payload: FloorUpdate, user: RequireStaff, db: DB
 ):
-    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
-    if floor is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+    floor = await _get_floor_or_404(db, floor_id, user)
 
     data = payload.model_dump(exclude_unset=True)
     if "level" in data and data["level"] != floor.level:
@@ -547,9 +599,7 @@ async def create_building(
 async def update_building(
     building_id: uuid.UUID, payload: BuildingUpsert, user: RequireStaff, db: DB
 ):
-    building = await db.scalar(select(Building).where(Building.id == building_id))
-    if building is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+    building = await _get_building_or_404(db, building_id, user)
 
     if payload.code != building.code:
         clash = await db.scalar(
@@ -581,9 +631,7 @@ async def delete_building(
     refusal. `cascade` does that walk in one transaction, and the refusal now
     says what it would remove so the choice is informed.
     """
-    building = await db.scalar(select(Building).where(Building.id == building_id))
-    if building is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+    building = await _get_building_or_404(db, building_id, user)
 
     contents = await _building_contents(db, building_id)
     if any(contents.values()) and not cascade:
@@ -654,9 +702,7 @@ def _describe(counts: dict) -> str:
 async def create_floor(
     building_id: uuid.UUID, payload: FloorUpsert, user: RequireStaff, db: DB
 ):
-    building = await db.scalar(select(Building).where(Building.id == building_id))
-    if building is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Building not found")
+    building = await _get_building_or_404(db, building_id, user)
 
     clash = await db.scalar(
         select(Floor.id).where(Floor.building_id == building_id, Floor.level == payload.level))
@@ -679,9 +725,7 @@ async def delete_floor(
     floor_id: uuid.UUID, user: RequireAdmin, db: DB,
     cascade: bool = Query(False, description="Also remove the rooms and assets on it"),
 ):
-    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
-    if floor is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+    floor = await _get_floor_or_404(db, floor_id, user)
 
     rooms = await db.scalar(
         select(func.count()).select_from(Room).where(Room.floor_id == floor_id)) or 0
@@ -767,9 +811,7 @@ async def set_floor_plan_image(
     floor_id: uuid.UUID, payload: FloorPlanImage, user: RequireStaff, db: DB
 ):
     """Attach an uploaded plan image to a floor. Upload via /uploads/image first."""
-    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
-    if floor is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+    floor = await _get_floor_or_404(db, floor_id, user)
 
     floor.floor_plan_url = payload.floor_plan_url
     floor.plan_width = payload.plan_width
@@ -806,9 +848,7 @@ def _default_boundary(index: int) -> list:
 async def create_room(
     floor_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
 ):
-    floor = await db.scalar(select(Floor).where(Floor.id == floor_id))
-    if floor is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Floor not found")
+    floor = await _get_floor_or_404(db, floor_id, user)
 
     clash = await db.scalar(
         select(Room.id).where(Room.floor_id == floor_id, Room.code == payload.code))
@@ -841,9 +881,7 @@ async def create_room(
 async def update_room(
     room_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
 ):
-    room = await db.scalar(select(Room).where(Room.id == room_id))
-    if room is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+    room = await _get_room_or_404(db, room_id, user)
 
     if payload.code != room.code:
         clash = await db.scalar(
@@ -870,9 +908,7 @@ async def delete_room(
     room_id: uuid.UUID, user: RequireAdmin, db: DB,
     cascade: bool = Query(False, description="Also remove the assets inside"),
 ):
-    room = await db.scalar(select(Room).where(Room.id == room_id))
-    if room is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+    room = await _get_room_or_404(db, room_id, user)
 
     assets = await db.scalar(
         select(func.count()).select_from(Asset).where(Asset.room_id == room_id)) or 0
@@ -897,9 +933,7 @@ async def place_asset(
     asset_id: uuid.UUID, payload: AssetPlacement, user: RequireStaff, db: DB
 ):
     """Position an asset on the floor plan, normalised within its room."""
-    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
-    if asset is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    asset = await _get_asset_or_404(db, asset_id, user)
 
     asset.pos_x = payload.pos_x
     asset.pos_y = payload.pos_y
@@ -911,9 +945,7 @@ async def place_asset(
 async def create_asset(
     room_id: uuid.UUID, payload: AssetCreate, user: RequireStaff, db: DB
 ):
-    room = await db.scalar(select(Room).where(Room.id == room_id))
-    if room is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+    room = await _get_room_or_404(db, room_id, user)
 
     clash = await db.scalar(select(Asset.id).where(Asset.tag == payload.tag))
     if clash is not None:
@@ -991,9 +1023,7 @@ async def create_assets_bulk(
     every other field is shared. `pattern` decides how the run is laid out —
     see _bulk_positions.
     """
-    room = await db.scalar(select(Room).where(Room.id == room_id))
-    if room is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+    room = await _get_room_or_404(db, room_id, user)
 
     quantity = payload.quantity
     stem = payload.tag.rstrip("-")
@@ -1026,9 +1056,7 @@ async def create_assets_bulk(
 async def update_asset(
     asset_id: uuid.UUID, payload: AssetUpdate, user: RequireStaff, db: DB
 ):
-    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
-    if asset is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    asset = await _get_asset_or_404(db, asset_id, user)
 
     data = payload.model_dump(exclude_unset=True)
     if "tag" in data and data["tag"] != asset.tag:
@@ -1053,9 +1081,7 @@ async def delete_asset(asset_id: uuid.UUID, user: RequireAdmin, db: DB):
     foreign keys null out rather than cascading, so the maintenance spend
     already booked against it stays in the ledger.
     """
-    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
-    if asset is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    asset = await _get_asset_or_404(db, asset_id, user)
 
     tag = asset.tag
     await db.delete(asset)
@@ -1064,14 +1090,13 @@ async def delete_asset(asset_id: uuid.UUID, user: RequireAdmin, db: DB):
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)
 async def get_room(room_id: uuid.UUID, user: CurrentUser, db: DB):
-    room = await db.scalar(select(Room).where(Room.id == room_id))
-    if room is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+    room = await _get_room_or_404(db, room_id, user)
     return RoomOut.model_validate(room)
 
 
 @router.get("/rooms/{room_id}/assets", response_model=list[AssetOut])
 async def room_assets(room_id: uuid.UUID, user: CurrentUser, db: DB):
+    await _get_room_or_404(db, room_id, user)
     rows = (await db.scalars(
         select(Asset).where(Asset.room_id == room_id).order_by(Asset.tag))).all()
     return [AssetOut.model_validate(a) for a in rows]
@@ -1189,9 +1214,7 @@ async def list_assets(
 @router.get("/assets/{asset_id}", response_model=dict)
 async def asset_detail(asset_id: uuid.UUID, user: CurrentUser, db: DB):
     """Asset Details plus its condition and maintenance history."""
-    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
-    if asset is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    asset = await _get_asset_or_404(db, asset_id, user)
 
     history = (await db.scalars(
         select(AssetStateHistory)
@@ -1257,9 +1280,7 @@ async def update_asset_state(
     asset_id: uuid.UUID, payload: AssetStateUpdate, user: RequireStaff, db: DB
 ):
     """Manual state override — broadcasts to every live twin viewer."""
-    asset = await db.scalar(select(Asset).where(Asset.id == asset_id))
-    if asset is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    asset = await _get_asset_or_404(db, asset_id, user)
 
     changed = await set_asset_state(
         db, asset, payload.state,

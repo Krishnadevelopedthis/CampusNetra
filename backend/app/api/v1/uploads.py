@@ -18,8 +18,20 @@ This still isn't per-record authorization (any logged-in user can fetch any
 non-ID-card path once authenticated) -- it closes the "fully public, path
 just isn't guessable" gap, which is what made this a real leak. Per-object
 scoping (only the reporter, an assigned technician, or staff can fetch a
-given evidence photo) is a further-out, separate change layered on top of
-this, not attempted here.
+given evidence photo) was investigated again and deliberately not forced in
+here: an uploaded file has no owner/org recorded of its own -- it only
+becomes attributable once IssueAttachment/WorkOrderAttachment/LFAttachment
+rows reference its URL from a parent record, and the *upload* endpoint runs
+before that parent record exists (POST /uploads/image returns a URL the
+frontend immediately re-fetches to render the picker's own preview --
+ImageUpload.jsx / useAuthedImage -- while the issue/work-order/L&F item is
+still being composed, seconds or minutes before it's submitted). Scoping this
+route to "only if some parent record already references this path" would
+404 that legitimate preview every time, for every upload, until the parent
+record is saved. Doing it properly needs a schema change this pass doesn't
+make: recording the uploader (and their org) at upload time in a table of
+its own, independent of whichever record ends up referencing the file, or
+never. Flagging the real reason rather than silently declining again.
 
 Identity-verification uploads (ID cards, see change-name's
 store_image(..., subdir="identity_verification", private=True) in auth.py)
