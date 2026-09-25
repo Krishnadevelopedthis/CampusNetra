@@ -20,5 +20,8 @@ from app.models.platform import (  # noqa: F401
     AIConversation, AIFeedback, AIInvocation, AIKnowledge, AIMessage, AuditLog,
     LoginActivity, MaintenancePrediction, Notification, NotificationTemplate, Simulation,
 )
+from app.models.iot import (  # noqa: F401
+    AssetSensorMapping, HealthEvent, IoTDevice,
+)
 
 __all__ = [n for n in dir() if not n.startswith("_")]

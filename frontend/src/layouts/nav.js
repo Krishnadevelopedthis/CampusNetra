@@ -1,6 +1,6 @@
 import {
   Activity, Banknote, BarChart3, Bell, Boxes, Building2, ClipboardCheck, ClipboardList, Clock, Cpu,
-  FileSearch, Gauge, History, LayoutDashboard, ListChecks, MapPinned, Package,
+  FileSearch, Gauge, HeartPulse, History, LayoutDashboard, ListChecks, MapPinned, Package,
   PlusCircle, Search, Settings, Shield, ShieldAlert, Sparkles, TrendingUp,
   Users, Wrench,
 } from 'lucide-react'
@@ -61,6 +61,7 @@ const ADMIN = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
   { to: '/admin', label: 'Administration', icon: Settings },
+  { to: '/admin/health', label: 'Health', icon: HeartPulse },
 ]
 
 export function navFor(role) {

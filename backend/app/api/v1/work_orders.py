@@ -11,8 +11,9 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
 from app.core.routing import CommitRoute
-from app.core.enums import WORK_ORDER_TRANSITIONS, Priority, UserRole, WorkOrderStatus
+from app.core.enums import WORK_ORDER_TRANSITIONS, HealthEventStatus, Priority, UserRole, WorkOrderStatus
 from app.models.identity import Department, User
+from app.models.iot import HealthEvent
 from app.models.issues import Issue
 from app.models.spatial import Asset, Room
 from app.models.work import (
@@ -268,6 +269,18 @@ async def transition(wo_id: uuid.UUID, payload: WorkOrderTransition, user: Requi
         actual_mins=payload.actual_mins, labour_cost=payload.labour_cost,
         parts_cost=payload.parts_cost, blocked_reason=payload.blocked_reason,
     )
+
+    # Spec #23: sensor readings going back to normal don't resolve a Health
+    # Event on their own while its Work Order is still open -- only the
+    # technician's verified repair does. transition_work_order already
+    # reverts the asset to HEALTHY on VERIFIED (or leaves it, per its own
+    # rules); this just keeps the HealthEvent's own status in sync with it.
+    if payload.status == WorkOrderStatus.VERIFIED:
+        health_event = await db.scalar(select(HealthEvent).where(HealthEvent.work_order_id == wo.id))
+        if health_event and health_event.status != HealthEventStatus.RESOLVED:
+            health_event.status = HealthEventStatus.RESOLVED
+            health_event.resolved_at = datetime.now(timezone.utc)
+
     await db.flush()
     await db.refresh(wo)
     return await _to_detail(db, wo)

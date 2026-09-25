@@ -125,6 +125,10 @@ class AssetCategory(Base):
         PGUUID(as_uuid=True), ForeignKey("departments.id", ondelete="SET NULL")
     )
     default_priority: Mapped[Priority] = mapped_column(priority_enum, default=Priority.MEDIUM, nullable=False)
+    # Drives the IoT Health module: only electronic assets get sensors/health
+    # state (see scripts/create_iot_tables.py, which backfilled this for the
+    # categories that already exist).
+    is_electronic: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     assets: Mapped[list["Asset"]] = relationship(back_populates="category")
 

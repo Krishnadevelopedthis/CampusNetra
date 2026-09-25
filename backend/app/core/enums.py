@@ -183,3 +183,34 @@ WORK_ORDER_TRANSITIONS: dict[WorkOrderStatus, set[WorkOrderStatus]] = {
 
 def can_transition(current, target, table) -> bool:
     return target in table.get(current, set())
+
+
+# ---------- IoT health monitoring ----------
+class SensorType(StrEnum):
+    ACS712 = "acs712"          # current clamp — electrical draw / on-off
+    DHT11 = "dht11"             # temperature + humidity
+    LDR = "ldr"                 # light level
+    IR_PROXIMITY = "ir_proximity"  # reserved; not used for occupancy here
+
+
+class HealthEventKind(StrEnum):
+    ABNORMAL_CURRENT = "abnormal_current"
+    NO_CURRENT = "no_current"
+    LOW_BRIGHTNESS = "low_brightness"
+    HIGH_TEMPERATURE = "high_temperature"
+    DEVICE_OFFLINE = "device_offline"
+    TELEMETRY_STALE = "telemetry_stale"
+
+
+class HealthEventSeverity(StrEnum):
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+class HealthEventStatus(StrEnum):
+    OPEN = "open"                    # threshold breached, debounce satisfied
+    INSPECTING = "inspecting"        # auto-inspection scheduled/in progress
+    CONFIRMED = "confirmed"          # inspection confirmed a real fault -> work order raised
+    NO_ISSUE_FOUND = "no_issue_found"
+    RESOLVED = "resolved"            # readings normal again and, if a work order was
+                                      # raised, that work order has verified/closed
