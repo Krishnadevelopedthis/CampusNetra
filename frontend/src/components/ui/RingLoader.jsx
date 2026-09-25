@@ -22,7 +22,11 @@ export function RingLoader({ label, size, className }) {
         style={{ ...(size ? { width: size, height: size } : null), outline: '3px solid red', background: 'lime' }}
         aria-hidden="true"
       >
-        <circle className="ringspin__ring2" cx="64" cy="64" r="50" fill="none" stroke="black" strokeWidth="20" />
+        <circle
+          className="ringspin__ring2" cx="64" cy="64" r="52.5" fill="none"
+          stroke="black" strokeWidth="12" transform="rotate(-90,64,64)"
+          strokeLinecap="round" strokeDasharray="329.9 329.9" strokeDashoffset="-329.3"
+        />
         <circle
           className="ringspin__ring2" cx="64" cy="64" r="52.5" fill="none"
           stroke="hsl(13,90%,55%)" strokeWidth="12" transform="rotate(-90,64,64)"
