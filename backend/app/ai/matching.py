@@ -24,6 +24,16 @@ _SALIENT = {
     "metal","plastic","canvas","nylon","steel","wooden",
 }
 
+# Common enough in free-text "distinguishing marks" fields ("scratch on the
+# side", "written on it") that matching on them would be noise, not signal —
+# filtered out before that field is allowed to boost the description score.
+_MARKS_STOPWORDS = {
+    "the","a","an","on","in","at","of","it","its","is","was","with","and","or",
+    "this","that","these","those","has","have","had","written","marked","says",
+    "side","top","bottom","front","back","near","some","small","little","word",
+    "words","text","letter","letters","sticker","label",
+}
+
 
 @dataclass
 class MatchFactors:
@@ -81,6 +91,21 @@ def description_score(lost: dict, found: dict) -> float:
     if lost_salient and found_salient:
         overlap = len(lost_salient & found_salient) / len(lost_salient | found_salient)
         base = base * 0.6 + overlap * 0.4
+
+    # "Distinguishing marks" is where a reporter names the one idiosyncratic
+    # detail that actually identifies their item -- a brand printed on it, a
+    # crack, initials, a specific sticker. A shared word there (past a
+    # stopword filter, so "written on it" both sides doesn't count) is much
+    # stronger evidence than the same overlap buried in ordinary prose, so it
+    # gets weighted in on top of the jaccard/salient blend above rather than
+    # folded into it.
+    lost_marks = {w for w in re.findall(r"[a-z]+", (lost.get("distinguishing_marks") or "").lower())
+                  if len(w) >= 4 and w not in _MARKS_STOPWORDS}
+    found_marks = {w for w in re.findall(r"[a-z]+", (found.get("distinguishing_marks") or "").lower())
+                   if len(w) >= 4 and w not in _MARKS_STOPWORDS}
+    marks_hits = lost_marks & found_marks
+    if marks_hits:
+        base = min(1.0, base + 0.2 * len(marks_hits))
 
     # An exact brand match is strong corroboration.
     lb, fb = (lost.get("brand") or "").strip().lower(), (found.get("brand") or "").strip().lower()
