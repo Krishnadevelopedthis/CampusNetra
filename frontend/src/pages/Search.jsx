@@ -87,7 +87,7 @@ export default function Search() {
             <div className="relative flex-1 max-w-3xl">
               <SearchIcon
                 size={18} strokeWidth={2.25}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
+                className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
               />
               <input
                 ref={inputRef}

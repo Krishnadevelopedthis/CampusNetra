@@ -63,7 +63,7 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
     >
       <Search
         size={17} strokeWidth={2.25}
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
+        className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
       />
       <input
         autoFocus={mobileOpen}

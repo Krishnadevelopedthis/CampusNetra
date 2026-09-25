@@ -58,7 +58,7 @@ export default function WorkOrderList() {
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">
           <div className="relative flex-1 min-w-[220px]">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+            <Search size={16} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
             <input className="input pl-9" placeholder="Search title or reference…"
                    value={q} onChange={(e) => { setQ(e.target.value); setPage(1) }} />
           </div>

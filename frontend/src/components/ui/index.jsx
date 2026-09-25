@@ -259,7 +259,7 @@ export const Input = forwardRef(function Input({ error, icon: Icon, className, i
   }
   return (
     <div className="relative">
-      <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+      <Icon size={15} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
       <input
         ref={ref}
         id={id}
@@ -278,7 +278,7 @@ export const PasswordInput = forwardRef(function PasswordInput({ error, classNam
   const [visible, setVisible] = useState(false)
   return (
     <div className="relative">
-      <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+      <Lock size={15} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
       <input
         ref={ref}
         type={visible ? 'text' : 'password'}
