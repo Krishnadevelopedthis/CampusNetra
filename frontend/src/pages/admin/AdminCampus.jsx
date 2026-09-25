@@ -160,9 +160,10 @@ export default function AdminCampus() {
                   </span>
 
                   <div className="flex gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" icon={Pencil}
+                    <Button size="sm" variant="ghost" icon={Pencil} aria-label={`Edit ${b.name}`}
                             onClick={() => setBuildingForm({ ...b })} />
                     <Button size="sm" variant="ghost" icon={Trash2} className="text-danger-text"
+                            aria-label={`Delete ${b.name}`}
                             loading={deleteBuilding.isPending}
                             onClick={() => deleteBuilding.remove(b.id, `${b.name}`)} />
                   </div>
@@ -185,6 +186,7 @@ export default function AdminCampus() {
                               <Link to="/admin/floor-plans" className="btn-ghost btn-sm">Edit rooms</Link>
                               <Button size="sm" variant="ghost" icon={Trash2}
                                       className="text-danger-text"
+                                      aria-label={`Delete ${f.name}`}
                                       loading={deleteFloor.isPending}
                                       onClick={() => deleteFloor.remove(f.id, `${f.name}`)} />
                             </div>
