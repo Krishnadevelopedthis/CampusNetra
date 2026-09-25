@@ -10,8 +10,9 @@ import {
   Textarea, Widget, toast,
 } from '@/components/ui'
 import { ImageUpload } from '@/components/ImageUpload'
-import { api, mediaUrl } from '@/lib/api'
+import { api } from '@/lib/api'
 import { ago, dt } from '@/lib/format'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 
 export default function AdminLostFound() {
   const qc = useQueryClient()
@@ -166,10 +167,7 @@ export default function AdminLostFound() {
                       {c.proof_urls?.length > 0 && (
                         <div className="flex gap-2 mt-2">
                           {c.proof_urls.map((u) => (
-                            <a key={u} href={u} target="_blank" rel="noreferrer"
-                               className="w-16 h-16 rounded overflow-hidden border border-border-subtle">
-                              <img src={mediaUrl(u)} alt="Evidence" className="w-full h-full object-cover" />
-                            </a>
+                            <ProofThumb key={u} url={u} />
                           ))}
                         </div>
                       )}
@@ -214,18 +212,7 @@ export default function AdminLostFound() {
                     <div className="grid sm:grid-cols-2 gap-3">
                       {[['Lost', m.lost_preview, m.lost_item_id],
                         ['Found', m.found_preview, m.found_item_id]].map(([label, p, id]) => (
-                        <Link key={label} to={`/lost-found/items/${id}`}
-                              className="flex gap-3 rounded border border-border-subtle p-3 hover:bg-surface-sunken transition-colors">
-                          <div className="w-14 h-14 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
-                            {p?.image ? <img src={mediaUrl(p.image)} alt="" className="w-full h-full object-cover" />
-                              : <PackageSearch size={18} className="text-ink-faint" />}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-label-caps uppercase text-ink-muted">{label}</p>
-                            <p className="text-body-md text-ink truncate">{p?.title}</p>
-                            <p className="font-mono text-[11px] text-secondary">{p?.reference}</p>
-                          </div>
-                        </Link>
+                        <MatchPreviewLink key={label} label={label} preview={p} id={id} />
                       ))}
                     </div>
 
@@ -349,5 +336,33 @@ export default function AdminLostFound() {
         </Field>
       </Modal>
     </div>
+  )
+}
+
+function ProofThumb({ url }) {
+  const src = useAuthedImage(url)
+  return (
+    <a href={src || undefined} target="_blank" rel="noreferrer"
+       className="w-16 h-16 rounded overflow-hidden border border-border-subtle bg-surface-2">
+      {src && <img src={src} alt="Evidence" className="w-full h-full object-cover" />}
+    </a>
+  )
+}
+
+function MatchPreviewLink({ label, preview: p, id }) {
+  const src = useAuthedImage(p?.image)
+  return (
+    <Link to={`/lost-found/items/${id}`}
+          className="flex gap-3 rounded border border-border-subtle p-3 hover:bg-surface-sunken transition-colors">
+      <div className="w-14 h-14 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
+        {src ? <img src={src} alt="" className="w-full h-full object-cover" />
+          : <PackageSearch size={18} className="text-ink-faint" />}
+      </div>
+      <div className="min-w-0">
+        <p className="text-label-caps uppercase text-ink-muted">{label}</p>
+        <p className="text-body-md text-ink truncate">{p?.title}</p>
+        <p className="font-mono text-[11px] text-secondary">{p?.reference}</p>
+      </div>
+    </Link>
   )
 }

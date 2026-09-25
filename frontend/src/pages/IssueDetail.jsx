@@ -16,9 +16,10 @@ import {
   Widget,
   toast,
 } from '@/components/ui'
-import { api, mediaUrl } from '@/lib/api'
+import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ago, dt, slaLabel, titleCase } from '@/lib/format'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 
 const PIPELINE = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed']
 
@@ -379,25 +380,7 @@ export default function IssueDetail() {
                 <div className="flex flex-wrap gap-2">
                   {issue.attachments.map(
                     (a) => (
-                      <a
-                        key={a.id}
-                        href={mediaUrl(a.url)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block w-28 h-28 rounded overflow-hidden border border-border-subtle hover:opacity-90"
-                      >
-                        <img
-                          src={mediaUrl(
-                            a.thumb_url ||
-                              a.url,
-                          )}
-                          alt={
-                            a.filename ||
-                            'Evidence'
-                          }
-                          className="w-full h-full object-cover"
-                        />
-                      </a>
+                      <EvidenceThumb key={a.id} attachment={a} />
                     ),
                   )}
                 </div>
@@ -750,6 +733,23 @@ export default function IssueDetail() {
         />
       </Modal>
     </div>
+  )
+}
+
+function EvidenceThumb({ attachment: a }) {
+  const thumbSrc = useAuthedImage(a.thumb_url || a.url)
+  const fullSrc = useAuthedImage(a.url)
+  return (
+    <a
+      href={fullSrc || undefined}
+      target="_blank"
+      rel="noreferrer"
+      className="block w-28 h-28 rounded overflow-hidden border border-border-subtle bg-surface-2 hover:opacity-90"
+    >
+      {thumbSrc && (
+        <img src={thumbSrc} alt={a.filename || 'Evidence'} className="w-full h-full object-cover" />
+      )}
+    </a>
   )
 }
 

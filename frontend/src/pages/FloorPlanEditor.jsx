@@ -28,8 +28,9 @@ import {
   toast,
 } from '@/components/ui'
 import { AssetModal } from '@/features/twin/AssetRoomModals'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 import { useCascadingDelete } from '@/hooks/useCascadingDelete'
-import { api, mediaUrl, upload } from '@/lib/api'
+import { api, upload } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 import { loadPlanPixels, traceRoomAt } from '@/lib/planTrace'
 
@@ -144,6 +145,7 @@ export default function FloorPlanEditor() {
 
   const rooms = plan.data?.rooms || []
   const planImage = plan.data?.floor?.floor_plan_url
+  const planImageSrc = useAuthedImage(planImage)
   const planW = plan.data?.floor?.plan_width
   const planH = plan.data?.floor?.plan_height
 
@@ -173,19 +175,19 @@ export default function FloorPlanEditor() {
   // costs a flood fill rather than another decode of a multi-megabyte scan.
   useEffect(() => {
     pixels.current = null
-    if (!planImage) return
+    if (!planImageSrc) return
     let cancelled = false
-    loadPlanPixels(mediaUrl(planImage))
+    loadPlanPixels(planImageSrc)
       .then((px) => { if (!cancelled) pixels.current = px })
       .catch(() => { /* reported when tracing is actually attempted */ })
     return () => { cancelled = true }
-  }, [planImage])
+  }, [planImageSrc])
 
   const traceAt = async (p) => {
     setTracing(true)
     try {
       if (!pixels.current) {
-        pixels.current = await loadPlanPixels(mediaUrl(planImage))
+        pixels.current = await loadPlanPixels(planImageSrc)
       }
       const hit = traceRoomAt(pixels.current, p.x, p.y)
       if (!hit) {
@@ -393,8 +395,8 @@ export default function FloorPlanEditor() {
                       {/* The plan fills the canvas exactly — the viewBox above
                           carries its aspect ratio — so a room's normalised
                           outline lands on the walls it was traced from. */}
-                      {planImage && (
-                        <image href={mediaUrl(planImage)} x="0" y="0" width={VB} height={vbH}
+                      {planImageSrc && (
+                        <image href={planImageSrc} x="0" y="0" width={VB} height={vbH}
                                preserveAspectRatio="none"
                                opacity={mode === 'trace' ? 0.85 : 0.55} />
                       )}

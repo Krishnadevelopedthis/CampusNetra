@@ -4,7 +4,8 @@ import { useCallback, useRef, useState } from 'react'
 
 import { CameraCapture, isTouchDevice } from '@/components/CameraCapture'
 import { toast } from '@/components/ui'
-import { mediaUrl, upload } from '@/lib/api'
+import { upload } from '@/lib/api'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 
 /**
  * Uploads images as soon as they are picked, rather than at form submit.
@@ -163,8 +164,7 @@ export function ImageUpload({
           {value.map((img, i) => (
             <div key={img.url}
                  className="relative w-24 h-24 rounded-xl overflow-hidden border border-border-subtle group">
-              <img src={mediaUrl(img.thumb_url || img.url)} alt={img.filename || 'Attachment'}
-                   className="w-full h-full object-cover" />
+              <UploadedThumb img={img} />
               <button
                 type="button" onClick={() => remove(i)}
                 className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary-950/70 text-white grid place-items-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
@@ -188,4 +188,11 @@ export function ImageUpload({
       )}
     </div>
   )
+}
+
+function UploadedThumb({ img }) {
+  const src = useAuthedImage(img.thumb_url || img.url)
+  return src ? (
+    <img src={src} alt={img.filename || 'Attachment'} className="w-full h-full object-cover" />
+  ) : null
 }

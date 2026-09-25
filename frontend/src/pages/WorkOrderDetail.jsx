@@ -7,8 +7,9 @@ import {
   Avatar, Button, ErrorState, Field, Input, Modal, PriorityPill, Select, Spinner,
   StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
-import { api, mediaUrl } from '@/lib/api'
+import { api } from '@/lib/api'
 import { ago, dt, money, slaLabel, titleCase } from '@/lib/format'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 
 export default function WorkOrderDetail() {
   const { id } = useParams()
@@ -118,10 +119,7 @@ export default function WorkOrderDetail() {
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {photos.map((p) => (
-                        <a key={p.id} href={p.url} target="_blank" rel="noreferrer"
-                           className="w-24 h-24 rounded overflow-hidden border border-border-subtle">
-                          <img src={mediaUrl(p.thumb_url || p.url)} alt={label} className="w-full h-full object-cover" />
-                        </a>
+                        <EvidenceThumb key={p.id} photo={p} label={label} />
                       ))}
                     </div>
                   )}
@@ -318,6 +316,17 @@ export default function WorkOrderDetail() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+function EvidenceThumb({ photo, label }) {
+  const thumbSrc = useAuthedImage(photo.thumb_url || photo.url)
+  const fullSrc = useAuthedImage(photo.url)
+  return (
+    <a href={fullSrc || undefined} target="_blank" rel="noreferrer"
+       className="w-24 h-24 rounded overflow-hidden border border-border-subtle bg-surface-2">
+      {thumbSrc && <img src={thumbSrc} alt={label} className="w-full h-full object-cover" />}
+    </a>
   )
 }
 

@@ -5,30 +5,31 @@ shape the attachment schemas expect, so the caller passes the response straight
 through when creating the parent record.
 
 All images are stored privately in the bucket (never a public bucket URL) and
-served back through the /uploads/file/... route below. That route does NOT
-require the caller to be logged in -- it takes any relative_path and reads it
-straight from private storage. "Private" here means "not reachable through
-the public bucket/media mount, no guessable public ACL," not "requires auth
-to fetch through this API".
+served back through the /uploads/file/... route below, which now requires
+CurrentUser -- fetching one of these paths without being logged in gets a 401,
+not the file. Auth in this app is a bearer token in localStorage, not a
+cookie, so a plain <img src="/uploads/file/...">  cannot carry it; every
+evidence photo, avatar and Lost & Found image is now fetched through JS
+(useAuthedImage / fetchAuthedBlob, frontend/src/hooks/useAuthedImage.js,
+frontend/src/lib/api.js) with the Authorization header and rendered from the
+resulting blob: URL instead of a plain src.
 
-Closing that fully (requiring CurrentUser here) is a bigger change than it
-looks: auth in this app is a bearer token in localStorage, not a cookie, and
-a plain <img src="/uploads/file/...">  cannot attach an Authorization header
--- every evidence photo, avatar and Lost & Found image currently rendered as
-a plain <img> across the app would go blank until each one is rewritten to
-fetch through JS and render as a blob URL. That's real, separate frontend
-work, tracked but not done here.
+This still isn't per-record authorization (any logged-in user can fetch any
+non-ID-card path once authenticated) -- it closes the "fully public, path
+just isn't guessable" gap, which is what made this a real leak. Per-object
+scoping (only the reporter, an assigned technician, or staff can fetch a
+given evidence photo) is a further-out, separate change layered on top of
+this, not attempted here.
 
-What IS done here: identity-verification uploads (ID cards, see
-change-name's store_image(..., subdir="identity_verification", private=True)
-in auth.py) are refused at this route regardless of auth, full stop. An ID
-card is meaningfully more sensitive than an evidence photo -- it's exactly
-what item #39 of the security audit calls out by name -- and it already has
-a correct, dedicated, admin-only, org-scoped route
-(GET /admin/name-change-requests/{request_id}/document). There is no legitimate
-reason for that subdirectory to ever come back through this generic,
-unauthenticated path, so this closes that one leak completely rather than
-leaving it as a "the URL just isn't guessable" hope.
+Identity-verification uploads (ID cards, see change-name's
+store_image(..., subdir="identity_verification", private=True) in auth.py)
+are refused at this route regardless of auth, full stop -- unchanged from
+before. An ID card is meaningfully more sensitive than an evidence photo --
+it's exactly what item #39 of the security audit calls out by name -- and it
+already has a correct, dedicated, admin-only, org-scoped route
+(GET /admin/name-change-requests/{request_id}/document). There is no
+legitimate reason for that subdirectory to ever come back through this
+generic path, ID-card block stays on top of the new auth requirement.
 """
 from __future__ import annotations
 
@@ -63,10 +64,10 @@ _BLOCKED_PREFIXES = ("identity_verification/", "identity_verification\\")
 
 
 @router.get("/file/{relative_path:path}")
-async def get_uploaded_file(relative_path: str):
-    # ID cards never come back through this unauthenticated route -- see the
-    # module docstring. They're only ever readable through the admin-only,
-    # org-scoped GET /admin/name-change-requests/{request_id}/document.
+async def get_uploaded_file(user: CurrentUser, relative_path: str):
+    # ID cards never come back through this route regardless of auth -- see
+    # the module docstring. They're only ever readable through the
+    # admin-only, org-scoped GET /admin/name-change-requests/{request_id}/document.
     if relative_path.startswith(_BLOCKED_PREFIXES):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     try:

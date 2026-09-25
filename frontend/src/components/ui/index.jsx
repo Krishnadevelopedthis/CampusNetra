@@ -4,6 +4,7 @@ import { Children, cloneElement, forwardRef, useEffect, useRef, useState } from 
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 export { SkeletonRows }
 export { BrandLoader } from '@/components/ui/BrandLoader'
 
@@ -297,8 +298,12 @@ export function Select({ error, className, children, ...rest }) {
 }
 
 /* ---------------- Avatar ---------------- */
-export function Avatar({ name, src, size = 32, className }) {
+export function Avatar({ name, src: path, size = 32, className }) {
   const [failed, setFailed] = useState(false)
+  // src is a private /uploads/file/... path, not a directly-loadable URL —
+  // the route requires the caller's bearer token, which a plain <img src>
+  // cannot send. useAuthedImage fetches it and hands back a blob: URL.
+  const src = useAuthedImage(path)
   // Reset on every new src — otherwise an avatar that failed to load once
   // (a transient network hiccup, or the brief moment mid logout/login when
   // this re-renders with a stale or empty src) is stuck showing initials
