@@ -21,11 +21,19 @@ const SUGGESTIONS = [
 // scale(3) on the img inside an overflow-hidden square instead zooms into
 // just the centred mark and crops the rest away, so it reads clearly even
 // at 19-22px.
-function AiFace({ size, rounded = 'rounded-lg' }) {
+// `size` is a fixed pixel box (used everywhere the icon sits at one size
+// regardless of viewport). Omitting it makes the circle fill its parent
+// instead via w-full/h-full, so the FAB below can just resize itself with
+// ordinary responsive Tailwind classes and have the icon follow -- a fixed
+// px size passed in from JS can't respond to a media query on its own.
+function AiFace({ size, rounded = 'rounded-lg', className }) {
   return (
     <div
-      className={clsx('overflow-hidden bg-white shrink-0', rounded)}
-      style={{ width: size, height: size }}
+      className={clsx(
+        'overflow-hidden bg-white shrink-0',
+        rounded, !size && 'w-full h-full', className,
+      )}
+      style={size ? { width: size, height: size } : undefined}
     >
       <img
         src="/assets/ai-agent.gif"
@@ -121,12 +129,15 @@ export function AssistantWidget() {
         aria-expanded={open}
         className={clsx(
           'fixed z-40 grid place-items-center rounded-full shadow-level3',
-          'bottom-5 right-4 h-14 w-14 sm:bottom-6 sm:right-6',
+          // Smaller on narrow screens, same as every other size step in
+          // this file (bottom/right position already did this; the button
+          // itself stayed one fixed size regardless of viewport).
+          'bottom-4 right-3 h-11 w-11 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14',
           'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}
       >
-        <AiFace size={56} rounded="rounded-full" />
+        <AiFace rounded="rounded-full" className="border-2 border-white" />
       </button>
 
       {!open ? null : (
