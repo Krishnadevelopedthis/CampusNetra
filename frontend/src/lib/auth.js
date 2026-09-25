@@ -289,10 +289,13 @@ export const useAuth = create((set, get) => ({
 
     // The colour itself is still saved server-side on the account (it comes
     // straight back via loadFromUserPreferences() on the next login) -- only
-    // the *applied, on-screen* accent resets, so a public/shared device
+    // the *applied, on-screen* accent clears, so a public/shared device
     // doesn't keep showing whoever was last signed in to anyone who looks at
-    // it afterwards, including the login page itself.
-    useColorTheme.getState().resetColorTheme()
+    // it afterwards, including the login page itself. clearUserColorTheme(),
+    // not resetColorTheme() -- the latter explicitly paints the stock accent
+    // back on, which still reads as "someone's colour is showing" even
+    // though it's the default one; this removes the override entirely.
+    useColorTheme.getState().clearUserColorTheme()
 
     writeAuth(null)
 
