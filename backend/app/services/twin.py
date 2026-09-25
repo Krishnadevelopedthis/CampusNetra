@@ -6,16 +6,50 @@ audit trail can never drift apart.
 """
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import AssetState, TwinEventKind
 from app.models.spatial import Asset, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent
 from app.services.realtime import hub
+
+# record_event() used to call hub.broadcast() straight after db.flush(),
+# which pushes a "this changed" event to every connected client before the
+# enclosing request has actually committed -- if something later in that
+# same request raised and rolled the transaction back, subscribers had
+# already been told about a write the database never ended up with, with no
+# way to un-tell them. notifications.py already solved exactly this
+# problem for the notification socket (see its _PENDING/_arm); this queues
+# twin broadcasts the same way, keyed by the session, and only actually
+# sends them from an `after_commit` hook.
+_PENDING: dict[int, list[tuple[str, dict]]] = {}
+
+
+def _queue_broadcast(db: AsyncSession, campus_id: str, event_payload: dict) -> None:
+    sync = db.sync_session
+    key = id(sync)
+    if key not in _PENDING:
+        _PENDING[key] = []
+        _arm(sync, key)
+    _PENDING[key].append((campus_id, event_payload))
+
+
+def _arm(sync, key: int) -> None:
+    def on_commit(_session):
+        for campus_id, payload in _PENDING.pop(key, []):
+            asyncio.create_task(hub.broadcast(campus_id, payload))
+
+    def _discard(*_args):
+        _PENDING.pop(key, None)
+
+    event.listen(sync, "after_commit", on_commit)
+    event.listen(sync, "after_rollback", _discard)
+    event.listen(sync, "after_soft_rollback", _discard)
 
 # Marker colours the floor plan renders for each state. Kept server-side so the
 # twin, the legend and any exported report agree on one palette.
@@ -77,7 +111,7 @@ async def record_event(
 
     # Simulated events must never reach the live map.
     if broadcast and simulation_id is None:
-        await hub.broadcast(str(campus_id), {
+        _queue_broadcast(db, str(campus_id), {
             "type": kind.value,
             "entity_type": entity_type,
             "entity_id": str(entity_id),

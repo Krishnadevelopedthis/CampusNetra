@@ -53,6 +53,13 @@ export default function AdminLostFound() {
     qc.invalidateQueries({ queryKey: ['lf-dashboard'] })
     qc.invalidateQueries({ queryKey: ['lf-matches-review'] })
     qc.invalidateQueries({ queryKey: ['lf-returned'] })
+    // Approving/rejecting a claim, confirming a handover, or deciding an AI
+    // match all change a real item's status -- but none of the keys above
+    // are the ones LostFoundItem.jsx/LostFound.jsx actually read, so a
+    // reporter with that item's own page open kept seeing its old status
+    // until an unrelated remount or a manual reload.
+    qc.invalidateQueries({ queryKey: ['lf-items'] })
+    qc.invalidateQueries({ queryKey: ['lf-item'] })
   }
 
   const decide = useMutation({

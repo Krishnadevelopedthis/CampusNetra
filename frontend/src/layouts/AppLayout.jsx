@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
   Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
@@ -116,12 +117,43 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
   )
 }
 
+// A notification event names the entity it's about (`entity_type`/
+// `entity_id`, already sent by the backend for every notify() call), but
+// arriving here only ever updated the bell's own local state -- an issue
+// getting resolved elsewhere, say, would toast and bump the unread count
+// without ever telling any open IssueList/IssueDetail/Dashboard query that
+// its data is now stale. This maps each entity_type to the same query keys
+// those pages already invalidate themselves after their own mutations (see
+// IssueDetail.jsx, WorkOrderDetail.jsx, etc.) so a change made by someone
+// else reaches an already-open view the same way a change made by you does.
+function keysForNotification(entityType, entityId) {
+  switch (entityType) {
+    case 'issue':
+      return [['issue', entityId], ['issues'], ['dashboard']]
+    case 'work_order':
+      return [['work-order', entityId], ['work-orders'], ['wo-board'], ['dashboard']]
+    case 'asset':
+    case 'health_event':
+      return [['asset', entityId], ['assets']]
+    case 'inspection':
+      return [['inspection', entityId], ['inspections'], ['inspection-dashboard']]
+    case 'lostfound_item':
+      return [['lf-item', entityId], ['lf-items'], ['lf-dashboard']]
+    case 'lf_claim':
+    case 'lf_match':
+      return [['lf-items'], ['lf-dashboard'], ['lf-claims-all'], ['lf-matches-review']]
+    default:
+      return []
+  }
+}
+
 function NotificationBell() {
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState([])
   const [unread, setUnread] = useState(0)
   const [pinged, setPinged] = useState(false)
   const ref = useRef(null)
+  const qc = useQueryClient()
   useOutsideClick(ref, () => setOpen(false))
 
   const load = async () => {
@@ -156,6 +188,8 @@ function NotificationBell() {
         window.setTimeout(() => setPinged(false), 1200)
         toast.info(evt.title)
         load()
+        keysForNotification(evt.entity_type, evt.entity_id)
+          .forEach((queryKey) => qc.invalidateQueries({ queryKey }))
       },
     })
     return disconnect
