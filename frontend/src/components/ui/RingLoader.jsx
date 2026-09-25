@@ -19,7 +19,8 @@ export function RingLoader({ label, size, className }) {
     >
       <svg
         className="ringspin" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg"
-        style={size ? { width: size, height: size } : undefined} aria-hidden="true"
+        style={{ ...(size ? { width: size, height: size } : null), outline: '3px solid red', background: 'lime' }}
+        aria-hidden="true"
       >
         <circle
           className="ringspin__ring2" cx="64" cy="64" r="52.5" fill="none"
