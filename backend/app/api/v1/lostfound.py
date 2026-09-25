@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.api.deps import DB, STAFF_ROLES, CurrentUser, Paging, RequireManager, RequireStaff
 from app.core.routing import CommitRoute
 from app.core.enums import ClaimStatus, LFKind, LFStatus, MatchStatus, UserRole
 from app.models.identity import User
@@ -400,13 +400,65 @@ async def decide_claim(
     return Message(detail=f"Claim {claim.status.value}.")
 
 
+@router.get("/claims/{claim_id}/contact", response_model=dict)
+async def claim_contact(claim_id: uuid.UUID, user: CurrentUser, db: DB):
+    """Reveal the other party's contact details for an approved claim, so
+    the claimant and the person who found the item can coordinate the
+    physical handover -- spec #26. Gated to the two people actually
+    involved, never public, and never before staff have verified the
+    claim. Each reveal is recorded to the audit log.
+    """
+    claim = await _get_claim_or_404(db, claim_id, user)
+    if claim.status not in (ClaimStatus.APPROVED, ClaimStatus.COLLECTED):
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "Contact details are only shared once a claim is approved")
+
+    item = await db.scalar(select(LFItem).where(LFItem.id == claim.item_id))
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Item not found")
+
+    is_claimant = claim.claimant_id == user.id
+    is_reporter = item.reported_by == user.id
+    if not (is_claimant or is_reporter):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not part of this claim")
+
+    other_id = item.reported_by if is_claimant else claim.claimant_id
+    other = await db.get(User, other_id)
+    if other is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    await record_audit(
+        db, action="lostfound.claim.contact_revealed", actor_id=user.id,
+        organization_id=user.organization_id, entity_type="lf_claim", entity_id=claim.id,
+        after={"revealed_to": str(user.id), "revealed_user": str(other.id)},
+    )
+
+    return {
+        "full_name": other.full_name,
+        "email": other.email,
+        "phone": other.phone,
+        "role_label": "Founder" if is_claimant else "Claimant",
+    }
+
+
 @router.post("/claims/{claim_id}/collected", response_model=Message)
-async def mark_collected(claim_id: uuid.UUID, payload: HandoverDeclaration, user: RequireStaff, db: DB):
-    """Requires the handover declaration + proof before the claim can be
+async def mark_collected(claim_id: uuid.UUID, payload: HandoverDeclaration, user: CurrentUser, db: DB):
+    """The claimant declares and confirms their own handover — the spec's
+    #28 ("the claimant must complete and submit a form"). Staff can also
+    record it (e.g. an in-person handover where the claimant has no app
+    access), but anyone else gets a 403: this is the one action in the
+    claim lifecycle a claimant does for themselves rather than staff
+    doing to them, so it isn't gated behind RequireStaff like the rest of
+    this file.
+
+    Requires the handover declaration + proof before the claim can be
     marked complete — the spec's #28 ("do not allow the final handover
     state to be marked complete until the required form is submitted").
     """
     claim = await _get_claim_or_404(db, claim_id, user)
+    if claim.claimant_id != user.id and user.role not in STAFF_ROLES:
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "Only the claimant or staff can confirm this handover")
     if claim.status != ClaimStatus.APPROVED:
         raise HTTPException(status.HTTP_409_CONFLICT,
                             "Only an approved claim can be marked collected")

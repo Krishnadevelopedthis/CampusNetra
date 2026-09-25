@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, PackageSearch, ShieldCheck, Sparkles, X, ZoomIn } from 'lucide-react'
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, HandCoins, PackageSearch, ShieldCheck, Sparkles, X, ZoomIn } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import {
   Button, ErrorState, Field, Modal, Spinner, StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
+import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { dt, titleCase } from '@/lib/format'
@@ -27,10 +28,32 @@ export default function LostFoundItem() {
   const [proof, setProof] = useState('')
   const [activeImage, setActiveImage] = useState(0)
   const [zoomOpen, setZoomOpen] = useState(false)
+  const [handoverOpen, setHandoverOpen] = useState(false)
+  const [declaration, setDeclaration] = useState('')
+  const [proofPhoto, setProofPhoto] = useState([])
 
   const { data: item, isLoading, error, refetch } = useQuery({
     queryKey: ['lf-item', id],
     queryFn: () => api.get(`/lost-found/items/${id}`),
+  })
+
+  // Whether the current user has an approved claim on this item waiting on
+  // their own handover confirmation (#28: the claimant completes this, not
+  // staff on their behalf) -- /claims?mine=true already scopes students and
+  // teachers to their own claims server-side.
+  const { data: myClaims } = useQuery({
+    queryKey: ['lf-my-claims'],
+    queryFn: () => api.get('/lost-found/claims', { params: { mine: true } }),
+  })
+  const myApprovedClaim = (myClaims || []).find(
+    (c) => c.item_id === id && c.status === 'approved')
+
+  // Fetched only on demand (not automatically) -- each read is a deliberate
+  // disclosure the person asked for, and the backend logs it (#26).
+  const contact = useQuery({
+    queryKey: ['lf-claim-contact', myApprovedClaim?.id],
+    queryFn: () => api.get(`/lost-found/claims/${myApprovedClaim.id}/contact`),
+    enabled: false,
   })
 
   const invalidate = () => {
@@ -46,6 +69,20 @@ export default function LostFoundItem() {
       setClaimOpen(false); setProof(''); invalidate()
     },
     onError: (err) => toast.error(err.detail || 'Could not submit claim'),
+  })
+
+  const confirmHandover = useMutation({
+    mutationFn: () => api.post(`/lost-found/claims/${myApprovedClaim.id}/collected`, {
+      handover_proof_url: proofPhoto[0]?.url,
+      declaration_text: declaration.trim(),
+    }),
+    onSuccess: (d) => {
+      toast.success(d.detail)
+      setHandoverOpen(false); setDeclaration(''); setProofPhoto([])
+      qc.invalidateQueries({ queryKey: ['lf-my-claims'] })
+      invalidate()
+    },
+    onError: (err) => toast.error(err.detail || 'Could not confirm handover'),
   })
 
   const decideMatch = useMutation({
@@ -90,7 +127,35 @@ export default function LostFoundItem() {
         {item.can_claim && (
           <Button icon={ShieldCheck} onClick={() => setClaimOpen(true)}>This is mine</Button>
         )}
+        {myApprovedClaim && (
+          <Button icon={HandCoins} onClick={() => setHandoverOpen(true)}>Confirm handover</Button>
+        )}
       </div>
+
+      {myApprovedClaim && (
+        <div className="widget border-l-[3px] border-l-success bg-success-bg/40 p-widget">
+          <div className="flex items-center gap-3">
+            <HandCoins size={18} className="text-success-text shrink-0" />
+            <p className="text-body-md text-ink flex-1">
+              Your claim on this item was approved. Once you've physically collected it,
+              confirm the handover to close it out.
+            </p>
+            {!contact.data && (
+              <Button size="sm" variant="secondary" loading={contact.isFetching}
+                      onClick={() => contact.refetch()}>
+                Show finder's contact
+              </Button>
+            )}
+          </div>
+          {contact.data && (
+            <div className="mt-3 pt-3 border-t border-border-subtle text-body-md text-ink">
+              <p><span className="text-ink-muted">{contact.data.role_label}:</span> {contact.data.full_name}</p>
+              {contact.data.email && <p className="text-ink-muted">{contact.data.email}</p>}
+              {contact.data.phone && <p className="text-ink-muted">{contact.data.phone}</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-5 items-start">
         {/* Item card */}
@@ -347,6 +412,36 @@ export default function LostFoundItem() {
                hint={`${proof.trim().length}/10 characters minimum`}>
           <Textarea value={proof} onChange={(e) => setProof(e.target.value)}
                     placeholder="e.g. There's a blue keychain on the front zip, and a red notebook inside with my name on the first page." />
+        </Field>
+      </Modal>
+
+      <Modal
+        open={handoverOpen} onClose={() => setHandoverOpen(false)} title="Confirm handover"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setHandoverOpen(false)}>Cancel</Button>
+            <Button
+              loading={confirmHandover.isPending}
+              disabled={declaration.trim().length < 10 || proofPhoto.length === 0}
+              onClick={() => confirmHandover.mutate()}
+            >
+              Confirm and close claim
+            </Button>
+          </>
+        }
+      >
+        <p className="text-body-md text-ink-muted mb-4">
+          Add a photo of the item now in your possession, and a short declaration.
+          This closes the claim as returned — only you can confirm this step.
+        </p>
+        <Field label="Photo proof" required>
+          <ImageUpload value={proofPhoto} onChange={setProofPhoto} max={1} purpose="lost_found"
+                       hint="A quick photo of the item with you is enough." />
+        </Field>
+        <Field label="Declaration" required className="mt-4"
+               hint={`${declaration.trim().length}/10 characters minimum`}>
+          <Textarea value={declaration} onChange={(e) => setDeclaration(e.target.value)}
+                    placeholder="I confirm I have received this item from the registered founder and it matches my report." />
         </Field>
       </Modal>
     </div>
