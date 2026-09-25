@@ -119,6 +119,14 @@ class ClaimOut(BaseModel):
     verified_at: Optional[datetime] = None
     collected_at: Optional[datetime] = None
     created_at: datetime
+    # Populated only after the claimant completes the handover declaration.
+    handover_proof_url: Optional[str] = None
+    declared_name: Optional[str] = None
+    declared_id_number: Optional[str] = None
+    declared_email: Optional[str] = None
+    declared_address: Optional[str] = None
+    declaration_text: Optional[str] = None
+    declared_at: Optional[datetime] = None
 
 
 class LFItemDetail(LFItemListItem):
@@ -165,16 +173,17 @@ class ClaimDecision(BaseModel):
 
 
 class HandoverDeclaration(BaseModel):
-    """What #28 in the spec calls the handover declaration form. Scoped to
-    what the existing schema actually supports without a migration this
-    session can't verify gets applied to the real database: proof of the
-    physical handover (a photo — evidence attached the same way a report's
-    evidence is) plus the claimant's written declaration, both required.
-    A name/ID/address-collecting multi-field form would need new columns;
-    this reuses handover_proof_url, which was on the model already but had
-    no endpoint setting it until now.
-    """
+    """The handover declaration form (#28/#15): the claimant's own name, ID,
+    email and address alongside their written declaration and a photo of
+    the item now in their possession -- everything the spec asks for,
+    backed by real columns on lf_claims (see scripts/
+    add_handover_declaration_columns.py, applied to production this
+    session)."""
     handover_proof_url: str = Field(min_length=1, max_length=2000)
+    declared_name: str = Field(min_length=2, max_length=120)
+    declared_id_number: Optional[str] = Field(None, max_length=40)
+    declared_email: str = Field(min_length=3, max_length=200)
+    declared_address: str = Field(min_length=5, max_length=500)
     declaration_text: str = Field(min_length=10, max_length=2000)
 
 
