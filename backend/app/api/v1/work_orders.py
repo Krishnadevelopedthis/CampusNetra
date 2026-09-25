@@ -323,7 +323,11 @@ async def decide_part_request(
     part_id: uuid.UUID, user: RequireManager, db: DB,
     approve: bool = Query(..., description="true to approve, false to reject"),
 ):
-    pr = await db.scalar(select(PartRequest).where(PartRequest.id == part_id))
+    pr = await db.scalar(
+        select(PartRequest)
+        .join(WorkOrder, WorkOrder.id == PartRequest.work_order_id)
+        .where(PartRequest.id == part_id, WorkOrder.organization_id == user.organization_id)
+    )
     if pr is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Part request not found")
     if pr.status != "pending":

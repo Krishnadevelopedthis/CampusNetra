@@ -269,11 +269,23 @@ async def list_matches(
     return [_match_out(m, previews) for m in rows]
 
 
-@router.get("/matches/{match_id}", response_model=LFMatchOut)
-async def get_match(match_id: uuid.UUID, user: CurrentUser, db: DB):
-    m = await db.scalar(select(LFMatch).where(LFMatch.id == match_id))
+async def _get_match_or_404(db, match_id: uuid.UUID, user) -> LFMatch:
+    # LFMatch has no organization_id of its own -- it only exists through the
+    # (lost, found) LFItem pair it links, so scoping has to join back to
+    # LFItem the same way /matches (the list endpoint) already does.
+    m = await db.scalar(
+        select(LFMatch)
+        .join(LFItem, LFItem.id == LFMatch.found_item_id)
+        .where(LFMatch.id == match_id, LFItem.organization_id == user.organization_id)
+    )
     if m is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Match not found")
+    return m
+
+
+@router.get("/matches/{match_id}", response_model=LFMatchOut)
+async def get_match(match_id: uuid.UUID, user: CurrentUser, db: DB):
+    m = await _get_match_or_404(db, match_id, user)
     previews = await _previews(db, {m.lost_item_id, m.found_item_id})
     return _match_out(m, previews)
 
@@ -282,9 +294,7 @@ async def get_match(match_id: uuid.UUID, user: CurrentUser, db: DB):
 async def decide_match(
     match_id: uuid.UUID, payload: MatchDecision, user: RequireStaff, db: DB
 ):
-    m = await db.scalar(select(LFMatch).where(LFMatch.id == match_id))
-    if m is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Match not found")
+    m = await _get_match_or_404(db, match_id, user)
     if m.status in (MatchStatus.ACCEPTED, MatchStatus.REJECTED):
         raise HTTPException(status.HTTP_409_CONFLICT, f"Already {m.status.value}")
 
@@ -363,14 +373,25 @@ async def list_claims(
     ]
 
 
+async def _get_claim_or_404(db, claim_id: uuid.UUID, user) -> LFClaim:
+    # LFClaim has no organization_id of its own either -- same story as
+    # LFMatch above, scope through the LFItem it claims.
+    claim = await db.scalar(
+        select(LFClaim)
+        .join(LFItem, LFItem.id == LFClaim.item_id)
+        .where(LFClaim.id == claim_id, LFItem.organization_id == user.organization_id)
+    )
+    if claim is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Claim not found")
+    return claim
+
+
 @router.post("/claims/{claim_id}/decide", response_model=Message)
 async def decide_claim(
     claim_id: uuid.UUID, payload: ClaimDecision, user: RequireStaff, db: DB
 ):
     """Claim Verification — release the item only on sufficient ownership proof."""
-    claim = await db.scalar(select(LFClaim).where(LFClaim.id == claim_id))
-    if claim is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Claim not found")
+    claim = await _get_claim_or_404(db, claim_id, user)
     if not payload.approve and not payload.reason:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
                             "A reason is required when rejecting a claim")
@@ -385,9 +406,7 @@ async def mark_collected(claim_id: uuid.UUID, payload: HandoverDeclaration, user
     marked complete — the spec's #28 ("do not allow the final handover
     state to be marked complete until the required form is submitted").
     """
-    claim = await db.scalar(select(LFClaim).where(LFClaim.id == claim_id))
-    if claim is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Claim not found")
+    claim = await _get_claim_or_404(db, claim_id, user)
     if claim.status != ClaimStatus.APPROVED:
         raise HTTPException(status.HTTP_409_CONFLICT,
                             "Only an approved claim can be marked collected")
