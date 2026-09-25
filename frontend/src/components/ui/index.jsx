@@ -7,6 +7,7 @@ import { SkeletonRows } from '@/components/Skeletons'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 export { SkeletonRows }
 export { BrandLoader } from '@/components/ui/BrandLoader'
+export { RingLoader } from '@/components/ui/RingLoader'
 
 /* ---------------- Modal ---------------- */
 export function Modal({ open, onClose, title, children, footer, size = 'md' }) {

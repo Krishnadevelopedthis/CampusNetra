@@ -411,3 +411,78 @@
   0%, 88%, 100% { transform: scaleY(1); }
   94% { transform: scaleY(0.08); }
 }
+
+/* ------------------------------------------------------------------ *
+ * Ring loader — a separate loading animation from .pl above, kept
+ * distinct (its own class names, its own keyframe names) rather than
+ * reusing .pl's, which already belongs to BrandLoader. See
+ * RingLoader.jsx for the markup these rules apply to. Original design:
+ * Uiverse.io "Colorful Radar" by Nawsome; sizing changed from a fixed
+ * em value to clamp() so it scales with the viewport instead of
+ * staying one physical size on every screen.
+ * ------------------------------------------------------------------ */
+.ringspin {
+  display: block;
+  width: clamp(3.5em, 12vw, 8em);
+  height: clamp(3.5em, 12vw, 8em);
+}
+
+.ringspin circle {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+.ringspin__ring1 { animation: ringspin1_ 4s 0s ease-in-out infinite; }
+.ringspin__ring2 { animation: ringspin2_ 4s 0.04s ease-in-out infinite; }
+.ringspin__ring3 { animation: ringspin3_ 4s 0.08s ease-in-out infinite; }
+.ringspin__ring4 { animation: ringspin4_ 4s 0.12s ease-in-out infinite; }
+.ringspin__ring5 { animation: ringspin5_ 4s 0.16s ease-in-out infinite; }
+.ringspin__ring6 { animation: ringspin6_ 4s 0.2s ease-in-out infinite; }
+
+@keyframes ringspin1_ {
+  from { stroke-dashoffset: -376.237129776; transform: rotate(-0.25turn); animation-timing-function: ease-in; }
+  23% { stroke-dashoffset: -94.247778; transform: rotate(1turn); animation-timing-function: ease-out; }
+  46%, 50% { stroke-dashoffset: -376.237129776; transform: rotate(2.25turn); animation-timing-function: ease-in; }
+  73% { stroke-dashoffset: -94.247778; transform: rotate(3.5turn); animation-timing-function: ease-out; }
+  96%, to { stroke-dashoffset: -376.237129776; transform: rotate(4.75turn); }
+}
+
+@keyframes ringspin2_ {
+  from { stroke-dashoffset: -329.207488554; transform: rotate(-0.25turn); animation-timing-function: ease-in; }
+  23% { stroke-dashoffset: -82.46680575; transform: rotate(1turn); animation-timing-function: ease-out; }
+  46%, 50% { stroke-dashoffset: -329.207488554; transform: rotate(2.25turn); animation-timing-function: ease-in; }
+  73% { stroke-dashoffset: -82.46680575; transform: rotate(3.5turn); animation-timing-function: ease-out; }
+  96%, to { stroke-dashoffset: -329.207488554; transform: rotate(4.75turn); }
+}
+
+@keyframes ringspin3_ {
+  from { stroke-dashoffset: -288.4484661616; transform: rotate(-0.25turn); animation-timing-function: ease-in; }
+  23% { stroke-dashoffset: -72.2566298; transform: rotate(1turn); animation-timing-function: ease-out; }
+  46%, 50% { stroke-dashoffset: -288.4484661616; transform: rotate(2.25turn); animation-timing-function: ease-in; }
+  73% { stroke-dashoffset: -72.2566298; transform: rotate(3.5turn); animation-timing-function: ease-out; }
+  96%, to { stroke-dashoffset: -288.4484661616; transform: rotate(4.75turn); }
+}
+
+@keyframes ringspin4_ {
+  from { stroke-dashoffset: -253.9600625988; transform: rotate(-0.25turn); animation-timing-function: ease-in; }
+  23% { stroke-dashoffset: -63.61725015; transform: rotate(1turn); animation-timing-function: ease-out; }
+  46%, 50% { stroke-dashoffset: -253.9600625988; transform: rotate(2.25turn); animation-timing-function: ease-in; }
+  73% { stroke-dashoffset: -63.61725015; transform: rotate(3.5turn); animation-timing-function: ease-out; }
+  96%, to { stroke-dashoffset: -253.9600625988; transform: rotate(4.75turn); }
+}
+
+@keyframes ringspin5_ {
+  from { stroke-dashoffset: -225.7422778656; transform: rotate(-0.25turn); animation-timing-function: ease-in; }
+  23% { stroke-dashoffset: -56.5486668; transform: rotate(1turn); animation-timing-function: ease-out; }
+  46%, 50% { stroke-dashoffset: -225.7422778656; transform: rotate(2.25turn); animation-timing-function: ease-in; }
+  73% { stroke-dashoffset: -56.5486668; transform: rotate(3.5turn); animation-timing-function: ease-out; }
+  96%, to { stroke-dashoffset: -225.7422778656; transform: rotate(4.75turn); }
+}
+
+@keyframes ringspin6_ {
+  from { stroke-dashoffset: -203.795111962; transform: rotate(-0.25turn); animation-timing-function: ease-in; }
+  23% { stroke-dashoffset: -51.05087975; transform: rotate(1turn); animation-timing-function: ease-out; }
+  46%, 50% { stroke-dashoffset: -203.795111962; transform: rotate(2.25turn); animation-timing-function: ease-in; }
+  73% { stroke-dashoffset: -51.05087975; transform: rotate(3.5turn); animation-timing-function: ease-out; }
+  96%, to { stroke-dashoffset: -203.795111962; transform: rotate(4.75turn); }
+}
