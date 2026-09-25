@@ -4,7 +4,9 @@ import { Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button, Input } from '@/components/ui'
+import { useDebounce } from '@/hooks/useDebounce'
 import { api } from '@/lib/api'
+import '@/lib/maplibreSetup'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 // A reasonable starting view before any search — better than opening on
@@ -44,28 +46,47 @@ export function CampusLocationPicker({ initial, onSave, onCancel, saving }) {
 
   useEffect(() => {
     if (!mountRef.current) return
-    const map = new MapLibreMap({
-      container: mountRef.current,
-      style: STYLE_URL,
-      center: center ? [center.lng, center.lat] : FALLBACK_CENTER,
-      zoom: center ? 16.5 : 10,
-    })
-    mapRef.current = map
+    let map
+    let ro
+    let cancelled = false
 
-    // This mounts inside a Modal, and MapLibre measures its container once
-    // at construction. A single requestAnimationFrame resize wasn't
-    // enough -- the canvas still came out shorter than the container (a
-    // real, reproduced 300px canvas inside a 360px box) -- so rather than
-    // guess when the modal's own layout has actually settled, watch the
-    // container directly and resize every time its real size changes.
-    // This is the standard MapLibre/Mapbox GL pattern for a map inside
-    // anything that isn't full-page-and-static (modals, tabs, accordions).
-    const ro = new ResizeObserver(() => map.resize())
-    ro.observe(mountRef.current)
+    // This mounts inside a Modal, which can still be mid-layout on the
+    // very first effect run. Waiting for a real, non-zero container size
+    // before constructing the map is cheap insurance against the same
+    // class of "canvas sized before its container settled" issue that
+    // needed a ResizeObserver below anyway -- not a fix for the actual
+    // blank-map bug (that turned out to be the worker setup imported
+    // above; see maplibreSetup.js), just good practice to keep alongside
+    // it.
+    const tryInit = () => {
+      if (cancelled) return
+      const rect = mountRef.current.getBoundingClientRect()
+      if (rect.width < 2 || rect.height < 2) {
+        requestAnimationFrame(tryInit)
+        return
+      }
+
+      map = new MapLibreMap({
+        container: mountRef.current,
+        style: STYLE_URL,
+        center: center ? [center.lng, center.lat] : FALLBACK_CENTER,
+        zoom: center ? 16.5 : 10,
+      })
+      mapRef.current = map
+
+      // Still watched after construction -- the modal itself can still be
+      // resized (window resize, responsive breakpoint) while open, and
+      // this keeps the map in sync with that, same as any map embedded in
+      // a non-static layout.
+      ro = new ResizeObserver(() => map.resize())
+      ro.observe(mountRef.current)
+    }
+    tryInit()
 
     return () => {
-      ro.disconnect()
-      map.remove()
+      cancelled = true
+      ro?.disconnect()
+      map?.remove()
     }
     // Deliberately mount-once: re-centring after a search uses flyTo below
     // instead of recreating the whole map.
@@ -75,21 +96,58 @@ export function CampusLocationPicker({ initial, onSave, onCancel, saving }) {
     if (center) mapRef.current?.flyTo({ center: [center.lng, center.lat], zoom: 16.5 })
   }, [center])
 
-  const search = async () => {
-    if (!query.trim()) return
+  // A ref, not state, for the "which search is the latest one" check --
+  // bumping it doesn't need a re-render, just needs to be readable inside
+  // the async searchFor() closures below once their request comes back.
+  const searchSeq = useRef(0)
+
+  const searchFor = async (q) => {
+    if (!q.trim()) { setResults([]); setSearchError(null); return }
+    const seq = ++searchSeq.current
     setSearching(true)
     setSearchError(null)
     try {
-      const r = await api.get('/campus/geocode', { params: { q: query } })
+      const r = await api.get('/campus/geocode', { params: { q } })
+      // Typing fast can resolve requests out of order -- e.g. "Delhi" then
+      // "Delh" (backspace) firing after "Delhi" already returned would
+      // otherwise overwrite specific results with broader, stale ones for
+      // text nobody's looking at anymore. Only the most recently *sent*
+      // request is allowed to still update the list.
+      if (seq !== searchSeq.current) return
       setResults(r)
       if (r.length === 0) setSearchError('No matches — try a more specific name or add the city.')
     } catch (err) {
+      if (seq !== searchSeq.current) return
       setResults([])
       setSearchError(err.detail || 'Search is temporarily unavailable.')
     } finally {
-      setSearching(false)
+      if (seq === searchSeq.current) setSearching(false)
     }
   }
+
+  // Live suggestions as you type, the way a real map's search box behaves,
+  // instead of making "Search" the only way to see anything -- debounced
+  // so a fast typist doesn't fire a request per keystroke (the backend
+  // proxies this to Nominatim specifically to keep it inside Nominatim's
+  // own usage policy, a per-keystroke flood would defeat that). The
+  // button and Enter key below still work too, for an immediate search
+  // without waiting out the debounce.
+  // useDebounce returns the value directly, not a [value, setter] tuple --
+  // array-destructuring it array-destructures the *string* instead (JS
+  // strings are iterable), silently taking just its first character, or
+  // -- for '' specifically, since an empty string has no first character
+  // to give -- undefined. That's what was actually crashing here on
+  // mount (debouncedQuery.trim() against undefined while query was still
+  // ''), not the debounce logic itself.
+  const debouncedQuery = useDebounce(query, 450)
+  useEffect(() => {
+    if (debouncedQuery.trim().length < 2) {
+      setResults([])
+      setSearchError(null)
+      return
+    }
+    searchFor(debouncedQuery)
+  }, [debouncedQuery])
 
   const pick = (r) => {
     setCenter({ lat: r.lat, lng: r.lon })
@@ -144,29 +202,36 @@ export function CampusLocationPicker({ initial, onSave, onCancel, saving }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-2">
-        <Input
-          placeholder="Search for your campus by name…" value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); search() } }}
-        />
-        <Button variant="secondary" icon={Search} loading={searching} onClick={search}>
-          Search
-        </Button>
-      </div>
-      {searchError && <p className="text-body-sm text-danger-text">{searchError}</p>}
-      {results.length > 0 && (
-        <div className="border border-border-subtle rounded-lg divide-y divide-border-subtle max-h-40 overflow-auto">
-          {results.map((r, i) => (
-            <button
-              key={i} type="button" onClick={() => pick(r)}
-              className="block w-full text-left px-3 py-2 text-body-sm hover:bg-surface-sunken"
-            >
-              {r.display_name}
-            </button>
-          ))}
+      {/* Suggestions float over whatever's below (the map), the way a real
+          map's search box behaves, instead of pushing the map down every
+          time the list appears/disappears -- relative wrapper + absolute
+          dropdown, positioned so it doesn't get clipped by the map's own
+          overflow-hidden container beneath it. */}
+      <div className="relative">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Search for your campus by name…" value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); searchFor(query) } }}
+          />
+          <Button variant="secondary" icon={Search} loading={searching} onClick={() => searchFor(query)}>
+            Search
+          </Button>
         </div>
-      )}
+        {searchError && <p className="text-body-sm text-danger-text mt-1.5">{searchError}</p>}
+        {results.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1.5 z-10 bg-surface border border-border-subtle rounded-lg shadow-popover divide-y divide-border-subtle max-h-52 overflow-auto">
+            {results.map((r, i) => (
+              <button
+                key={i} type="button" onClick={() => pick(r)}
+                className="block w-full text-left px-3 py-2 text-body-sm hover:bg-surface-sunken"
+              >
+                {r.display_name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div
         data-picker-container
