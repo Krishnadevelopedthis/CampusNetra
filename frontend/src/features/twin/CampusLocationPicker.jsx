@@ -51,7 +51,22 @@ export function CampusLocationPicker({ initial, onSave, onCancel, saving }) {
       zoom: center ? 16.5 : 10,
     })
     mapRef.current = map
-    return () => map.remove()
+
+    // This mounts inside a Modal, and MapLibre measures its container once
+    // at construction. A single requestAnimationFrame resize wasn't
+    // enough -- the canvas still came out shorter than the container (a
+    // real, reproduced 300px canvas inside a 360px box) -- so rather than
+    // guess when the modal's own layout has actually settled, watch the
+    // container directly and resize every time its real size changes.
+    // This is the standard MapLibre/Mapbox GL pattern for a map inside
+    // anything that isn't full-page-and-static (modals, tabs, accordions).
+    const ro = new ResizeObserver(() => map.resize())
+    ro.observe(mountRef.current)
+
+    return () => {
+      ro.disconnect()
+      map.remove()
+    }
     // Deliberately mount-once: re-centring after a search uses flyTo below
     // instead of recreating the whole map.
   }, [])
@@ -158,11 +173,29 @@ export function CampusLocationPicker({ initial, onSave, onCancel, saving }) {
         className="relative rounded-xl overflow-hidden border border-border-subtle"
         style={{ height: 360 }}
       >
-        <div ref={mountRef} className="absolute inset-0" />
+        {/* Inline style, not the `absolute inset-0` utility classes: MapLibre
+            adds its own `maplibregl-map` class to this exact element and
+            ships a stylesheet (imported above) that sets `.maplibregl-map
+            { position: relative }` -- same specificity as Tailwind's
+            `.absolute`, so whichever stylesheet lands later in the bundle
+            wins, and it was winning. With position stuck at `relative`,
+            `inset-0` did nothing, so this div (and the canvas inside it)
+            collapsed to 0 height, and MapLibre fell back to sizing its
+            canvas from whatever stale/partial measurement it had -- a
+            reproduced, real 300px-tall canvas inside a 360px container.
+            An inline style beats any external stylesheet regardless of
+            load order, so this wins unconditionally. */}
+        <div ref={mountRef} style={{ position: 'absolute', inset: 0 }} />
         {!center && (
-          <div className="absolute inset-0 flex items-center justify-center bg-surface/85 pointer-events-none">
-            <p className="text-body-sm text-ink-muted px-4 text-center">
-              Search for your campus above to get started.
+          // Used to be a near-opaque backdrop covering the whole map area,
+          // which hid the actual (already-loading) map underneath entirely
+          // -- there was nothing wrong with the map itself, this box just
+          // sat in front of it. A small floating hint instead of a full
+          // cover lets the map's own default view stay visible and
+          // pannable/zoomable while still telling you to search.
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none">
+            <p className="text-body-sm text-ink bg-surface/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-level2 border border-border-subtle text-center">
+              Search for your campus above, or pan/zoom to find it
             </p>
           </div>
         )}
