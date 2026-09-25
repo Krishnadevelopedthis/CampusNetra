@@ -20,9 +20,22 @@ from app.models.issues import (
 )
 from app.models.platform import AIInvocation
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
+from app.models.work import WorkOrder, WorkOrderStatus
 from app.services import notifications as notify_svc
 from app.services.references import next_public_id
 from app.services.twin import record_event, sync_asset_to_issue_status
+
+# Everything short of the work order actually being done, cancelled, or
+# already closed itself -- a complaint marked Closed while its own work
+# order still shows Open/Unassigned/overdue (a real case this was written
+# for: an admin closing the report without the repair ever being finished)
+# is exactly the kind of same-entity-looks-different-in-different-panels
+# gap a state-consistency audit of this app was built to catch.
+WO_NOT_DONE = [
+    WorkOrderStatus.DRAFT, WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED,
+    WorkOrderStatus.ACCEPTED, WorkOrderStatus.IN_PROGRESS,
+    WorkOrderStatus.AWAITING_PARTS, WorkOrderStatus.ON_HOLD,
+]
 
 
 def _now() -> datetime:
@@ -275,6 +288,19 @@ async def transition_issue(
             f"Cannot move from {issue.status.value} to {target.value}. "
             f"Allowed: {', '.join(allowed) if allowed else 'none (terminal state)'}",
         )
+
+    if target == IssueStatus.CLOSED:
+        open_wos = (await db.execute(
+            select(WorkOrder.reference).where(
+                WorkOrder.issue_id == issue.id, WorkOrder.status.in_(WO_NOT_DONE))
+        )).scalars().all()
+        if open_wos:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Cannot close this issue while its work order "
+                f"{'is' if len(open_wos) == 1 else 'are'} still open: {', '.join(open_wos)}. "
+                "Complete, verify, or cancel it first.",
+            )
 
     previous = issue.status
     issue.status = target
