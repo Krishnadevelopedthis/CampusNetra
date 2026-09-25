@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Check, PackageCheck, PackageSearch, ShieldCheck, Sparkles, X,
+  Check, IdCard, Mail, MapPin, PackageCheck, PackageSearch, ShieldCheck, Sparkles, User, X,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -356,16 +356,16 @@ export default function AdminLostFound() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Claimant's full name" required error={handoverErrors.declared_name}>
-            <Input value={handoverName} onChange={(e) => setHandoverName(e.target.value)} />
+            <Input icon={User} value={handoverName} onChange={(e) => setHandoverName(e.target.value)} />
           </Field>
           <Field label="Student / Teacher / Technician ID" hint="If they have one" error={handoverErrors.declared_id_number}>
-            <Input value={handoverIdNumber} onChange={(e) => setHandoverIdNumber(e.target.value)} />
+            <Input icon={IdCard} value={handoverIdNumber} onChange={(e) => setHandoverIdNumber(e.target.value)} />
           </Field>
           <Field label="Email" required error={handoverErrors.declared_email}>
-            <Input type="email" value={handoverEmail} onChange={(e) => setHandoverEmail(e.target.value)} />
+            <Input icon={Mail} type="email" value={handoverEmail} onChange={(e) => setHandoverEmail(e.target.value)} />
           </Field>
           <Field label="Address / contact" required error={handoverErrors.declared_address}>
-            <Input value={handoverAddress} onChange={(e) => setHandoverAddress(e.target.value)} />
+            <Input icon={MapPin} value={handoverAddress} onChange={(e) => setHandoverAddress(e.target.value)} />
           </Field>
         </div>
 

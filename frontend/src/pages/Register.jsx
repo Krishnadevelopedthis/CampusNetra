@@ -1,3 +1,4 @@
+import { Mail, Phone, User } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
@@ -149,11 +150,11 @@ export default function Register() {
         )}
 
         <Field label="Full name" error={errors.full_name} required>
-          <Input value={form.full_name || ''} onChange={set('full_name')} placeholder="Alex Kumar" error={errors.full_name} />
+          <Input icon={User} value={form.full_name || ''} onChange={set('full_name')} placeholder="Alex Kumar" error={errors.full_name} />
         </Field>
 
         <Field label="Email address" error={errors.email} required>
-          <Input type="email" value={form.email || ''} onChange={set('email')} onBlur={refreshOptionsForEmail}
+          <Input icon={Mail} type="email" value={form.email || ''} onChange={set('email')} onBlur={refreshOptionsForEmail}
                  placeholder="you@campus.edu" error={errors.email} />
         </Field>
 
@@ -217,7 +218,7 @@ export default function Register() {
 
         <Field label="Phone" error={errors.phone}
                hint="Optional — used for urgent notifications">
-          <Input type="tel" inputMode="numeric" value={form.phone || ''} onChange={set('phone')}
+          <Input icon={Phone} type="tel" inputMode="numeric" value={form.phone || ''} onChange={set('phone')}
                  error={errors.phone} placeholder="98765 43210" />
         </Field>
 

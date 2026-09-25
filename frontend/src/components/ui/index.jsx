@@ -246,13 +246,27 @@ export function Field({ label, error, hint, required, children, className }) {
   )
 }
 
-export const Input = forwardRef(function Input({ error, className, id, ...rest }, ref) {
+export const Input = forwardRef(function Input({ error, icon: Icon, className, id, ...rest }, ref) {
+  if (!Icon) {
+    return (
+      <input
+        ref={ref}
+        id={id}
+        className={clsx('input', error && 'input-error', className)}
+        {...rest}
+      />
+    )
+  }
   return (
-    <input
-      ref={ref}
-      className={clsx('input', error && 'input-error', className)}
-      {...rest}
-    />
+    <div className="relative">
+      <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+      <input
+        ref={ref}
+        id={id}
+        className={clsx('input pl-9', error && 'input-error', className)}
+        {...rest}
+      />
+    </div>
   )
 })
 
