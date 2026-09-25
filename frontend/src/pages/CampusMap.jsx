@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Boxes, ChevronLeft, ChevronRight, CircleDot, DoorOpen, Download, Flame,
-  Landmark, Layers, Maximize, Plus, RotateCcw, RotateCw, X, ZoomIn, ZoomOut,
+  Landmark, Layers, Maximize, PanelTop, Plus, RotateCcw, RotateCw, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { lazy, Suspense, useMemo, useRef, useState } from 'react'
 
@@ -93,6 +93,13 @@ export default function CampusMap() {
   const [selectedFloorId, setSelectedFloorId] = useState(null)
   const [selectedAsset, setSelectedAsset] = useState(null)
   const [pendingPlacement, setPendingPlacement] = useState(null)
+  // Off by default: the ceiling plane used to always be clickable, and being
+  // a full-footprint plane near the top of the room, it often caught a
+  // click meant for the floor or a wall before the ray reached them --
+  // assets kept landing on the ceiling with no way to target it on purpose
+  // or avoid it by accident. Now it only exists (and is only clickable)
+  // while this is on, and the admin turns it on deliberately.
+  const [ceilingEnabled, setCeilingEnabled] = useState(false)
   const [placeForm, setPlaceForm] = useState(null)
   const [roomModal, setRoomModal] = useState(false)
   // Imperative handle onto the indoor 3D scene, for the on-screen nav
@@ -362,9 +369,21 @@ export default function CampusMap() {
               </Button>
             )}
             {canEdit && view === 'room' && (
-              <Button size="sm" icon={Boxes} onClick={() => setAssetModal(true)}>
-                Add asset
-              </Button>
+              <>
+                <Button
+                  size="sm" icon={PanelTop}
+                  variant={ceilingEnabled ? 'primary' : 'secondary'}
+                  onClick={() => setCeilingEnabled((v) => !v)}
+                  title={ceilingEnabled
+                    ? 'Ceiling placement is on — clicking the ceiling places an asset there'
+                    : 'Ceiling placement is off — turn on to place equipment on the ceiling'}
+                >
+                  Ceiling {ceilingEnabled ? 'on' : 'off'}
+                </Button>
+                <Button size="sm" icon={Boxes} onClick={() => setAssetModal(true)}>
+                  Add asset
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -428,6 +447,7 @@ export default function CampusMap() {
                   selectedRoomId={selectedRoomId}
                   roomAssets={view === 'room' ? (planRoom?.assets ?? null) : null}
                   pendingPlacement={pendingPlacement}
+                  ceilingEnabled={canEdit && ceilingEnabled}
                   onSelectBuilding={(id) => navigate('building', { buildingId: id, floorId: null, roomId: null })}
                   onSelectFloor={(id) => navigate('floor', { floorId: id, roomId: null })}
                   onSelectRoom={(id) => { setPendingPlacement(null); navigate('room', { roomId: id }) }}
