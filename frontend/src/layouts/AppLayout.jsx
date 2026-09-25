@@ -61,11 +61,14 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
           : 'hidden sm:block',
       )}
     >
-      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+      <Search
+        size={17} strokeWidth={2.25}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
+      />
       <input
         autoFocus={mobileOpen}
         className="input pl-9"
-        placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, assets, items…'}
+        placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, complaints, lost & found…'}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={onKeyDown}
