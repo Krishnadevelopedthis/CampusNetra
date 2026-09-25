@@ -4,6 +4,7 @@ Kept out of the router so the same projection can be reused by exports,
 the AI assistant and the analytics endpoints.
 """
 from __future__ import annotations
+import asyncio
 import uuid
 import time
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.database import SessionLocal
 from app.core.enums import ISSUE_TRANSITIONS, IssueStatus
 from app.models.identity import Department, User
 from app.models.issues import Issue, IssueCategory, IssueDuplicateCandidate, IssueEvent
@@ -32,15 +34,20 @@ def _minutes_remaining(due: Optional[datetime]) -> Optional[int]:
 
 
 async def _lookup_maps(db: AsyncSession, issues: Sequence[Issue]) -> dict:
-    """Batch-load related labels for issue list/detail responses."""
-    started = time.perf_counter()
+    """Batch-load related labels for issue list/detail responses.
 
-    def log(step: str) -> None:
-        print(
-            f"[ISSUE_MAPS] {step} "
-            f"elapsed={time.perf_counter() - started:.2f}s",
-            flush=True,
-        )
+    These 9 lookups are all independent reads of already-committed data —
+    none depends on another's result, and none needs to see this request's
+    own uncommitted writes. They used to run one after another on the
+    request's own session; measured against the real (Neon) database that
+    was costing 6-8 seconds for a single dashboard render, because each
+    lookup pays the full network round trip on its own, serially. A
+    session can't run concurrent queries on one connection, so each lookup
+    below gets its own short-lived connection from the pool and they all
+    run at once — wall-clock cost drops to roughly the slowest single
+    lookup instead of the sum of all nine.
+    """
+    started = time.perf_counter()
 
     def ids(attr: str) -> set:
         return {getattr(i, attr) for i in issues if getattr(i, attr)}
@@ -51,133 +58,57 @@ async def _lookup_maps(db: AsyncSession, issues: Sequence[Issue]) -> dict:
     user_ids = ids("reported_by")
     issue_ids = [i.id for i in issues]
 
-    log("categories START")
-    categories = {
-        c.id: c
-        for c in (
-            await db.scalars(
-                select(IssueCategory).where(IssueCategory.id.in_(cat_ids))
-            )
-        ).all()
-    } if cat_ids else {}
-    log("categories DONE")
+    from app.models.issues import IssueAttachment
 
-    log("departments START")
-    departments = {
-        d.id: d
-        for d in (
-            await db.scalars(
-                select(Department).where(Department.id.in_(dept_ids))
-            )
-        ).all()
-    } if dept_ids else {}
-    log("departments DONE")
+    async def by_id(model, id_set):
+        if not id_set:
+            return {}
+        async with SessionLocal() as s:
+            rows = (await s.scalars(select(model).where(model.id.in_(id_set)))).all()
+        return {r.id: r for r in rows}
 
-    log("rooms START")
-    rooms = {
-        r.id: r
-        for r in (
-            await db.scalars(
-                select(Room).where(Room.id.in_(room_ids))
-            )
-        ).all()
-    } if room_ids else {}
-    log("rooms DONE")
-
-    log("assets START")
-    assets = {
-        a.id: a
-        for a in (
-            await db.scalars(
-                select(Asset).where(Asset.id.in_(asset_ids))
-            )
-        ).all()
-    } if asset_ids else {}
-    log("assets DONE")
-
-    log("buildings START")
-    buildings = {
-        b.id: b
-        for b in (
-            await db.scalars(
-                select(Building).where(Building.id.in_(bldg_ids))
-            )
-        ).all()
-    } if bldg_ids else {}
-    log("buildings DONE")
-
-    log("floors START")
-    floors = {
-        f.id: f
-        for f in (
-            await db.scalars(
-                select(Floor).where(Floor.id.in_(floor_ids))
-            )
-        ).all()
-    } if floor_ids else {}
-    log("floors DONE")
-
-    log("users START")
-    users = {
-        u.id: u
-        for u in (
-            await db.scalars(
-                select(User).where(User.id.in_(user_ids))
-            )
-        ).all()
-    } if user_ids else {}
-    log("users DONE")
-
-    work_orders: dict[uuid.UUID, tuple[str, Optional[str]]] = {}
-
-    if issue_ids:
-        log("work_orders START")
-
-        rows = (
-            await db.execute(
-                select(
-                    WorkOrder.issue_id,
-                    WorkOrder.reference,
-                    User.full_name,
-                )
-                .join(
-                    User,
-                    User.id == WorkOrder.assigned_to,
-                    isouter=True,
-                )
+    async def work_order_map():
+        if not issue_ids:
+            return {}
+        async with SessionLocal() as s:
+            rows = (await s.execute(
+                select(WorkOrder.issue_id, WorkOrder.reference, User.full_name)
+                .join(User, User.id == WorkOrder.assigned_to, isouter=True)
                 .where(WorkOrder.issue_id.in_(issue_ids))
                 .order_by(WorkOrder.created_at.desc())
-            )
-        ).all()
-
+            )).all()
+        out: dict[uuid.UUID, tuple[str, Optional[str]]] = {}
         for issue_id, ref, name in rows:
-            work_orders.setdefault(issue_id, (ref, name))
+            out.setdefault(issue_id, (ref, name))
+        return out
 
-        log("work_orders DONE")
-
-    attachment_counts: dict[uuid.UUID, int] = {}
-
-    if issue_ids:
-        from app.models.issues import IssueAttachment
-
-        log("attachment_counts START")
-
-        rows = (
-            await db.execute(
-                select(
-                    IssueAttachment.issue_id,
-                    func.count(),
-                )
+    async def attachment_count_map():
+        if not issue_ids:
+            return {}
+        async with SessionLocal() as s:
+            rows = (await s.execute(
+                select(IssueAttachment.issue_id, func.count())
                 .where(IssueAttachment.issue_id.in_(issue_ids))
                 .group_by(IssueAttachment.issue_id)
-            )
-        ).all()
+            )).all()
+        return dict(rows)
 
-        attachment_counts = dict(rows)
+    (
+        categories, departments, rooms, assets, buildings, floors, users,
+        work_orders, attachment_counts,
+    ) = await asyncio.gather(
+        by_id(IssueCategory, cat_ids),
+        by_id(Department, dept_ids),
+        by_id(Room, room_ids),
+        by_id(Asset, asset_ids),
+        by_id(Building, bldg_ids),
+        by_id(Floor, floor_ids),
+        by_id(User, user_ids),
+        work_order_map(),
+        attachment_count_map(),
+    )
 
-        log("attachment_counts DONE")
-
-    log("COMPLETE")
+    print(f"[ISSUE_MAPS] COMPLETE elapsed={time.perf_counter() - started:.2f}s", flush=True)
 
     return dict(
         categories=categories,

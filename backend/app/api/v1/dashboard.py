@@ -38,14 +38,24 @@ async def dashboard(user: CurrentUser, db: DB):
 
     # ---- Reporter view: only their own reports ----
     if is_reporter:
-        my_open = await count(Issue, Issue.reported_by == user.id, Issue.status.in_(OPEN_ISSUES))
-        my_resolved = await count(
-            Issue, Issue.reported_by == user.id,
-            Issue.status.in_([IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED]))
-        lost_reported = await count(
-            LFItem, LFItem.reported_by == user.id, LFItem.kind == LFKind.LOST)
-        recovered = await count(
-            LFItem, LFItem.reported_by == user.id, LFItem.status == LFStatus.RETURNED)
+        # Two round trips instead of four: each pair of counts shares a
+        # table and a base filter, so FILTER-clause aggregates fold them
+        # into one query apiece rather than one query per number.
+        issue_counts = (await db.execute(
+            select(
+                func.count().filter(Issue.status.in_(OPEN_ISSUES)).label("open"),
+                func.count().filter(Issue.status.in_(
+                    [IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED])).label("resolved"),
+            ).select_from(Issue).where(Issue.reported_by == user.id)
+        )).one()
+        lf_counts = (await db.execute(
+            select(
+                func.count().filter(LFItem.kind == LFKind.LOST).label("lost"),
+                func.count().filter(LFItem.status == LFStatus.RETURNED).label("recovered"),
+            ).select_from(LFItem).where(LFItem.reported_by == user.id)
+        )).one()
+        my_open, my_resolved = issue_counts.open, issue_counts.resolved
+        lost_reported, recovered = lf_counts.lost, lf_counts.recovered
 
         recent = (await db.scalars(
             select(Issue).where(Issue.reported_by == user.id)
@@ -66,21 +76,30 @@ async def dashboard(user: CurrentUser, db: DB):
         }
 
     # ---- Staff / manager / admin view ----
-    open_issues = await count(Issue, Issue.organization_id == org, Issue.status.in_(OPEN_ISSUES))
-    active_wos = await count(WorkOrder, WorkOrder.organization_id == org, WorkOrder.status.in_(OPEN_WOS))
-    resolved_week = await count(
-        Issue, Issue.organization_id == org, Issue.resolved_at.isnot(None),
-        Issue.resolved_at >= week_ago)
-    breached = await count(
-        Issue, Issue.organization_id == org, Issue.sla_breached.is_(True),
-        Issue.status.in_(OPEN_ISSUES))
-
-    total_closed = await count(
-        Issue, Issue.organization_id == org,
-        Issue.status.in_([IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED]))
-    total_breached = await count(
-        Issue, Issue.organization_id == org, Issue.sla_breached.is_(True))
+    # These five used to be five separate round trips on the same table —
+    # one query with a FILTER per count does the same work server-side.
+    issue_agg = (await db.execute(
+        select(
+            func.count().filter(Issue.status.in_(OPEN_ISSUES)).label("open_issues"),
+            func.count().filter(
+                Issue.resolved_at.isnot(None), Issue.resolved_at >= week_ago,
+            ).label("resolved_week"),
+            func.count().filter(
+                Issue.sla_breached.is_(True), Issue.status.in_(OPEN_ISSUES),
+            ).label("breached"),
+            func.count().filter(Issue.status.in_(
+                [IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED])).label("total_closed"),
+            func.count().filter(Issue.sla_breached.is_(True)).label("total_breached"),
+        ).select_from(Issue).where(Issue.organization_id == org)
+    )).one()
+    open_issues = issue_agg.open_issues
+    resolved_week = issue_agg.resolved_week
+    breached = issue_agg.breached
+    total_closed = issue_agg.total_closed
+    total_breached = issue_agg.total_breached
     sla_compliance = round(100 * (1 - total_breached / total_closed), 1) if total_closed else 100.0
+
+    active_wos = await count(WorkOrder, WorkOrder.organization_id == org, WorkOrder.status.in_(OPEN_WOS))
 
     # Asset health across the whole organization.
     state_rows = (await db.execute(
@@ -100,18 +119,33 @@ async def dashboard(user: CurrentUser, db: DB):
     healthy = states.get(AssetState.HEALTHY.value, 0)
     health_score = round(100 * healthy / total_assets) if total_assets else 100
 
-    # 7-day created-vs-resolved trend.
+    # 7-day created-vs-resolved trend. Was 14 count() round trips (2 per
+    # day, one per side); each side is now one GROUP BY query bucketed by
+    # day server-side, then read out of a dict per day in Python.
+    week_start = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+    created_rows = (await db.execute(
+        select(func.date_trunc("day", Issue.created_at).label("day"), func.count().label("n"))
+        .select_from(Issue)
+        .where(Issue.organization_id == org, Issue.created_at >= week_start)
+        .group_by("day")
+    )).all()
+    resolved_rows = (await db.execute(
+        select(func.date_trunc("day", Issue.resolved_at).label("day"), func.count().label("n"))
+        .select_from(Issue)
+        .where(Issue.organization_id == org, Issue.resolved_at >= week_start)
+        .group_by("day")
+    )).all()
+    created_by_day = {r.day.date(): r.n for r in created_rows}
+    resolved_by_day = {r.day.date(): r.n for r in resolved_rows}
+
     trend = []
     for offset in range(6, -1, -1):
         day_start = (now - timedelta(days=offset)).replace(hour=0, minute=0, second=0, microsecond=0)
-        day_end = day_start + timedelta(days=1)
         trend.append({
             "day": day_start.strftime("%a"),
             "date": day_start.date().isoformat(),
-            "created": await count(Issue, Issue.organization_id == org,
-                                   Issue.created_at >= day_start, Issue.created_at < day_end),
-            "resolved": await count(Issue, Issue.organization_id == org,
-                                    Issue.resolved_at >= day_start, Issue.resolved_at < day_end),
+            "created": created_by_day.get(day_start.date(), 0),
+            "resolved": resolved_by_day.get(day_start.date(), 0),
         })
 
     alerts = (await db.scalars(

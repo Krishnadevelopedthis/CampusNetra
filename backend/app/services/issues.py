@@ -115,46 +115,57 @@ async def create_issue(
     if org_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Your account is not linked to an organization")
 
+    # ---- AI triage ----
+    # Run before any write to this issue starts: classify() is an external
+    # LLM call (seconds, longer still if the provider is rate-limited) and
+    # CommitRoute holds this request's transaction open until the handler
+    # returns. Calling it after the Issue row was already inserted meant a
+    # pooled DB connection — and any lock that insert took — sat idle for
+    # the whole external call. Resolving the AI fields first means the
+    # write phase below is just local DB work, start to finish.
+    ai_result = None
+    if run_ai:
+        categories = await load_categories(db, org_id)
+        ai_result = await classify(title, description, categories)
+
     reference = await next_public_id(db, Issue, "CN")
+
+    resolved_category_id = category_id
+    resolved_priority = priority or Priority.MEDIUM
+    if ai_result:
+        if category_id is None and ai_result.category_id:
+            resolved_category_id = uuid.UUID(ai_result.category_id)
+        if priority is None:
+            resolved_priority = ai_result.priority
 
     issue = Issue(
         reference=reference, organization_id=org_id, campus_id=campus_id,
         title=title, description=description,
         building_id=building_id, floor_id=floor_id, room_id=room_id, asset_id=asset_id,
         location_note=location_note, reported_by=reporter.id, is_anonymous=is_anonymous,
-        category_id=category_id, priority=priority or Priority.MEDIUM,
+        category_id=resolved_category_id, priority=resolved_priority,
         status=IssueStatus.REPORTED,
     )
+    if ai_result:
+        issue.ai_confidence = ai_result.confidence
+        issue.ai_reasoning = ai_result.reasoning
+        issue.ai_model = ai_result.model
+        issue.ai_priority = ai_result.priority
+        issue.ai_classified_at = _now()
+        if ai_result.category_id:
+            issue.ai_category_id = uuid.UUID(ai_result.category_id)
     db.add(issue)
     await db.flush()
 
     for att in attachments or []:
         db.add(IssueAttachment(issue_id=issue.id, uploaded_by=reporter.id, **att))
 
-    # ---- AI triage ----
-    if run_ai:
-        categories = await load_categories(db, org_id)
-        result = await classify(title, description, categories)
-
-        issue.ai_confidence = result.confidence
-        issue.ai_reasoning = result.reasoning
-        issue.ai_model = result.model
-        issue.ai_priority = result.priority
-        issue.ai_classified_at = _now()
-        if result.category_id:
-            issue.ai_category_id = uuid.UUID(result.category_id)
-
-        # The reporter's explicit choice always wins over the model's.
-        if category_id is None and result.category_id:
-            issue.category_id = uuid.UUID(result.category_id)
-        if priority is None:
-            issue.priority = result.priority
-
+    if ai_result:
         db.add(AIInvocation(
-            organization_id=org_id, task="classify_issue", model=result.model,
-            entity_type="issue", entity_id=issue.id, confidence=result.confidence,
-            latency_ms=result.latency_ms, input_tokens=result.input_tokens,
-            output_tokens=result.output_tokens, used_fallback=result.used_fallback,
+            organization_id=org_id, task="classify_issue", model=ai_result.model,
+            entity_type="issue", entity_id=issue.id, confidence=ai_result.confidence,
+            latency_ms=ai_result.latency_ms, input_tokens=ai_result.input_tokens,
+            output_tokens=ai_result.output_tokens, used_fallback=ai_result.used_fallback,
         ))
 
     # ---- Department routing ----

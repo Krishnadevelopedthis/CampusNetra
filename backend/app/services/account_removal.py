@@ -84,3 +84,38 @@ async def retained_counts(db, user_id: uuid.UUID) -> dict:
         "work_orders_assigned": await count(WorkOrder, WorkOrder.assigned_to),
         "lost_found_reports": await count(LFItem, LFItem.reported_by),
     }
+
+
+async def retained_counts_bulk(db, user_ids: list[uuid.UUID]) -> dict[uuid.UUID, dict]:
+    """Same numbers as retained_counts, for every id in one pass.
+
+    The admin deletion-request queue used to call retained_counts once per
+    pending row -- 3 queries per row, none of them sharing a round trip.
+    This does the same 3 GROUP BY queries regardless of how many ids are
+    asked for, then hands each user_id back its own dict so callers don't
+    have to change shape.
+    """
+    from app.models.issues import Issue
+    from app.models.lostfound import LFItem
+    from app.models.work import WorkOrder
+
+    from sqlalchemy import func
+
+    out = {uid: {"issues_reported": 0, "work_orders_assigned": 0, "lost_found_reports": 0}
+           for uid in user_ids}
+    if not user_ids:
+        return out
+
+    async def grouped(model, column):
+        return (await db.execute(
+            select(column, func.count()).select_from(model)
+            .where(column.in_(user_ids)).group_by(column)
+        )).all()
+
+    for uid, n in await grouped(Issue, Issue.reported_by):
+        out[uid]["issues_reported"] = n
+    for uid, n in await grouped(WorkOrder, WorkOrder.assigned_to):
+        out[uid]["work_orders_assigned"] = n
+    for uid, n in await grouped(LFItem, LFItem.reported_by):
+        out[uid]["lost_found_reports"] = n
+    return out
