@@ -1,10 +1,13 @@
 import clsx from 'clsx'
 import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw, X } from 'lucide-react'
 import { Children, cloneElement, forwardRef, useEffect, useId, useRef, useState } from 'react'
+import { GooeyToaster, gooeyToast } from 'goey-toast'
+import 'goey-toast/styles.css'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
+import { useTheme } from '@/lib/theme'
 export { SkeletonRows }
 export { RingLoader } from '@/components/ui/RingLoader'
 
@@ -98,41 +101,28 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   )
 }
 
-/* ---------------- Toast ---------------- */
-// Built from nodes with textContent, never innerHTML: titles and descriptions
-// carry user names, file names and server messages, and parsing those as
-// markup let any of them run script in the browser of whoever saw the toast.
-function el(tag, className, text) {
-  const node = document.createElement(tag)
-  node.className = className
-  if (text != null) node.textContent = String(text)
-  return node
+/* ---------------- Toast ----------------
+ * goey-toast (gooey/morphing pill, built on Sonner + Framer Motion) in
+ * place of the old plain DOM-node toast -- same call shape everywhere it's
+ * used (toast.success(title, description) etc), so no call site changed.
+ * Colors are pinned to the app's own success/danger/warning/secondary
+ * tokens rather than the library's defaults, so a toast reads as part of
+ * CampusNetra's own UI instead of a generic drop-in widget. */
+const TOAST_ACCENT = {
+  default: 'rgb(var(--c-secondary))',
+  success: 'rgb(var(--c-success))',
+  danger: 'rgb(var(--c-danger))',
+  warning: 'rgb(var(--c-warning))',
 }
 
 function createToast(title, description, variant = 'default') {
-  const danger = variant === 'danger'
-  const container = el('div', 'toast-overlay fixed top-4 right-4 z-50 flex gap-2')
-  const card = el('div', clsx(
-    'toast p-4 rounded-lg shadow-level2 transition-opacity duration-500',
-    danger ? 'bg-danger-bg text-danger-text' : 'bg-surface text-ink',
-  ))
-  card.setAttribute('role', danger ? 'alert' : 'status')
-
-  const body = el('div', '')
-  body.append(el('p', 'font-medium', title))
-  if (description) body.append(el('p', 'text-body-sm text-ink-muted mt-0.5', description))
-
-  const row = el('div', 'flex items-start gap-2')
-  row.append(el('span', clsx('w-2 h-2 rounded-full shrink-0 mt-1.5', danger ? 'bg-danger' : 'bg-secondary')), body)
-  card.append(row)
-  container.append(card)
-  document.body.appendChild(container)
-
-  // Auto-remove after 5 seconds
-  setTimeout(() => {
-    container.style.opacity = '0'
-    setTimeout(() => container.remove(), 300)
-  }, 5000)
+  const fn = { success: gooeyToast.success, danger: gooeyToast.error, warning: gooeyToast.warning }[variant]
+    || gooeyToast.info
+  fn(title, {
+    description,
+    fillColor: 'rgb(var(--c-surface))',
+    borderColor: TOAST_ACCENT[variant] || TOAST_ACCENT.default,
+  })
 }
 
 export const toast = {
@@ -141,6 +131,20 @@ export const toast = {
   danger: (title, description) => createToast(title, description, 'danger'),
   warning: (title, description) => createToast(title, description, 'warning'),
   error: (title, description) => createToast(title, description, 'danger'),
+}
+
+/** Mounted once near the app root (see App.jsx). */
+export function Toaster() {
+  const theme = useTheme((s) => s.resolved)
+  return (
+    <GooeyToaster
+      position="top-right"
+      theme={theme === 'dark' ? 'dark' : 'light'}
+      preset="smooth"
+      closeButton
+      richColors={false}
+    />
+  )
 }
 
 /* ---------------- Widget (Level 1: bordered, no shadow) ---------------- */
