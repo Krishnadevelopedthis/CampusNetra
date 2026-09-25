@@ -2,6 +2,8 @@ import { Map as MapLibreMap, NavigationControl, Popup } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useRef, useState } from 'react'
 
+import '@/lib/maplibreSetup'
+
 // OpenFreeMap: free vector tiles, no API key, no billing — MapLibre's own
 // recommended free host. "liberty" already ships OSM road/building/land-use
 // layers and a 3d-buildings fill-extrusion layer driven by OSM height tags,

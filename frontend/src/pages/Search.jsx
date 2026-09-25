@@ -16,7 +16,12 @@ export default function Search() {
   // and up) -- technician is "staff" but not manager, and would still 403.
   const canSearchUsers = isManager()
   const query = searchParams.get('q') || ''
-  const [debouncedQuery] = useDebounce(query, 300)
+  // useDebounce returns the debounced value directly, not a
+  // [value, setter] tuple -- array-destructuring it was array-destructuring
+  // the *string* instead (strings are iterable), silently taking only its
+  // first character once non-empty. Every search on this page has been
+  // querying the backend for one letter instead of the real typed text.
+  const debouncedQuery = useDebounce(query, 300)
   const [results, setResults] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const inputRef = useRef(null)
