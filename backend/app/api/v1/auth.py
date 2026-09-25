@@ -1,6 +1,7 @@
 """Authentication endpoints: register, verify, login, refresh, password reset."""
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -563,8 +564,8 @@ async def email_weekly_report(user: CurrentUser, db: DB):
     address already on the account, never a destination the caller
     supplies.
     """
-    from app.services.weekly_report import collect, render
-    from app.services.email import send_email
+    from app.services.weekly_report import collect, render, render_pdf
+    from app.services.email import EmailAttachment, send_email
 
     if not settings.email_delivers:
         raise HTTPException(
@@ -575,11 +576,16 @@ async def email_weekly_report(user: CurrentUser, db: DB):
 
     summary = await collect(db, user)
     text, html = render(summary)
+    # #14 asks for an actual PDF, not just an HTML email body -- attach one,
+    # generated from the same summary so the two can't drift apart.
+    pdf_bytes = await asyncio.to_thread(render_pdf, summary)
+    filename = f"campusnetra-weekly-summary-{summary.period_end:%Y-%m-%d}.pdf"
     result = await send_email(
         user.email,
         subject="Your CampusNetra weekly summary",
         text=text,
         html=html,
+        attachments=[EmailAttachment(filename=filename, data=pdf_bytes, mime_type="application/pdf")],
     )
     if not result.delivered:
         raise HTTPException(

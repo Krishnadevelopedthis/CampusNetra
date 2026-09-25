@@ -40,6 +40,10 @@ numpy>=2.2.1
 # admin review instead of failing the request.
 pytesseract>=0.3.13
 
+# --- PDF generation (weekly summary report) ---
+# Pure-Python, no system binary required (unlike weasyprint/wkhtmltopdf).
+reportlab>=4.2.0
+
 # --- Object storage (STORAGE_BACKEND=s3) ---
 # Optional: only needed if STORAGE_BACKEND is set to "s3" in config. Local-
 # disk storage (the default) does not need this at all.
