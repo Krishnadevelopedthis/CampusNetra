@@ -241,6 +241,8 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
   selectedRoomId,
   roomAssets = null,  // assets for the selected room, from the floor-plan fetch (null while loading)
   pendingPlacement = null, // {x,y} normalised, set while the "place asset" form is open
+  ceilingEnabled = false, // admin toggle -- the ceiling plane only exists (and is only
+                          // clickable) while this is true, off by default
   onSelectBuilding,
   onSelectFloor,
   onSelectRoom,
@@ -708,7 +710,15 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
 
       const onSurfaceClick = (surface, pos) => onPlaceAsset?.({ surface, ...pos })
       addRoomWalls(content, half, roomHeight, addClickable, onSurfaceClick)
-      addRoomCeiling(content, half, roomHeight, addClickable, onSurfaceClick)
+      // Only built (and only added to the clickable/raycast list) when the
+      // admin has explicitly turned ceiling placement on -- it used to
+      // always exist as a full-footprint plane near the top of the room,
+      // and a click aimed at the floor or a wall would often hit that
+      // plane first, silently placing the asset on the ceiling instead of
+      // where the admin actually clicked.
+      if (ceilingEnabled) {
+        addRoomCeiling(content, half, roomHeight, addClickable, onSurfaceClick)
+      }
 
       ;(roomAssets || []).forEach((a) => {
         if (a.pos_x == null || a.pos_y == null) return
@@ -769,7 +779,7 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
   }, [
     view, buildings, autoCount, mode, heatByBuilding, heatColour,
     selectedBuildingId, selectedFloorId, selectedRoomId, roomAssets, pendingPlacement,
-    onSelectBuilding, onSelectFloor, onSelectRoom, onSelectAsset, onPlaceAsset,
+    ceilingEnabled, onSelectBuilding, onSelectFloor, onSelectRoom, onSelectAsset, onPlaceAsset,
   ])
 
   return <div ref={mountRef} className={className} />
