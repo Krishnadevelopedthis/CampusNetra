@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
-import { RingLoader, Spinner } from '@/components/ui'
+import { RingLoader } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
 import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
@@ -300,7 +300,7 @@ export default function App() {
         a reload.
       */}
       <ErrorBoundary resetKey={location.pathname}>
-        <Suspense fallback={<Spinner className="min-h-screen" />}>
+        <Suspense fallback={<RingLoader label="Loading…" className="min-h-screen" />}>
           <Routes>
 
             {/* =====================================================
