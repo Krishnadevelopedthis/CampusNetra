@@ -1,10 +1,20 @@
 import { formatDistanceToNow, format, isValid, parseISO } from 'date-fns'
+import { getDisplayPrefs } from './displayPrefs'
 
 export const asDate = (v) => (v instanceof Date ? v : v ? parseISO(v) : null)
 
 export function dt(value, pattern = 'd MMM, HH:mm') {
   const d = asDate(value)
-  return d && isValid(d) ? format(d, pattern) : '—'
+  if (!d || !isValid(d)) return '—'
+  // Respect the user's saved "Time format" setting (Settings.jsx) wherever
+  // a pattern spells out a 24-hour hour token, whether that pattern is the
+  // default above or one a caller passed explicitly — every call site in
+  // the app uses the literal 'HH:mm'/'HH' tokens, never a different way of
+  // asking for 24-hour time, so this one substitution covers all of them.
+  const resolved = getDisplayPrefs().time_format === '12h'
+    ? pattern.replace(/HH:mm/g, 'h:mm a').replace(/\bHH\b/g, 'h a')
+    : pattern
+  return format(d, resolved)
 }
 
 export function ago(value) {

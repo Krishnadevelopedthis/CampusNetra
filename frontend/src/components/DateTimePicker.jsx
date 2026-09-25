@@ -1,12 +1,21 @@
 import clsx from 'clsx'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { getDisplayPrefs } from '@/lib/displayPrefs'
 
-const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+const DAYS_MONDAY_FIRST = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
+const DAYS_SUNDAY_FIRST = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
+
+/** Was the "Week starts on" setting (Settings.jsx) saved as Sunday? Read
+ * fresh on every grid build rather than once at module load, since the
+ * picker can stay mounted across a settings change. */
+function sundayFirst() {
+  return getDisplayPrefs().week_start === 'sunday'
+}
 
 /** `YYYY-MM-DDTHH:mm` in local time — the shape a datetime-local input uses. */
 function toLocalValue(date) {
@@ -26,10 +35,12 @@ function sameDay(a, b) {
     && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }
 
-/** Monday-first grid of the weeks touching `month`. */
+/** Grid of the weeks touching `month`, starting on whichever day the
+ * "Week starts on" setting names (Monday by default, matching before this
+ * setting was wired up; Sunday when the user has chosen that). */
 function monthGrid(month) {
   const first = new Date(month.getFullYear(), month.getMonth(), 1)
-  const offset = (first.getDay() + 6) % 7
+  const offset = sundayFirst() ? first.getDay() : (first.getDay() + 6) % 7
   const start = new Date(first)
   start.setDate(first.getDate() - offset)
   return Array.from({ length: 42 }, (_, i) => {
@@ -85,7 +96,7 @@ export function DateTimePicker({
 
   useEffect(() => { if (selected) setMonth(selected) }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const days = useMemo(() => monthGrid(month), [month])
+  const days = useMemo(() => monthGrid(month), [month, getDisplayPrefs().week_start])
 
   const outOfRange = (d) => {
     if (maxDate && d > maxDate) return true
@@ -176,7 +187,7 @@ export function DateTimePicker({
           </div>
 
           <div className="grid grid-cols-7 gap-0.5 mb-1">
-            {DAYS.map((d) => (
+            {(sundayFirst() ? DAYS_SUNDAY_FIRST : DAYS_MONDAY_FIRST).map((d) => (
               <span key={d} className="text-label-caps uppercase text-ink-faint text-center py-1">{d}</span>
             ))}
           </div>
