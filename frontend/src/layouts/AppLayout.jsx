@@ -32,7 +32,11 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
   const isProfileContext = location.pathname.startsWith('/profile') || location.pathname.startsWith('/settings')
   const [value, setValue] = useState('')
   const ref = useRef(null)
-  useOutsideClick(ref, () => setValue(''))
+  // Closing (not just clearing) on an outside tap/click is what makes this
+  // behave like the dropdown panel it now looks like on mobile -- leaving it
+  // open with just the text cleared was the old behaviour, and looked like
+  // the panel had frozen open.
+  useOutsideClick(ref, () => { setValue(''); onMobileClose?.() })
 
   const matches = isProfileContext ? searchProfileIndex(value) : []
 
@@ -52,39 +56,45 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
   }
 
   return (
+    // On mobile this used to render as a small fixed box pinned 12px from
+    // the very top of the viewport -- inside the header's own 64px (h-16)
+    // height, so it visually collided with the menu button and the search
+    // toggle that opened it. Anchoring it to top-16 instead drops it in as
+    // a full-width panel directly under the header, the way a mobile
+    // search overlay is expected to behave.
     <div
       ref={ref}
       className={clsx(
-        'relative flex-1 max-w-md',
         mobileOpen
-          ? 'fixed inset-x-3 top-3 z-40 max-w-none sm:static sm:inset-auto sm:z-auto'
-          : 'hidden sm:block',
+          ? 'fixed inset-x-0 top-16 z-40 bg-surface border-b border-border-subtle shadow-level3 p-3 sm:static sm:inset-auto sm:top-auto sm:z-auto sm:bg-transparent sm:border-0 sm:shadow-none sm:p-0 sm:flex-1 sm:max-w-md'
+          : 'hidden sm:block sm:flex-1 sm:max-w-md',
       )}
     >
-      <Search
-        size={17} strokeWidth={2.25}
-        className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
-      />
-      <input
-        autoFocus={mobileOpen}
-        className="input pl-9"
-        placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, complaints, lost & found…'}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={onKeyDown}
-      />
-      {mobileOpen && (
-        <button
-          type="button"
-          onClick={() => { setValue(''); onMobileClose?.() }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost h-7 w-7 p-0 rounded-md sm:hidden"
-          aria-label="Close search"
-        >
-          <X size={14} />
-        </button>
-      )}
-      {isProfileContext && value && (
-        <div className="absolute left-0 right-0 mt-1.5 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up">
+      <div className="relative">
+        <Search
+          size={17} strokeWidth={2.25}
+          className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
+        />
+        <input
+          autoFocus={mobileOpen}
+          className="input pl-9 pr-9"
+          placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, complaints, lost & found…'}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={onKeyDown}
+        />
+        {mobileOpen && (
+          <button
+            type="button"
+            onClick={() => { setValue(''); onMobileClose?.() }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 btn-ghost h-7 w-7 p-0 rounded-md sm:hidden"
+            aria-label="Close search"
+          >
+            <X size={14} />
+          </button>
+        )}
+        {isProfileContext && value && (
+          <div className="absolute left-0 right-0 mt-1.5 bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up">
           {matches.length === 0 ? (
             <p className="px-4 py-3 text-body-sm text-ink-faint">No matching settings.</p>
           ) : (
@@ -99,8 +109,9 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
               </button>
             ))
           )}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -383,7 +394,7 @@ export default function AppLayout() {
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={() => setMobileSearchOpen(true)}
-              className="btn-ghost h-9 w-9 p-0 rounded-lg sm:hidden"
+              className={clsx('btn-ghost h-9 w-9 p-0 rounded-lg sm:hidden', mobileSearchOpen && 'hidden')}
               aria-label="Search"
             >
               <Search size={18} />
