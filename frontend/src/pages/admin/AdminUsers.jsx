@@ -9,7 +9,7 @@ import {
   Avatar, Button, EmptyState, ErrorState, Field, Input, Modal, Select,
   SkeletonRows, StatusPill, Widget, toast,
 } from '@/components/ui'
-import { api, fetchAuthedBlob, mediaUrl } from '@/lib/api'
+import { api, fetchAuthedBlob } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago, dt } from '@/lib/format'
 
@@ -187,7 +187,7 @@ export default function AdminUsers() {
                           title={`Open ${u.full_name}'s record`}>
                         <td>
                           <div className="flex items-center gap-2.5">
-                            <Avatar name={u.full_name} src={mediaUrl(u.avatar_url)} size={32} />
+                            <Avatar name={u.full_name} src={u.avatar_url} size={32} />
                             <div className="min-w-0">
                               <p className="text-ink truncate">
                                 {u.full_name}
@@ -541,7 +541,7 @@ function UserDetailModal({ user, onClose, onEdit, onDelete, canManage }) {
       open={!!user} onClose={onClose} size="lg"
       title={
         <span className="flex items-center gap-2.5">
-          <Avatar name={user.full_name} src={mediaUrl(user.avatar_url)} size={32} />
+          <Avatar name={user.full_name} src={user.avatar_url} size={32} />
           {user.full_name}
         </span>
       }

@@ -1607,3 +1607,50 @@ worth checking) are NOT dead — `services/notifications.py` genuinely calls
 `templates.wants()` before sending on both channels, so those were already
 real. Commit: `ed87d46` — 7 commits ahead of `origin/main` now, still
 blocked on the same push permission issue.
+
+## Addendum 34 — closing the real #4/#39 gap Addendum 32 documented but left open
+
+The push-permission block resolved itself (new session, no proxy
+restriction) — the 9 commits from Addendum 30-33 landed on `origin/main`
+via a `.patch` file the user applied directly. Picked up the one item
+Addendum 32 explicitly flagged as "real, separate follow-up, not attempted
+here": `GET /uploads/file/{relative_path}` served every evidence photo,
+avatar, and Lost & Found image with **no auth at all** — anyone with or
+guessing a path could fetch someone else's private upload. Only the
+identity_verification/ prefix was blocked.
+
+**Fixed properly, not just flagged again.** Backend: added `CurrentUser` to
+the route — unauthenticated requests now get 401, not the file. Frontend:
+a plain `<img src="/uploads/file/...">` can't carry the bearer token
+(localStorage, not a cookie), so every one of the ~14 real call sites
+(scoped first via a read-only pass, not guessed) was converted to fetch
+through JS with the auth header and render from a `blob:` URL —
+`fetchAuthedBlob()` already existed (used once, for ID documents) and a new
+`useAuthedImage()` hook (`frontend/src/hooks/useAuthedImage.js`) wraps it
+with the create/revoke lifecycle. Converted: the shared `Avatar` component
+(fixes all 4 avatar call sites at once), plus 10 scattered evidence/L&F/
+work-order `<img>` tags across `WorkOrderDetail`, `IssueDetail`,
+`AdminLostFound`, `LostFoundItem` (image carousel + zoom modal + match
+cards), `LostFound` (grid cards + match previews), and `ImageUpload`'s own
+thumbnail preview — each needed a small subcomponent since React hooks
+can't be called inside `.map()` directly. Also converted the 3 floor-plan
+image call sites (`FloorPlan.jsx`, `FloorPlanEditor.jsx`) since they'd have
+silently gone blank once the backend started requiring auth, even though
+plan diagrams aren't sensitive the way evidence photos are.
+
+**Where this honestly still stands**: this is auth-gating, not per-object
+authorization — any logged-in user can still fetch any non-ID-card path if
+they have or guess it, just not an anonymous one. That's the real gap
+Addendum 32 called out ("the URL just isn't guessable" was never a good
+enough answer) and it's now closed for the anonymous case specifically.
+Scoping per-record access (only the reporter, assignee, or staff can fetch
+a *specific* evidence photo) is a further, separate change layered on top,
+not attempted here — flagging honestly rather than implying it's done.
+
+Verified: `npm run build` clean (after a fresh `npm install`, no
+`node_modules` existed in this session), `eslint` on every touched file
+clean (0 errors — the 4 warnings present are pre-existing and unrelated to
+this change), backend `pytest` 60/60 (this repo's test suite is unit tests
+over the AI tool registry only — no HTTP-level fixture exists to write a
+route-level regression test against without building that infra first, so
+none was added; noting that gap rather than skipping it silently).

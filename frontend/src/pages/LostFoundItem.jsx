@@ -6,9 +6,10 @@ import { Link, useParams } from 'react-router-dom'
 import {
   Button, ErrorState, Field, Modal, Spinner, StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
-import { api, mediaUrl } from '@/lib/api'
+import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { dt, titleCase } from '@/lib/format'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 
 const FACTOR_LABEL = {
   image: 'Image Similarity',
@@ -54,14 +55,15 @@ export default function LostFoundItem() {
     onError: (err) => toast.error(err.detail),
   })
 
-  if (isLoading) return <Spinner label="Loading item…" />
-  if (error) return <ErrorState error={error} onRetry={refetch} />
-
   const images = item?.attachments?.length ? item.attachments : []
   const orderedImages = images.length
     ? [...images].sort((a, b) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
     : []
   const current = orderedImages[activeImage] || orderedImages[0]
+  const currentSrc = useAuthedImage(current?.url)
+
+  if (isLoading) return <Spinner label="Loading item…" />
+  if (error) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="space-y-5 max-w-6xl">
@@ -97,7 +99,7 @@ export default function LostFoundItem() {
             {current ? (
               <>
                 <img
-                  src={mediaUrl(current.url)} alt={item.title}
+                  src={currentSrc} alt={item.title}
                   className="w-full h-full object-contain cursor-zoom-in"
                   onClick={() => setZoomOpen(true)}
                 />
@@ -148,7 +150,7 @@ export default function LostFoundItem() {
                     i === activeImage ? 'border-secondary' : 'border-transparent opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={mediaUrl(img.thumb_url || img.url)} alt="" className="w-full h-full object-cover" />
+                  <ThumbImage image={img} />
                 </button>
               ))}
             </div>
@@ -170,7 +172,7 @@ export default function LostFoundItem() {
         >
           {current && (
             <div className="relative">
-              <img src={mediaUrl(current.url)} alt={item.title} className="w-full max-h-[70vh] object-contain" />
+              <img src={currentSrc} alt={item.title} className="w-full max-h-[70vh] object-contain" />
               {orderedImages.length > 1 && (
                 <div className="flex items-center justify-center gap-3 mt-3">
                   <Button size="sm" variant="secondary" icon={ChevronLeft}
@@ -352,18 +354,24 @@ export default function LostFoundItem() {
 }
 
 function MatchCard({ preview, label }) {
+  const src = useAuthedImage(preview?.image)
   if (!preview) return null
   return (
     <div className="flex-1 min-w-0 text-center">
       <div className="h-24 rounded bg-surface-sunken overflow-hidden grid place-items-center mb-1.5">
-        {preview.image
-          ? <img src={mediaUrl(preview.image)} alt={preview.title} className="w-full h-full object-cover" />
+        {src
+          ? <img src={src} alt={preview.title} className="w-full h-full object-cover" />
           : <PackageSearch size={20} className="text-ink-faint" />}
       </div>
       <p className="text-body-sm text-ink-muted">{label}</p>
       <p className="font-mono text-[11px] text-secondary truncate">{preview.reference}</p>
     </div>
   )
+}
+
+function ThumbImage({ image }) {
+  const src = useAuthedImage(image.thumb_url || image.url)
+  return src ? <img src={src} alt="" className="w-full h-full object-cover" /> : null
 }
 
 function Row({ label, value }) {

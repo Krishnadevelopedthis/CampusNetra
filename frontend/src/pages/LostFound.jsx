@@ -13,8 +13,9 @@ import {
   StatusPill,
   Widget,
 } from '@/components/ui'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 import { useRefresh } from '@/hooks/useRefresh'
-import { api, mediaUrl } from '@/lib/api'
+import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 
@@ -150,40 +151,7 @@ export default function LostFound() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-widget">
               {items.data.items.map((i) => (
-                <Link
-                  key={i.id} to={`/lost-found/items/${i.id}`}
-                  className="widget overflow-hidden hover:shadow-level2 transition-shadow group"
-                >
-                  <div className="h-36 bg-surface-sunken grid place-items-center overflow-hidden">
-                    {i.primary_image ? (
-                      <img src={mediaUrl(i.primary_image)} alt={i.title}
-                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
-                    ) : (
-                      <PackageSearch size={28} className="text-ink-faint" />
-                    )}
-                  </div>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-[11px] text-secondary">{i.reference}</span>
-                      <StatusPill status={i.status} />
-                    </div>
-                    <p className="text-body-lg font-medium text-ink mt-1 truncate">{i.title}</p>
-                    <p className="text-body-sm text-ink-muted truncate">
-                      {[i.colour, i.brand, i.category_name].filter(Boolean).join(' · ') || '—'}
-                    </p>
-                    {i.location_summary && (
-                      <p className="text-body-sm text-ink-faint truncate mt-0.5">{i.location_summary}</p>
-                    )}
-                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-border-subtle">
-                      <span className="text-body-sm text-ink-faint">{ago(i.occurred_at)}</span>
-                      {i.best_match_score != null && (
-                        <span className="pill bg-ai-bg text-info-text text-body-sm">
-                          <Sparkles size={11} /> {i.best_match_score}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
+                <ItemCard key={i.id} item={i} />
               ))}
             </div>
           )}
@@ -193,12 +161,13 @@ export default function LostFound() {
 }
 
 function Preview({ item, label }) {
+  const src = useAuthedImage(item?.image)
   if (!item) return null
   return (
     <div className="flex items-center gap-2 min-w-0">
       <div className="w-10 h-10 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
-        {item.image
-          ? <img src={mediaUrl(item.image)} alt="" className="w-full h-full object-cover" />
+        {src
+          ? <img src={src} alt="" className="w-full h-full object-cover" />
           : <PackageSearch size={16} className="text-ink-faint" />}
       </div>
       <div className="min-w-0">
@@ -206,5 +175,45 @@ function Preview({ item, label }) {
         <p className="text-body-md text-ink truncate">{item.title}</p>
       </div>
     </div>
+  )
+}
+
+function ItemCard({ item: i }) {
+  const src = useAuthedImage(i.primary_image)
+  return (
+    <Link
+      to={`/lost-found/items/${i.id}`}
+      className="widget overflow-hidden hover:shadow-level2 transition-shadow group"
+    >
+      <div className="h-36 bg-surface-sunken grid place-items-center overflow-hidden">
+        {src ? (
+          <img src={src} alt={i.title}
+               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+        ) : (
+          <PackageSearch size={28} className="text-ink-faint" />
+        )}
+      </div>
+      <div className="p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-[11px] text-secondary">{i.reference}</span>
+          <StatusPill status={i.status} />
+        </div>
+        <p className="text-body-lg font-medium text-ink mt-1 truncate">{i.title}</p>
+        <p className="text-body-sm text-ink-muted truncate">
+          {[i.colour, i.brand, i.category_name].filter(Boolean).join(' · ') || '—'}
+        </p>
+        {i.location_summary && (
+          <p className="text-body-sm text-ink-faint truncate mt-0.5">{i.location_summary}</p>
+        )}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border-subtle">
+          <span className="text-body-sm text-ink-faint">{ago(i.occurred_at)}</span>
+          {i.best_match_score != null && (
+            <span className="pill bg-ai-bg text-info-text text-body-sm">
+              <Sparkles size={11} /> {i.best_match_score}%
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
   )
 }

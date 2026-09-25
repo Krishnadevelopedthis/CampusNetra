@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { useMemo, useRef, useState } from 'react'
 import { Maximize2, Minus, Plus } from 'lucide-react'
 
-import { mediaUrl } from '@/lib/api'
+import { useAuthedImage } from '@/hooks/useAuthedImage'
 import { TWIN_STATE } from '@/lib/format'
 
 /**
@@ -31,6 +31,7 @@ export function FloorPlan({
   // outlines were still drawn across the full square, so on a 1600x1000 plan
   // every room sat about a fifth of the canvas above the walls it belonged to.
   const vbH = planWidth && planHeight ? Math.round((VB * planHeight) / planWidth) : VB
+  const planImageSrc = useAuthedImage(planImage)
 
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -114,9 +115,9 @@ export function FloorPlan({
             twin is coloured polygons floating on a grid; with it, the state
             sits on the plan people already recognise. Dimmed so the asset
             markers stay the thing you read first. */}
-        {planImage && (
+        {planImageSrc && (
           <image
-            href={mediaUrl(planImage)} x="0" y="0" width={VB} height={vbH}
+            href={planImageSrc} x="0" y="0" width={VB} height={vbH}
             preserveAspectRatio="none" opacity="0.35"
             className="pointer-events-none"
           />

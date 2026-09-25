@@ -22,7 +22,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 
 import { Avatar, Button, Input, Modal, Widget, toast } from '@/components/ui'
-import { api, mediaUrl, upload } from '@/lib/api'
+import { api, upload } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { dt } from '@/lib/format'
 import { OtpInput } from './VerifyEmail'
@@ -198,7 +198,7 @@ function AvatarPicker({ user, setUser }) {
   return (
     <div className="relative inline-block">
       <div className="rounded-full ring-4 ring-surface">
-        <Avatar name={user?.full_name} src={mediaUrl(user?.avatar_url)} size={88} />
+        <Avatar name={user?.full_name} src={user?.avatar_url} size={88} />
       </div>
 
       <button
