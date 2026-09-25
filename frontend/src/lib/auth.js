@@ -261,9 +261,12 @@ export const useAuth = create((set, get) => ({
    * Logout.
    *
    * Server logout is attempted first.
-   * Local authentication is always cleared afterwards.
-   *
-   * Appearance preferences are intentionally NOT cleared.
+   * Local authentication is always cleared afterwards, along with the
+   * signed-out user's accent colour -- the login page a next visitor lands
+   * on (who may not be the same person, on a shared or public device)
+   * should never carry a previous user's personal colour choice. Covers
+   * both an explicit "Log Out" tap and an inactivity-triggered timeout,
+   * since sessionTimeout.js's auto-logout calls this same method.
    */
   async logout() {
     /**
@@ -284,14 +287,13 @@ export const useAuth = create((set, get) => ({
       // Server-side revocation is best-effort — see above.
     })
 
-    /**
-     * IMPORTANT:
-     * Do NOT clear appearance preferences on logout.
-     *
-     * Logout only clears authentication/session state.
-     * The user's saved appearance preferences remain available
-     * for restoration after the next login.
-     */
+    // The colour itself is still saved server-side on the account (it comes
+    // straight back via loadFromUserPreferences() on the next login) -- only
+    // the *applied, on-screen* accent resets, so a public/shared device
+    // doesn't keep showing whoever was last signed in to anyone who looks at
+    // it afterwards, including the login page itself.
+    useColorTheme.getState().resetColorTheme()
+
     writeAuth(null)
 
     set({
