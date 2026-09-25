@@ -5,11 +5,16 @@ import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import { Spinner, EmptyState, Widget } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
+import { useAuth } from '@/lib/auth'
 import { searchProfileIndex } from '@/lib/profileSearchIndex'
 
 export default function Search() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { isManager } = useAuth()
+  // /admin/users needs manager-tier access on the backend (facility_manager
+  // and up) -- technician is "staff" but not manager, and would still 403.
+  const canSearchUsers = isManager()
   const query = searchParams.get('q') || ''
   const [debouncedQuery] = useDebounce(query, 300)
   const [results, setResults] = useState(null)
@@ -29,11 +34,16 @@ export default function Search() {
 
     setIsLoading(true)
     try {
+      // /admin/users is staff-only -- calling it as a student/teacher isn't
+      // just wasted work, it's a 403 on every keystroke, so it's left out
+      // of the batch entirely rather than fired and swallowed.
       const [issues, assets, lostFound, users] = await Promise.allSettled([
         api.get('/issues', { params: { q, page_size: 10 } }),
-        api.get('/assets', { params: { q, page_size: 10 } }),
-        api.get('/lostfound', { params: { q, page_size: 10 } }),
-        api.get('/admin/users', { params: { q, page_size: 10 } }).catch(() => ({ items: [] })),
+        api.get('/campus/assets', { params: { q, page_size: 10 } }),
+        api.get('/lost-found/items', { params: { q, page_size: 10, open_only: false } }),
+        canSearchUsers
+          ? api.get('/admin/users', { params: { q, page_size: 10 } })
+          : Promise.resolve({ items: [] }),
       ])
 
       setResults({

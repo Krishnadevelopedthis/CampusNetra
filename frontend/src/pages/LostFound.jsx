@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { PackageSearch, PlusCircle, Search, Sparkles } from 'lucide-react'
+import clsx from 'clsx'
+import { CheckCircle2, PackageSearch, PlusCircle, Search, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -33,18 +34,22 @@ export default function LostFound() {
   })
 
   const params = {
-    kind: tab === 'mine' ? undefined : tab,
+    kind: tab === 'mine' || tab === 'closed' ? undefined : tab,
     mine: tab === 'mine' || undefined,
     q: q || undefined,
     category_id: categoryId || undefined,
     page_size: 24,
-    // The default (open_only) hides anything already claimed or returned --
-    // right for "what can still be claimed" but wrong for a registry people
-    // browse to see what's been found on campus at all. Listing every
-    // non-archived status keeps claimed/returned items visible (with their
-    // StatusPill so it's clear they're no longer available) instead of
-    // items vanishing the moment someone claims them.
-    status: ['open', 'matched', 'claim_pending', 'claimed', 'returned'],
+    // Found/Lost stay a registry of what's still live -- claimed items keep
+    // showing (with their StatusPill) since a claim isn't the end of the
+    // story yet, but once something is actually returned to its owner it's
+    // done and moves to the Closed tab instead of lingering in the list it
+    // was found/lost in. "My reports" is a full history, so it keeps
+    // returned items too; Closed shows only them.
+    status: tab === 'closed'
+      ? ['returned']
+      : tab === 'mine'
+        ? ['open', 'matched', 'claim_pending', 'claimed', 'returned']
+        : ['open', 'matched', 'claim_pending', 'claimed'],
   }
   const items = useQuery({
     queryKey: ['lf-items', params],
@@ -124,7 +129,7 @@ export default function LostFound() {
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">
           <div className="flex p-1 bg-surface-sunken rounded-lg">
-            {[['found', 'Found items'], ['lost', 'Lost items'], ['mine', 'My reports']].map(([k, label]) => (
+            {[['found', 'Found items'], ['lost', 'Lost items'], ['closed', 'Closed'], ['mine', 'My reports']].map(([k, label]) => (
               <button
                 key={k} onClick={() => setTab(k)}
                 className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
@@ -150,10 +155,18 @@ export default function LostFound() {
           : items.error ? <ErrorState error={items.error} onRetry={items.refetch} />
           : items.data.items.length === 0 ? (
             <EmptyState
-              icon={PackageSearch}
-              title={tab === 'mine' ? "You haven't reported anything yet" : `No ${tab} items`}
-              description="Reporting an item starts AI matching against the other side of the ledger immediately."
-              action={<Link to="/lost-found/report" className="btn-primary">Report an item</Link>}
+              icon={tab === 'closed' ? CheckCircle2 : PackageSearch}
+              title={
+                tab === 'mine' ? "You haven't reported anything yet"
+                : tab === 'closed' ? 'Nothing closed yet'
+                : `No ${tab} items`
+              }
+              description={
+                tab === 'closed'
+                  ? 'Items show up here once they’ve actually been handed back to their owner.'
+                  : 'Reporting an item starts AI matching against the other side of the ledger immediately.'
+              }
+              action={tab === 'closed' ? undefined : <Link to="/lost-found/report" className="btn-primary">Report an item</Link>}
             />
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-widget">
@@ -187,10 +200,18 @@ function Preview({ item, label }) {
 
 function ItemCard({ item: i }) {
   const src = useAuthedImage(i.primary_image)
+  // Dulled (not blurred to illegibility -- the point is "easy to tell
+  // apart at a glance", not "hidden") so a returned item reads as closed
+  // wherever it happens to surface, without another badge competing with
+  // the StatusPill that already says "Returned".
+  const closed = i.status === 'returned'
   return (
     <Link
       to={`/lost-found/items/${i.id}`}
-      className="widget overflow-hidden hover:shadow-level2 transition-shadow group"
+      className={clsx(
+        'widget overflow-hidden hover:shadow-level2 transition-shadow group',
+        closed && 'opacity-60 grayscale-[0.5] hover:opacity-90',
+      )}
     >
       <div className="h-36 bg-surface-sunken grid place-items-center overflow-hidden">
         {src ? (
