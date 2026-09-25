@@ -141,7 +141,14 @@ export function Toaster() {
       position="top-right"
       theme={theme === 'dark' ? 'dark' : 'light'}
       preset="smooth"
-      closeButton
+      // A bare `true` here left the close button's left/right side picked
+      // by a comparison against a string it never was, "top-right" in this
+      // case, putting it on the same side as the toast's own type icon --
+      // two X-shaped icons squashed together on the left of an error toast,
+      // reading as one broken duplicate rather than two distinct controls.
+      // Naming the side explicitly, matching the toaster's own position,
+      // fixes both that and the button moving around between toasts.
+      closeButton="top-right"
       richColors={false}
     />
   )
