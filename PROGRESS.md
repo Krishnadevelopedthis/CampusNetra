@@ -1576,3 +1576,34 @@ as of this addendum.
 Whoever picks this up next: the lesson isn't "trust this file either" —
 it's `git log origin/main` and read the actual diff before believing
 any status report, including this one.
+
+## Addendum 33 — one more real fix while waiting on the push question
+
+Kept auditing item #12/13 (settings) while waiting for your answer above.
+Found the two settings weren't fake exactly, but were "persisted but dead":
+"Time format" and "Week starts on" in Settings.jsx genuinely saved to
+`user.preferences.display` on the backend (real PATCH, real DB write), but
+grepped the whole frontend and found *nothing* ever read those two fields
+back — `lib/format.js`'s `dt()` ignored `time_format` entirely, and
+`components/DateTimePicker.jsx`'s calendar grid hardcoded Monday-first
+regardless of `week_start`. Toggling either setting looked like it worked
+(saved, no error) and changed nothing anywhere in the UI.
+
+Added `lib/displayPrefs.js` (mirrors the existing `lib/colorTheme.js`
+pattern for appearance) so both settings are readable app-wide without
+threading them through every component, wired it into every point
+`lib/auth.js` establishes the user object (init/login/verifyEmail/setUser
+— the last one fires right after Settings.jsx saves, so the change is
+live immediately, no reload needed), then made `dt()` substitute
+`HH:mm`→`h:mm a` when 12-hour is selected (checked: every one of the 44
+call sites in the app spells the 24-hour token as literal `HH:mm`, so one
+substitution covers all of them) and made the date-picker's month grid and
+day-of-week header actually start on Sunday when that's the saved choice.
+
+Verified: fresh `npm run build` clean, backend `pytest` still 60/60 (this
+was a frontend-only change). Also confirmed the notification channel
+toggles (email/in-app, the other settings the same audit flagged as
+worth checking) are NOT dead — `services/notifications.py` genuinely calls
+`templates.wants()` before sending on both channels, so those were already
+real. Commit: `ed87d46` — 7 commits ahead of `origin/main` now, still
+blocked on the same push permission issue.
