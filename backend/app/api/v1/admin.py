@@ -14,7 +14,7 @@ from sqlalchemy import func, or_, select
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip
 from app.core.routing import CommitRoute
 from app.core.config import settings
-from app.core.enums import Priority, UserRole, UserStatus
+from app.core.enums import IssueStatus, Priority, UserRole, UserStatus
 from app.core.security import hash_password
 from app.models.identity import (
     AcademicProgramme, Department, NameChangeRequest, Organization, Permission, RolePermission,
@@ -32,6 +32,10 @@ from app.services.templates import NOTIFICATION_CODES, codes_payload
 from app.services.work_orders import create_work_order, handover_open_work
 
 router = APIRouter(route_class=CommitRoute, prefix="/admin", tags=["Administration"])
+
+# Same list analytics.py already uses for its own (correctly-scoped)
+# compliance calculation.
+CLOSED_ISSUES = [IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED]
 
 
 # ---------------- Users ----------------
@@ -475,16 +479,31 @@ async def list_sla(user: RequireManager, db: DB):
                SLAPolicy.is_active.is_(True))
         .order_by(SLAPolicy.priority.desc()))).all()
 
+    # Both counts previously ran per policy row (N+1) and, more importantly,
+    # counted every issue at that priority ever created -- open ones
+    # included, no date scoping -- while this page's own subtitle says
+    # "Compliance is measured against closed issues." Once the SLA sweep
+    # started flagging still-open issues as breached, `breached` could
+    # exceed `total`'s closed subset and compliance_pct went negative with
+    # no clamp. analytics.py already solved this exact trap correctly
+    # (`total_closed` / breached-among-closed only) -- this mirrors that,
+    # and folds the per-policy loop into one grouped query at the same time.
+    counts = (await db.execute(
+        select(
+            Issue.priority,
+            func.count(Issue.id),
+            func.count(Issue.id).filter(Issue.status.in_(CLOSED_ISSUES)),
+            func.count(Issue.id).filter(
+                Issue.status.in_(CLOSED_ISSUES), Issue.sla_breached.is_(True)),
+        )
+        .where(Issue.organization_id == user.organization_id)
+        .group_by(Issue.priority)
+    )).all()
+    by_priority = {priority: (total, closed, breached) for priority, total, closed, breached in counts}
+
     out = []
     for p, dept in rows:
-        breached = await db.scalar(
-            select(func.count()).select_from(Issue).where(
-                Issue.organization_id == user.organization_id,
-                Issue.priority == p.priority, Issue.sla_breached.is_(True))) or 0
-        total = await db.scalar(
-            select(func.count()).select_from(Issue).where(
-                Issue.organization_id == user.organization_id,
-                Issue.priority == p.priority)) or 0
+        total, closed, breached = by_priority.get(p.priority, (0, 0, 0))
         out.append({
             "id": str(p.id), "name": p.name, "priority": p.priority.value,
             "department": dept, "response_mins": p.response_mins,
@@ -492,7 +511,7 @@ async def list_sla(user: RequireManager, db: DB):
             "escalate_after_mins": p.escalate_after_mins,
             "escalate_to_role": p.escalate_to_role.value if p.escalate_to_role else None,
             "issues_at_priority": total, "breached": breached,
-            "compliance_pct": round(100 * (1 - breached / total), 1) if total else 100.0,
+            "compliance_pct": max(0.0, min(100.0, round(100 * (1 - breached / closed), 1))) if closed else 100.0,
         })
     return out
 
