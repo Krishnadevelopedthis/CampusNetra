@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, AlertTriangle, ArrowRight, ClipboardList, PlusCircle, Search } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, ClipboardList, MapPinned, PlusCircle, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
   Bar,
@@ -133,21 +133,21 @@ function ReporterBody({ data }) {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Ticket</th><th>Issue</th><th>Status</th><th>Reported</th><th />
+                  <th>Ticket</th><th>Issue</th><th>Status</th><th className="hidden sm:table-cell">Reported</th><th />
                 </tr>
               </thead>
               <tbody>
                 {(data.recent_activity || []).map((i) => (
                   <tr key={i.id}>
-                    <td className="font-mono text-mono-data text-secondary whitespace-nowrap">{i.reference}</td>
-                    <td>
-                      <p className="text-ink">{i.title}</p>
+                    <td className="font-mono text-mono-data text-secondary whitespace-nowrap text-body-sm sm:text-body-md">{i.reference}</td>
+                    <td className="max-w-[130px] sm:max-w-none">
+                      <p className="text-ink text-body-sm sm:text-body-md truncate">{i.title}</p>
                       {i.location_summary && (
-                        <p className="text-body-sm text-ink-faint font-mono">{i.location_summary}</p>
+                        <p className="text-body-xs sm:text-body-sm text-ink-faint font-mono truncate">{i.location_summary}</p>
                       )}
                     </td>
                     <td><StatusPill status={i.status} /></td>
-                    <td className="text-ink-muted whitespace-nowrap">{ago(i.created_at)}</td>
+                    <td className="text-ink-muted whitespace-nowrap text-body-sm sm:text-body-md hidden sm:table-cell">{ago(i.created_at)}</td>
                     <td>
                       <Link to={`/issues/${i.id}`} className="btn-ghost btn-sm">
                         <ArrowRight size={14} />
@@ -167,7 +167,7 @@ function ReporterBody({ data }) {
           <div className="mt-4 space-y-2">
             <QuickAction to="/issues/new" icon={PlusCircle} label="Report Issue" primary />
             <QuickAction to="/lost-found" icon={Search} label="Lost & Found" />
-            <QuickAction to="/twin" icon={Activity} label="Campus Map" />
+            <QuickAction to="/map" icon={MapPinned} label="Campus Map" />
           </div>
         </div>
 
