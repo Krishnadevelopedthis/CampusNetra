@@ -35,8 +35,15 @@ BOARD_COLUMNS = [
 ]
 
 
-def _minutes_remaining(due: Optional[datetime]) -> Optional[int]:
-    return None if due is None else int((due - datetime.now(timezone.utc)).total_seconds() // 60)
+def _minutes_remaining(due: Optional[datetime], as_of: Optional[datetime] = None) -> Optional[int]:
+    # Same reasoning as issue_views._minutes_remaining: once completed_at is
+    # set the SLA clock has stopped, so the number freezes there instead of
+    # counting further into "overdue" forever against the live clock as
+    # real time passes after the work is actually done.
+    if due is None:
+        return None
+    reference = as_of or datetime.now(timezone.utc)
+    return int((due - reference).total_seconds() // 60)
 
 
 async def _get_or_404(db, wo_id: uuid.UUID, user) -> WorkOrder:
@@ -81,7 +88,8 @@ def _to_item(wo: WorkOrder, m: dict) -> WorkOrderListItem:
         assignee=UserBrief.model_validate(tech) if tech else None,
         location_summary=loc or None, asset_tag=asset.tag if asset else None,
         scheduled_for=wo.scheduled_for, sla_due_at=wo.sla_due_at,
-        sla_breached=wo.sla_breached, sla_minutes_remaining=_minutes_remaining(wo.sla_due_at),
+        sla_breached=wo.sla_breached,
+        sla_minutes_remaining=_minutes_remaining(wo.sla_due_at, wo.completed_at),
         is_predictive=wo.is_predictive,
         total_cost=float(wo.labour_cost or 0) + float(wo.parts_cost or 0),
         created_at=wo.created_at, updated_at=wo.updated_at,

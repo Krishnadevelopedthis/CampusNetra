@@ -3,6 +3,7 @@ import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw,
 import { Children, cloneElement, forwardRef, useEffect, useId, useRef, useState } from 'react'
 import { GooeyToaster, gooeyToast } from 'goey-toast'
 import 'goey-toast/styles.css'
+import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
@@ -477,7 +478,38 @@ function resolveAccent(hex) {
   return KNOWN_ACCENT_HEX[hex.toLowerCase()] || hex
 }
 
-export function Metric({ label, value, delta, deltaTone = 'neutral', accent, icon: Icon, size = 'default', className }) {
+// A KPI card with a bare number reads as a snapshot; the same card with a
+// trend beside it reads as something moving. `sparkline` is optional and
+// only ever real data already fetched for this dashboard (each day's own
+// count) -- never fabricated points, since a graph that doesn't correspond
+// to anything real is worse than no graph.
+function Sparkline({ data, color }) {
+  if (!data || data.length < 2) return null
+  const gradientId = `metric-spark-${color?.replace(/[^a-zA-Z0-9]/g, '') || 'default'}`
+  return (
+    <div className="h-9 -mx-1 -mb-1">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data.map((v) => ({ v }))} margin={{ top: 2, right: 1, bottom: 0, left: 1 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone" dataKey="v" stroke={color} strokeWidth={1.75}
+            fill={`url(#${gradientId})`} isAnimationActive={false} dot={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+export function Metric({
+  label, value, delta, deltaTone = 'neutral', accent, icon: Icon, size = 'default', className,
+  sparkline,
+}) {
   const tones = {
     up: 'bg-success-bg text-success-text',
     down: 'bg-danger-bg text-danger-text',
@@ -514,6 +546,7 @@ export function Metric({ label, value, delta, deltaTone = 'neutral', accent, ico
         </span>
         {delta && <span className={clsx('pill text-body-sm', tones[deltaTone])}>{delta}</span>}
       </div>
+      <Sparkline data={sparkline} color={resolvedAccent || 'rgb(var(--c-secondary))'} />
     </div>
   )
 }

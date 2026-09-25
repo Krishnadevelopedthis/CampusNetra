@@ -61,11 +61,39 @@ async def dashboard(user: CurrentUser, db: DB):
             select(Issue).where(Issue.reported_by == user.id)
             .order_by(Issue.created_at.desc()).limit(5))).all()
 
+        # 7-day sparklines for the two issue-backed metrics -- real daily
+        # counts of this reporter's own activity, not decoration. Lost &
+        # Found's two metrics don't get one: that would need a second
+        # per-day query against a different table for a KPI-card flourish,
+        # and a metric with no real trend behind it is better left as a
+        # plain number than paired with a graph that isn't really it.
+        week_start = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        created_rows = (await db.execute(
+            select(func.date_trunc("day", Issue.created_at).label("day"), func.count().label("n"))
+            .select_from(Issue)
+            .where(Issue.reported_by == user.id, Issue.created_at >= week_start)
+            .group_by("day")
+        )).all()
+        resolved_rows = (await db.execute(
+            select(func.date_trunc("day", Issue.resolved_at).label("day"), func.count().label("n"))
+            .select_from(Issue)
+            .where(Issue.reported_by == user.id, Issue.resolved_at >= week_start)
+            .group_by("day")
+        )).all()
+        created_by_day = {r.day.date(): r.n for r in created_rows}
+        resolved_by_day = {r.day.date(): r.n for r in resolved_rows}
+        created_spark = []
+        resolved_spark = []
+        for offset in range(6, -1, -1):
+            day = (now - timedelta(days=offset)).date()
+            created_spark.append(created_by_day.get(day, 0))
+            resolved_spark.append(resolved_by_day.get(day, 0))
+
         return {
             "role": user.role.value,
             "metrics": [
-                {"label": "Active complaints", "value": my_open, "accent": "#f59e0b"},
-                {"label": "Resolved", "value": my_resolved, "accent": "#10b981"},
+                {"label": "Active complaints", "value": my_open, "accent": "#f59e0b", "sparkline": created_spark},
+                {"label": "Resolved", "value": my_resolved, "accent": "#10b981", "sparkline": resolved_spark},
                 {"label": "Lost items reported", "value": lost_reported, "accent": "#3b82f6"},
                 {"label": "Items recovered", "value": recovered, "accent": "#10b981"},
             ],
@@ -170,9 +198,11 @@ async def dashboard(user: CurrentUser, db: DB):
     return {
         "role": user.role.value,
         "metrics": [
-            {"label": "Open issues", "value": open_issues, "accent": "#f59e0b"},
+            {"label": "Open issues", "value": open_issues, "accent": "#f59e0b",
+             "sparkline": [d["created"] for d in trend]},
             {"label": "Active work orders", "value": active_wos, "accent": "#3b82f6"},
-            {"label": "Resolved (7d)", "value": resolved_week, "accent": "#10b981"},
+            {"label": "Resolved (7d)", "value": resolved_week, "accent": "#10b981",
+             "sparkline": [d["resolved"] for d in trend]},
             {"label": "SLA compliance", "value": f"{sla_compliance}%",
              "accent": "#10b981" if sla_compliance >= 90 else "#f59e0b"},
         ],

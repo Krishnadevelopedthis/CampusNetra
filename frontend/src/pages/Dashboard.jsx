@@ -96,10 +96,11 @@ export default function Dashboard() {
                 label={data.metrics[0].label}
                 value={data.metrics[0].value}
                 accent={data.metrics[0].accent}
+                sparkline={data.metrics[0].sparkline}
               />
               <div className="col-span-2 sm:col-span-1 grid grid-cols-2 gap-3">
                 {data.metrics.slice(1).map((m) => (
-                  <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} />
+                  <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} sparkline={m.sparkline} />
                 ))}
               </div>
             </div>
