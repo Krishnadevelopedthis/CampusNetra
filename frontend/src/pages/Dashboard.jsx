@@ -47,11 +47,19 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title={isReporter ? `${greeting.label}, ${first}` : 'Campus Overview'}
+        title={isReporter
+          ? (
+            <span className="font-bold tracking-tight">
+              {greeting.label}, {first}
+            </span>
+          )
+          : 'Campus Overview'}
         subtitle={isReporter
           ? (
             <>
-              {greeting.dayName} — {greeting.quote}
+              <span className="font-medium text-ink-muted">{greeting.dayName}</span>
+              {' — '}
+              <span className="italic">{greeting.quote}</span>
             </>
           )
           : 'Real-time telemetry and operational metrics.'}
