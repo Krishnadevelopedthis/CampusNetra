@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
 import { useColorTheme } from './colorTheme'
 import { setDisplayPrefs } from './displayPrefs'
+import { queryClient } from './queryClient'
 
 /**
  * Session timeout
@@ -296,6 +297,13 @@ export const useAuth = create((set, get) => ({
     // back on, which still reads as "someone's colour is showing" even
     // though it's the default one; this removes the override entirely.
     useColorTheme.getState().clearUserColorTheme()
+
+    // Every cached query (history, issues, dashboard, profile...) is keyed
+    // without the user's id in it, so it survives a logout in memory —
+    // the next person to sign in on this tab would otherwise see the
+    // previous account's data flash in (or persist, inside staleTime)
+    // until each query happened to refetch on its own.
+    queryClient.clear()
 
     writeAuth(null)
 
