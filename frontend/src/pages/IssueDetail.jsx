@@ -47,7 +47,7 @@ function StatusStepper({ status }) {
     // still needs a swipe, so it reads as "scroll for more" instead of
     // "cut off".
     <div className="relative">
-      <ol className="flex items-start gap-0 p-widget overflow-x-auto">
+      <ol className="flex items-start gap-0 p-widget pr-8 overflow-x-auto">
         {PIPELINE.map((step, i) => {
           const done = effectiveIdx >= 0 && i < effectiveIdx
           const active = i === effectiveIdx
@@ -373,8 +373,16 @@ export default function IssueDetail() {
           />
         )}
 
+      {/* min-w-0 on both columns: a CSS grid item's default min-width is
+          "auto", not 0 -- it won't shrink below its content's own intrinsic
+          width. Below the lg breakpoint this is still a grid (the bare
+          `grid` class isn't gated to lg:, only grid-cols-3 is), so any one
+          deeply-nested unbreakable string anywhere in either column -- a
+          long department/technician name, an AI reasoning sentence, a
+          reference -- was stretching this single implicit column, and with
+          it the whole page, wider than the viewport instead of wrapping. */}
       <div className="grid lg:grid-cols-3 gap-5 items-start">
-        <div className="lg:col-span-2 space-y-5">
+        <div className="min-w-0 lg:col-span-2 space-y-5">
           <Widget title="Description">
             <p className="text-body-lg text-ink whitespace-pre-wrap">
               {issue.description}
@@ -479,7 +487,7 @@ export default function IssueDetail() {
           </Widget>
         </div>
 
-        <div className="space-y-5">
+        <div className="min-w-0 space-y-5">
           <Widget
             title={
               <span className="flex items-center gap-2">
@@ -583,11 +591,11 @@ export default function IssueDetail() {
 
               <dl className="space-y-2.5 text-body-md">
                 <div className="flex justify-between gap-2">
-                  <dt className="text-ink-muted">
+                  <dt className="text-ink-muted shrink-0">
                     Category
                   </dt>
 
-                  <dd className="font-medium">
+                  <dd className="font-medium min-w-0 break-words text-right">
                     {issue.ai.category_name ||
                       '—'}
                   </dd>
