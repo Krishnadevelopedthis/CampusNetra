@@ -199,7 +199,7 @@ export function AssistantWidget() {
                         degraded case: no live model call, answering from a
                         cached campus summary instead. */}
                     {m.usedFallback && (
-                      <span className="pill bg-warning-bg text-warning-text mt-2 text-body-sm">
+                      <span className="pill bg-warning-bg text-warning-text mt-2 text-body-sm whitespace-normal break-words max-w-full h-auto">
                         Limited data mode — AI temporarily unavailable
                       </span>
                     )}
