@@ -18,7 +18,7 @@ from app.models.issues import Issue
 from app.models.spatial import Asset
 from app.models.work import SLAPolicy, WorkOrder, WorkOrderEvent
 from app.services import notifications as notify_svc
-from app.services.references import next_reference
+from app.services.references import next_public_id
 from app.services.twin import campus_id_for_room, record_event, set_asset_state
 
 
@@ -167,7 +167,10 @@ async def create_work_order(
     auto_assign: bool = True,
 ) -> WorkOrder:
     org_id = creator.organization_id
-    reference = await next_reference(db, org_id, "WO")
+    # A short random public ID (WO7K29A4X), same as CN issue and LF item
+    # references -- not the old sequential WO-1024, which leaked a count of
+    # every work order ever created and was guessable by incrementing.
+    reference = await next_public_id(db, WorkOrder, "WO")
 
     # Inherit spatial context and routing from the originating issue.
     if issue_id:
