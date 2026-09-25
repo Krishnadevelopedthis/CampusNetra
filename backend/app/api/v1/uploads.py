@@ -6,13 +6,29 @@ through when creating the parent record.
 
 All images are stored privately in the bucket (never a public bucket URL) and
 served back through the /uploads/file/... route below. That route does NOT
-currently require the caller to be logged in -- it takes any relative_path and
-reads it straight from private storage. "Private" here means "not reachable
-through the public bucket/media mount, no guessable public ACL," not "requires
-auth to fetch through this API" -- worth a deliberate decision (add the auth
-check, accepting that every plain <img src> rendering one of these needs to
-switch to an authenticated fetch, the way the admin ID-photo viewer already
-does) rather than leaving the docstring and the code saying different things.
+require the caller to be logged in -- it takes any relative_path and reads it
+straight from private storage. "Private" here means "not reachable through
+the public bucket/media mount, no guessable public ACL," not "requires auth
+to fetch through this API".
+
+Closing that fully (requiring CurrentUser here) is a bigger change than it
+looks: auth in this app is a bearer token in localStorage, not a cookie, and
+a plain <img src="/uploads/file/...">  cannot attach an Authorization header
+-- every evidence photo, avatar and Lost & Found image currently rendered as
+a plain <img> across the app would go blank until each one is rewritten to
+fetch through JS and render as a blob URL. That's real, separate frontend
+work, tracked but not done here.
+
+What IS done here: identity-verification uploads (ID cards, see
+change-name's store_image(..., subdir="identity_verification", private=True)
+in auth.py) are refused at this route regardless of auth, full stop. An ID
+card is meaningfully more sensitive than an evidence photo -- it's exactly
+what item #39 of the security audit calls out by name -- and it already has
+a correct, dedicated, admin-only, org-scoped route
+(GET /admin/name-change-requests/{request_id}/document). There is no legitimate
+reason for that subdirectory to ever come back through this generic,
+unauthenticated path, so this closes that one leak completely rather than
+leaving it as a "the URL just isn't guessable" hope.
 """
 from __future__ import annotations
 
@@ -43,8 +59,16 @@ def _served_url(relative_path: str) -> str:
     return f"{settings.API_V1_PREFIX}/uploads/file/{relative_path}"
 
 
+_BLOCKED_PREFIXES = ("identity_verification/", "identity_verification\\")
+
+
 @router.get("/file/{relative_path:path}")
 async def get_uploaded_file(relative_path: str):
+    # ID cards never come back through this unauthenticated route -- see the
+    # module docstring. They're only ever readable through the admin-only,
+    # org-scoped GET /admin/name-change-requests/{request_id}/document.
+    if relative_path.startswith(_BLOCKED_PREFIXES):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
     try:
         data = await asyncio.to_thread(read_private_bytes, relative_path)
     except UploadError as exc:

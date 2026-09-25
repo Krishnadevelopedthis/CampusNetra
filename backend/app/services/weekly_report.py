@@ -7,6 +7,7 @@ still gets a real (empty) summary, never fabricated numbers.
 """
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -130,3 +131,126 @@ def render(summary: WeeklySummary) -> tuple[str, str]:
     <p>{len(summary.lf_claims)} this week.</p>
     """
     return text, html
+
+
+def render_pdf(summary: WeeklySummary) -> bytes:
+    """The actual PDF attachment item #14 asks for -- the HTML above is the
+    email body; this is a separate, real document, not the same content
+    just re-labelled. Built with reportlab (pure Python, no system binary
+    like wkhtmltopdf/weasyprint need), so it works in any deployment that
+    can `pip install` without extra OS packages.
+
+    Same rule as render(): real counts including zero, never a fabricated
+    or empty-looking report just because the week was quiet.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import (
+        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    )
+
+    styles = getSampleStyleSheet()
+    h1 = ParagraphStyle("h1", parent=styles["Heading1"], fontSize=18, spaceAfter=4)
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=13, spaceBefore=14, spaceAfter=6)
+    body = styles["BodyText"]
+    faint = ParagraphStyle("faint", parent=body, textColor=colors.HexColor("#64748b"))
+
+    period = f"{summary.period_start:%d %b %Y} to {summary.period_end:%d %b %Y}"
+
+    def section_table(rows, headers, empty_message):
+        if not rows:
+            return Paragraph(empty_message, faint)
+        data = [headers] + rows
+        table = Table(data, hAlign="LEFT", colWidths=None)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e1b4b")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        return table
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
+        topMargin=20 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm,
+        title="CampusNetra Weekly Summary",
+    )
+
+    story = [
+        Paragraph("CampusNetra — Weekly Summary", h1),
+        Paragraph(period, faint),
+        Spacer(1, 10),
+    ]
+
+    metrics = [[
+        str(len(summary.issues_reported)), str(len(summary.issues_resolved)),
+        str(len(summary.sla_breaches)), str(len(summary.lf_reported)), str(len(summary.lf_claims)),
+    ]]
+    metrics_table = Table(
+        [["Reported", "Resolved", "SLA breaches", "L&F reports", "L&F claims"]] + metrics,
+        hAlign="LEFT",
+    )
+    metrics_table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#f1f5f9")),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, 1), "Helvetica-Bold"),
+        ("FONTSIZE", (0, 0), (-1, -1), 10),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story += [metrics_table, Spacer(1, 4)]
+
+    story.append(Paragraph(f"Issues reported ({len(summary.issues_reported)})", h2))
+    story.append(section_table(
+        [[i.reference, i.title, i.status.value, i.created_at.strftime("%d %b")]
+         for i in summary.issues_reported[:25]],
+        ["Reference", "Title", "Status", "Reported"],
+        "No issues reported this week.",
+    ))
+
+    story.append(Paragraph(f"Issues resolved ({len(summary.issues_resolved)})", h2))
+    story.append(section_table(
+        [[i.reference, i.title,
+          i.resolved_at.strftime("%d %b") if i.resolved_at else ""]
+         for i in summary.issues_resolved[:25]],
+        ["Reference", "Title", "Resolved"],
+        "No issues resolved this week.",
+    ))
+
+    story.append(Paragraph(f"SLA breaches ({len(summary.sla_breaches)})", h2))
+    story.append(section_table(
+        [[i.reference, i.title,
+          i.sla_due_at.strftime("%d %b") if i.sla_due_at else ""]
+         for i in summary.sla_breaches[:25]],
+        ["Reference", "Title", "Was due"],
+        "No SLA breaches this week.",
+    ))
+
+    story.append(Paragraph(f"Lost & Found reports ({len(summary.lf_reported)})", h2))
+    story.append(section_table(
+        [[it.reference, it.title, it.kind.value, it.created_at.strftime("%d %b")]
+         for it in summary.lf_reported[:25]],
+        ["Reference", "Title", "Kind", "Reported"],
+        "No Lost & Found activity this week.",
+    ))
+
+    story.append(Paragraph(f"Claims on your Lost & Found items ({len(summary.lf_claims)})", h2))
+    story.append(section_table(
+        [[str(c.status.value), c.created_at.strftime("%d %b")] for c in summary.lf_claims[:25]],
+        ["Status", "Claimed"],
+        "No claims on your items this week.",
+    ))
+
+    doc.build(story)
+    return buf.getvalue()

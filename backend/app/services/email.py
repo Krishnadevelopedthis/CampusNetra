@@ -45,6 +45,13 @@ class SendResult:
     logged_only: bool = False
 
 
+@dataclass
+class EmailAttachment:
+    filename: str
+    data: bytes
+    mime_type: str = "application/pdf"
+
+
 def _no_sender_error(var_name: str = "SMTP_FROM") -> str:
     value = getattr(settings, var_name, "")
     return (
@@ -94,7 +101,10 @@ def _resend_sender() -> tuple[str, str]:
     return name or settings.APP_NAME, addr
 
 
-def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessage:
+def _build(
+    to: str, subject: str, text: str, html: Optional[str],
+    attachments: Optional[list["EmailAttachment"]] = None,
+) -> EmailMessage:
     msg = EmailMessage()
     name, addr = _sender()
     msg["From"] = formataddr((name, addr or settings.SMTP_USER))
@@ -108,6 +118,12 @@ def _build(to: str, subject: str, text: str, html: Optional[str]) -> EmailMessag
     msg.set_content(text)
     if html:
         msg.add_alternative(html, subtype="html")
+    for att in attachments or []:
+        maintype, _, subtype = att.mime_type.partition("/")
+        msg.add_attachment(
+            att.data, maintype=maintype or "application", subtype=subtype or "octet-stream",
+            filename=att.filename,
+        )
     return msg
 
 
@@ -142,8 +158,12 @@ def _auth_hint() -> str:
             "exactly what your provider's SMTP settings page shows.")
 
 
-async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) -> SendResult:
+async def _send_resend(
+    to: str, subject: str, text: str, html: Optional[str],
+    attachments: Optional[list["EmailAttachment"]] = None,
+) -> SendResult:
     """Resend's HTTPS API. Used where outbound SMTP is blocked."""
+    import base64
     import httpx
 
     name, addr = _resend_sender()
@@ -151,13 +171,20 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
         return SendResult(delivered=False, error=_no_sender_error("RESEND_FROM"))
     sender = formataddr((name, addr))
 
+    payload = {"from": sender, "to": [to], "subject": subject,
+               "text": text, **({"html": html} if html else {})}
+    if attachments:
+        payload["attachments"] = [
+            {"filename": a.filename, "content": base64.b64encode(a.data).decode("ascii")}
+            for a in attachments
+        ]
+
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             resp = await client.post(
                 "https://api.resend.com/emails",
                 headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-                json={"from": sender, "to": [to], "subject": subject,
-                      "text": text, **({"html": html} if html else {})},
+                json=payload,
             )
     except Exception as exc:
         log.error("Resend request failed: %s", exc)
@@ -193,13 +220,30 @@ async def _send_resend(to: str, subject: str, text: str, html: Optional[str]) ->
     return SendResult(delivered=False, error=f"Resend error: {detail}")
 
 
-async def _send_brevo_api(to: str, subject: str, text: str, html: Optional[str]) -> SendResult:
+async def _send_brevo_api(
+    to: str, subject: str, text: str, html: Optional[str],
+    attachments: Optional[list["EmailAttachment"]] = None,
+) -> SendResult:
     """Brevo's HTTPS API — same account as their SMTP relay, different transport."""
+    import base64
     import httpx
 
     name, addr = _sender()
     if not addr:
         return SendResult(delivered=False, error=_no_sender_error())
+
+    payload = {
+        "sender": {"email": addr, "name": name},
+        "to": [{"email": to}],
+        "subject": subject,
+        "textContent": text,
+        **({"htmlContent": html} if html else {}),
+    }
+    if attachments:
+        payload["attachment"] = [
+            {"name": a.filename, "content": base64.b64encode(a.data).decode("ascii")}
+            for a in attachments
+        ]
 
     try:
         async with httpx.AsyncClient(timeout=20) as client:
@@ -207,13 +251,7 @@ async def _send_brevo_api(to: str, subject: str, text: str, html: Optional[str])
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": settings.BREVO_API_KEY,
                          "content-type": "application/json"},
-                json={
-                    "sender": {"email": addr, "name": name},
-                    "to": [{"email": to}],
-                    "subject": subject,
-                    "textContent": text,
-                    **({"htmlContent": html} if html else {}),
-                },
+                json=payload,
             )
     except Exception as exc:
         log.error("Brevo API request failed: %s", exc)
@@ -288,6 +326,7 @@ def _send_blocking(msg: EmailMessage) -> SendResult:
 async def send_email(
     to: str, subject: str, text: str, html: Optional[str] = None,
     provider: Optional[str] = None,
+    attachments: Optional[list[EmailAttachment]] = None,
 ) -> SendResult:
     # provider is set explicitly by send_otp (resolved per OTP purpose via
     # settings.resolve_email_provider) for anything that needs to go through
@@ -298,19 +337,19 @@ async def send_email(
 
     if provider == "none":
         log.info(
-            "\n%s\n  EMAIL NOT SENT — no email provider configured\n  To: %s\n  Subject: %s\n\n%s\n%s",
-            "=" * 70, to, subject, text, "=" * 70,
+            "\n%s\n  EMAIL NOT SENT — no email provider configured\n  To: %s\n  Subject: %s\n  Attachments: %s\n\n%s\n%s",
+            "=" * 70, to, subject, [a.filename for a in (attachments or [])], text, "=" * 70,
         )
         return SendResult(delivered=False, logged_only=True,
                           error="Email delivery is not configured on this server.")
 
     if provider == "resend":
-        return await _send_resend(to, subject, text, html)
+        return await _send_resend(to, subject, text, html, attachments)
     if provider == "brevo":
-        return await _send_brevo_api(to, subject, text, html)
+        return await _send_brevo_api(to, subject, text, html, attachments)
 
     # SMTP is blocking, so it runs on a worker thread.
-    msg = _build(to, subject, text, html)
+    msg = _build(to, subject, text, html, attachments)
     return await asyncio.to_thread(_send_blocking, msg)
 
 

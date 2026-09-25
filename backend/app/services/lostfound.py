@@ -286,7 +286,13 @@ async def decide_claim(
         context={
             "reference": item.reference if item else "",
             "title": item.title if item else "",
-            "decision": decision.value if hasattr(decision, "value") else str(decision),
+            # `claim.status` is already ClaimStatus.APPROVED/REJECTED at this
+            # point (set above) -- there was never a separate `decision`
+            # variable in this function, so referencing it here raised a
+            # NameError on every single approve/reject, before notify_svc
+            # was even reached. That broke the entire claim-decision half
+            # of item #27's workflow in production.
+            "decision": claim.status.value,
             "reason": reason or "",
         },
     )
