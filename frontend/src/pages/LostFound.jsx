@@ -38,6 +38,13 @@ export default function LostFound() {
     q: q || undefined,
     category_id: categoryId || undefined,
     page_size: 24,
+    // The default (open_only) hides anything already claimed or returned --
+    // right for "what can still be claimed" but wrong for a registry people
+    // browse to see what's been found on campus at all. Listing every
+    // non-archived status keeps claimed/returned items visible (with their
+    // StatusPill so it's clear they're no longer available) instead of
+    // items vanishing the moment someone claims them.
+    status: ['open', 'matched', 'claim_pending', 'claimed', 'returned'],
   }
   const items = useQuery({
     queryKey: ['lf-items', params],
