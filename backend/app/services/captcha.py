@@ -14,7 +14,7 @@ import random
 
 from PIL import Image, ImageDraw, ImageFilter
 
-WIDTH = 220
+WIDTH = 240
 HEIGHT = 70
 FONT_SIZE = 40
 
@@ -52,6 +52,16 @@ def render_captcha_png(text: str) -> bytes:
     font = _load_font(FONT_SIZE)
     char_w = WIDTH // max(len(text), 1)
 
+    # Placed left-to-right with a running cursor, not a fixed i*char_w slot.
+    # The old version clamped each glyph independently to [0, WIDTH -
+    # rotated.width] -- a bound that depends only on that glyph's own
+    # (rotation-inflated) width, not on i. For characters near the end of
+    # the string, that ceiling was often *lower* than their nominal slot,
+    # so several trailing characters all clamped down to the same x and
+    # rendered stacked on top of each other. A monotonically-advancing
+    # cursor can't go backwards, so two glyphs can never land on the same
+    # spot regardless of how wide rotation makes any one of them.
+    cursor_x = 6
     for i, ch in enumerate(text):
         glyph = Image.new("RGBA", (char_w + 20, HEIGHT), (0, 0, 0, 0))
         gdraw = ImageDraw.Draw(glyph)
@@ -59,24 +69,17 @@ def render_captcha_png(text: str) -> bytes:
             rng.randint(20, 90), rng.randint(20, 90), rng.randint(90, 160),
         )
         gdraw.text((10, 8), ch, font=font, fill=color)
-        angle = rng.uniform(-28, 28)
+        angle = rng.uniform(-22, 22)
         rotated = glyph.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
 
-        # expand=True can make a rotated glyph noticeably wider/taller than
-        # the per-character slot it was drawn in. Pasting at the
-        # unclamped, randomly-jittered position let the rotation push part
-        # of a character (almost always the last one, whose slot already
-        # sits closest to the right edge) past the edge of the canvas --
-        # cropped in the image itself, before the frontend ever sees it, no
-        # amount of CSS on the <img> could show what was never rendered.
-        # Clamping keeps every full glyph inside the canvas; max(0, ...)
-        # guards the rare case a very rotated glyph is wider than the whole
-        # image, where the ideal clamp range would otherwise be inverted.
-        x = int(i * char_w + rng.uniform(-4, 4))
-        x = min(max(x, 0), max(0, WIDTH - rotated.width))
+        x = min(cursor_x, max(0, WIDTH - rotated.width))
         y = int((HEIGHT - rotated.height) / 2 + rng.uniform(-6, 6))
         y = min(max(y, 0), max(0, HEIGHT - rotated.height))
         image.paste(rotated, (x, y), rotated)
+
+        # A little controlled overlap (0.6x) keeps the crowded, hard-to-
+        # script-read captcha look without ever regressing the cursor.
+        cursor_x = x + max(int(rotated.width * 0.6), 14)
 
     # A gentle sine-wave warp, then a light blur so edges don't look pasted on.
     warped = Image.new("RGB", image.size, (245, 246, 250))

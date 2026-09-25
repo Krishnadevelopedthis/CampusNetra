@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
-import { RingLoader } from '@/components/ui'
+import { RingLoader, Toaster } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
 import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
@@ -280,6 +280,7 @@ export default function App() {
 
   return (
     <>
+      <Toaster />
       <SessionTimeoutModal
         onLogout={async () => {
           // Closed directly, first, rather than waiting on the indirect
