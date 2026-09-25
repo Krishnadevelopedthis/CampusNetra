@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from 'react'
 import { api } from '@/lib/api'
 import { Spinner, EmptyState, Widget } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
+import { searchProfileIndex } from '@/lib/profileSearchIndex'
 
 export default function Search() {
   const [searchParams] = useSearchParams()
@@ -58,8 +59,15 @@ export default function Search() {
     inputRef.current?.focus()
   }
 
+  // Settings/profile is a fixed client-side index (there's no separate
+  // "settings record" API to query), so it's searched locally rather than
+  // through performSearch's Promise.allSettled -- cheap enough to just
+  // recompute on every render alongside the debounced query.
+  const settingsMatches = searchProfileIndex(debouncedQuery)
+
   const totalResults = results
-    ? results.issues.length + results.assets.length + results.lostFound.length + results.users.length
+    ? results.issues.length + results.assets.length + results.lostFound.length
+      + results.users.length + settingsMatches.length
     : 0
 
   return (
@@ -78,14 +86,14 @@ export default function Search() {
 
             <div className="relative flex-1 max-w-3xl">
               <SearchIcon
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none"
+                size={18} strokeWidth={2.25}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
               />
               <input
                 ref={inputRef}
                 type="text"
                 defaultValue={query}
-                placeholder="Search issues, assets, lost & found, users…"
+                placeholder="Search issues, assets, lost & found, users, settings…"
                 className="input pl-9 pr-10 h-10 text-base"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.currentTarget.value.trim()) {
@@ -133,8 +141,8 @@ export default function Search() {
             <SearchIcon size={48} className="mx-auto text-ink-faint mb-4" />
             <h1 className="text-headline-lg text-ink">Search Campus Netra</h1>
             <p className="text-body-md text-ink-muted mt-2 max-w-md mx-auto">
-              Search across issues, assets, lost & found items, and users. Start typing in the
-              search bar above to find what you need.
+              Search across issues, assets, lost & found items, users, and settings. Start typing
+              in the search bar above to find what you need.
             </p>
           </div>
         )}
@@ -262,6 +270,30 @@ export default function Search() {
                         <span className="pill bg-surface-sunken">{user.email}</span>
                         <span className="pill bg-surface-sunken">{user.role}</span>
                       </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {settingsMatches.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-headline-sm text-ink flex items-center gap-2">
+                    <span className="w-5 h-5 rounded bg-ai-bg/20 grid place-items-center">
+                      <SearchIcon size={14} className="text-ink-muted" />
+                    </span>
+                    Settings ({settingsMatches.length})
+                  </h2>
+                </div>
+                <div className="space-y-2">
+                  {settingsMatches.map((m) => (
+                    <a
+                      key={m.route}
+                      href={m.route}
+                      className="block p-3 rounded-lg border border-border-subtle hover:bg-surface-sunken transition-colors"
+                    >
+                      <p className="text-body-md text-ink font-medium">{m.label}</p>
                     </a>
                   ))}
                 </div>
