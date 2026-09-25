@@ -425,6 +425,8 @@ export default function CampusMap() {
                   heatByBuilding={heatByBuilding}
                   heatColour={heatColour}
                   onSelectBuilding={(id) => navigate('building', { buildingId: id, floorId: null, roomId: null })}
+                  canEdit={canEdit}
+                  onAddBuildingAt={({ lat, lng }) => setPlaceForm({ kind: 'building', latitude: lat, longitude: lng })}
                   className="w-full h-full"
                 />
               </Suspense>

@@ -610,6 +610,13 @@ export function PlaceModal({ form, onClose, onSave, saving }) {
                         ? {
                           name: draft.name, code: draft.code,
                           floors_count: Math.max(1, Number(draft.floors_count) || 1),
+                          // Set only when this form was opened by clicking a
+                          // spot on the outdoor map (draft.latitude/longitude)
+                          // -- the plain "Add building" button still creates
+                          // one with no map position, same as before.
+                          ...(draft.latitude != null && draft.longitude != null
+                            ? { latitude: draft.latitude, longitude: draft.longitude }
+                            : {}),
                         }
                         : { name: draft.name, level: Number(draft.level) || 0 },
                   })}>
@@ -649,6 +656,12 @@ export function PlaceModal({ form, onClose, onSave, saving }) {
             <Input type="number" min="1" max="100" value={draft.floors_count ?? 1}
                    onChange={set('floors_count')} />
           </Field>
+        )}
+
+        {kind === 'building' && draft.latitude != null && (
+          <p className="text-body-sm text-ink-faint">
+            Location set from where you clicked on the map — it'll appear right there.
+          </p>
         )}
       </div>
     </Modal>

@@ -114,7 +114,7 @@ function boundaryCircle(lat, lng, radiusMeters, points = 64) {
 }
 
 export function OutdoorCampusMap({
-  campus, buildings, mode, heatByBuilding, heatColour, onSelectBuilding, className,
+  campus, buildings, mode, heatByBuilding, heatColour, onSelectBuilding, onAddBuildingAt, canEdit, className,
 }) {
   const mountRef = useRef(null)
   const mapRef = useRef(null)
@@ -219,6 +219,33 @@ export function OutdoorCampusMap({
       map.on('mouseenter', 'cn-buildings-fill', () => { map.getCanvas().style.cursor = 'pointer' })
       map.on('mouseleave', 'cn-buildings-fill', () => { map.getCanvas().style.cursor = '' })
 
+      // Placing a building used to mean opening a blank form and typing a
+      // latitude/longitude by hand (Campus Management's building editor) --
+      // nothing on the map itself ever told you what those numbers meant.
+      // An admin can now click empty ground on this exact map and place the
+      // building right there instead. Only wired up for admins/staff
+      // (canEdit); queryRenderedFeatures excludes clicks that landed on an
+      // existing building's footprint, so this never fights with the
+      // "open building" popup above -- one click, one unambiguous outcome.
+      if (canEdit && onAddBuildingAt) {
+        map.on('click', (e) => {
+          const hits = map.queryRenderedFeatures(e.point, { layers: ['cn-buildings-fill'] })
+          if (hits.length > 0) return
+          const popup = new Popup({ closeButton: true, className: 'cn-building-popup', offset: 12 })
+            .setLngLat(e.lngLat)
+            .setHTML(
+              '<div style="font:600 13px system-ui;color:#0f172a;margin-bottom:8px">Add a building here?</div>' +
+              '<button id="cn-add-building" style="font:600 12px system-ui;color:#fff;background:#10b981;' +
+              'border:none;border-radius:6px;padding:5px 10px;cursor:pointer">+ Add building</button>',
+            )
+            .addTo(map)
+          document.getElementById('cn-add-building')?.addEventListener('click', () => {
+            onAddBuildingAt({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+            popup.remove()
+          })
+        })
+      }
+
       // Labels above each footprint — a bare 3D block with no name on it
       // isn't identifiable at a glance the way the indoor view's labelled
       // tiles are.
@@ -256,7 +283,13 @@ export function OutdoorCampusMap({
         style: styleUrl,
         center: [lng, lat],
         zoom: 16.5,
-        minZoom: cropped ? undefined : 15,
+        // Previously 15 uncropped — pinned in tight enough that "zoom out a
+        // bit to see where a new building would sit relative to the rest of
+        // the campus" wasn't really possible. maxBounds already stops
+        // panning away from the campus, so a lower floor just allows seeing
+        // more of that same bounded area at once, not wandering off it.
+        minZoom: cropped ? undefined : 13,
+        maxZoom: 20,
         pitch: 55,
         bearing: -17,
         antialias: true,
@@ -264,7 +297,7 @@ export function OutdoorCampusMap({
         maxBounds,
       })
       mapRef.current = map
-      map.addControl(new NavigationControl({ visualizePitch: true }), 'top-right')
+      map.addControl(new NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true }), 'top-right')
 
       // A cropped box can be any shape or size, unlike the fixed 550m
       // radius — fitBounds frames it properly on first load instead of
