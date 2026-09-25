@@ -22,7 +22,10 @@ from app.schemas.work import (
     InspectionOut, InspectionSchedule, InspectionSubmit, InspectionTemplateItemOut,
     InspectionTemplateOut,
 )
+from app.models.iot import HealthEvent
+from app.core.enums import HealthEventStatus, Priority
 from app.services import inspections as svc
+from app.services import work_orders as wo_svc
 
 router = APIRouter(route_class=CommitRoute, prefix="/inspections", tags=["Inspections"])
 
@@ -200,6 +203,32 @@ async def submit(
         db, i, user, [r.model_dump() for r in payload.results], payload.notes
     )
     await db.flush()
+
+    # If this inspection was auto-scheduled from an IoT health event, close
+    # the loop: a confirmed issue gets its Work Order created automatically
+    # (spec #14 -- "if technician confirms ... automatically create a Work
+    # Order"), and a clean check resolves the event outright instead of
+    # leaving it dangling in "inspecting" once nothing more will happen to it.
+    health_event = await db.scalar(select(HealthEvent).where(HealthEvent.inspection_id == inspection.id))
+    if health_event:
+        if raised:
+            issue = raised[0]
+            wo = await wo_svc.create_work_order(
+                db, user,
+                title=f"IoT health event {health_event.reference}: inspection confirmed",
+                description=(
+                    f"{health_event.sensor_type.value} detected {health_event.kind.value}. "
+                    f"Technician inspection ({inspection.reference}) confirmed a real equipment issue."
+                ),
+                issue_id=issue.id, room_id=inspection.room_id, asset_id=inspection.asset_id,
+                priority=Priority.HIGH if health_event.severity.value == "critical" else Priority.MEDIUM,
+            )
+            health_event.work_order_id = wo.id
+            health_event.status = HealthEventStatus.CONFIRMED
+        else:
+            health_event.status = HealthEventStatus.NO_ISSUE_FOUND
+            health_event.resolved_at = datetime.now(timezone.utc)
+
     await db.refresh(inspection)
 
     out = await _to_out(db, inspection, with_items=True)

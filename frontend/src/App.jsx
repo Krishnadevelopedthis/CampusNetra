@@ -52,6 +52,7 @@ const AdminAssets = lazy(() => import('@/pages/admin/AdminAssets'))
 const AdminCosts = lazy(() => import('@/pages/admin/AdminCosts'))
 const AdminCampus = lazy(() => import('@/pages/admin/AdminCampus'))
 const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
+const AdminHealth = lazy(() => import('@/pages/admin/AdminHealth'))
 
 const AdminInspectionConfig = lazy(() =>
   import('@/pages/admin/AdminTemplates').then((m) => ({
@@ -694,6 +695,20 @@ export default function App() {
                     to="/dashboard"
                     replace
                   />
+                }
+              />
+
+              {/* =================================================
+                  HEALTH (admin-only, standalone — not nested inside
+                  the Administration section's own header/tabs)
+              ================================================== */}
+
+              <Route
+                path="/admin/health"
+                element={
+                  <RequireAuth roles={ADMIN}>
+                    <AdminHealth />
+                  </RequireAuth>
                 }
               />
 

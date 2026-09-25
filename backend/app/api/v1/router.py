@@ -3,7 +3,7 @@ from fastapi import APIRouter
 
 from app.core.routing import CommitRoute
 from app.api.v1 import (
-    admin, ai, analytics, auth, campus, dashboard, history, inspections, issues,
+    admin, ai, analytics, auth, campus, dashboard, health, history, inspections, iot, issues,
     lostfound, notifications, uploads, work_orders,
 )
 
@@ -23,3 +23,5 @@ api_router.include_router(analytics.router)
 api_router.include_router(admin.router)
 api_router.include_router(uploads.router)
 api_router.include_router(history.router)
+api_router.include_router(iot.router)
+api_router.include_router(health.router)
