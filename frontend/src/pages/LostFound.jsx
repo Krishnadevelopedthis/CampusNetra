@@ -128,11 +128,19 @@ export default function LostFound() {
 
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">
-          <div className="flex p-1 bg-surface-sunken rounded-lg">
+          {/* Fixed h-8 buttons with no wrap guard used to let "Found items"
+              and "My reports" break onto a second line once four tabs got
+              squeezed into a narrow screen, spilling text below the pill's
+              own background. whitespace-nowrap keeps each label on one
+              line; strip-scroll (same pattern as AdminLayout's sub-nav)
+              lets the whole strip scroll sideways instead of forcing that
+              wrap, so every tab stays reachable without ever overflowing
+              its own button. */}
+          <div className="flex p-1 bg-surface-sunken rounded-lg max-w-full overflow-x-auto strip-scroll">
             {[['found', 'Found items'], ['lost', 'Lost items'], ['closed', 'Closed'], ['mine', 'My reports']].map(([k, label]) => (
               <button
                 key={k} onClick={() => setTab(k)}
-                className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
+                className={`h-8 px-3 rounded text-body-md font-medium transition-colors whitespace-nowrap shrink-0 ${
                   tab === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
                 }`}
               >{label}</button>
