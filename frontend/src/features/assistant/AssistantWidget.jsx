@@ -122,11 +122,11 @@ export function AssistantWidget() {
         className={clsx(
           'fixed z-40 grid place-items-center rounded-full shadow-level3',
           'bottom-5 right-4 h-14 w-14 sm:bottom-6 sm:right-6',
-          'bg-primary text-white transition-transform hover:scale-105 active:scale-95',
+          'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}
       >
-        {open ? <X size={22} /> : <AiFace size={36} rounded="rounded-full" />}
+        <AiFace size={56} rounded="rounded-full" />
       </button>
 
       {!open ? null : (

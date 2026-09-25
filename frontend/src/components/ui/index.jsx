@@ -3,7 +3,7 @@ import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw,
 import { Children, cloneElement, forwardRef, useEffect, useId, useRef, useState } from 'react'
 import { GooeyToaster, gooeyToast } from 'goey-toast'
 import 'goey-toast/styles.css'
-import { Area, AreaChart, ResponsiveContainer } from 'recharts'
+import { Bar, BarChart, Cell, ResponsiveContainer } from 'recharts'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
@@ -483,24 +483,26 @@ function resolveAccent(hex) {
 // only ever real data already fetched for this dashboard (each day's own
 // count) -- never fabricated points, since a graph that doesn't correspond
 // to anything real is worse than no graph.
+// Bars, not a smoothed line: each point is one day's real count, and a
+// `type="monotone"` curve interpolates *between* those days, which can bow
+// a line up above zero (or below its neighbours) even when every real
+// value it passes through is flat at 0 -- a shape that doesn't correspond
+// to anything that actually happened. A bar per day has no such overshoot:
+// zero days sit flush on the baseline and only render taller as the count
+// climbs, so the shape tracks the numbers directly.
 function Sparkline({ data, color }) {
   if (!data || data.length < 2) return null
-  const gradientId = `metric-spark-${color?.replace(/[^a-zA-Z0-9]/g, '') || 'default'}`
+  const allZero = data.every((v) => !v)
   return (
     <div className="h-9 -mx-1 -mb-1">
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data.map((v) => ({ v }))} margin={{ top: 2, right: 1, bottom: 0, left: 1 }}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone" dataKey="v" stroke={color} strokeWidth={1.75}
-            fill={`url(#${gradientId})`} isAnimationActive={false} dot={false}
-          />
-        </AreaChart>
+        <BarChart data={data.map((v) => ({ v }))} margin={{ top: 2, right: 1, bottom: 0, left: 1 }} barCategoryGap="20%">
+          <Bar dataKey="v" radius={[1.5, 1.5, 0, 0]} isAnimationActive={false}>
+            {data.map((v, i) => (
+              <Cell key={i} fill={color} fillOpacity={allZero ? 0.25 : 0.35 + 0.65 * (i / (data.length - 1))} />
+            ))}
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   )
