@@ -397,10 +397,6 @@ export default function AppLayout() {
 
         <footer className="border-t border-border-subtle px-4 lg:px-margin py-4 text-body-sm text-ink-faint flex flex-wrap items-center justify-between gap-2 no-print">
           <span>© {new Date().getFullYear()} Campus Netra. Powered by Precision Intelligence.</span>
-          <div className="flex gap-4">
-            <Link to="/help" className="hover:text-ink">Support</Link>
-            <a href="/docs" target="_blank" rel="noreferrer" className="hover:text-ink">API</a>
-          </div>
         </footer>
       </div>
 

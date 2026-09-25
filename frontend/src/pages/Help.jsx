@@ -185,7 +185,7 @@ export default function Help() {
               body: 'Add a photo and a location. Everything after that is automatic.',
             },
             {
-              to: '/twin',
+              to: '/map',
               icon: MapPin,
               title: 'Open the digital twin',
               body: 'See your campus drawn to scale, with every asset colour-coded by state.',
