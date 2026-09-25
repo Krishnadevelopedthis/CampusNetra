@@ -105,6 +105,22 @@ class LFItemListItem(BaseModel):
     created_at: datetime
 
 
+class ClaimOut(BaseModel):
+    id: uuid.UUID
+    reference: str
+    item_id: uuid.UUID
+    item_reference: Optional[str] = None
+    item_title: Optional[str] = None
+    status: ClaimStatus
+    claimant: Optional[UserBrief] = None
+    proof_note: Optional[str] = None
+    proof_urls: list[str] = Field(default_factory=list)
+    rejection_reason: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    collected_at: Optional[datetime] = None
+    created_at: datetime
+
+
 class LFItemDetail(LFItemListItem):
     description: Optional[str] = None
     distinguishing_marks: Optional[str] = None
@@ -115,6 +131,13 @@ class LFItemDetail(LFItemListItem):
     matches: list[LFMatchOut] = Field(default_factory=list)
     ai_tags: list[str] = Field(default_factory=list)
     can_claim: bool = False
+    # Claims filed against this item -- populated only when the viewer is
+    # the person who reported it (see #26/#28: the finder needs to know a
+    # claim exists and reveal contact details once it's approved, not just
+    # staff via the admin queue). Empty for everyone else, including the
+    # claimant themselves -- they already have their own claim via
+    # GET /lost-found/claims?mine=true.
+    claims: list[ClaimOut] = Field(default_factory=list)
 
 
 class LFItemCreateResponse(BaseModel):
@@ -134,22 +157,6 @@ class ClaimCreate(BaseModel):
     # Ownership proof: details only the true owner would know.
     proof_note: str = Field(min_length=10, max_length=2000)
     proof_urls: list[str] = Field(default_factory=list)
-
-
-class ClaimOut(BaseModel):
-    id: uuid.UUID
-    reference: str
-    item_id: uuid.UUID
-    item_reference: Optional[str] = None
-    item_title: Optional[str] = None
-    status: ClaimStatus
-    claimant: Optional[UserBrief] = None
-    proof_note: Optional[str] = None
-    proof_urls: list[str] = Field(default_factory=list)
-    rejection_reason: Optional[str] = None
-    verified_at: Optional[datetime] = None
-    collected_at: Optional[datetime] = None
-    created_at: datetime
 
 
 class ClaimDecision(BaseModel):
