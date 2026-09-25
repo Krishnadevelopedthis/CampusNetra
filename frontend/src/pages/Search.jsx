@@ -27,7 +27,7 @@ export default function Search() {
   }, [])
 
   const performSearch = async (q) => {
-    if (!q.trim()) {
+    if (!q?.trim()) {
       setResults({ issues: [], assets: [], lostFound: [], users: [] })
       return
     }

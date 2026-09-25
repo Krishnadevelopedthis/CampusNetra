@@ -37,7 +37,13 @@ export const PROFILE_SEARCH_INDEX = [
 ]
 
 export function searchProfileIndex(query) {
-  const q = query.trim().toLowerCase()
+  // Both callers pass a string in the normal case, but neither guarantees
+  // it -- Search.jsx's debounced value and AppLayout's header-search value
+  // both start life derived from something that can be null/undefined for
+  // a render or two (a URL param before its `|| ''` fallback runs, a ref
+  // read before state settles). Guarding here once is cheaper than
+  // auditing every caller forever.
+  const q = (query || '').trim().toLowerCase()
   if (!q) return []
   return PROFILE_SEARCH_INDEX.filter(
     (entry) => entry.label.toLowerCase().includes(q) || entry.keywords.includes(q),
