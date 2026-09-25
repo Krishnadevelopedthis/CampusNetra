@@ -1,5 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, HandCoins, PackageSearch, ShieldCheck, Sparkles, X, ZoomIn } from 'lucide-react'
+import {
+  ArrowLeft, Check, ChevronLeft, ChevronRight, HandCoins, IdCard, Mail, MapPin, PackageSearch,
+  ShieldCheck, Sparkles, User, X, ZoomIn,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -467,16 +470,16 @@ export default function LostFoundItem() {
 
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Full name" required error={handoverErrors.declared_name}>
-            <Input value={declaredName} onChange={(e) => setDeclaredName(e.target.value)} />
+            <Input icon={User} value={declaredName} onChange={(e) => setDeclaredName(e.target.value)} />
           </Field>
           <Field label="Student / Teacher / Technician ID" hint="If you have one" error={handoverErrors.declared_id_number}>
-            <Input value={declaredIdNumber} onChange={(e) => setDeclaredIdNumber(e.target.value)} />
+            <Input icon={IdCard} value={declaredIdNumber} onChange={(e) => setDeclaredIdNumber(e.target.value)} />
           </Field>
           <Field label="Email" required error={handoverErrors.declared_email}>
-            <Input type="email" value={declaredEmail} onChange={(e) => setDeclaredEmail(e.target.value)} />
+            <Input icon={Mail} type="email" value={declaredEmail} onChange={(e) => setDeclaredEmail(e.target.value)} />
           </Field>
           <Field label="Address / contact" required error={handoverErrors.declared_address}>
-            <Input value={declaredAddress} onChange={(e) => setDeclaredAddress(e.target.value)}
+            <Input icon={MapPin} value={declaredAddress} onChange={(e) => setDeclaredAddress(e.target.value)}
                    placeholder="Hostel/room, or a way to reach you" />
           </Field>
         </div>

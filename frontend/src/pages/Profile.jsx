@@ -471,6 +471,7 @@ function EditableRow({
               <div className="flex-1 min-w-0">
                 <Input
                   ref={inputRef}
+                  icon={Icon}
                   type={type}
                   value={draft}
                   placeholder={placeholder}
@@ -582,7 +583,7 @@ function NameRow({ icon: Icon, label, value, pending, submitting, onSubmit }) {
               <div className="mt-1.5 flex items-start gap-2">
                 <div className="flex-1 min-w-0">
                   <Input
-                    ref={inputRef} value={draft} placeholder="Your name" error={error}
+                    ref={inputRef} icon={Icon} value={draft} placeholder="Your name" error={error}
                     aria-label="New full name"
                     onChange={(e) => { setDraft(e.target.value); setError(null) }}
                     onKeyDown={(e) => {

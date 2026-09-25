@@ -1,3 +1,4 @@
+import { KeyRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -19,15 +20,19 @@ export function OtpInput({ value, onChange, error, disabled }) {
   }
 
   return (
-    <div className="flex gap-2 justify-between" onPaste={(e) => {
-      e.preventDefault()
-      const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, LENGTH)
-      if (digits) {
-        onChange(digits)
-        refs.current[Math.min(digits.length, LENGTH - 1)]?.focus()
-      }
-    }}>
-      {Array.from({ length: LENGTH }).map((_, i) => (
+    <div>
+      <p className="flex items-center gap-1.5 text-label-caps uppercase text-ink-muted mb-1.5">
+        <KeyRound size={13} className="text-ink-faint" /> Verification code
+      </p>
+      <div className="flex gap-2 justify-between" onPaste={(e) => {
+        e.preventDefault()
+        const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, LENGTH)
+        if (digits) {
+          onChange(digits)
+          refs.current[Math.min(digits.length, LENGTH - 1)]?.focus()
+        }
+      }}>
+        {Array.from({ length: LENGTH }).map((_, i) => (
         <input
           key={i}
           ref={(el) => { refs.current[i] = el }}
@@ -53,7 +58,8 @@ export function OtpInput({ value, onChange, error, disabled }) {
                       focus:border-secondary focus:ring-1 focus:ring-secondary
                       ${error ? 'border-danger' : 'border-border-subtle'}`}
         />
-      ))}
+        ))}
+      </div>
     </div>
   )
 }
