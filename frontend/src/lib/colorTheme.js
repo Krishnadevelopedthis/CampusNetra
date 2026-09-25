@@ -170,7 +170,15 @@ export function applyColorTheme(hexColor) {
   const root = document.documentElement
 
   if (!hexColor) {
+    // Undo exactly what the branch below sets, nothing more or less: the
+    // three fills it overrides, plus their paired foregrounds. This used to
+    // only clear the foregrounds -- the actual accent colour (--c-primary/
+    // -secondary/-brand) stayed inline-overridden, so "clear the accent"
+    // visibly did nothing; the old colour just kept rendering.
     FOREGROUND_PAIRS.forEach(([fg]) => root.style.removeProperty(fg))
+    root.style.removeProperty('--c-primary')
+    root.style.removeProperty('--c-secondary')
+    root.style.removeProperty('--c-brand')
     delete root.dataset.userColorTheme
     syncAccentForegrounds()
     return
@@ -251,16 +259,22 @@ export const useColorTheme = create((set, get) => ({
   },
 
   /**
-   * Called on logout to clear private user theme state.
-   * NOTE: This should NOT delete saved preferences - only clears in-memory state
-   * if needed for security between user sessions.
-   * The actual saved preference remains in the database and will be restored
-   * when the user (or next user) logs in.
+   * Called on logout to remove the signed-out user's accent override from
+   * the page.
+   *
+   * Deliberately applyColorTheme(null), not resetColorTheme()'s
+   * DEFAULT_ACCENT_COLOR -- those are different things. Passing the default
+   * colour still paints an explicit accent (emerald) over the page, which
+   * reads the same as "someone's colour choice is still showing" even
+   * though it happens to be the stock one. null removes the inline
+   * override entirely and hands control back to theme.css's own baseline,
+   * the actual "nobody's signed in, nothing is customised" look.
+   *
+   * Does NOT touch the saved preference -- that stays on the account in
+   * the database and comes back via loadFromUserPreferences() next login.
    */
   clearUserColorTheme() {
-    // NO-OP: Do not reset to default or clear anything
-    // Preferences are stored in user account on backend, not in-memory
-    // Next login will fetch preferences via GET /auth/me
-    // If this method is called, it's only to clear local state, not persistent data
+    applyColorTheme(null)
+    set({ colorTheme: null })
   },
 }))
