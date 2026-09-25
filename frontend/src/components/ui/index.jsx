@@ -12,6 +12,15 @@ export { RingLoader } from '@/components/ui/RingLoader'
 export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   const ref = useRef(null)
 
+  // Most callers pass onClose as an inline arrow function, so its identity
+  // changes on every render of the parent -- including every keystroke in
+  // a field inside the modal, since that's a state update on the same
+  // parent. A ref means the effect below never needs onClose in its
+  // dependency array to see the current one, so typing doesn't re-run the
+  // "move focus into the dialog" logic and steal focus away mid-word.
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!open) return
 
@@ -30,7 +39,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
 
     const onKey = (e) => {
       if (e.key === 'Escape') {
-        onClose?.()
+        onCloseRef.current?.()
         return
       }
       if (e.key !== 'Tab') return
@@ -54,7 +63,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
   const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }
