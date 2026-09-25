@@ -24,7 +24,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Avatar, Button, Input, Modal, Widget, toast } from '@/components/ui'
 import { api, upload } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
-import { dt } from '@/lib/format'
+import { dt, titleCase } from '@/lib/format'
 import { OtpInput } from './VerifyEmail'
 
 // Falls back to the backend's own default (OTP_EXPIRE_MINUTES=10) for
@@ -314,6 +314,17 @@ function ContactCard({ user, setUser }) {
         toast.success('Name updated.')
       } else {
         toast.info('Sent for review.', res?.detail || 'An administrator will check your ID.')
+      }
+      // Best-effort OCR read of the card beyond the name itself -- shown as
+      // information only, never written to the profile on its own (#10:
+      // "do not blindly trust OCR output"). Whoever reviews the profile can
+      // decide to update course/department/class by hand if it's right.
+      const found = res?.detected_fields
+      if (found && Object.keys(found).length > 0) {
+        toast.info(
+          'Also read from your ID',
+          Object.entries(found).map(([k, v]) => `${titleCase(k)}: ${v}`).join(' · '),
+        )
       }
       nameRequest.refetch()
     },
