@@ -24,7 +24,7 @@ const ACTION_ICON = {
 
 const ENTITY_ROUTE = {
   issue: (id) => `/issues/${id}`,
-  lostfound_item: (id) => `/lost-found/${id}`,
+  lostfound_item: (id) => `/lost-found/items/${id}`,
 }
 
 export default function History() {
