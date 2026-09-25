@@ -36,9 +36,11 @@ export default function Login() {
 
     setSubmitting(true)
     try {
-      // The admin tab covers both admin and facility_manager accounts, so it
-      // authenticates without a role constraint and routes on the result.
-      const user = await login(email.trim(), password, role === 'admin' ? null : role, captcha)
+      // No role constraint sent, regardless of which tab is active -- the
+      // tabs are cosmetic now (see RoleTabs.jsx). Whoever's credentials are
+      // correct signs in and lands wherever ROLE_HOME sends their actual
+      // role, including an admin signing in from any tab.
+      const user = await login(email.trim(), password, null, captcha)
       // A genuinely first-ever sign-in (an admin-provisioned account whose
       // owner never went through the register->verify-email auto-login
       // flow) shouldn't be told "welcome back" — there's no "back" yet.
@@ -102,7 +104,7 @@ export default function Login() {
 
         <Field label="Email address" error={errors.email} required>
           <div className="relative">
-            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
             <Input
               type="email" autoComplete="email" className="pl-9"
               placeholder="you@campus.edu" value={email}
@@ -113,7 +115,7 @@ export default function Login() {
 
         <Field label="Password" error={errors.password} required>
           <div className="relative">
-            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
             <Input
               type={show ? 'text' : 'password'} autoComplete="current-password"
               className="pl-9 pr-10" placeholder="••••••••" value={password}
