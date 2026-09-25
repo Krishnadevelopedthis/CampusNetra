@@ -289,15 +289,23 @@ export default function AppLayout() {
 
   const sidebar = (
     <>
-      {/* Role-coloured accent line, per the design spec. */}
-      <div className="h-1 shrink-0" style={{ backgroundColor: accent }} />
-
-      <div className={clsx('px-4 py-4 border-b border-border-subtle', collapsed && 'px-3')}>
-        {collapsed ? (
-          <LogoMark size={36} className="mx-auto" />
-        ) : (
-          <Logo subtitle={ROLE_LABEL[user?.role]} />
-        )}
+      {/* Role-coloured accent line, per the design spec. Absolutely
+          positioned so it doesn't add to the block's own height below --
+          it used to sit in-flow and push the logo block a few px taller
+          than the header's h-16, so the border under it never lined up
+          with the header's own bottom border across the seam. */}
+      <div className="relative shrink-0">
+        <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
+        <div className={clsx(
+          'h-16 flex items-center px-4 border-b border-border-subtle',
+          collapsed && 'px-3 justify-center',
+        )}>
+          {collapsed ? (
+            <LogoMark size={36} />
+          ) : (
+            <Logo subtitle={ROLE_LABEL[user?.role]} />
+          )}
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -321,6 +329,7 @@ export default function AppLayout() {
         <button
           onClick={() => setCollapsed((c) => !c)}
           className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <PanelLeft size={16} /> : <><PanelLeftClose size={16} /> Collapse</>}
         </button>

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw, X } from 'lucide-react'
-import { Children, cloneElement, forwardRef, useEffect, useRef, useState } from 'react'
+import { Children, cloneElement, forwardRef, useEffect, useId, useRef, useState } from 'react'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
@@ -193,16 +193,29 @@ export function Button({
 }
 
 /* ---------------- Form fields ---------------- */
+// The label and its control used to be unconnected siblings — clicking the
+// label text did nothing, which fails the basic "click a label, focus its
+// field" expectation every other form on the web meets. When children is a
+// single form element without its own id, we generate one and wire up
+// htmlFor/id so the label is actually clickable and screen readers can
+// announce the field by name.
 export function Field({ label, error, hint, required, children, className }) {
+  const generatedId = useId()
+  const singleChild = Children.count(children) === 1 ? Children.toArray(children)[0] : null
+  const isWireable = singleChild && typeof singleChild === 'object' && singleChild.props
+  const canWire = isWireable && !singleChild.props.id
+  const fieldId = canWire ? generatedId : (isWireable ? singleChild.props.id : undefined)
+  const wiredChildren = canWire ? cloneElement(singleChild, { id: fieldId }) : children
+
   return (
     <div className={className}>
       {label && (
-        <label className="label">
+        <label className="label" htmlFor={fieldId}>
           {label}
           {required && <span className="text-danger ml-0.5">*</span>}
         </label>
       )}
-      {children}
+      {wiredChildren}
       {error && (
         <p className="field-error">
           <AlertCircle size={13} /> {error}

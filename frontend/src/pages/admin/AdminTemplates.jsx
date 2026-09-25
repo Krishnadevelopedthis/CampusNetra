@@ -89,8 +89,11 @@ export function AdminInspectionConfig() {
                       Edit
                     </Button>
                     <Button size="sm" variant="ghost" icon={Trash2} className="text-danger-text"
+                            aria-label={`Delete ${t.name}`}
                             loading={deactivate.isPending}
-                            onClick={() => deactivate.mutate(t.id)} />
+                            onClick={() => {
+                              if (confirm(`Delete ${t.name}? This cannot be undone.`)) deactivate.mutate(t.id)
+                            }} />
                   </div>
                 </div>
 
@@ -175,6 +178,7 @@ export function AdminInspectionConfig() {
                       />
                       <Button size="sm" variant="ghost" icon={Trash2}
                               className="text-danger-text mt-0.5"
+                              aria-label={`Remove check ${idx + 1}`}
                               disabled={form.items.length === 1}
                               onClick={() => setForm((f) => ({
                                 ...f, items: f.items.filter((_, i) => i !== idx) }))} />

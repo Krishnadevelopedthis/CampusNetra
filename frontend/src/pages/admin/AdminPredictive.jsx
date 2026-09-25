@@ -77,10 +77,11 @@ export default function AdminPredictive() {
         subtitle={`Generated ${dt(data.generated_at)}`}
         action={
           <div className="flex items-center gap-2">
-            <label className="text-body-sm text-ink-muted whitespace-nowrap">
+            <label className="text-body-sm text-ink-muted whitespace-nowrap" htmlFor="predictive-threshold">
               Threshold {Math.round(threshold * 100)}%
             </label>
             <input
+              id="predictive-threshold"
               type="range" min="0.2" max="0.9" step="0.05" value={threshold}
               onChange={(e) => setThreshold(Number(e.target.value))}
               className="w-28 accent-secondary"

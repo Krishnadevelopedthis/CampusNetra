@@ -1654,3 +1654,99 @@ this change), backend `pytest` 60/60 (this repo's test suite is unit tests
 over the AI tool registry only — no HTTP-level fixture exists to write a
 route-level regression test against without building that infra first, so
 none was added; noting that gap rather than skipping it silently).
+
+## Addendum 35 — #2 (real fix), #38/#39 (real further fixes), honest status on #1/#37/#40
+
+Asked to finish the 6 items still open (#1, #2, #37 not done; #38, #39, #40
+partial). Results below — three real fixes landed, three stayed genuinely
+blocked, reported as such rather than claimed done.
+
+**#2 — search bar/sidebar height, actual bug found and fixed.** Every prior
+attempt at this one came up empty because it was framed as a search-bar
+sizing problem. It isn't: the header (`AppLayout.jsx`) is a fixed `h-16`
+(64px), and the sidebar's top logo block right next to it had no fixed
+height at all — just `py-4` padding around whatever the `Logo`/`LogoMark`
+content needed, plus a `h-1` accent bar in-flow above it pushing everything
+down another 4px. Total worked out to ~76-80px against the header's 64px,
+so the two border lines that should read as one continuous seam across the
+top of the page never lined up — the "awkward gap / vertical misalignment"
+the spec described. Fixed by making the accent bar `absolute` (doesn't
+consume height) and giving the logo block an explicit `h-16 flex
+items-center` to match the header exactly, for both the expanded and
+collapsed sidebar states. Verified: build clean, lint clean.
+
+**#38 — full accessibility pass, real fixes, not just the one Modal fix
+from Addendum 30.** Delegated to a subagent with explicit instructions to
+fix, not just report. Found and fixed: the shared `Field` wrapper
+(`components/ui/index.jsx`, used by nearly every form in the app) rendered
+`<label>` around only the label text with the input as an unconnected
+sibling — no `htmlFor`/`id`, so clicking a label anywhere in the app never
+focused its field. Fixed once, centrally, via `useId()` + cloning the
+child with that id, which repairs it app-wide without touching every call
+site. Also fixed: a missing `htmlFor` on `AdminPredictive`'s threshold
+slider; icon-only delete/edit buttons with no `aria-label` in
+`AdminTemplates` (2) and `AdminCampus` (2); the sidebar collapse toggle's
+missing `aria-label`; and one real destructive-action gap —
+`AdminTemplates`'s "deactivate checklist" button had zero confirmation
+(every other delete button in the app confirms), fixed with a `confirm()`
+guard. Checked and left alone: destructive actions elsewhere all already
+confirm (`useCascadingDelete`, account deletion, asset delete), icon-only
+buttons elsewhere already have labels, toasts are already specific. Not
+touched, correctly out of scope: the "icon on every input box" cosmetic
+ask a prior session already declined to chase.
+
+**#39 — a further real pass, found genuine cross-org IDOR, not
+theoretical.** Also delegated with explicit fix-don't-just-report
+instructions, on top of this session's own earlier `/uploads/file` auth
+fix. Found real gaps: `Building`, `Floor`, `Room`, `LFMatch`, `LFClaim`,
+and `PartRequest` all carry no `organization_id` of their own — only
+reachable indirectly (`Room`→`Floor`→`Building`→`Campus`, or `LFMatch`/
+`LFClaim`→`LFItem`, or `PartRequest`→`WorkOrder`) — and ~16 endpoints in
+`campus.py` plus 4 in `lostfound.py` and 1 in `work_orders.py` fetched
+these by bare ID with **no organization check at all**. That's not a
+guessability problem, it's a straight IDOR: any authenticated staff/admin
+from organization B could read, edit, or delete organization A's
+buildings, floors, rooms, assets, L&F matches/claims, and work-order part
+requests just by having or guessing a UUID — several of those are
+destructive (`delete_building`, `delete_floor`, `delete_room`,
+`delete_asset`). Fixed by adding scoped lookup helpers
+(`_get_building_or_404`, `_get_floor_or_404`, `_get_room_or_404`,
+`_get_asset_or_404` in `campus.py`; `_get_match_or_404`,
+`_get_claim_or_404` in `lostfound.py`) that join back to the
+organization-scoped ancestor, mirroring the `_get_issue_or_404` pattern
+already used elsewhere, and swapped every unscoped lookup to use them.
+Also re-investigated per-object scoping on `/uploads/file` (the gap this
+session's earlier fix left open) and concluded, correctly, that it can't
+be forced without a schema change: an uploaded file has no owner/org of
+its own until a parent record (issue/work-order/L&F item) is saved
+referencing it, but the frontend's own upload picker re-fetches the file
+for its preview *before* that parent exists — scoping by "does some
+parent record reference this path yet" would 404 every legitimate
+in-progress upload. Documented in the `uploads.py` docstring instead of
+silently dropping it again. Also checked (already correct, no changes):
+`issues.py`, `inspections.py`, `notifications.py`, `admin.py`,
+`analytics.py`, `ai.py`, `history.py`; no SQL-injection risk (only two raw
+SQL sites, both parameterized); upload validation is already
+content-based (`Image.open().verify()`, not trusting client-supplied
+type). Verified: `ast.parse` clean on all four changed files, `import
+app.main` succeeds, `pytest` 60/60 both before and after.
+
+**Where #1, #37, #40 honestly still stand — genuinely blocked, not
+skipped.** All three need the same missing capability: a real rendered
+browser. #1 (duplicate logo text / stray "1") couldn't be reproduced from
+source in this session either — checked the SVG files for embedded
+`<text>` (none), checked every render site (`AppLayout`, `AuthShell`,
+`Navbar`, `Footer`) for a `LogoMark` used alongside separately-hardcoded
+brand text (none found; the one place both `LogoMark` and `Logo` appear,
+`AppLayout`'s sidebar, is a collapsed/expanded ternary, not simultaneous
+render) — same dead end four sessions in a row now. #37 (full breakpoint
+audit) and the live-UI half of #40 need an actual browser at real
+viewport widths; this session tried to unblock that by starting Docker
+Desktop (for a local Postgres + full stack) but the daemon never came up
+cleanly in this environment (`docker ps` kept returning a 500 from the
+named pipe even after the GUI process launched) — a local environment
+issue, not a sandbox network block like prior sessions hit, but blocking
+either way. Whoever picks this up next: the fastest unblock for all three
+is a screenshot (for #1) or the "Browser Use" plugin / any real
+screenshot tool (for #37/#40) — every fix reachable by reading code alone
+has now been made across five sessions' worth of passes.
