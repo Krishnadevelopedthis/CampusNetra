@@ -255,7 +255,7 @@ export default function IssueDetail() {
             )}
           </div>
 
-          <h1 className="text-headline-lg text-ink mt-2">
+          <h1 className="text-headline-lg text-ink mt-2 break-words">
             {issue.title}
           </h1>
 
@@ -305,7 +305,7 @@ export default function IssueDetail() {
               0 && (
               <Select
                 value=""
-                className="w-auto min-w-[180px]"
+                className="w-full sm:w-auto sm:min-w-[180px]"
                 onChange={(e) =>
                   e.target.value &&
                   setTransitionTo(
@@ -451,8 +451,12 @@ export default function IssueDetail() {
                         )}
 
                         <p className="text-body-sm text-ink-faint mt-1">
-                          {e.actor?.full_name ||
-                            'System'}{' '}
+                          {/* Staff acting on someone else's report show up here
+                              by role, not name — the reporter should see "moved
+                              by Technician", not which specific person it was. */}
+                          {e.actor
+                            ? (e.actor.designation || titleCase(e.actor.role))
+                            : 'System'}{' '}
                           ·{' '}
                           {dt(e.created_at)}
                         </p>
@@ -593,15 +597,6 @@ export default function IssueDetail() {
                   </dd>
                 </div>
 
-                <div className="flex justify-between gap-2">
-                  <dt className="text-ink-muted">
-                    Model
-                  </dt>
-
-                  <dd className="font-mono text-[11px] text-ink-muted">
-                    {issue.ai.model}
-                  </dd>
-                </div>
               </dl>
 
               {issue.ai.reasoning && (
@@ -760,7 +755,7 @@ function Row({ label, value }) {
         {label}
       </dt>
 
-      <dd className="text-body-md text-ink text-right min-w-0">
+      <dd className="text-body-md text-ink text-right min-w-0 break-words">
         {value || '—'}
       </dd>
     </div>
