@@ -111,6 +111,17 @@ export function startSessionTimeoutMonitor(onExpire) {
   }
 
   const onActivityEvent = () => {
+    // While the warning is up, the only interactive surface on screen is
+    // the modal itself (a full-screen backdrop blocks everything else),
+    // and its two buttons already call recordActivity()/dismissWarning()
+    // directly. If a passive event here (mousemove fires well before the
+    // click that follows it, as the cursor crosses the modal on its way
+    // to a button) closes the modal first, the modal unmounts mid-gesture
+    // and the click that was headed for "Log Out" lands on nothing —
+    // so leave this generic listener out of it entirely until the modal
+    // is dismissed through one of its own explicit actions.
+    if (useSessionTimeoutStore.getState().warningOpen) return
+
     const now = Date.now()
     if (now - lastActivity < ACTIVITY_THROTTLE_MS) return
     applyActivity(now)
