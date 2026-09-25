@@ -63,7 +63,7 @@ export function EmailField({ value, onChange, error, inputRef }) {
       <div className="relative [&:focus-within>svg]:text-secondary">
         <Mail
           size={16} aria-hidden="true"
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none
+          className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none
                      transition-colors"
         />
         <Input
@@ -90,7 +90,7 @@ export function PasswordField({ value, onChange, error, inputRef }) {
       <div className="relative [&:focus-within>svg:first-child]:text-secondary">
         <Lock
           size={16} aria-hidden="true"
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none"
+          className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none"
         />
         <Input
           ref={inputRef} type={show ? 'text' : 'password'} autoComplete="current-password"

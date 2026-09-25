@@ -104,7 +104,7 @@ export default function Login() {
 
         <Field label="Email address" error={errors.email} required>
           <div className="relative">
-            <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+            <Mail size={16} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
             <Input
               type="email" autoComplete="email" className="pl-9"
               placeholder="you@campus.edu" value={email}
@@ -115,7 +115,7 @@ export default function Login() {
 
         <Field label="Password" error={errors.password} required>
           <div className="relative">
-            <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+            <Lock size={16} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
             <Input
               type={show ? 'text' : 'password'} autoComplete="current-password"
               className="pl-9 pr-10" placeholder="••••••••" value={password}

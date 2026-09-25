@@ -119,7 +119,7 @@ export default function ForgotPassword() {
         {channel === 'email' ? (
           <Field label="Email address" error={error} required>
             <div className="relative">
-              <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+              <Mail size={16} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
               <Input
                 type="email" autoComplete="email" className="pl-9" placeholder="you@campus.edu"
                 value={email} onChange={(e) => setEmail(e.target.value)} error={error}
@@ -129,7 +129,7 @@ export default function ForgotPassword() {
         ) : (
           <Field label="Phone number" error={error} required>
             <div className="relative">
-              <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+              <Phone size={16} className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
               <Input
                 type="tel" autoComplete="tel" className="pl-9" placeholder="e.g. 9998880000"
                 value={phone} onChange={(e) => setPhone(e.target.value)} error={error}
