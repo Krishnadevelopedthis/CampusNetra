@@ -91,7 +91,13 @@ class Settings(BaseSettings):
 
     AI_PROVIDER: Literal["anthropic", "openrouter"] = "openrouter"
 
-    AI_MODEL: str = "openrouter/free"
+    # "openrouter/free" (the old default here) isn't a real OpenRouter model
+    # slug -- every call quietly 400'd and fell back to the heuristic
+    # classifier, with nothing in the UI to say why. Model IDs are
+    # provider/model, e.g. "meta-llama/llama-3.3-70b-instruct:free" for a
+    # free-tier model, or a paid one like "anthropic/claude-3.5-sonnet".
+    # Override with AI_MODEL in the environment for anything else.
+    AI_MODEL: str = "meta-llama/llama-3.3-70b-instruct:free"
 
     ANTHROPIC_API_KEY: str = ""
     OPENROUTER_API_KEY: str = ""
