@@ -84,6 +84,38 @@ class NameMatchResult:
     ocr_excerpt: str  # short, for an admin reviewing the queued request
 
 
+# Best-effort label -> value extraction for the fields spec #10 asks for
+# beyond a name/ID match: course, class/section, department. There is no
+# fixed layout across institution ID cards the way there is for a 7-digit
+# enrollment number, so this only looks for an explicit label on the same
+# line and grabs what follows it -- a card that never prints "Course:" or
+# equivalent simply yields nothing for that field, which is the honest
+# result rather than guessing from unlabelled text.
+_FIELD_PATTERNS = {
+    "course": r"(?:course|programme|program|degree)\s*[:\-]\s*([A-Za-z0-9 .&/]{2,60})",
+    "class": r"(?:class|section|semester|sem)\s*[:\-]\s*([A-Za-z0-9 .\-]{1,20})",
+    "department": r"(?:department|dept|branch)\s*[:\-]\s*([A-Za-z0-9 .&/]{2,60})",
+}
+
+
+def extract_fields(ocr_text: str) -> dict[str, str]:
+    """Pull whatever labelled fields are readable off the card, for the
+    caller to show the person as "we also found this" -- never written to
+    the profile without their own confirmation (see the name-change flow,
+    which surfaces these alongside its auto-approve/queue decision but
+    never applies them itself).
+    """
+    found: dict[str, str] = {}
+    for key, pattern in _FIELD_PATTERNS.items():
+        match = re.search(pattern, ocr_text, re.IGNORECASE)
+        if not match:
+            continue
+        value = match.group(1).strip().splitlines()[0].strip(" .:-")
+        if value:
+            found[key] = value[:80]
+    return found
+
+
 def extract_id_number(ocr_text: str) -> Optional[str]:
     """Best-effort pull of a 7-digit enrollment/employee number from OCR
     text, matching the exact format the app enforces everywhere else.
