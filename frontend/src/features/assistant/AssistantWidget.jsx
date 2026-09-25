@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { MessageCircle, Send, Sparkles, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Avatar } from '@/components/ui'
@@ -12,6 +12,30 @@ const SUGGESTIONS = [
   'How do I report a broken projector?',
   'Show SLA breaches this week',
 ]
+
+// The assistant's face wherever it appears (FAB, header, message avatar,
+// typing indicator) — one place to keep all four in sync. The source gif
+// is a small pinwheel mark centred in a much larger white canvas (400x300,
+// mark is only ~103x103 in the middle) -- rendered at icon sizes with plain
+// object-contain, that padding shrinks the mark to a near-invisible speck.
+// scale(3) on the img inside an overflow-hidden square instead zooms into
+// just the centred mark and crops the rest away, so it reads clearly even
+// at 19-22px.
+function AiFace({ size, rounded = 'rounded-lg' }) {
+  return (
+    <div
+      className={clsx('overflow-hidden bg-white shrink-0', rounded)}
+      style={{ width: size, height: size }}
+    >
+      <img
+        src="/assets/ai-agent.gif"
+        alt="" aria-hidden="true"
+        className="w-full h-full object-cover"
+        style={{ transform: 'scale(3)' }}
+      />
+    </div>
+  )
+}
 
 /**
  * Floating chat widget — the standard "bubble in the corner" pattern from
@@ -102,7 +126,7 @@ export function AssistantWidget() {
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}
       >
-        {open ? <X size={22} /> : <MessageCircle size={22} />}
+        {open ? <X size={22} /> : <AiFace size={36} rounded="rounded-full" />}
       </button>
 
       {!open ? null : (
@@ -134,9 +158,7 @@ export function AssistantWidget() {
           >
             <header className="flex items-center justify-between px-4 sm:px-5 h-14 sm:h-16 border-b border-border-subtle shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-primary grid place-items-center shrink-0">
-                  <Sparkles size={16} className="text-white" />
-                </div>
+                <AiFace size={32} />
                 <div className="min-w-0">
                   <p className="text-headline-md leading-tight truncate">Campus Assistant</p>
                   <p className="text-body-sm text-ink-faint truncate">Ask about issues, assets or policy</p>
@@ -177,9 +199,7 @@ export function AssistantWidget() {
               {messages.map((m, i) => (
                 <div key={i} className={clsx('flex gap-2.5', m.role === 'user' && 'flex-row-reverse')}>
                   {m.role === 'assistant' ? (
-                    <div className="w-7 h-7 rounded-lg bg-primary grid place-items-center shrink-0">
-                      <Sparkles size={13} className="text-white" />
-                    </div>
+                    <AiFace size={28} />
                   ) : (
                     <Avatar name={user?.full_name} size={28} />
                   )}
@@ -209,9 +229,7 @@ export function AssistantWidget() {
 
               {busy && (
                 <div className="flex gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-primary grid place-items-center shrink-0">
-                    <Sparkles size={13} className="text-white" />
-                  </div>
+                  <AiFace size={28} />
                   <div className="ai-surface px-3.5 py-3 flex gap-1.5">
                     {[0, 150, 300].map((d) => (
                       <span key={d} className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce"
