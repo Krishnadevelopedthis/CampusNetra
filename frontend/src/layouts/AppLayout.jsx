@@ -328,7 +328,10 @@ export default function AppLayout() {
         ))}
       </nav>
 
-      <div className="p-3 border-t border-border-subtle space-y-2">
+      {/* h-16, same as the footer row it sits beside at the bottom of the
+          page — both used to size from their own padding+content (p-3 here,
+          py-4 there), which landed at different totals and never lined up. */}
+      <div className="h-16 flex items-center px-3 border-t border-border-subtle">
         <button
           onClick={() => setCollapsed((c) => !c)}
           className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
@@ -395,7 +398,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
 
-        <footer className="border-t border-border-subtle px-4 lg:px-margin py-4 text-body-sm text-ink-faint flex flex-wrap items-center justify-between gap-2 no-print">
+        <footer className="h-16 border-t border-border-subtle px-4 lg:px-margin text-body-sm text-ink-faint flex flex-wrap items-center justify-between gap-2 no-print">
           <span>© {new Date().getFullYear()} Campus Netra. Powered by Precision Intelligence.</span>
         </footer>
       </div>
