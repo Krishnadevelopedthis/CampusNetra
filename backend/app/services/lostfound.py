@@ -125,7 +125,12 @@ async def persist_matches(
                 db, recipients,
                 title=f"Possible match found ({round(r.score * 100)}%)",
                 body=f"'{item.title}' may match a report on the other side of the ledger.",
-                link=f"/lost-found/matches/{match.id}", kind="lf_match",
+                # There's no standalone match page -- the item detail page
+                # (LostFoundItem.jsx) is what actually renders each match's
+                # AI Match Analysis, for either side of it. /lost-found/
+                # matches/{id} was never a real route; every one of these
+                # notifications 404'd.
+                link=f"/lost-found/items/{item.id}", kind="lf_match",
                 entity_type="lf_match", entity_id=match.id,
                 code="lf.match_found",
                 context={
@@ -239,7 +244,10 @@ async def submit_claim(
         db, [item.reported_by] + list(await notify_svc.managers_of(db, claimant.organization_id)),
         title=f"Ownership claim on {item.reference}",
         body=f"{claimant.full_name} has claimed '{item.title}'. Verification required.",
-        link=f"/lost-found/claims/{claim.id}", kind="lf_claim",
+        # Same as the match link above -- /lost-found/claims/{id} was never
+        # a real route. The item detail page is where the claim actually
+        # shows up (and where staff review it, in the admin L&F panel).
+        link=f"/lost-found/items/{item.id}", kind="lf_claim",
         entity_type="lf_claim", entity_id=claim.id,
     )
     return claim
@@ -280,7 +288,9 @@ async def decide_claim(
 
     await notify_svc.notify(
         db, [claim.claimant_id], title=title, body=body,
-        link=f"/lost-found/claims/{claim.id}", kind="lf_claim",
+        # Same fix as above; falls back to the list page on the rare chance
+        # the item itself no longer exists, rather than link to nothing.
+        link=f"/lost-found/items/{item.id}" if item else "/lost-found", kind="lf_claim",
         entity_type="lf_claim", entity_id=claim.id,
         code="lf.claim_decision",
         context={
