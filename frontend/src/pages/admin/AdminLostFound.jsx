@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Field, Metric, Modal, Spinner, StatusPill,
+  Button, EmptyState, ErrorState, Field, Metric, MetricRow, Modal, Spinner, StatusPill,
   Textarea, Widget, toast,
 } from '@/components/ui'
 import { ImageUpload } from '@/components/ImageUpload'
@@ -83,13 +83,13 @@ export default function AdminLostFound() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Metric label="Lost — open" value={t.lost_open} accent="#f59e0b" />
-        <Metric label="Found — unclaimed" value={t.found_open} accent="#3b82f6" />
+      <MetricRow>
         <Metric label="Claims to verify" value={t.pending_claims}
                 accent={t.pending_claims > 0 ? '#ef4444' : '#10b981'} icon={ShieldCheck} />
+        <Metric label="Lost — open" value={t.lost_open} accent="#f59e0b" />
+        <Metric label="Found — unclaimed" value={t.found_open} accent="#3b82f6" />
         <Metric label="Returned to owners" value={t.returned} accent="#10b981" icon={PackageCheck} />
-      </div>
+      </MetricRow>
 
       <Widget bodyClass="p-0">
         <div className="flex gap-2 p-widget border-b border-border-subtle">

@@ -1,12 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  Armchair, Droplet, Fan, HelpCircle, Lightbulb, MapPin, Monitor, Send, Sparkles, Video, Wifi, Wrench,
+  Armchair, CheckCircle2, Droplet, Fan, HelpCircle, Lightbulb, MapPin, Monitor, Send, Sparkles, Video, Wifi, Wrench,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import {
-  Button, Field, Input, PriorityPill, Select, Textarea, Widget, toast,
+  Button, Field, Input, Modal, PriorityPill, Select, Textarea, Widget, toast,
 } from '@/components/ui'
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
@@ -33,6 +33,7 @@ export default function ReportIssue() {
   const [photos, setPhotos] = useState([])
   const [errors, setErrors] = useState({})
   const [aiPreview, setAiPreview] = useState(null)
+  const [submitted, setSubmitted] = useState(null)
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   useEffect(() => {
@@ -79,9 +80,12 @@ export default function ReportIssue() {
   const submit = useMutation({
     mutationFn: (payload) => api.post('/issues', payload),
     onSuccess: (data) => {
-      if (data.duplicate_warning) toast.info(data.duplicate_warning)
-      else toast.success(`${data.issue.reference} submitted and routed to ${data.issue.department_name || 'the facilities team'}.`)
-      navigate(`/issues/${data.issue.id}`)
+      if (data.duplicate_warning) {
+        toast.info(data.duplicate_warning)
+        navigate(`/issues/${data.issue.id}`)
+        return
+      }
+      setSubmitted(data.issue)
     },
     onError: (err) => {
       if (err.fields) setErrors(err.fields)
@@ -122,6 +126,7 @@ export default function ReportIssue() {
 
 
   return (
+    <>
     <form onSubmit={onSubmit} className="space-y-5 max-w-6xl">
       <header>
         <h1 className="text-headline-lg text-ink">Report an Issue</h1>
@@ -351,5 +356,37 @@ export default function ReportIssue() {
         </div>
       </div>
     </form>
+
+    <Modal
+      open={!!submitted}
+      onClose={() => submitted && navigate(`/issues/${submitted.id}`)}
+      title=" "
+      size="sm"
+      footer={
+        <Button type="button" className="w-full"
+                onClick={() => navigate(`/issues/${submitted?.id}`)}>
+          View complaint
+        </Button>
+      }
+    >
+      {submitted && (
+        <div className="text-center py-2">
+          <div className="mx-auto w-14 h-14 rounded-full bg-success-bg grid place-items-center mb-4">
+            <CheckCircle2 size={28} className="text-success-text" />
+          </div>
+          <p className="text-headline-md text-ink">Complaint Submitted Successfully</p>
+          <p className="text-body-md text-ink-muted mt-2">Complaint Number</p>
+          <p className="font-mono text-mono-data text-secondary text-headline-md mt-1">
+            {submitted.reference}
+          </p>
+          {submitted.department_name && (
+            <p className="text-body-sm text-ink-faint mt-3">
+              Routed to {submitted.department_name}.
+            </p>
+          )}
+        </div>
+      )}
+    </Modal>
+    </>
   )
 }
