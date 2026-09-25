@@ -1,13 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Camera, MessageSquare, Package, Send } from 'lucide-react'
-import { useState } from 'react'
+import { ArrowLeft, Camera, Loader2, MessageSquare, Package, Plus, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import {
   Avatar, Button, ErrorState, Field, Input, Modal, PriorityPill, Select, Spinner,
   StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, upload } from '@/lib/api'
 import { ago, dt, money, slaLabel, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 
@@ -109,22 +109,18 @@ export default function WorkOrderDetail() {
 
           <Widget title={<span className="flex items-center gap-2"><Camera size={17} /> Before / After Evidence</span>}>
             <div className="grid sm:grid-cols-2 gap-5">
-              {[['Before', wo.before_photos], ['After', wo.after_photos]].map(([label, photos]) => (
-                <div key={label}>
-                  <p className="text-label-caps uppercase text-ink-muted mb-2">{label}</p>
-                  {photos.length === 0 ? (
-                    <div className="h-28 rounded border border-dashed border-border grid place-items-center text-body-sm text-ink-faint">
-                      No {label.toLowerCase()} photo
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {photos.map((p) => (
-                        <EvidenceThumb key={p.id} photo={p} label={label} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {[['Before', 'before', wo.before_photos], ['After', 'after', wo.after_photos]].map(
+                ([label, purpose, photos]) => (
+                  <EvidenceSection
+                    key={purpose}
+                    label={label}
+                    purpose={purpose}
+                    photos={photos}
+                    workOrderId={id}
+                    onUploaded={invalidate}
+                  />
+                ),
+              )}
             </div>
           </Widget>
 
@@ -327,6 +323,86 @@ function EvidenceThumb({ photo, label }) {
        className="w-24 h-24 rounded overflow-hidden border border-border-subtle bg-surface-2">
       {thumbSrc && <img src={thumbSrc} alt={label} className="w-full h-full object-cover" />}
     </a>
+  )
+}
+
+// Backend's max upload size (see MAX_UPLOAD_MB in uploads.py) -- checked
+// client-side too, so a technician isn't left waiting through an upload
+// just to be told after the fact it was too big.
+const MAX_EVIDENCE_MB = 10
+const MAX_EVIDENCE_PHOTOS = 6
+
+/**
+ * Before/After evidence, one photo at a time: picks a file, uploads it to
+ * storage, then immediately attaches it to the work order (purpose:
+ * "before"/"after") -- there's no separate "save" step, each photo lands as
+ * soon as it finishes uploading, same as the reporter-facing ImageUpload
+ * component but simpler since a work order attachment has nothing else to
+ * fill in alongside it.
+ */
+function EvidenceSection({ label, purpose, photos, workOrderId, onUploaded }) {
+  const [busy, setBusy] = useState(false)
+  const inputRef = useRef(null)
+  const atLimit = photos.length >= MAX_EVIDENCE_PHOTOS
+
+  const pick = async (files) => {
+    const file = files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Only image files can be attached.')
+      return
+    }
+    if (file.size > MAX_EVIDENCE_MB * 1024 * 1024) {
+      toast.error(`Image is over ${MAX_EVIDENCE_MB} MB — please choose a smaller photo.`)
+      return
+    }
+    setBusy(true)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const uploaded = await upload('/uploads/image', body, { params: { purpose: 'work_order' } })
+      await api.post(`/work-orders/${workOrderId}/attachments`, {
+        url: uploaded.url,
+        thumb_url: uploaded.thumb_url,
+        filename: uploaded.filename,
+        purpose,
+      })
+      onUploaded()
+    } catch (err) {
+      toast.error(err.detail || err.message || 'Could not upload photo')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="text-label-caps uppercase text-ink-muted mb-2">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {photos.map((p) => (
+          <EvidenceThumb key={p.id} photo={p} label={label} />
+        ))}
+
+        <input
+          ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
+          onChange={(e) => { pick(e.target.files); e.target.value = '' }}
+        />
+
+        {!atLimit && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            className="w-24 h-28 rounded border border-dashed border-border grid place-items-center gap-1 text-body-sm text-ink-faint hover:border-secondary hover:text-secondary transition-colors disabled:opacity-60"
+          >
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+            {photos.length === 0
+              ? <span>No {label.toLowerCase()}<br />photo</span>
+              : <span>Add</span>}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
