@@ -220,7 +220,7 @@ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
             if reply:
                 sessions.append(session, "assistant", reply)
                 return {
-                    "reply": reply, "confidence": 0.9, "sources": ["campus_data"],
+                    "reply": reply, "used_fallback": False, "sources": ["campus_data"],
                     "model": result.model, "conversation_id": str(conversation_id),
                     "tool_used": bool(tools_called), "tools_called": tools_called,
                 }
@@ -252,7 +252,7 @@ async def assistant(payload: AssistantRequest, user: CurrentUser, db: DB):
         organization_id=user.organization_id, task="assistant",
         model="heuristic-v1", used_fallback=True))
     sessions.append(session, "assistant", reply)
-    return {"reply": reply, "confidence": 0.55, "sources": ["campus_data"],
+    return {"reply": reply, "used_fallback": True, "sources": ["campus_data"],
             "model": "heuristic-v1", "conversation_id": str(conversation_id),
             "tool_used": False, "tools_called": []}
 

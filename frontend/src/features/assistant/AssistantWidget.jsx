@@ -70,7 +70,7 @@ export function AssistantWidget() {
       setMessages((m) => [...m, {
         role: 'assistant',
         content: res.reply,
-        confidence: res.confidence,
+        usedFallback: res.used_fallback,
         sources: res.sources,
       }])
     } catch (err) {
@@ -192,9 +192,15 @@ export function AssistantWidget() {
                     <p className={clsx('whitespace-pre-wrap break-words', m.role === 'assistant' ? 'text-body-lg' : 'text-body-md')}>
                       {m.content}
                     </p>
-                    {m.confidence != null && (
-                      <span className="pill bg-info-bg text-info-text mt-2 text-body-sm">
-                        {Math.round(m.confidence * 100)}% confidence
+                    {/* Neither response path ever produced a meaningful
+                        per-answer confidence score (the "agent" path hardcoded
+                        0.9, the fallback path hardcoded 0.55) — a fake number
+                        is worse than none. This only appears for the genuinely
+                        degraded case: no live model call, answering from a
+                        cached campus summary instead. */}
+                    {m.usedFallback && (
+                      <span className="pill bg-warning-bg text-warning-text mt-2 text-body-sm">
+                        Limited data mode — AI temporarily unavailable
                       </span>
                     )}
                   </div>
