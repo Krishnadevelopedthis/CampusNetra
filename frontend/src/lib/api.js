@@ -753,13 +753,28 @@ function connectSocket(
   }
 }
 
-/** Live Digital Twin feed for one campus. */
+/**
+ * Live Digital Twin feed for one campus.
+ *
+ * Same reasoning as connectNotifications below: the backend now requires
+ * (and previously silently accepted connections without) a current access
+ * token on this socket, since it's a live feed of a real campus's asset/
+ * issue/work-order events, not something to leave open to anyone who can
+ * guess a campus_id.
+ */
 export function connectTwin(
   campusId,
   handlers,
 ) {
   return connectSocket(
-    `/campus/ws/${campusId}`,
+    () => {
+      const token =
+        readAuth()?.access_token
+
+      return token
+        ? `/campus/ws/${campusId}?token=${encodeURIComponent(token)}`
+        : null
+    },
     handlers,
   )
 }

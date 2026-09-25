@@ -5,6 +5,7 @@ import math
 import uuid
 
 import httpx
+import jwt
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
@@ -14,7 +15,9 @@ from sqlalchemy import delete as sa_delete, func, or_, select
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff
 from app.core.routing import CommitRoute
+from app.core.database import SessionLocal
 from app.core.enums import AssetState, IssueStatus, RoomKind
+from app.core.security import decode_token
 from app.models.identity import Organization
 from app.models.issues import Issue
 from app.models.spatial import (
@@ -1408,8 +1411,40 @@ async def state_at(
 
 
 @router.websocket("/ws/{campus_id}")
-async def twin_socket(websocket: WebSocket, campus_id: str):
-    """Live Digital Twin feed. Pushes every asset/issue/work-order change."""
+async def twin_socket(websocket: WebSocket, campus_id: str, token: str = Query(...)):
+    """Live Digital Twin feed. Pushes every asset/issue/work-order change.
+
+    Every REST route in this file requires at least CurrentUser, and most
+    campus-scoped ones additionally check the campus belongs to the caller's
+    own organization -- this socket had neither: `token` was never sent by
+    the frontend and never checked here, so anyone who could reach the
+    server at all could open it for any campus_id (a real UUID, not secret)
+    and receive that campus's live asset-state/issue/work-order event
+    stream with no login, exactly like the sibling notification socket
+    already requires (see notifications.py's `/ws`) -- this brings twin's
+    socket in line with that existing, already-correct pattern rather than
+    inventing a new one. `org` comes from the token itself, not a second DB
+    lookup of the user, the same way the notification socket trusts `sub`
+    without re-fetching the user -- but the campus_id in the URL is
+    attacker-controlled, so it's checked against a real campus row rather
+    than trusted outright. A plain SessionLocal() is used for that one
+    lookup rather than the `DB`/get_db dependency, since get_db expects an
+    HTTP Request (for request.state.db / CommitRoute) that a WebSocket-only
+    route never has -- there's nothing to commit here anyway, just a read.
+    """
+    try:
+        payload = decode_token(token, "access")
+        org_id = payload.get("org")
+        campus_uuid = uuid.UUID(campus_id)
+    except (jwt.PyJWTError, KeyError, ValueError):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    async with SessionLocal() as db:
+        campus_org_id = await db.scalar(select(Campus.organization_id).where(Campus.id == campus_uuid))
+    if not org_id or campus_org_id is None or str(campus_org_id) != org_id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await hub.connect(websocket, campus_id)
     try:
         await websocket.send_json({"type": "connected", "campus_id": campus_id, "legend": LEGEND})
