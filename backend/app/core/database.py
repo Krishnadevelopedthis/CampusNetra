@@ -17,6 +17,13 @@ engine = create_async_engine(
     pool_size=settings.DB_POOL_SIZE,
     max_overflow=settings.DB_MAX_OVERFLOW,
     pool_pre_ping=True,
+    # Neon's compute can suspend/reset on inactivity, silently invalidating a
+    # pooled connection; pool_pre_ping catches that on checkout, but a
+    # connection can still go stale for other reasons (the pooler's own
+    # idle-connection limits) between pings. Recycling every 25 minutes keeps
+    # the app pool from ever holding a connection long enough for that to
+    # matter, comfortably under any pooler-side idle timeout.
+    pool_recycle=1500,
     pool_timeout=10,
     connect_args={
         "command_timeout": 15,

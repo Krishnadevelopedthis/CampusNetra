@@ -1249,19 +1249,28 @@ async def list_deletion_requests(
     how much that is before deciding.
     """
     from app.models.identity import AccountDeletionRequest
-    from app.services.account_removal import retained_counts
+    from app.services.account_removal import retained_counts_bulk
 
     query = (
         select(AccountDeletionRequest, User)
         .join(User, User.id == AccountDeletionRequest.user_id)
         .where(User.organization_id == admin.organization_id)
         .order_by(AccountDeletionRequest.created_at.desc())
+        .limit(200)
     )
     if status_filter != "all":
         query = query.where(AccountDeletionRequest.status == status_filter)
 
+    rows = (await db.execute(query)).all()
+
+    # One batched lookup for every pending row's retained-data counts
+    # instead of 3 queries per row (was up to 1 + 3N for N pending
+    # requests).
+    pending_user_ids = [user.id for row, user in rows if row.status == "pending"]
+    retained_by_user = await retained_counts_bulk(db, pending_user_ids)
+
     out = []
-    for row, user in (await db.execute(query)).all():
+    for row, user in rows:
         out.append({
             "id": str(row.id),
             "status": row.status,
@@ -1273,7 +1282,7 @@ async def list_deletion_requests(
                 "id": str(user.id), "full_name": user.full_name,
                 "email": user.email, "role": user.role.value,
             },
-            "retained": await retained_counts(db, user.id) if row.status == "pending" else None,
+            "retained": retained_by_user.get(user.id) if row.status == "pending" else None,
         })
     return out
 
@@ -1350,6 +1359,7 @@ async def list_name_change_requests(
         .join(User, User.id == NameChangeRequest.user_id)
         .where(User.organization_id == admin.organization_id)
         .order_by(NameChangeRequest.created_at.desc())
+        .limit(200)
     )
     if status_filter != "all":
         query = query.where(NameChangeRequest.status == status_filter)
