@@ -27,6 +27,7 @@ import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { TWIN_STATE, ago, slaLabel } from '@/lib/format'
+import { getGreeting } from '@/lib/greeting'
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -39,15 +40,20 @@ export default function Dashboard() {
   const isReporter = ['student', 'teacher'].includes(user?.role)
   const first = user?.full_name?.split(' ')[0]
   const busy = isLoading || refreshing
+  const greeting = getGreeting()
 
   if (error && !data) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title={isReporter ? `Welcome back, ${first}` : 'Campus Overview'}
+        title={isReporter ? `${greeting.label}, ${first}` : 'Campus Overview'}
         subtitle={isReporter
-          ? 'Your reports and campus utility status.'
+          ? (
+            <>
+              {greeting.dayName} — {greeting.quote}
+            </>
+          )
           : 'Real-time telemetry and operational metrics.'}
         onRefresh={refresh}
         refreshing={refreshing}
