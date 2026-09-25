@@ -138,6 +138,19 @@ def _to_item(i: LFItem, m: dict) -> LFItemListItem:
     )
 
 
+def _claim_out(c: LFClaim, item: LFItem, claimant: User) -> ClaimOut:
+    return ClaimOut(
+        id=c.id, reference=c.reference, item_id=item.id, item_reference=item.reference,
+        item_title=item.title, status=c.status, claimant=UserBrief.model_validate(claimant),
+        proof_note=c.proof_note, proof_urls=c.proof_urls, rejection_reason=c.rejection_reason,
+        verified_at=c.verified_at, collected_at=c.collected_at, created_at=c.created_at,
+        handover_proof_url=c.handover_proof_url, declared_name=c.declared_name,
+        declared_id_number=c.declared_id_number, declared_email=c.declared_email,
+        declared_address=c.declared_address, declaration_text=c.declaration_text,
+        declared_at=c.declared_at,
+    )
+
+
 async def _to_detail(db, item: LFItem, viewer: User) -> LFItemDetail:
     m = await _lookups(db, [item])
     base = _to_item(item, m)
@@ -156,15 +169,7 @@ async def _to_detail(db, item: LFItem, viewer: User) -> LFItemDetail:
             .join(User, User.id == LFClaim.claimant_id)
             .where(LFClaim.item_id == item.id)
             .order_by(LFClaim.created_at.desc()))).all()
-        claims_out = [
-            ClaimOut(
-                id=c.id, reference=c.reference, item_id=item.id, item_reference=item.reference,
-                item_title=item.title, status=c.status, claimant=UserBrief.model_validate(u),
-                proof_note=c.proof_note, proof_urls=c.proof_urls,
-                rejection_reason=c.rejection_reason, verified_at=c.verified_at,
-                collected_at=c.collected_at, created_at=c.created_at)
-            for c, u in claim_rows
-        ]
+        claims_out = [_claim_out(c, item, u) for c, u in claim_rows]
 
     return LFItemDetail(
         **base.model_dump(),
@@ -354,11 +359,7 @@ async def create_claim(payload: ClaimCreate, user: CurrentUser, db: DB):
         db, user, item, payload.proof_note, payload.proof_urls, payload.match_id)
     await db.flush()
     await db.refresh(claim)
-    return ClaimOut(
-        id=claim.id, reference=claim.reference, item_id=item.id,
-        item_reference=item.reference, item_title=item.title, status=claim.status,
-        claimant=UserBrief.model_validate(user), proof_note=claim.proof_note,
-        proof_urls=claim.proof_urls, created_at=claim.created_at)
+    return _claim_out(claim, item, user)
 
 
 @router.get("/claims", response_model=list[ClaimOut])
@@ -380,15 +381,7 @@ async def list_claims(
         query = query.where(LFClaim.status == status_filter)
 
     rows = (await db.execute(query.order_by(LFClaim.created_at.desc()).limit(100))).all()
-    return [
-        ClaimOut(
-            id=c.id, reference=c.reference, item_id=i.id, item_reference=i.reference,
-            item_title=i.title, status=c.status,
-            claimant=UserBrief.model_validate(u), proof_note=c.proof_note,
-            proof_urls=c.proof_urls, rejection_reason=c.rejection_reason,
-            verified_at=c.verified_at, collected_at=c.collected_at, created_at=c.created_at)
-        for c, i, u in rows
-    ]
+    return [_claim_out(c, i, u) for c, i, u in rows]
 
 
 async def _get_claim_or_404(db, claim_id: uuid.UUID, user) -> LFClaim:
@@ -484,6 +477,12 @@ async def mark_collected(claim_id: uuid.UUID, payload: HandoverDeclaration, user
     claim.status = ClaimStatus.COLLECTED
     claim.collected_at = datetime.now(timezone.utc)
     claim.handover_proof_url = payload.handover_proof_url
+    claim.declared_name = payload.declared_name.strip()
+    claim.declared_id_number = (payload.declared_id_number or "").strip() or None
+    claim.declared_email = payload.declared_email.strip()
+    claim.declared_address = payload.declared_address.strip()
+    claim.declaration_text = payload.declaration_text.strip()
+    claim.declared_at = datetime.now(timezone.utc)
     item = await db.scalar(select(LFItem).where(LFItem.id == claim.item_id))
     if item:
         item.status = LFStatus.RETURNED
@@ -493,7 +492,11 @@ async def mark_collected(claim_id: uuid.UUID, payload: HandoverDeclaration, user
         db, action="lostfound.claim.handover_declared", actor_id=user.id,
         organization_id=user.organization_id, entity_type="lf_claim", entity_id=claim.id,
         after={
-            "declaration_text": payload.declaration_text,
+            "declared_name": claim.declared_name,
+            "declared_id_number": claim.declared_id_number,
+            "declared_email": claim.declared_email,
+            "declared_address": claim.declared_address,
+            "declaration_text": claim.declaration_text,
             "handover_proof_url": payload.handover_proof_url,
             "recorded_by": str(user.id),
         },
@@ -554,10 +557,5 @@ async def dashboard(user: CurrentUser, db: DB):
         recent_lost=await recent(LFKind.LOST),
         recent_found=await recent(LFKind.FOUND),
         pending_matches=[_match_out(m, previews) for m in match_rows],
-        pending_claims=[
-            ClaimOut(id=c.id, reference=c.reference, item_id=i.id, item_reference=i.reference,
-                     item_title=i.title, status=c.status, claimant=UserBrief.model_validate(u),
-                     proof_note=c.proof_note, proof_urls=c.proof_urls, created_at=c.created_at)
-            for c, i, u in claim_rows
-        ],
+        pending_claims=[_claim_out(c, i, u) for c, i, u in claim_rows],
     )

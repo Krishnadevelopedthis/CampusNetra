@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import {
-  Button, ErrorState, Field, Modal, Spinner, StatusPill, Textarea, Widget, toast,
+  Button, ErrorState, Field, Input, Modal, Spinner, StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
@@ -23,7 +23,7 @@ const FACTOR_LABEL = {
 export default function LostFoundItem() {
   const { id } = useParams()
   const qc = useQueryClient()
-  const { isStaff } = useAuth()
+  const { isStaff, user } = useAuth()
   const [claimOpen, setClaimOpen] = useState(false)
   const [proof, setProof] = useState('')
   const [activeImage, setActiveImage] = useState(0)
@@ -31,6 +31,12 @@ export default function LostFoundItem() {
   const [handoverOpen, setHandoverOpen] = useState(false)
   const [declaration, setDeclaration] = useState('')
   const [proofPhoto, setProofPhoto] = useState([])
+  // Pre-filled from the account, but editable -- the declaration is the
+  // claimant's own attestation, not just a read of their profile record.
+  const [declaredName, setDeclaredName] = useState(user?.full_name || '')
+  const [declaredIdNumber, setDeclaredIdNumber] = useState(user?.enrollment_no || user?.employee_id || '')
+  const [declaredEmail, setDeclaredEmail] = useState(user?.email || '')
+  const [declaredAddress, setDeclaredAddress] = useState('')
 
   const { data: item, isLoading, error, refetch } = useQuery({
     queryKey: ['lf-item', id],
@@ -74,11 +80,16 @@ export default function LostFoundItem() {
   const confirmHandover = useMutation({
     mutationFn: () => api.post(`/lost-found/claims/${myApprovedClaim.id}/collected`, {
       handover_proof_url: proofPhoto[0]?.url,
+      declared_name: declaredName.trim(),
+      declared_id_number: declaredIdNumber.trim() || null,
+      declared_email: declaredEmail.trim(),
+      declared_address: declaredAddress.trim(),
       declaration_text: declaration.trim(),
     }),
     onSuccess: (d) => {
       toast.success(d.detail)
       setHandoverOpen(false); setDeclaration(''); setProofPhoto([])
+      setDeclaredAddress('')
       qc.invalidateQueries({ queryKey: ['lf-my-claims'] })
       invalidate()
     },
@@ -432,7 +443,11 @@ export default function LostFoundItem() {
             <Button variant="secondary" onClick={() => setHandoverOpen(false)}>Cancel</Button>
             <Button
               loading={confirmHandover.isPending}
-              disabled={declaration.trim().length < 10 || proofPhoto.length === 0}
+              disabled={
+                declaration.trim().length < 10 || proofPhoto.length === 0
+                || declaredName.trim().length < 2 || !declaredEmail.trim()
+                || declaredAddress.trim().length < 5
+              }
               onClick={() => confirmHandover.mutate()}
             >
               Confirm and close claim
@@ -441,17 +456,35 @@ export default function LostFoundItem() {
         }
       >
         <p className="text-body-md text-ink-muted mb-4">
-          Add a photo of the item now in your possession, and a short declaration.
-          This closes the claim as returned — only you can confirm this step.
+          Before this closes the claim as returned, confirm who you are and declare
+          you've received the item — this is a record of the handover, only you can
+          submit it.
         </p>
-        <Field label="Photo proof" required>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Full name" required>
+            <Input value={declaredName} onChange={(e) => setDeclaredName(e.target.value)} />
+          </Field>
+          <Field label="Student / Teacher / Technician ID" hint="If you have one">
+            <Input value={declaredIdNumber} onChange={(e) => setDeclaredIdNumber(e.target.value)} />
+          </Field>
+          <Field label="Email" required>
+            <Input type="email" value={declaredEmail} onChange={(e) => setDeclaredEmail(e.target.value)} />
+          </Field>
+          <Field label="Address / contact" required>
+            <Input value={declaredAddress} onChange={(e) => setDeclaredAddress(e.target.value)}
+                   placeholder="Hostel/room, or a way to reach you" />
+          </Field>
+        </div>
+
+        <Field label="Photo proof" required className="mt-4">
           <ImageUpload value={proofPhoto} onChange={setProofPhoto} max={1} purpose="lost_found"
                        hint="A quick photo of the item with you is enough." />
         </Field>
         <Field label="Declaration" required className="mt-4"
                hint={`${declaration.trim().length}/10 characters minimum`}>
           <Textarea value={declaration} onChange={(e) => setDeclaration(e.target.value)}
-                    placeholder="I confirm I have received this item from the registered founder and it matches my report." />
+                    placeholder="I confirm I am receiving this item from the registered founder and accept responsibility for the information provided and the handover process." />
         </Field>
       </Modal>
     </div>

@@ -172,4 +172,15 @@ class LFClaim(TimestampMixin, Base):
     collected_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     handover_proof_url: Mapped[Optional[str]] = mapped_column(Text)
 
+    # The handover declaration form (#28/#15 in the spec) -- filled in by the
+    # claimant themselves right before collection, on top of the account's
+    # own name/email so the declaration stands as its own record even if the
+    # account is later renamed or the field guessed wrong on the account.
+    declared_name: Mapped[Optional[str]] = mapped_column(Text)
+    declared_id_number: Mapped[Optional[str]] = mapped_column(Text)
+    declared_email: Mapped[Optional[str]] = mapped_column(Text)
+    declared_address: Mapped[Optional[str]] = mapped_column(Text)
+    declaration_text: Mapped[Optional[str]] = mapped_column(Text)
+    declared_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
     item: Mapped["LFItem"] = relationship()
