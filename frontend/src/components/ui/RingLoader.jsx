@@ -3,11 +3,9 @@ import clsx from 'clsx'
 /**
  * Three-ring loading animation (Uiverse.io "Colorful Radar" by Nawsome,
  * unmodified colours/motion) — see styles/index.css for the .ringspin*
- * rules and keyframes this markup drives.
- *
- * Kept separate from BrandLoader (the app's own eye-themed loader,
- * styles/index.css's .pl* rules): different class names throughout so the
- * two never collide if both happen to render at once.
+ * rules and keyframes this markup drives. The app's full-page loading
+ * animation, replacing the earlier eye-themed BrandLoader everywhere it
+ * was used (App.jsx's RequireAuth/PublicOnly guards).
  *
  * Sized with clamp() rather than a fixed em value, so it scales down on a
  * small screen instead of staying one physical size regardless of viewport

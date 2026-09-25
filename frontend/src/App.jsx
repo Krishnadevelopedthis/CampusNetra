@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
-import { BrandLoader, Spinner } from '@/components/ui'
+import { RingLoader, Spinner } from '@/components/ui'
 import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
 import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
@@ -127,7 +127,7 @@ function RequireAuth({ children, roles }) {
 
   if (!initialised) {
     return (
-      <BrandLoader
+      <RingLoader
         label="Restoring your session…"
         className="min-h-screen"
       />
@@ -175,7 +175,7 @@ function PublicOnly({ children }) {
 
   if (!initialised) {
     return (
-      <BrandLoader
+      <RingLoader
         label="Loading…"
         className="min-h-screen"
       />
