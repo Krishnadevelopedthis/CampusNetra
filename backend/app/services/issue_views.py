@@ -27,10 +27,24 @@ from app.schemas.issues import (
 )
 
 
-def _minutes_remaining(due: Optional[datetime]) -> Optional[int]:
+def _minutes_remaining(due: Optional[datetime], as_of: Optional[datetime] = None) -> Optional[int]:
+    """Minutes until `due`, as of `as_of` (defaults to now).
+
+    An open issue's SLA clock is still running, so "now" is the right
+    reference -- that's the live countdown a reporter watches. A
+    resolved/closed issue's clock stopped at resolved_at; computing
+    against "now" instead means an old ticket that was closed well
+    before its deadline keeps counting further into "overdue" forever
+    as real time passes, directly contradicting its own sla_breached
+    flag (set once, at resolution) and the dashboard's SLA compliance
+    number, which is derived from that same flag. Callers pass
+    issue.resolved_at as as_of once it's set, freezing the number at
+    the moment the clock actually stopped.
+    """
     if due is None:
         return None
-    return int((due - datetime.now(timezone.utc)).total_seconds() // 60)
+    reference = as_of or datetime.now(timezone.utc)
+    return int((due - reference).total_seconds() // 60)
 
 
 async def _lookup_maps(db: AsyncSession, issues: Sequence[Issue]) -> dict:
@@ -157,7 +171,7 @@ def _to_list_item(issue: Issue, m: dict) -> IssueListItem:
         upvote_count=issue.upvote_count,
         sla_due_at=issue.sla_due_at,
         sla_breached=issue.sla_breached,
-        sla_minutes_remaining=_minutes_remaining(issue.sla_due_at),
+        sla_minutes_remaining=_minutes_remaining(issue.sla_due_at, issue.resolved_at),
         attachment_count=m["attachment_counts"].get(issue.id, 0),
         created_at=issue.created_at, updated_at=issue.updated_at,
     )
