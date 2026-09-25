@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
 import { useColorTheme } from './colorTheme'
+import { setDisplayPrefs } from './displayPrefs'
 
 /**
  * Session timeout
@@ -116,6 +117,7 @@ export const useAuth = create((set, get) => ({
           .getState()
           .loadFromUserPreferences(user.preferences)
       }
+      setDisplayPrefs(user?.preferences)
 
       set({
         user,
@@ -193,6 +195,7 @@ export const useAuth = create((set, get) => ({
           .getState()
           .loadFromUserPreferences(data.user.preferences)
       }
+      setDisplayPrefs(data.user?.preferences)
 
       set({
         user: data.user,
@@ -245,6 +248,7 @@ export const useAuth = create((set, get) => ({
         .getState()
         .loadFromUserPreferences(data.user.preferences)
     }
+    setDisplayPrefs(data.user?.preferences)
 
     set({
       user: data.user,
@@ -310,6 +314,11 @@ export const useAuth = create((set, get) => ({
         user,
       })
     }
+
+    // Settings.jsx calls setUser() right after PATCHing preferences, so this
+    // is also where a just-changed time_format/week_start takes effect
+    // immediately, without needing a reload.
+    setDisplayPrefs(user?.preferences)
 
     set({ user })
   },
