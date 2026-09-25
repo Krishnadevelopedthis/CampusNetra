@@ -149,6 +149,23 @@ async def _to_detail(db, item: LFItem, viewer: User) -> LFItemDetail:
     ids = {x for m_ in match_rows for x in (m_.lost_item_id, m_.found_item_id)}
     previews = await _previews(db, ids)
 
+    claims_out: list[ClaimOut] = []
+    if item.reported_by == viewer.id:
+        claim_rows = (await db.execute(
+            select(LFClaim, User)
+            .join(User, User.id == LFClaim.claimant_id)
+            .where(LFClaim.item_id == item.id)
+            .order_by(LFClaim.created_at.desc()))).all()
+        claims_out = [
+            ClaimOut(
+                id=c.id, reference=c.reference, item_id=item.id, item_reference=item.reference,
+                item_title=item.title, status=c.status, claimant=UserBrief.model_validate(u),
+                proof_note=c.proof_note, proof_urls=c.proof_urls,
+                rejection_reason=c.rejection_reason, verified_at=c.verified_at,
+                collected_at=c.collected_at, created_at=c.created_at)
+            for c, u in claim_rows
+        ]
+
     return LFItemDetail(
         **base.model_dump(),
         description=item.description, distinguishing_marks=item.distinguishing_marks,
@@ -161,6 +178,7 @@ async def _to_detail(db, item: LFItem, viewer: User) -> LFItemDetail:
         can_claim=(item.kind == LFKind.FOUND
                    and item.status in (LFStatus.OPEN, LFStatus.MATCHED)
                    and item.reported_by != viewer.id),
+        claims=claims_out,
     )
 
 

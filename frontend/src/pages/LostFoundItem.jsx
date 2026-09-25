@@ -157,6 +157,16 @@ export default function LostFoundItem() {
         </div>
       )}
 
+      {item.claims?.length > 0 && (
+        <Widget title="Claims on this item">
+          <div className="space-y-3">
+            {item.claims.map((c) => (
+              <FinderClaimRow key={c.id} claim={c} />
+            ))}
+          </div>
+        </Widget>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-5 items-start">
         {/* Item card */}
         <Widget bodyClass="p-0">
@@ -444,6 +454,58 @@ export default function LostFoundItem() {
                     placeholder="I confirm I have received this item from the registered founder and it matches my report." />
         </Field>
       </Modal>
+    </div>
+  )
+}
+
+const CLAIM_STATUS_PILL = {
+  submitted: 'bg-info-bg text-info-text',
+  under_review: 'bg-info-bg text-info-text',
+  approved: 'bg-success-bg text-success-text',
+  rejected: 'bg-danger-bg text-danger-text',
+  collected: 'bg-success-bg text-success-text',
+}
+
+/** A claim against an item the current user reported (finder). Approved
+ * claims can reveal the claimant's contact on demand, same gated endpoint
+ * the claimant's own side uses. */
+function FinderClaimRow({ claim }) {
+  const contact = useQuery({
+    queryKey: ['lf-claim-contact', claim.id],
+    queryFn: () => api.get(`/lost-found/claims/${claim.id}/contact`),
+    enabled: false,
+  })
+  return (
+    <div className="p-3 rounded border border-border-subtle">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-body-md text-ink font-medium truncate">
+            {claim.claimant?.full_name || 'Unknown claimant'}
+          </p>
+          <p className="text-body-sm text-ink-faint">{claim.reference}</p>
+        </div>
+        <span className={`pill text-body-sm ${CLAIM_STATUS_PILL[claim.status] || 'bg-neutral-bg text-neutral-text'}`}>
+          {titleCase(claim.status)}
+        </span>
+      </div>
+      {claim.proof_note && (
+        <p className="text-body-sm text-ink-muted mt-2">{claim.proof_note}</p>
+      )}
+      {(claim.status === 'approved' || claim.status === 'collected') && (
+        <div className="mt-2">
+          {!contact.data ? (
+            <Button size="sm" variant="secondary" loading={contact.isFetching}
+                    onClick={() => contact.refetch()}>
+              Show claimant's contact
+            </Button>
+          ) : (
+            <div className="text-body-sm text-ink-muted">
+              {contact.data.email && <p>{contact.data.email}</p>}
+              {contact.data.phone && <p>{contact.data.phone}</p>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

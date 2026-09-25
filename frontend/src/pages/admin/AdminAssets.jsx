@@ -6,7 +6,7 @@ import {
 import { useMemo, useState } from 'react'
 
 import {
-  Button, EmptyState, ErrorState, Field, Metric, Select,
+  Button, EmptyState, ErrorState, Field, Metric, MetricRow, Select,
   SkeletonRows, Widget, toast,
 } from '@/components/ui'
 import { AssetModal, RoomModal } from '@/features/twin/AssetRoomModals'
@@ -245,14 +245,14 @@ export default function AdminAssets() {
         </Widget>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-            <Metric label="Assets in room" value={totals.count} icon={Boxes} />
-            <Metric label="Purchase value" value={money(totals.value)} icon={CircleDollarSign} />
+          <MetricRow>
             <Metric
               label="Service overdue" value={totals.overdue} icon={AlertTriangle}
               accent={totals.overdue ? 'rgb(var(--c-danger))' : undefined}
             />
-          </div>
+            <Metric label="Assets in room" value={totals.count} icon={Boxes} />
+            <Metric label="Purchase value" value={money(totals.value)} icon={CircleDollarSign} />
+          </MetricRow>
 
           <Widget
             title={`Assets in ${room?.code || ''}`}
