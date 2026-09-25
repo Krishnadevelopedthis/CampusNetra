@@ -14,9 +14,9 @@ import random
 
 from PIL import Image, ImageDraw, ImageFilter
 
-WIDTH = 240
+WIDTH = 260
 HEIGHT = 70
-FONT_SIZE = 40
+FONT_SIZE = 34
 
 
 def _load_font(size: int):
@@ -40,46 +40,62 @@ def _load_font(size: int):
 def render_captcha_png(text: str) -> bytes:
     """Draws `text` with per-character rotation, noise lines and a blur pass."""
     rng = random.Random()
-    image = Image.new("RGB", (WIDTH, HEIGHT), (245, 246, 250))
+    width = WIDTH
+    image = Image.new("RGB", (width, HEIGHT), (245, 246, 250))
     draw = ImageDraw.Draw(image)
 
     # Background noise lines, drawn first so the text sits on top of them.
     for _ in range(6):
-        x1, y1 = rng.randint(0, WIDTH), rng.randint(0, HEIGHT)
-        x2, y2 = rng.randint(0, WIDTH), rng.randint(0, HEIGHT)
+        x1, y1 = rng.randint(0, width), rng.randint(0, HEIGHT)
+        x2, y2 = rng.randint(0, width), rng.randint(0, HEIGHT)
         draw.line((x1, y1, x2, y2), fill=(200, 205, 215), width=1)
 
     font = _load_font(FONT_SIZE)
-    char_w = WIDTH // max(len(text), 1)
 
-    # Placed left-to-right with a running cursor, not a fixed i*char_w slot.
-    # The old version clamped each glyph independently to [0, WIDTH -
-    # rotated.width] -- a bound that depends only on that glyph's own
-    # (rotation-inflated) width, not on i. For characters near the end of
-    # the string, that ceiling was often *lower* than their nominal slot,
-    # so several trailing characters all clamped down to the same x and
-    # rendered stacked on top of each other. A monotonically-advancing
-    # cursor can't go backwards, so two glyphs can never land on the same
-    # spot regardless of how wide rotation makes any one of them.
+    # Placed left-to-right with a running cursor, not a fixed i*char_w slot,
+    # and each glyph fully clears the previous one's actual drawn width
+    # before the next is placed -- no overlap, regardless of rotation. The
+    # distortion (rotation, jitter, warp, noise lines) still makes it hard
+    # to script-read; it just no longer makes it hard for a human to read
+    # either, which is what actually matters for a login captcha.
+    #
+    # Each glyph is drawn on a canvas sized to its own ink (via textbbox),
+    # not a fixed WIDTH/len slot or the full image HEIGHT -- rotating a
+    # mostly-empty tall canvas inflates its bounding box far past the
+    # actual character, which was pushing the cursor (and later characters)
+    # off the right edge and forcing them to clamp back on top of each other.
     cursor_x = 6
-    for i, ch in enumerate(text):
-        glyph = Image.new("RGBA", (char_w + 20, HEIGHT), (0, 0, 0, 0))
+    for ch in text:
+        bbox = font.getbbox(ch)
+        glyph_w = max(bbox[2] - bbox[0], 1) + 10
+        glyph_h = max(bbox[3] - bbox[1], 1) + 10
+        glyph = Image.new("RGBA", (glyph_w, glyph_h), (0, 0, 0, 0))
         gdraw = ImageDraw.Draw(glyph)
         color = (
             rng.randint(20, 90), rng.randint(20, 90), rng.randint(90, 160),
         )
-        gdraw.text((10, 8), ch, font=font, fill=color)
-        angle = rng.uniform(-22, 22)
+        gdraw.text((5 - bbox[0], 5 - bbox[1]), ch, font=font, fill=color)
+        angle = rng.uniform(-14, 14)
         rotated = glyph.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
 
-        x = min(cursor_x, max(0, WIDTH - rotated.width))
-        y = int((HEIGHT - rotated.height) / 2 + rng.uniform(-6, 6))
+        x = cursor_x
+        y = int((HEIGHT - rotated.height) / 2 + rng.uniform(-4, 4))
         y = min(max(y, 0), max(0, HEIGHT - rotated.height))
         image.paste(rotated, (x, y), rotated)
 
-        # A little controlled overlap (0.6x) keeps the crowded, hard-to-
-        # script-read captcha look without ever regressing the cursor.
-        cursor_x = x + max(int(rotated.width * 0.6), 14)
+        # Next glyph starts only once this one's own drawn box has fully
+        # cleared, plus a small gap -- guarantees no two characters ever
+        # share a column, however wide rotation makes either of them.
+        cursor_x = x + rotated.width + 4
+
+    # However wide the distorted text ends up, the canvas fits it -- rather
+    # than clamping the last character(s) back to a fixed width and
+    # reintroducing the exact overlap this function exists to prevent.
+    if cursor_x + 6 > width:
+        width = cursor_x + 6
+        wider = Image.new("RGB", (width, HEIGHT), (245, 246, 250))
+        wider.paste(image, (0, 0))
+        image = wider
 
     # A gentle sine-wave warp, then a light blur so edges don't look pasted on.
     warped = Image.new("RGB", image.size, (245, 246, 250))
@@ -87,15 +103,15 @@ def render_captcha_png(text: str) -> bytes:
     out = warped.load()
     for y in range(HEIGHT):
         shift = int(3 * math.sin(y / 6))
-        for x in range(WIDTH):
-            src_x = min(max(x + shift, 0), WIDTH - 1)
+        for x in range(width):
+            src_x = min(max(x + shift, 0), width - 1)
             out[x, y] = pixels[src_x, y]
 
     warped = warped.filter(ImageFilter.SMOOTH)
 
     for _ in range(3):
-        x1, y1 = rng.randint(0, WIDTH), rng.randint(0, HEIGHT)
-        x2, y2 = rng.randint(0, WIDTH), rng.randint(0, HEIGHT)
+        x1, y1 = rng.randint(0, width), rng.randint(0, HEIGHT)
+        x2, y2 = rng.randint(0, width), rng.randint(0, HEIGHT)
         ImageDraw.Draw(warped).line((x1, y1, x2, y2), fill=(160, 165, 180), width=1)
 
     buf = io.BytesIO()
