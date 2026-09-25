@@ -39,32 +39,42 @@ function StatusStepper({ status }) {
   }
   const effectiveIdx = PIPELINE.indexOf(status === 'on_hold' ? 'in_progress' : status)
   return (
-    <ol className="flex items-start gap-0 p-widget overflow-x-auto">
-      {PIPELINE.map((step, i) => {
-        const done = effectiveIdx >= 0 && i < effectiveIdx
-        const active = i === effectiveIdx
-        return (
-          <li key={step} className="flex items-center flex-1 min-w-[84px]">
-            <div className="flex flex-col items-center gap-1.5 flex-1">
-              <span className={clsx(
-                'w-7 h-7 rounded-full grid place-items-center text-body-sm font-semibold border-2 shrink-0 transition-colors',
-                done && 'bg-success border-success text-white',
-                active && 'border-secondary text-secondary bg-secondary/10',
-                !done && !active && 'border-border-subtle text-ink-faint',
-              )}>
-                {done ? <Check size={14} /> : i + 1}
-              </span>
-              <span className={clsx('text-[11px] text-center whitespace-nowrap', active ? 'text-ink font-medium' : 'text-ink-faint')}>
-                {step === 'in_progress' && status === 'on_hold' ? 'On Hold' : titleCase(step)}
-              </span>
-            </div>
-            {i < PIPELINE.length - 1 && (
-              <span className={clsx('h-0.5 flex-1 -mt-5', done ? 'bg-success' : 'bg-border-subtle')} />
-            )}
-          </li>
-        )
-      })}
-    </ol>
+    // 6 steps at their old fixed 84px each (504px) never fit a phone
+    // screen, so overflow-x-auto just silently clipped the row with no
+    // hint there was more to scroll to. Shrinking the circles/gaps/min
+    // width on mobile gets most or all steps to fit without scrolling at
+    // all; the relative wrapper + right-edge fade below covers whatever
+    // still needs a swipe, so it reads as "scroll for more" instead of
+    // "cut off".
+    <div className="relative">
+      <ol className="flex items-start gap-0 p-widget overflow-x-auto">
+        {PIPELINE.map((step, i) => {
+          const done = effectiveIdx >= 0 && i < effectiveIdx
+          const active = i === effectiveIdx
+          return (
+            <li key={step} className="flex items-center flex-1 min-w-[64px] sm:min-w-[84px]">
+              <div className="flex flex-col items-center gap-1 sm:gap-1.5 flex-1">
+                <span className={clsx(
+                  'w-6 h-6 sm:w-7 sm:h-7 rounded-full grid place-items-center text-body-sm font-semibold border-2 shrink-0 transition-colors',
+                  done && 'bg-success border-success text-white',
+                  active && 'border-secondary text-secondary bg-secondary/10',
+                  !done && !active && 'border-border-subtle text-ink-faint',
+                )}>
+                  {done ? <Check size={13} /> : i + 1}
+                </span>
+                <span className={clsx('text-[10px] sm:text-[11px] text-center whitespace-nowrap', active ? 'text-ink font-medium' : 'text-ink-faint')}>
+                  {step === 'in_progress' && status === 'on_hold' ? 'On Hold' : titleCase(step)}
+                </span>
+              </div>
+              {i < PIPELINE.length - 1 && (
+                <span className={clsx('h-0.5 flex-1 -mt-5', done ? 'bg-success' : 'bg-border-subtle')} />
+              )}
+            </li>
+          )
+        })}
+      </ol>
+      <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-surface to-transparent pointer-events-none sm:hidden" />
+    </div>
   )
 }
 
