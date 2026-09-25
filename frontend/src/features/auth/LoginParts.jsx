@@ -128,8 +128,13 @@ export function CaptchaField({ captcha, error, inputRef }) {
   return (
     <Field label="Type the characters shown" error={error} required>
       <div className="flex items-center gap-2">
+        {/* h-12 against a ~260x70 image (object-contain fits to width at
+            this box's 140px, landing at ~38px tall) left visible empty
+            strips above and below the image inside the box. h-10 both
+            closes that gap and matches the refresh button/input beside it,
+            which are already h-10. */}
         <div
-          className="grid place-items-center w-[140px] h-12 shrink-0 overflow-hidden
+          className="grid place-items-center w-[140px] h-10 shrink-0 overflow-hidden
                      rounded-lg border border-border bg-surface-sunken"
         >
           {image ? (
