@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Field, Metric, MetricRow, Modal, Spinner, StatusPill,
+  Button, EmptyState, ErrorState, Field, Input, Metric, MetricRow, Modal, Spinner, StatusPill,
   Textarea, Widget, toast,
 } from '@/components/ui'
 import { ImageUpload } from '@/components/ImageUpload'
@@ -19,9 +19,15 @@ export default function AdminLostFound() {
   const [tab, setTab] = useState('claims')
   const [rejecting, setRejecting] = useState(null)
   const [reason, setReason] = useState('')
+  const [approvingId, setApprovingId] = useState(null)
   const [handoverClaim, setHandoverClaim] = useState(null)
   const [handoverPhoto, setHandoverPhoto] = useState([])
   const [declarationText, setDeclarationText] = useState('')
+  const [handoverName, setHandoverName] = useState('')
+  const [handoverIdNumber, setHandoverIdNumber] = useState('')
+  const [handoverEmail, setHandoverEmail] = useState('')
+  const [handoverAddress, setHandoverAddress] = useState('')
+  const [handoverErrors, setHandoverErrors] = useState({})
 
   const dashboard = useQuery({
     queryKey: ['lf-dashboard'], queryFn: () => api.get('/lost-found/dashboard'),
@@ -52,19 +58,27 @@ export default function AdminLostFound() {
   const decide = useMutation({
     mutationFn: ({ id, approve, reason }) =>
       api.post(`/lost-found/claims/${id}/decide`, { approve, reason: reason || null }),
-    onSuccess: (d) => { toast.success(d.detail); setRejecting(null); setReason(''); refresh() },
-    onError: (e) => toast.error(e.detail || 'Could not record the decision'),
+    onSuccess: (d) => { toast.success(d.detail); setRejecting(null); setReason(''); setApprovingId(null); refresh() },
+    onError: (e) => { toast.error(e.detail || 'Could not record the decision'); setApprovingId(null) },
   })
 
+  const closeHandover = () => {
+    setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('')
+    setHandoverName(''); setHandoverIdNumber(''); setHandoverEmail('')
+    setHandoverAddress(''); setHandoverErrors({})
+  }
+
   const collected = useMutation({
-    mutationFn: ({ id, handover_proof_url, declaration_text }) =>
-      api.post(`/lost-found/claims/${id}/collected`, { handover_proof_url, declaration_text }),
+    mutationFn: ({ id, ...payload }) => api.post(`/lost-found/claims/${id}/collected`, payload),
     onSuccess: (d) => {
       toast.success(d.detail)
-      setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('')
+      closeHandover()
       refresh()
     },
-    onError: (e) => toast.error(e.detail),
+    onError: (e) => {
+      toast.error(e.detail || 'Could not record the handover')
+      setHandoverErrors(e.fields || {})
+    },
   })
 
   const decideMatch = useMutation({
@@ -140,7 +154,11 @@ export default function AdminLostFound() {
                       <div className="flex gap-2 shrink-0">
                         {c.status === 'approved' ? (
                           <Button size="sm" icon={PackageCheck}
-                                  onClick={() => setHandoverClaim(c)}>
+                                  onClick={() => {
+                                    setHandoverClaim(c)
+                                    setHandoverName(c.claimant?.full_name || '')
+                                    setHandoverEmail(c.claimant?.email || '')
+                                  }}>
                             Mark collected
                           </Button>
                         ) : (
@@ -149,8 +167,10 @@ export default function AdminLostFound() {
                                     onClick={() => setRejecting(c)}>
                               Reject
                             </Button>
-                            <Button size="sm" icon={Check} loading={decide.isPending}
-                                    onClick={() => decide.mutate({ id: c.id, approve: true })}>
+                            <Button size="sm" icon={Check}
+                                    loading={decide.isPending && approvingId === c.id}
+                                    disabled={decide.isPending && approvingId !== c.id}
+                                    onClick={() => { setApprovingId(c.id); decide.mutate({ id: c.id, approve: true }) }}>
                               Approve release
                             </Button>
                           </>
@@ -297,20 +317,28 @@ export default function AdminLostFound() {
 
       <Modal
         open={!!handoverClaim}
-        onClose={() => { setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('') }}
+        onClose={closeHandover}
         title={`Handover — claim ${handoverClaim?.reference || ''}`}
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setHandoverClaim(null); setHandoverPhoto([]); setDeclarationText('') }}>
+            <Button variant="secondary" onClick={closeHandover}>
               Cancel
             </Button>
             <Button
               icon={PackageCheck}
               loading={collected.isPending}
-              disabled={!handoverPhoto.length || declarationText.trim().length < 10}
+              disabled={
+                !handoverPhoto.length || declarationText.trim().length < 10
+                || handoverName.trim().length < 2 || !handoverEmail.trim()
+                || handoverAddress.trim().length < 5
+              }
               onClick={() => collected.mutate({
                 id: handoverClaim.id,
                 handover_proof_url: handoverPhoto[0]?.url,
+                declared_name: handoverName.trim(),
+                declared_id_number: handoverIdNumber.trim() || null,
+                declared_email: handoverEmail.trim(),
+                declared_address: handoverAddress.trim(),
                 declaration_text: declarationText.trim(),
               })}
             >
@@ -320,14 +348,32 @@ export default function AdminLostFound() {
         }
       >
         <p className="text-body-md text-ink-muted mb-3">
-          Required before this claim can be marked complete — a photo of the
-          handover and the claimant's written declaration, both recorded
-          against the claim.
+          Required before this claim can be marked complete — the claimant's
+          details, a photo of the handover, and their written declaration, all
+          recorded against the claim. Use this only when the claimant can't do
+          it themselves in-app; otherwise they confirm it from their own side.
         </p>
-        <Field label="Proof of handover" required hint="A photo of the item being handed over, or the claimant's signature/ID">
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="Claimant's full name" required error={handoverErrors.declared_name}>
+            <Input value={handoverName} onChange={(e) => setHandoverName(e.target.value)} />
+          </Field>
+          <Field label="Student / Teacher / Technician ID" hint="If they have one" error={handoverErrors.declared_id_number}>
+            <Input value={handoverIdNumber} onChange={(e) => setHandoverIdNumber(e.target.value)} />
+          </Field>
+          <Field label="Email" required error={handoverErrors.declared_email}>
+            <Input type="email" value={handoverEmail} onChange={(e) => setHandoverEmail(e.target.value)} />
+          </Field>
+          <Field label="Address / contact" required error={handoverErrors.declared_address}>
+            <Input value={handoverAddress} onChange={(e) => setHandoverAddress(e.target.value)} />
+          </Field>
+        </div>
+
+        <Field label="Proof of handover" required className="mt-4" error={handoverErrors.handover_proof_url}
+               hint="A photo of the item being handed over, or the claimant's signature/ID">
           <ImageUpload value={handoverPhoto} onChange={setHandoverPhoto} purpose="report" max={1} />
         </Field>
-        <Field label="Claimant's declaration" required className="mt-4"
+        <Field label="Claimant's declaration" required className="mt-4" error={handoverErrors.declaration_text}
                hint="e.g. confirmation they're receiving this item and accept responsibility for the information they provided">
           <Textarea
             value={declarationText} onChange={(e) => setDeclarationText(e.target.value)}

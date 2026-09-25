@@ -37,6 +37,7 @@ export default function LostFoundItem() {
   const [declaredIdNumber, setDeclaredIdNumber] = useState(user?.enrollment_no || user?.employee_id || '')
   const [declaredEmail, setDeclaredEmail] = useState(user?.email || '')
   const [declaredAddress, setDeclaredAddress] = useState('')
+  const [handoverErrors, setHandoverErrors] = useState({})
 
   const { data: item, isLoading, error, refetch } = useQuery({
     queryKey: ['lf-item', id],
@@ -93,7 +94,10 @@ export default function LostFoundItem() {
       qc.invalidateQueries({ queryKey: ['lf-my-claims'] })
       invalidate()
     },
-    onError: (err) => toast.error(err.detail || 'Could not confirm handover'),
+    onError: (err) => {
+      toast.error(err.detail || 'Could not confirm handover')
+      setHandoverErrors(err.fields || {})
+    },
   })
 
   const decideMatch = useMutation({
@@ -437,10 +441,10 @@ export default function LostFoundItem() {
       </Modal>
 
       <Modal
-        open={handoverOpen} onClose={() => setHandoverOpen(false)} title="Confirm handover"
+        open={handoverOpen} onClose={() => { setHandoverOpen(false); setHandoverErrors({}) }} title="Confirm handover"
         footer={
           <>
-            <Button variant="secondary" onClick={() => setHandoverOpen(false)}>Cancel</Button>
+            <Button variant="secondary" onClick={() => { setHandoverOpen(false); setHandoverErrors({}) }}>Cancel</Button>
             <Button
               loading={confirmHandover.isPending}
               disabled={
@@ -462,26 +466,26 @@ export default function LostFoundItem() {
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Full name" required>
+          <Field label="Full name" required error={handoverErrors.declared_name}>
             <Input value={declaredName} onChange={(e) => setDeclaredName(e.target.value)} />
           </Field>
-          <Field label="Student / Teacher / Technician ID" hint="If you have one">
+          <Field label="Student / Teacher / Technician ID" hint="If you have one" error={handoverErrors.declared_id_number}>
             <Input value={declaredIdNumber} onChange={(e) => setDeclaredIdNumber(e.target.value)} />
           </Field>
-          <Field label="Email" required>
+          <Field label="Email" required error={handoverErrors.declared_email}>
             <Input type="email" value={declaredEmail} onChange={(e) => setDeclaredEmail(e.target.value)} />
           </Field>
-          <Field label="Address / contact" required>
+          <Field label="Address / contact" required error={handoverErrors.declared_address}>
             <Input value={declaredAddress} onChange={(e) => setDeclaredAddress(e.target.value)}
                    placeholder="Hostel/room, or a way to reach you" />
           </Field>
         </div>
 
-        <Field label="Photo proof" required className="mt-4">
+        <Field label="Photo proof" required className="mt-4" error={handoverErrors.handover_proof_url}>
           <ImageUpload value={proofPhoto} onChange={setProofPhoto} max={1} purpose="lost_found"
                        hint="A quick photo of the item with you is enough." />
         </Field>
-        <Field label="Declaration" required className="mt-4"
+        <Field label="Declaration" required className="mt-4" error={handoverErrors.declaration_text}
                hint={`${declaration.trim().length}/10 characters minimum`}>
           <Textarea value={declaration} onChange={(e) => setDeclaration(e.target.value)}
                     placeholder="I confirm I am receiving this item from the registered founder and accept responsibility for the information provided and the handover process." />
