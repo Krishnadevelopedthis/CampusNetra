@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw, X } from 'lucide-react'
 import { Children, cloneElement, forwardRef, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { GooeyToaster, gooeyToast } from 'goey-toast'
 import 'goey-toast/styles.css'
 
@@ -76,7 +77,13 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   if (!open) return null
   const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl', xl: 'max-w-5xl' }
 
-  return (
+  // Portalled to document.body rather than rendered in place: a modal
+  // opened from deep inside a stack of widgets (each one its own stacking
+  // context via backdrop-blur) only wins z-50 against its own siblings --
+  // a later widget in the DOM can still paint on top of it regardless of
+  // z-index. Rendering at the document root guarantees it's always the
+  // topmost stacking context, full stop.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm animate-fade-in"
@@ -102,7 +109,8 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           </footer>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
