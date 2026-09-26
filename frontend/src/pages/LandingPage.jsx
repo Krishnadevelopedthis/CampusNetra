@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Navbar,
   Hero,
@@ -19,12 +20,65 @@ import {
   CTA,
   Footer,
 } from '@/components/landing'
+import { SITE_URL, usePageSEO } from '@/hooks/usePageSEO'
+
+const HOME_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: 'CampusNetra',
+      url: SITE_URL,
+      logo: `${SITE_URL}/logo-dark.svg`,
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'CampusNetra',
+      applicationCategory: 'BusinessApplication',
+      operatingSystem: 'Web',
+      description:
+        'AI-powered campus facility management: issue reporting, work order orchestration, '
+        + 'digital twin visualisation, and predictive maintenance for universities, colleges '
+        + 'and research facilities.',
+      url: SITE_URL,
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+  ],
+}
 
 export default function LandingPage() {
+  usePageSEO({
+    title: 'Smart Campus Facility Management System',
+    description:
+      'CampusNetra is an intelligent campus facility management platform combining issue '
+      + 'reporting, work order orchestration, digital twin visualisation, and AI-driven '
+      + 'predictive maintenance.',
+    path: '/',
+    jsonLd: HOME_JSON_LD,
+  })
+
+  const location = useLocation()
   useEffect(() => {
-    // Set document title for SEO
-    document.title = 'CampusNetra | Smart Campus Facility Management System'
-  }, [])
+    if (!location.hash) return
+    // Arriving here via Footer's cross-page anchor links (from e.g. /pricing
+    // clicking "Issue Management") lands with a hash but nothing scrolled
+    // to yet -- a plain document.querySelector at mount time can also lose
+    // the race against this page's own lazy-loaded sections still
+    // rendering, so this retries for up to ~1s instead of trying once and
+    // silently giving up if the target section isn't in the DOM yet.
+    let attempts = 0
+    const tryScroll = () => {
+      const el = document.querySelector(location.hash)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' })
+      } else if (attempts < 20) {
+        attempts += 1
+        setTimeout(tryScroll, 50)
+      }
+    }
+    tryScroll()
+  }, [location.hash])
 
   return (
     <div className="min-h-screen bg-surface-base text-ink flex flex-col">

@@ -4,6 +4,7 @@ import { Mail } from 'lucide-react'
 export default function Support() {
   return (
     <StaticPage
+      path="/support"
       eyebrow="Support"
       title="Get help"
       subtitle="Something broken, confusing, or missing? This is the place to say so."

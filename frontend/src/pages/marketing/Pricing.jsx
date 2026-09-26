@@ -14,6 +14,7 @@ const INCLUDED = [
 export default function Pricing() {
   return (
     <StaticPage
+      path="/pricing"
       eyebrow="Pricing"
       title="Priced around your campus, not a seat count"
       subtitle="Every campus is a different size with a different mix of buildings, staff, and students — pricing is worked out per deployment rather than a generic per-seat rate that doesn't fit either a small college or a large university system."

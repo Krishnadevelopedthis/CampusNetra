@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import clsx from 'clsx'
@@ -31,18 +31,38 @@ const FOOTER_LINKS = {
   Resources: [
     { label: 'Features', href: '/features', isRoute: true },
     { label: 'Pricing', href: '/pricing', isRoute: true },
-    { label: 'Documentation', href: '/docs', isRoute: true },
-    { label: 'API Reference', href: '/api-docs', isRoute: true },
-    { label: 'Community', href: '/community', isRoute: true },
+    { label: 'Security', href: '/security', isRoute: true },
     { label: 'Support', href: '/support', isRoute: true },
   ],
 }
+// Documentation, API Reference and Community are deliberately left out --
+// all three are still genuinely "coming soon" placeholder pages (see
+// pages/marketing/Docs.jsx etc.), not real content. Linking to them from
+// primary site navigation invited real visitors to click through to a
+// dead end, and search engines to treat thin placeholder pages as if they
+// mattered as much as the real ones -- the pages themselves still exist
+// and are reachable directly, just marked noindex (see usePageSEO calls
+// in each) and no longer promoted from the footer.
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
+  const location = useLocation()
+  const navigate = useNavigate()
 
+  // This footer is shared by every page (StaticPage renders it too, not
+  // just the homepage) -- these anchors only ever point at sections that
+  // exist on the homepage. Clicking "Issue Management" while already
+  // reading the Pricing page used to just silently do nothing: preventDefault
+  // fired, but document.querySelector(href) found nothing on this page to
+  // scroll to. Off the homepage, this now navigates to "/" + the hash
+  // instead; LandingPage's own mount effect (see LandingPage.jsx) picks up
+  // that hash and scrolls to it once the section actually exists in the DOM.
   const handleAnchor = (e, href) => {
     e.preventDefault()
+    if (location.pathname !== '/') {
+      navigate(`/${href}`)
+      return
+    }
     const el = document.querySelector(href)
     if (el) el.scrollIntoView({ behavior: 'smooth' })
   }

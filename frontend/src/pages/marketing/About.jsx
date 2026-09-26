@@ -3,6 +3,7 @@ import { StaticPage } from '@/pages/StaticPage'
 export default function About() {
   return (
     <StaticPage
+      path="/about"
       eyebrow="About"
       title="Built for the people who actually keep a campus running"
       subtitle="CampusNetra started from a simple observation: most campuses run facilities on paper forms, WhatsApp groups, and spreadsheets — not because nobody cares, but because nothing built for this job ever fit it."

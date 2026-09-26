@@ -3,6 +3,8 @@ import { StaticPage } from '@/pages/StaticPage'
 export default function Docs() {
   return (
     <StaticPage
+      path="/docs"
+      noindex
       eyebrow="Documentation"
       title="Documentation is still being written"
       subtitle="CampusNetra is under active development, and a full documentation site isn't published yet."
