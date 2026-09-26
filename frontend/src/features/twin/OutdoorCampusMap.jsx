@@ -66,7 +66,7 @@ function squareFootprint(lat, lng, sizeMeters) {
   ]]
 }
 
-function buildingFeatures(buildings, mode, heatByBuilding, heatColour) {
+function buildingFeatures(buildings, mode, heatByBuilding, heatColour, sizeScale = 1) {
   return buildings
     .filter((b) => b.latitude != null && b.longitude != null)
     .map((b) => {
@@ -76,7 +76,7 @@ function buildingFeatures(buildings, mode, heatByBuilding, heatColour) {
       // ~9m per floor's worth of footprint feels roughly building-sized at
       // campus zoom without measured footprints to go on; height uses the
       // same floor count the indoor view already scales by.
-      const size = Math.max(14, Math.sqrt((b.floors_count || 1)) * 11)
+      const size = Math.max(14, Math.sqrt((b.floors_count || 1)) * 11) * sizeScale
       return {
         type: 'Feature',
         id: b.id,
@@ -88,6 +88,34 @@ function buildingFeatures(buildings, mode, heatByBuilding, heatColour) {
         },
       }
     })
+}
+
+// A tiled window-grid texture applied to a second, fractionally larger
+// extrusion layered just outside the coloured wall layer below (so a
+// building reads as a building first and a status colour second, matching
+// the indoor Scene3D's wall + window-grid style) rather than a plain flat
+// block. The 1.5% size inflation on that second layer keeps its side walls
+// just outside the base layer's, which avoids z-fighting between two
+// coplanar fill-extrusion layers sharing the same footprint.
+const WINDOW_LAYER_SIZE_SCALE = 1.015
+
+function createWindowPatternImageData(tile = 32) {
+  const canvas = document.createElement('canvas')
+  canvas.width = tile
+  canvas.height = tile
+  const ctx = canvas.getContext('2d')
+  ctx.clearRect(0, 0, tile, tile)
+  const pad = tile * 0.16
+  const gap = tile * 0.14
+  const winW = (tile - pad * 2 - gap) / 2
+  const winH = winW * 1.25
+  ctx.fillStyle = 'rgba(226,232,240,0.65)'
+  for (const row of [0, 1]) {
+    for (const col of [0, 1]) {
+      ctx.fillRect(pad + col * (winW + gap), pad + row * (winH + gap), winW, winH)
+    }
+  }
+  return ctx.getImageData(0, 0, tile, tile)
 }
 
 /** A dashed ring around the campus centre standing in for a boundary —
@@ -187,8 +215,37 @@ export function OutdoorCampusMap({
           'fill-extrusion-height': ['get', 'height'],
           'fill-extrusion-opacity': 0.92,
           'fill-extrusion-base': 0,
+          // Built-in MapLibre shading (darker toward the base) -- a cheap,
+          // zero-risk way to make a flat-coloured block actually read as a
+          // 3D volume rather than a coloured cutout.
+          'fill-extrusion-vertical-gradient': true,
         },
       })
+
+      // Window-grid texture layer -- see createWindowPatternImageData()
+      // above for why this needs its own, slightly larger footprint.
+      if (!map.hasImage('cn-window-pattern')) {
+        map.addImage('cn-window-pattern', createWindowPatternImageData(), { pixelRatio: 2 })
+      }
+      map.addSource('cn-buildings-windows', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: buildingFeatures(buildings, mode, heatByBuilding, heatColour, WINDOW_LAYER_SIZE_SCALE),
+        },
+        promoteId: 'id',
+      })
+      map.addLayer({
+        id: 'cn-buildings-windows', type: 'fill-extrusion', source: 'cn-buildings-windows',
+        paint: {
+          'fill-extrusion-color': '#0f172a',
+          'fill-extrusion-pattern': 'cn-window-pattern',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.85,
+        },
+      })
+
       map.addLayer({
         id: 'cn-buildings-outline', type: 'line', source: 'cn-buildings',
         paint: { 'line-color': '#1e293b', 'line-width': 1, 'line-opacity': 0.4 },
@@ -400,6 +457,11 @@ export function OutdoorCampusMap({
     src.setData({
       type: 'FeatureCollection',
       features: buildingFeatures(buildings, mode, heatByBuilding, heatColour),
+    })
+    const windowsSrc = map.getSource('cn-buildings-windows')
+    windowsSrc?.setData({
+      type: 'FeatureCollection',
+      features: buildingFeatures(buildings, mode, heatByBuilding, heatColour, WINDOW_LAYER_SIZE_SCALE),
     })
   }, [buildings, mode, heatByBuilding, heatColour])
 
