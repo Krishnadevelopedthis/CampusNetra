@@ -2,7 +2,7 @@ import { StaticPage } from '@/pages/StaticPage'
 
 export default function Privacy() {
   return (
-    <StaticPage eyebrow="Legal" title="Privacy Policy" subtitle="Last updated: reflects what CampusNetra currently collects and why.">
+    <StaticPage path="/privacy" eyebrow="Legal" title="Privacy Policy" subtitle="Last updated: reflects what CampusNetra currently collects and why.">
       <div className="not-prose widget p-5 glass-panel border border-warning-border bg-warning-bg mb-8">
         <p className="text-body-sm text-warning-text">
           This page describes what the product actually does today. It is a starting draft, not

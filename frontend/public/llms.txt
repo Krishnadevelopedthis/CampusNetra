@@ -1,0 +1,25 @@
+# CampusNetra
+
+> CampusNetra is an intelligent campus facility management platform for universities, colleges and research facilities. It combines issue reporting, work order orchestration, a live digital twin of the campus, AI-driven predictive maintenance, and a shared Lost & Found in one system.
+
+CampusNetra replaces the paper forms, WhatsApp groups and spreadsheets most campuses currently run facilities on. A student or staff member reports an issue with a photo; it's automatically classified and routed to the right department; a technician works it as a tracked work order against an SLA; the campus's live digital twin reflects the change as it happens.
+
+## Product
+
+- [Features](https://campusnetra.dpdns.org/features): the nine connected modules — issue reporting, work orders, digital twin, predictive maintenance, inspections, Lost & Found, analytics, SLA tracking, role-based access.
+- [Pricing](https://campusnetra.dpdns.org/pricing): priced per deployment, not a flat per-seat rate.
+- [Security](https://campusnetra.dpdns.org/security): specific account and data protection measures.
+
+## Who it's for
+
+- [Universities](https://campusnetra.dpdns.org/solutions/universities): multi-campus, multi-building deployments.
+- [Colleges](https://campusnetra.dpdns.org/solutions/colleges): single-campus facility management.
+- [Research facilities](https://campusnetra.dpdns.org/solutions/research): equipment- and lab-heavy environments.
+- [Facility managers](https://campusnetra.dpdns.org/solutions/managers): the day-to-day dispatching/triage workflow.
+
+## Company
+
+- [About](https://campusnetra.dpdns.org/about)
+- [Support](https://campusnetra.dpdns.org/support): support@campusnetra.dpdns.org
+- [Privacy Policy](https://campusnetra.dpdns.org/privacy)
+- [Terms of Service](https://campusnetra.dpdns.org/terms)

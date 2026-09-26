@@ -47,7 +47,7 @@ export default function Solutions() {
   if (!data) return <Navigate to="/" replace />
 
   return (
-    <StaticPage eyebrow="Solutions" title={data.title} subtitle={data.subtitle}>
+    <StaticPage path={`/solutions/${audience}`} eyebrow="Solutions" title={data.title} subtitle={data.subtitle}>
       <ul className="not-prose space-y-4">
         {data.points.map((point) => (
           <li key={point} className="flex gap-3 text-body-md text-ink-muted leading-relaxed">

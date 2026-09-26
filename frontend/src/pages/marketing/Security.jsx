@@ -27,6 +27,7 @@ const MEASURES = [
 export default function Security() {
   return (
     <StaticPage
+      path="/security"
       eyebrow="Security"
       title="How CampusNetra protects your account"
       subtitle="Specific, real measures — not a generic 'we take security seriously' paragraph."

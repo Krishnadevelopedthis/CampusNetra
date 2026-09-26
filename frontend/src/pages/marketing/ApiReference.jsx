@@ -3,6 +3,8 @@ import { StaticPage } from '@/pages/StaticPage'
 export default function ApiReference() {
   return (
     <StaticPage
+      path="/api-docs"
+      noindex
       eyebrow="Developers"
       title="A public API reference isn't published yet"
       subtitle="CampusNetra's backend is a REST API under the hood, but a stable, documented public surface for third-party integrations doesn't exist yet."

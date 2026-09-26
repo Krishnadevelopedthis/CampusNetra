@@ -37,6 +37,7 @@ const FEATURES = [
 export default function Features() {
   return (
     <StaticPage
+      path="/features"
       eyebrow="Features"
       title="Everything a campus facilities team actually needs, in one place"
       subtitle="Nine connected modules sharing one source of truth — no separate tool for issues, work orders, and the inspection schedule that never gets checked."

@@ -2,7 +2,7 @@ import { StaticPage } from '@/pages/StaticPage'
 
 export default function Terms() {
   return (
-    <StaticPage eyebrow="Legal" title="Terms of Service" subtitle="The basics of using CampusNetra.">
+    <StaticPage path="/terms" eyebrow="Legal" title="Terms of Service" subtitle="The basics of using CampusNetra.">
       <div className="not-prose widget p-5 glass-panel border border-warning-border bg-warning-bg mb-8">
         <p className="text-body-sm text-warning-text">
           Starting draft, not reviewed by a lawyer — have it checked before relying on it,
