@@ -4,15 +4,14 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import delete as sa_delete, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip
+from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip, require_permission
 from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.core.enums import IssueStatus, Priority, UserRole, UserStatus
@@ -27,6 +26,7 @@ from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Ro
 from app.models.work import SLAPolicy, WorkOrder
 from app.schemas.auth import NameChangeDecisionRequest, UserOut, validate_password, validate_seven_digit_id
 from app.schemas.common import Message, Page, UserBrief
+from app.services import permissions as perm_service
 from app.services import predictive
 from app.services.audit import record_audit
 from app.services.templates import NOTIFICATION_CODES, codes_payload
@@ -37,6 +37,12 @@ router = APIRouter(route_class=CommitRoute, prefix="/admin", tags=["Administrati
 # Same list analytics.py already uses for its own (correctly-scoped)
 # compliance calculation.
 CLOSED_ISSUES = [IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED]
+
+RequireUsersView = Annotated[User, Depends(require_permission("users:view"))]
+RequireUsersManage = Annotated[User, Depends(require_permission("users:manage"))]
+RequireAdminSLA = Annotated[User, Depends(require_permission("admin:sla"))]
+RequireAdminAudit = Annotated[User, Depends(require_permission("admin:audit"))]
+RequireNotificationsManage = Annotated[User, Depends(require_permission("notifications:manage"))]
 
 
 # ---------------- Users ----------------
@@ -100,7 +106,7 @@ class ProgrammeUpsert(BaseModel):
 
 @router.get("/users", response_model=Page[UserOut])
 async def list_users(
-    user: RequireManager, db: DB, paging: Paging,
+    user: RequireUsersView, db: DB, paging: Paging,
     role: Optional[UserRole] = None,
     status_filter: Optional[UserStatus] = Query(None, alias="status"),
     department_id: Optional[uuid.UUID] = None,
@@ -139,7 +145,7 @@ async def list_users(
 
 
 @router.post("/users", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def create_user(payload: UserCreate, admin: RequireAdmin, db: DB, request: Request):
+async def create_user(payload: UserCreate, admin: RequireUsersManage, db: DB, request: Request):
     """Provision an account directly. This is the only path to elevated roles."""
     try:
         validate_password(payload.password)
@@ -184,7 +190,7 @@ async def create_user(payload: UserCreate, admin: RequireAdmin, db: DB, request:
 
 @router.patch("/users/{user_id}", response_model=UserOut)
 async def update_user(
-    user_id: uuid.UUID, payload: UserUpdate, admin: RequireAdmin, db: DB, request: Request
+    user_id: uuid.UUID, payload: UserUpdate, admin: RequireUsersManage, db: DB, request: Request
 ):
     target = await db.scalar(select(User).where(User.id == user_id))
     if target is None or target.organization_id != admin.organization_id:
@@ -215,7 +221,7 @@ async def update_user(
 
 @router.post("/users/{user_id}/deactivate", response_model=Message)
 async def deactivate_user(
-    user_id: uuid.UUID, admin: RequireAdmin, db: DB, request: Request
+    user_id: uuid.UUID, admin: RequireUsersManage, db: DB, request: Request
 ):
     """Deactivate rather than delete — complaints reference their reporter.
 
@@ -258,7 +264,7 @@ async def deactivate_user(
 
 @router.post("/users/{user_id}/activate", response_model=Message)
 async def activate_user(
-    user_id: uuid.UUID, admin: RequireAdmin, db: DB, request: Request
+    user_id: uuid.UUID, admin: RequireUsersManage, db: DB, request: Request
 ):
     """Restore a deactivated or suspended account.
 
@@ -320,52 +326,12 @@ async def list_roles(user: RequireManager, db: DB):
     ]
 
 
-## A starting catalogue of permission *types* to pick from -- not
-## enforcement. Nothing in the backend's actual authorization checks reads
-## RolePermission yet (every protected route still gates on role directly
-## via RequireStaff/RequireManager/RequireAdmin); granting or revoking one
-## of these only changes what this admin screen records as granted. Wiring
-## real enforcement to consult this table is a separate, much larger change
-## across every protected endpoint, done deliberately later, not here.
-PERMISSION_SEED = [
-    ("issues", "view", "See complaints"),
-    ("issues", "create", "Report a new complaint"),
-    ("issues", "triage", "Triage and assign complaints"),
-    ("issues", "resolve", "Transition/resolve/close complaints"),
-    ("work_orders", "view", "See work orders"),
-    ("work_orders", "create", "Create a work order"),
-    ("work_orders", "assign", "Assign a work order to a technician"),
-    ("work_orders", "update", "Update/close a work order"),
-    ("inspections", "view", "See inspections"),
-    ("inspections", "schedule", "Schedule an inspection"),
-    ("inspections", "conduct", "Carry out an inspection"),
-    ("lost_found", "view", "Browse Lost & Found"),
-    ("lost_found", "report", "Report a lost/found item"),
-    ("lost_found", "review", "Review AI matches and approve claims"),
-    ("assets", "view", "View campus assets"),
-    ("assets", "manage", "Add/edit buildings, rooms and assets"),
-    ("users", "view", "View the user directory"),
-    ("users", "manage", "Edit user roles and status"),
-    ("analytics", "view", "View analytics and reports"),
-    ("analytics", "simulate", "Run scenario simulations"),
-    ("admin", "sla", "Configure SLA policies"),
-    ("admin", "audit", "View the audit log"),
-    ("admin", "campus_config", "Edit campus/organization configuration"),
-    ("notifications", "manage", "Manage notification templates"),
-]
-
-
-async def _ensure_permissions_seeded(db: AsyncSession) -> None:
-    if await db.scalar(select(func.count()).select_from(Permission)):
-        return
-    for module, action, description in PERMISSION_SEED:
-        db.add(Permission(code=f"{module}:{action}", module=module, description=description))
-    await db.flush()
-
-
 @router.get("/permissions", response_model=list[dict])
 async def list_permissions(user: RequireManager, db: DB):
-    await _ensure_permissions_seeded(db)
+    # Redundant with the same call at app startup (app/main.py) -- cheap
+    # and idempotent, kept here too as a safety net for any environment
+    # where the startup hook didn't get to run for some reason.
+    await perm_service.ensure_seeded(db)
     rows = (await db.scalars(select(Permission).order_by(Permission.module, Permission.code))).all()
     return [{"id": str(p.id), "code": p.code, "module": p.module,
              "description": p.description} for p in rows]
@@ -534,7 +500,7 @@ class SLAUpdate(BaseModel):
 
 
 @router.get("/sla", response_model=list[dict])
-async def list_sla(user: RequireManager, db: DB):
+async def list_sla(user: RequireAdminSLA, db: DB):
     rows = (await db.execute(
         select(SLAPolicy, Department.name)
         .join(Department, Department.id == SLAPolicy.department_id, isouter=True)
@@ -713,7 +679,7 @@ class NotificationTemplateUpsert(BaseModel):
 
 
 @router.get("/notification-templates", response_model=dict)
-async def list_notification_templates(user: RequireManager, db: DB):
+async def list_notification_templates(user: RequireNotificationsManage, db: DB):
     from app.models.platform import NotificationTemplate
 
     rows = (await db.scalars(
@@ -773,7 +739,7 @@ async def upsert_notification_template(
 # ---------------- Audit & security ----------------
 @router.get("/audit", response_model=Page[dict])
 async def audit_logs(
-    admin: RequireAdmin, db: DB, paging: Paging,
+    admin: RequireAdminAudit, db: DB, paging: Paging,
     action: Optional[str] = None,
     actor_id: Optional[uuid.UUID] = None,
 ):
@@ -1619,7 +1585,7 @@ async def user_detail(user_id: uuid.UUID, admin: RequireManager, db: DB):
 
 @router.delete("/users/{user_id}", response_model=dict)
 async def delete_user(
-    user_id: uuid.UUID, admin: RequireAdmin, db: DB, request: Request,
+    user_id: uuid.UUID, admin: RequireUsersManage, db: DB, request: Request,
     anonymise_instead: bool = Query(False, alias="anonymise"),
 ):
     """Remove an account outright, or strip the person from it.

@@ -7,18 +7,18 @@ import uuid
 import httpx
 import jwt
 from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete, func, or_, select
 
-from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff
+from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff, require_permission
 from app.core.routing import CommitRoute
 from app.core.database import SessionLocal
 from app.core.enums import AssetState, IssueStatus, RoomKind
 from app.core.security import decode_token
-from app.models.identity import Organization
+from app.models.identity import Organization, User
 from app.models.issues import Issue
 from app.models.spatial import (
     Asset, AssetCategory, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent,
@@ -35,6 +35,10 @@ from app.services.realtime import hub
 from app.services.twin import STATE_COLOURS, STATE_LABELS, set_asset_state
 
 router = APIRouter(route_class=CommitRoute, prefix="/campus", tags=["Campus & Digital Twin"])
+
+RequireAssetsView = Annotated[User, Depends(require_permission("assets:view"))]
+RequireAssetsManage = Annotated[User, Depends(require_permission("assets:manage"))]
+RequireCampusConfig = Annotated[User, Depends(require_permission("admin:campus_config"))]
 
 # Ranked worst-first: a room shows the most severe state among its assets.
 _SEVERITY = [
@@ -294,7 +298,7 @@ async def campus_overview(campus_id: uuid.UUID, user: CurrentUser, db: DB):
 
 
 @router.get("/campuses/{campus_id}/buildings", response_model=list[BuildingOut])
-async def list_buildings(campus_id: uuid.UUID, user: CurrentUser, db: DB):
+async def list_buildings(campus_id: uuid.UUID, user: RequireAssetsView, db: DB):
     rows = (await db.scalars(
         select(Building).join(Campus, Campus.id == Building.campus_id)
         .where(Building.campus_id == campus_id,
@@ -305,7 +309,7 @@ async def list_buildings(campus_id: uuid.UUID, user: CurrentUser, db: DB):
 
 
 @router.get("/buildings/{building_id}/floors", response_model=list[FloorOut])
-async def list_floors(building_id: uuid.UUID, user: CurrentUser, db: DB):
+async def list_floors(building_id: uuid.UUID, user: RequireAssetsView, db: DB):
     await _get_building_or_404(db, building_id, user)
     rows = (await db.scalars(
         select(Floor).where(Floor.building_id == building_id).order_by(Floor.level)
@@ -501,7 +505,7 @@ async def create_campus(payload: CampusUpsert, user: RequireAdmin, db: DB):
 
 @router.patch("/campuses/{campus_id}", response_model=CampusOut)
 async def update_campus(
-    campus_id: uuid.UUID, payload: CampusUpdate, user: RequireAdmin, db: DB
+    campus_id: uuid.UUID, payload: CampusUpdate, user: RequireCampusConfig, db: DB
 ):
     campus = await db.scalar(
         select(Campus).where(Campus.id == campus_id,
@@ -567,7 +571,7 @@ async def update_floor(
 
 @router.post("/campuses/{campus_id}/buildings", response_model=BuildingOut, status_code=201)
 async def create_building(
-    campus_id: uuid.UUID, payload: BuildingUpsert, user: RequireStaff, db: DB
+    campus_id: uuid.UUID, payload: BuildingUpsert, user: RequireAssetsManage, db: DB
 ):
     """Create a building, and its floors along with it.
 
@@ -600,7 +604,7 @@ async def create_building(
 
 @router.patch("/buildings/{building_id}", response_model=BuildingOut)
 async def update_building(
-    building_id: uuid.UUID, payload: BuildingUpsert, user: RequireStaff, db: DB
+    building_id: uuid.UUID, payload: BuildingUpsert, user: RequireAssetsManage, db: DB
 ):
     building = await _get_building_or_404(db, building_id, user)
 
@@ -849,7 +853,7 @@ def _default_boundary(index: int) -> list:
 
 @router.post("/floors/{floor_id}/rooms", response_model=RoomOut, status_code=201)
 async def create_room(
-    floor_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
+    floor_id: uuid.UUID, payload: RoomUpsert, user: RequireAssetsManage, db: DB
 ):
     floor = await _get_floor_or_404(db, floor_id, user)
 
@@ -946,7 +950,7 @@ async def place_asset(
 
 @router.post("/rooms/{room_id}/assets", response_model=AssetOut, status_code=201)
 async def create_asset(
-    room_id: uuid.UUID, payload: AssetCreate, user: RequireStaff, db: DB
+    room_id: uuid.UUID, payload: AssetCreate, user: RequireAssetsManage, db: DB
 ):
     room = await _get_room_or_404(db, room_id, user)
 
@@ -1057,7 +1061,7 @@ async def create_assets_bulk(
 
 @router.patch("/assets/{asset_id}", response_model=AssetOut)
 async def update_asset(
-    asset_id: uuid.UUID, payload: AssetUpdate, user: RequireStaff, db: DB
+    asset_id: uuid.UUID, payload: AssetUpdate, user: RequireAssetsManage, db: DB
 ):
     asset = await _get_asset_or_404(db, asset_id, user)
 
@@ -1092,13 +1096,13 @@ async def delete_asset(asset_id: uuid.UUID, user: RequireAdmin, db: DB):
 
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)
-async def get_room(room_id: uuid.UUID, user: CurrentUser, db: DB):
+async def get_room(room_id: uuid.UUID, user: RequireAssetsView, db: DB):
     room = await _get_room_or_404(db, room_id, user)
     return RoomOut.model_validate(room)
 
 
 @router.get("/rooms/{room_id}/assets", response_model=list[AssetOut])
-async def room_assets(room_id: uuid.UUID, user: CurrentUser, db: DB):
+async def room_assets(room_id: uuid.UUID, user: RequireAssetsView, db: DB):
     await _get_room_or_404(db, room_id, user)
     rows = (await db.scalars(
         select(Asset).where(Asset.room_id == room_id).order_by(Asset.tag))).all()

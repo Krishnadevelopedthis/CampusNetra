@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.enums import UserRole, UserStatus
 from app.core.security import ACCESS_TOKEN, decode_token
-from app.models.identity import User
+from app.models.identity import Permission, RolePermission, User
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -74,6 +74,31 @@ ADMIN_ROLES = (UserRole.ADMIN, UserRole.SUPER_ADMIN)
 RequireStaff = Annotated[User, Depends(require_roles(*STAFF_ROLES))]
 RequireManager = Annotated[User, Depends(require_roles(*MANAGER_ROLES))]
 RequireAdmin = Annotated[User, Depends(require_roles(*ADMIN_ROLES))]
+
+
+def require_permission(code: str):
+    """Route guard backed by the role_permissions table, e.g.
+    `Depends(require_permission("issues:resolve"))`.
+
+    Unlike require_roles (which hardcodes an allowed-role tuple at each call
+    site, unreachable from the outside), this looks up whether the caller's
+    role has actually been granted this specific permission code -- so an
+    admin's edits in Admin > Roles > Manage take real effect here, instead
+    of only being recorded. app/services/permissions.py seeds a baseline at
+    startup matching every route this replaces, so switching a route over
+    to this changes nothing about who can do what until an admin changes it.
+    """
+    async def guard(user: CurrentUser, db: DB) -> User:
+        granted = await db.scalar(
+            select(RolePermission.role)
+            .join(Permission, Permission.id == RolePermission.permission_id)
+            .where(RolePermission.role == user.role, Permission.code == code)
+        )
+        if granted is None:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, f"Requires permission: {code}")
+        return user
+
+    return guard
 
 
 class Pagination:

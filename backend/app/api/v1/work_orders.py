@@ -3,16 +3,21 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.api.deps import DB, Paging, RequireManager, RequireStaff, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import WORK_ORDER_TRANSITIONS, HealthEventStatus, Priority, UserRole, WorkOrderStatus
 from app.models.identity import Department, User
+
+RequireWOView = Annotated[User, Depends(require_permission("work_orders:view"))]
+RequireWOCreate = Annotated[User, Depends(require_permission("work_orders:create"))]
+RequireWOAssign = Annotated[User, Depends(require_permission("work_orders:assign"))]
+RequireWOUpdate = Annotated[User, Depends(require_permission("work_orders:update"))]
 from app.models.iot import HealthEvent
 from app.models.issues import Issue
 from app.models.spatial import Asset, Room
@@ -144,7 +149,7 @@ async def _to_detail(db, wo: WorkOrder) -> WorkOrderDetail:
 
 
 @router.post("", response_model=WorkOrderDetail, status_code=status.HTTP_201_CREATED)
-async def create(payload: WorkOrderCreate, user: RequireStaff, db: DB):
+async def create(payload: WorkOrderCreate, user: RequireWOCreate, db: DB):
     wo = await wo_service.create_work_order(
         db, user, **payload.model_dump(exclude_unset=False))
     await db.flush()
@@ -154,7 +159,7 @@ async def create(payload: WorkOrderCreate, user: RequireStaff, db: DB):
 
 @router.get("", response_model=Page[WorkOrderListItem])
 async def list_work_orders(
-    user: CurrentUser, db: DB, paging: Paging,
+    user: RequireWOView, db: DB, paging: Paging,
     mine: bool = Query(False, description="Only work orders assigned to me"),
     status_in: Optional[list[WorkOrderStatus]] = Query(None, alias="status"),
     priority_in: Optional[list[Priority]] = Query(None, alias="priority"),
@@ -199,7 +204,7 @@ async def list_work_orders(
 
 
 @router.get("/board", response_model=WorkOrderBoard)
-async def board(user: RequireStaff, db: DB,
+async def board(user: RequireWOView, db: DB,
                 department_id: Optional[uuid.UUID] = None,
                 mine: bool = Query(False)):
     """Kanban board — work orders bucketed by status."""
@@ -233,13 +238,13 @@ async def board(user: RequireStaff, db: DB,
 
 
 @router.get("/{wo_id}", response_model=WorkOrderDetail)
-async def get_work_order(wo_id: uuid.UUID, user: CurrentUser, db: DB):
+async def get_work_order(wo_id: uuid.UUID, user: RequireWOView, db: DB):
     wo = await _get_or_404(db, wo_id, user)
     return await _to_detail(db, wo)
 
 
 @router.post("/{wo_id}/assign", response_model=WorkOrderDetail)
-async def assign(wo_id: uuid.UUID, payload: WorkOrderAssign, user: RequireManager, db: DB):
+async def assign(wo_id: uuid.UUID, payload: WorkOrderAssign, user: RequireWOAssign, db: DB):
     wo = await _get_or_404(db, wo_id, user)
     await wo_service.assign_work_order(
         db, wo, payload.technician_id, user, payload.note, payload.scheduled_for)
@@ -269,7 +274,7 @@ async def suggest(wo_id: uuid.UUID, user: RequireManager, db: DB):
 
 
 @router.post("/{wo_id}/transition", response_model=WorkOrderDetail)
-async def transition(wo_id: uuid.UUID, payload: WorkOrderTransition, user: RequireStaff, db: DB):
+async def transition(wo_id: uuid.UUID, payload: WorkOrderTransition, user: RequireWOUpdate, db: DB):
     wo = await _get_or_404(db, wo_id, user)
     await wo_service.transition_work_order(
         db, wo, payload.status, user,

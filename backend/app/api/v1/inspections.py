@@ -3,16 +3,20 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.api.deps import DB, CurrentUser, Paging, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import InspectionStatus, UserRole
 from app.models.identity import User
+
+RequireInspectionsView = Annotated[User, Depends(require_permission("inspections:view"))]
+RequireInspectionsSchedule = Annotated[User, Depends(require_permission("inspections:schedule"))]
+RequireInspectionsConduct = Annotated[User, Depends(require_permission("inspections:conduct"))]
 from app.models.spatial import Asset, Room
 from app.models.work import (
     Inspection, InspectionResult, InspectionTemplate, InspectionTemplateItem,
@@ -97,7 +101,7 @@ async def list_templates(user: CurrentUser, db: DB):
 
 
 @router.get("/dashboard", response_model=dict)
-async def dashboard(user: RequireStaff, db: DB):
+async def dashboard(user: RequireInspectionsView, db: DB):
     org = user.organization_id
     await svc.mark_overdue(db, org)
 
@@ -128,7 +132,7 @@ async def dashboard(user: RequireStaff, db: DB):
 
 
 @router.post("", response_model=InspectionOut, status_code=status.HTTP_201_CREATED)
-async def schedule(payload: InspectionSchedule, user: RequireManager, db: DB):
+async def schedule(payload: InspectionSchedule, user: RequireInspectionsSchedule, db: DB):
     inspection = await svc.schedule_inspection(
         db, user,
         template_id=payload.template_id, scheduled_for=payload.scheduled_for,
@@ -142,7 +146,7 @@ async def schedule(payload: InspectionSchedule, user: RequireManager, db: DB):
 
 @router.get("", response_model=Page[InspectionOut])
 async def list_inspections(
-    user: CurrentUser, db: DB, paging: Paging,
+    user: RequireInspectionsView, db: DB, paging: Paging,
     mine: bool = Query(False),
     status_in: Optional[list[InspectionStatus]] = Query(None, alias="status"),
 ):
@@ -168,7 +172,7 @@ async def list_inspections(
 
 
 @router.get("/{inspection_id}", response_model=InspectionOut)
-async def get_inspection(inspection_id: uuid.UUID, user: CurrentUser, db: DB):
+async def get_inspection(inspection_id: uuid.UUID, user: RequireInspectionsView, db: DB):
     i = await db.scalar(select(Inspection).where(Inspection.id == inspection_id))
     if i is None or i.organization_id != user.organization_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection not found")
@@ -176,7 +180,7 @@ async def get_inspection(inspection_id: uuid.UUID, user: CurrentUser, db: DB):
 
 
 @router.post("/{inspection_id}/start", response_model=InspectionOut)
-async def start(inspection_id: uuid.UUID, user: RequireStaff, db: DB):
+async def start(inspection_id: uuid.UUID, user: RequireInspectionsConduct, db: DB):
     i = await db.scalar(select(Inspection).where(Inspection.id == inspection_id))
     if i is None or i.organization_id != user.organization_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection not found")
@@ -192,7 +196,7 @@ async def start(inspection_id: uuid.UUID, user: RequireStaff, db: DB):
 
 @router.post("/{inspection_id}/submit", response_model=dict)
 async def submit(
-    inspection_id: uuid.UUID, payload: InspectionSubmit, user: RequireStaff, db: DB
+    inspection_id: uuid.UUID, payload: InspectionSubmit, user: RequireInspectionsConduct, db: DB
 ):
     """Submit the checklist. Failed critical items raise issues automatically."""
     i = await db.scalar(select(Inspection).where(Inspection.id == inspection_id))
