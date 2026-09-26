@@ -3,13 +3,13 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
-from app.api.deps import DB, CurrentUser, RequireManager
+from app.api.deps import DB, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import IssueStatus, Priority, UserRole, WorkOrderStatus
 from app.models.identity import Department, User
@@ -22,13 +22,16 @@ from app.services.references import next_reference
 
 router = APIRouter(route_class=CommitRoute, prefix="/analytics", tags=["Analytics & Simulation"])
 
+RequireAnalyticsView = Annotated[User, Depends(require_permission("analytics:view"))]
+RequireAnalyticsSimulate = Annotated[User, Depends(require_permission("analytics:simulate"))]
+
 OPEN_ISSUES = [IssueStatus.REPORTED, IssueStatus.TRIAGED, IssueStatus.ASSIGNED,
                IssueStatus.IN_PROGRESS, IssueStatus.ON_HOLD]
 CLOSED_ISSUES = [IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED]
 
 
 @router.get("/overview", response_model=dict)
-async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=365)):
+async def overview(user: RequireAnalyticsView, db: DB, days: int = Query(30, ge=1, le=365)):
     org = user.organization_id
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
@@ -156,7 +159,7 @@ async def overview(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=
 
 @router.get("/heatmap", response_model=dict)
 async def heatmap(
-    user: RequireManager, db: DB,
+    user: RequireAnalyticsView, db: DB,
     days: int = Query(30, ge=1, le=365),
     campus_id: Optional[uuid.UUID] = None,
 ):
@@ -232,7 +235,7 @@ async def heatmap(
 
 
 @router.get("/technicians", response_model=list[dict])
-async def technician_performance(user: RequireManager, db: DB, days: int = Query(30, ge=1, le=365)):
+async def technician_performance(user: RequireAnalyticsView, db: DB, days: int = Query(30, ge=1, le=365)):
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     rows = (await db.execute(
@@ -276,7 +279,7 @@ class SimulationConfig(BaseModel):
 
 
 @router.post("/simulate", response_model=dict)
-async def simulate(payload: SimulationConfig, user: RequireManager, db: DB):
+async def simulate(payload: SimulationConfig, user: RequireAnalyticsSimulate, db: DB):
     """Scenario Simulation.
 
     Fans N hypothetical complaints through classification, department routing and
@@ -408,7 +411,7 @@ async def simulate(payload: SimulationConfig, user: RequireManager, db: DB):
 
 
 @router.get("/simulations", response_model=list[dict])
-async def list_simulations(user: RequireManager, db: DB, limit: int = Query(20, ge=1, le=100)):
+async def list_simulations(user: RequireAnalyticsSimulate, db: DB, limit: int = Query(20, ge=1, le=100)):
     rows = (await db.scalars(
         select(Simulation).where(Simulation.organization_id == user.organization_id)
         .order_by(Simulation.created_at.desc()).limit(limit))).all()
@@ -440,7 +443,7 @@ _GRAINS = {
 
 @router.get("/spend", response_model=dict)
 async def maintenance_spend(
-    user: RequireManager,
+    user: RequireAnalyticsView,
     db: DB,
     granularity: str = Query("month", pattern="^(week|month|quarter|year)$"),
     months: int = Query(12, ge=1, le=60),

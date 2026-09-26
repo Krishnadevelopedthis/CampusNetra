@@ -3,17 +3,23 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, CurrentUser, Paging, RequireManager, RequireStaff
+from app.api.deps import DB, CurrentUser, Paging, RequireManager, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import IssueStatus, Priority, UserRole
+from app.models.identity import User
 from app.models.issues import Issue, IssueCategory, IssueDuplicateCandidate, IssueEvent, IssueUpvote
 from app.models.platform import AIFeedback
+
+RequireIssuesView = Annotated[User, Depends(require_permission("issues:view"))]
+RequireIssuesCreate = Annotated[User, Depends(require_permission("issues:create"))]
+RequireIssuesTriage = Annotated[User, Depends(require_permission("issues:triage"))]
+RequireIssuesResolve = Annotated[User, Depends(require_permission("issues:resolve"))]
 from app.schemas.common import Message, Page
 from app.schemas.issues import (
     DuplicateCandidateOut, IssueCategoryOut, IssueCreate, IssueCreateResponse,
@@ -46,7 +52,7 @@ async def list_categories(user: CurrentUser, db: DB):
 
 
 @router.post("", response_model=IssueCreateResponse, status_code=status.HTTP_201_CREATED)
-async def create_issue(payload: IssueCreate, user: CurrentUser, db: DB):
+async def create_issue(payload: IssueCreate, user: RequireIssuesCreate, db: DB):
     """Report an issue. The AI classifies it, routes it to a department and pins
     it onto the Digital Twin in a single transaction."""
     issue, candidates = await issue_service.create_issue(
@@ -82,7 +88,7 @@ async def create_issue(payload: IssueCreate, user: CurrentUser, db: DB):
 
 @router.get("", response_model=Page[IssueListItem])
 async def list_issues(
-    user: CurrentUser, db: DB, paging: Paging,
+    user: RequireIssuesView, db: DB, paging: Paging,
     mine: bool = Query(False, description="Only issues I reported"),
     status_in: Optional[list[IssueStatus]] = Query(None, alias="status"),
     priority_in: Optional[list[Priority]] = Query(None, alias="priority"),
@@ -145,7 +151,7 @@ async def list_issues(
 
 @router.get("/map", response_model=dict)
 async def issue_map(
-    user: CurrentUser, db: DB,
+    user: RequireIssuesView, db: DB,
     floor_id: Optional[uuid.UUID] = None,
     status_in: Optional[list[IssueStatus]] = Query(None, alias="status"),
     priority_in: Optional[list[Priority]] = Query(None, alias="priority"),
@@ -226,7 +232,7 @@ async def issue_map(
     }
 
 @router.get("/{issue_id}", response_model=IssueDetail)
-async def get_issue(issue_id: uuid.UUID, user: CurrentUser, db: DB):
+async def get_issue(issue_id: uuid.UUID, user: RequireIssuesView, db: DB):
     import time
 
     started = time.perf_counter()
@@ -266,7 +272,7 @@ async def get_issue(issue_id: uuid.UUID, user: CurrentUser, db: DB):
 
 
 @router.post("/{issue_id}/transition", response_model=IssueDetail)
-async def transition(issue_id: uuid.UUID, payload: IssueTransition, user: RequireStaff, db: DB):
+async def transition(issue_id: uuid.UUID, payload: IssueTransition, user: RequireIssuesResolve, db: DB):
     issue = await _get_issue_or_404(db, issue_id, user)
     await issue_service.transition_issue(db, issue, payload.status, user, payload.note)
     await db.flush()
@@ -290,7 +296,7 @@ async def upvote(issue_id: uuid.UUID, user: CurrentUser, db: DB):
 
 
 @router.post("/{issue_id}/reclassify", response_model=IssueDetail)
-async def reclassify(issue_id: uuid.UUID, payload: IssueReclassify, user: RequireStaff, db: DB):
+async def reclassify(issue_id: uuid.UUID, payload: IssueReclassify, user: RequireIssuesTriage, db: DB):
     """Override the AI's category. The correction is stored as training signal."""
     issue = await _get_issue_or_404(db, issue_id, user)
     category = await db.scalar(

@@ -5,11 +5,18 @@ import { useState } from 'react'
 import { Button, ErrorState, Metric, MetricRow, Modal, Spinner, toast, Widget } from '@/components/ui'
 import { api, API_ORIGIN } from '@/lib/api'
 
-/** Grant/revoke which permission *types* a role carries. This only
- * changes what this admin screen records as granted -- real authorization
- * throughout the app still gates on role directly (RequireStaff/Manager/
- * Admin), not on this table. Wiring actual enforcement to consult it is a
- * separate, larger change; this is the record-keeping half on its own. */
+/** Grant/revoke which permissions a role carries. This is now real
+ * enforcement, not just a record: most protected endpoints (issues, work
+ * orders, inspections, lost & found, assets, users, analytics, SLA/audit
+ * config, notification templates) check role_permissions directly via
+ * require_permission() (see backend/app/api/deps.py), seeded at startup to
+ * match this app's original hardcoded role gates so switching it on didn't
+ * change anyone's access. Unchecking a box here takes real effect the next
+ * time that role calls the corresponding endpoint. A handful of
+ * finer-grained admin-only actions not covered by this permission
+ * catalogue (e.g. deleting a building/asset/campus, or managing
+ * permissions themselves) are still hardcoded to admin/super_admin, by
+ * design, to avoid a self-escalation path through this very screen. */
 function ManagePermissionsModal({ role, onClose }) {
   const qc = useQueryClient()
   const permissions = useQuery({
@@ -56,6 +63,10 @@ function ManagePermissionsModal({ role, onClose }) {
     >
       {permissions.isLoading || selected === null ? <Spinner /> : (
         <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          <p className="text-body-sm text-warning-text bg-warning-bg border border-warning-border rounded-lg px-3 py-2">
+            These take real effect — unchecking something here blocks this role from
+            that action immediately, everywhere in the app.
+          </p>
           {Object.entries(byModule).map(([mod, perms]) => (
             <div key={mod}>
               <p className="text-label-caps uppercase text-ink-muted mb-1.5">

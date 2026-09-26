@@ -19,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import SessionLocal, engine
+from app.services import permissions as perm_service
 from app.services import sla
 
 logging.basicConfig(
@@ -45,6 +46,16 @@ async def lifespan(app: FastAPI):
         settings.ENVIRONMENT,
         "enabled" if settings.ai_available else "heuristic fallback (no API key)",
     )
+
+    # Must happen before the app starts accepting requests: require_permission()
+    # (app/api/deps.py) reads role_permissions on every gated request, and an
+    # empty table there would mean every one of those routes denies everyone
+    # until an admin happened to open Admin > Roles first.
+    try:
+        async with SessionLocal() as db:
+            await perm_service.ensure_seeded(db)
+    except Exception:
+        log.exception("Could not seed default permissions")
 
     # An SLA breach is the passage of time, so nothing in the request path can
     # notice it. This is the only thing in the system that runs on its own.

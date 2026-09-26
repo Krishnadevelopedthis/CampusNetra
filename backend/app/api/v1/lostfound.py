@@ -3,16 +3,20 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, STAFF_ROLES, CurrentUser, Paging, RequireManager, RequireStaff
+from app.api.deps import DB, STAFF_ROLES, CurrentUser, Paging, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import ClaimStatus, LFKind, LFStatus, MatchStatus, UserRole
 from app.models.identity import User
+
+RequireLFView = Annotated[User, Depends(require_permission("lost_found:view"))]
+RequireLFReport = Annotated[User, Depends(require_permission("lost_found:report"))]
+RequireLFReview = Annotated[User, Depends(require_permission("lost_found:review"))]
 from app.models.lostfound import LFAttachment, LFCategory, LFClaim, LFItem, LFMatch
 from app.models.spatial import Building, Room
 from app.schemas.common import Message, Page, UserBrief
@@ -196,7 +200,7 @@ async def categories(user: CurrentUser, db: DB):
 
 
 @router.post("/items", response_model=LFItemCreateResponse, status_code=201)
-async def report_item(payload: LFItemCreate, user: CurrentUser, db: DB):
+async def report_item(payload: LFItemCreate, user: RequireLFReport, db: DB):
     """Report a lost or found item. Matching runs immediately against the
     opposite side of the ledger."""
     item, matches = await lf_service.create_item(
@@ -227,7 +231,7 @@ async def report_item(payload: LFItemCreate, user: CurrentUser, db: DB):
 
 @router.get("/items", response_model=Page[LFItemListItem])
 async def list_items(
-    user: CurrentUser, db: DB, paging: Paging,
+    user: RequireLFView, db: DB, paging: Paging,
     kind: Optional[LFKind] = None,
     status_in: Optional[list[LFStatus]] = Query(None, alias="status"),
     category_id: Optional[uuid.UUID] = None,
@@ -262,7 +266,7 @@ async def list_items(
 
 
 @router.get("/items/{item_id}", response_model=LFItemDetail)
-async def get_item(item_id: uuid.UUID, user: CurrentUser, db: DB):
+async def get_item(item_id: uuid.UUID, user: RequireLFView, db: DB):
     item = await db.scalar(
         select(LFItem).options(selectinload(LFItem.attachments)).where(LFItem.id == item_id))
     if item is None or item.organization_id != user.organization_id:
@@ -272,7 +276,7 @@ async def get_item(item_id: uuid.UUID, user: CurrentUser, db: DB):
 
 @router.get("/matches", response_model=list[LFMatchOut])
 async def list_matches(
-    user: RequireStaff, db: DB,
+    user: RequireLFReview, db: DB,
     min_score: float = Query(0.6, ge=0, le=1),
     status_filter: Optional[MatchStatus] = Query(None, alias="status"),
     limit: int = Query(50, ge=1, le=200),
@@ -315,7 +319,7 @@ async def get_match(match_id: uuid.UUID, user: CurrentUser, db: DB):
 
 @router.post("/matches/{match_id}/decide", response_model=Message)
 async def decide_match(
-    match_id: uuid.UUID, payload: MatchDecision, user: RequireStaff, db: DB
+    match_id: uuid.UUID, payload: MatchDecision, user: RequireLFReview, db: DB
 ):
     m = await _get_match_or_404(db, match_id, user)
     if m.status in (MatchStatus.ACCEPTED, MatchStatus.REJECTED):
@@ -399,7 +403,7 @@ async def _get_claim_or_404(db, claim_id: uuid.UUID, user) -> LFClaim:
 
 @router.post("/claims/{claim_id}/decide", response_model=Message)
 async def decide_claim(
-    claim_id: uuid.UUID, payload: ClaimDecision, user: RequireStaff, db: DB
+    claim_id: uuid.UUID, payload: ClaimDecision, user: RequireLFReview, db: DB
 ):
     """Claim Verification — release the item only on sufficient ownership proof."""
     claim = await _get_claim_or_404(db, claim_id, user)
