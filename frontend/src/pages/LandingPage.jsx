@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
   Navbar,
@@ -10,7 +10,6 @@ import {
   HowItWorks,
   DigitalTwinShowcase,
   AISection,
-  AnalyticsShowcase,
   Testimonials,
   FeatureMarquee,
   PlatformArchitecture,
@@ -21,6 +20,16 @@ import {
   Footer,
 } from '@/components/landing'
 import { SITE_URL, usePageSEO } from '@/hooks/usePageSEO'
+
+// The only landing section that needs recharts (a demo chart, not real
+// data) -- and recharts pulls in a genuinely heavy dependency tree (d3
+// internals). A live Lighthouse run against production measured 4.76s of
+// main-thread blocking time and a 1.1MB main bundle on THIS landing page,
+// for an anonymous visitor who was never going to see a real chart
+// anywhere else either. Splitting just this one, below-the-fold section
+// out keeps recharts out of the bundle every visitor pays for up front.
+const AnalyticsShowcase = lazy(() =>
+  import('@/components/landing/AnalyticsShowcase').then((m) => ({ default: m.AnalyticsShowcase })))
 
 const HOME_JSON_LD = {
   '@context': 'https://schema.org',
@@ -111,7 +120,9 @@ export default function LandingPage() {
         <AISection />
 
         {/* 10. Analytics & SLA Showcase */}
-        <AnalyticsShowcase />
+        <Suspense fallback={<div className="min-h-[400px]" />}>
+          <AnalyticsShowcase />
+        </Suspense>
 
         {/* 11. Testimonials & Feedback */}
         <Testimonials />
