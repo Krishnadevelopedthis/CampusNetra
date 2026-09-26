@@ -164,6 +164,33 @@ class Settings(BaseSettings):
     EMAIL_PROVIDER_PASSWORD_RESET: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
     EMAIL_PROVIDER_EMAIL_CHANGE: Literal["auto", "resend", "brevo", "smtp"] = "brevo"
 
+    # ---------- IoT: MQTT (HiveMQ Cloud) ----------
+    # The ESP32 fleet and the HiveMQ Cloud broker already exist and are
+    # already configured outside this repo; these just point this backend
+    # at them. Leave MQTT_BROKER_HOST blank to disable the bridge entirely --
+    # telemetry then only arrives via the existing authenticated HTTP
+    # POST /iot/telemetry path, and the app still boots normally.
+    MQTT_BROKER_HOST: str = ""
+    MQTT_BROKER_PORT: int = 8883
+    MQTT_USERNAME: str = ""
+    MQTT_PASSWORD: str = ""
+
+    # ---------- IoT: InfluxDB Cloud (raw telemetry history) ----------
+    # Neon/Postgres stays the source of truth for current state (rooms,
+    # assets, device registry, health events); this is write-only history
+    # for the room_telemetry measurement. Leave INFLUXDB_URL blank to
+    # disable -- health-state evaluation does not depend on it.
+    INFLUXDB_URL: str = ""
+    INFLUXDB_TOKEN: str = ""
+    INFLUXDB_ORG: str = "CampusNetra"
+    INFLUXDB_BUCKET: str = "campusnetra_telemetry"
+    INFLUXDB_MEASUREMENT: str = "room_telemetry"
+
+    # A device is shown OFFLINE once its last telemetry is older than this --
+    # separate from any asset's health state (spec: device offline must never
+    # by itself imply a fan/light fault).
+    IOT_DEVICE_OFFLINE_MINUTES: int = 3
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, v):

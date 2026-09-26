@@ -55,6 +55,12 @@ python-dotenv>=1.0.1
 tenacity>=9.0.0
 greenlet>=3.2.0
 
+# --- IoT: MQTT bridge (HiveMQ Cloud) + raw telemetry history (InfluxDB Cloud) ---
+# Both are optional at runtime -- see app/core/config.py: blank MQTT_BROKER_HOST
+# / INFLUXDB_URL disables each respectively and the app still boots normally.
+paho-mqtt>=2.1.0
+influxdb-client>=1.45.0
+
 # TLS certificate bundle — python.org builds ship no system CA store on macOS
 certifi>=2024.0.0
 

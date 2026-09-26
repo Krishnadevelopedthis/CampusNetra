@@ -200,6 +200,9 @@ class HealthEventKind(StrEnum):
     HIGH_TEMPERATURE = "high_temperature"
     DEVICE_OFFLINE = "device_offline"
     TELEMETRY_STALE = "telemetry_stale"
+    # Main current (ACS712) is present but the IR sensor sees no rotation --
+    # the shared-power-path truth table's "Fan = SUSPECTED FAULT" case.
+    FAN_NOT_ROTATING = "fan_not_rotating"
 
 
 class HealthEventSeverity(StrEnum):

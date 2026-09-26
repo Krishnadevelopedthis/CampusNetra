@@ -81,6 +81,44 @@ class TelemetryIn(BaseModel):
     environment: Optional[EnvironmentTelemetry] = None
 
 
+class FanTelemetry(BaseModel):
+    rotation: bool
+    # Informational only -- the backend derives its own Fan health from
+    # main_current_a + rotation (see services/iot_health.py), it never
+    # trusts what the firmware itself reports here.
+    state: Optional[str] = None
+
+
+class LightTelemetry(BaseModel):
+    brightness: int = Field(ge=0, le=100000)
+    state: Optional[str] = None
+
+
+class RoomEnvironmentTelemetry(BaseModel):
+    temperature_c: Optional[float] = Field(None, ge=-40, le=100)
+    humidity_pct: Optional[float] = Field(None, ge=0, le=100)
+
+
+class DeviceTelemetryIn(BaseModel):
+    """The shape the ESP32 actually publishes over MQTT: one combined
+    reading for the room's shared power path (ACS712 = main_current_a),
+    not the older per-asset list TelemetryIn above uses. See the physical
+    wiring note in services/iot_health.py: ACS712 measures common current
+    for Fan + Light together, never either load individually."""
+    device_id: str = Field(min_length=2, max_length=100)
+    timestamp: Optional[str] = None
+    main_current_a: float = Field(ge=0, le=100)
+    fan: FanTelemetry
+    light: LightTelemetry
+    environment: Optional[RoomEnvironmentTelemetry] = None
+
+
+class DeviceRoomAssignIn(BaseModel):
+    # None unassigns the device -- telemetry is still recorded on the
+    # device itself, but never applied to any room/asset (spec: never guess).
+    room_id: Optional[uuid.UUID] = None
+
+
 class HealthEventOut(BaseModel):
     id: uuid.UUID
     reference: str
