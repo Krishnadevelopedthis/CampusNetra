@@ -4,7 +4,6 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
 import { RingLoader, Toaster } from '@/components/ui'
-import AppLayout from '@/layouts/AppLayout'
 import { useAuth } from '@/lib/auth'
 import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
 
@@ -14,8 +13,18 @@ import LandingPage from '@/pages/LandingPage'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ResetPassword from '@/pages/ResetPassword'
-import Search from '@/pages/Search'
 import VerifyEmail from '@/pages/VerifyEmail'
+
+// AppLayout is the whole authenticated app shell (sidebar, header, the AI
+// assistant widget, notifications) and Search is an authenticated-only
+// page -- neither is part of the auth entry point above, but both were
+// imported eagerly here anyway. A real, measured cost of that: Lighthouse
+// against the live site showed the main bundle at 1.13MB / 326KB gzipped
+// with 4.76s of main-thread blocking time on the landing page alone --
+// an anonymous visitor who never logs in was downloading and parsing the
+// entire authenticated app shell just to see the marketing page.
+const AppLayout = lazy(() => import('@/layouts/AppLayout'))
+const Search = lazy(() => import('@/pages/Search'))
 
 // Everything behind the app shell is split out of the initial bundle.
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
