@@ -52,12 +52,11 @@ export function Testimonials() {
   const scrollContainer = useRef(null)
   const [isPaused, setIsPaused] = useState(false)
 
-  // Auto-advance on all devices (not just desktop) — pauses while the
-  // visitor is actually touching/hovering it, and respects
-  // prefers-reduced-motion rather than forcing motion on everyone.
+  // Auto-advance on all devices (not just desktop) every 2s — pauses while
+  // the visitor is actually touching/hovering it, and resumes automatically
+  // once they let go.
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     if (isPaused) return
     const el = scrollContainer.current
     if (!el) return
@@ -65,7 +64,7 @@ export function Testimonials() {
       if (!el) return
       const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 8
       el.scrollTo(atEnd ? { left: 0, behavior: 'smooth' } : { left: el.scrollLeft + 416, behavior: 'smooth' })
-    }, 3200)
+    }, 2000)
     return () => clearInterval(id)
   }, [isPaused])
 
