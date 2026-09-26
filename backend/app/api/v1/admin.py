@@ -9,7 +9,8 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import Response
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from sqlalchemy import func, or_, select
+from sqlalchemy import delete as sa_delete, func, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, client_ip
 from app.core.routing import CommitRoute
@@ -319,11 +320,73 @@ async def list_roles(user: RequireManager, db: DB):
     ]
 
 
+## A starting catalogue of permission *types* to pick from -- not
+## enforcement. Nothing in the backend's actual authorization checks reads
+## RolePermission yet (every protected route still gates on role directly
+## via RequireStaff/RequireManager/RequireAdmin); granting or revoking one
+## of these only changes what this admin screen records as granted. Wiring
+## real enforcement to consult this table is a separate, much larger change
+## across every protected endpoint, done deliberately later, not here.
+PERMISSION_SEED = [
+    ("issues", "view", "See complaints"),
+    ("issues", "create", "Report a new complaint"),
+    ("issues", "triage", "Triage and assign complaints"),
+    ("issues", "resolve", "Transition/resolve/close complaints"),
+    ("work_orders", "view", "See work orders"),
+    ("work_orders", "create", "Create a work order"),
+    ("work_orders", "assign", "Assign a work order to a technician"),
+    ("work_orders", "update", "Update/close a work order"),
+    ("inspections", "view", "See inspections"),
+    ("inspections", "schedule", "Schedule an inspection"),
+    ("inspections", "conduct", "Carry out an inspection"),
+    ("lost_found", "view", "Browse Lost & Found"),
+    ("lost_found", "report", "Report a lost/found item"),
+    ("lost_found", "review", "Review AI matches and approve claims"),
+    ("assets", "view", "View campus assets"),
+    ("assets", "manage", "Add/edit buildings, rooms and assets"),
+    ("users", "view", "View the user directory"),
+    ("users", "manage", "Edit user roles and status"),
+    ("analytics", "view", "View analytics and reports"),
+    ("analytics", "simulate", "Run scenario simulations"),
+    ("admin", "sla", "Configure SLA policies"),
+    ("admin", "audit", "View the audit log"),
+    ("admin", "campus_config", "Edit campus/organization configuration"),
+    ("notifications", "manage", "Manage notification templates"),
+]
+
+
+async def _ensure_permissions_seeded(db: AsyncSession) -> None:
+    if await db.scalar(select(func.count()).select_from(Permission)):
+        return
+    for module, action, description in PERMISSION_SEED:
+        db.add(Permission(code=f"{module}:{action}", module=module, description=description))
+    await db.flush()
+
+
 @router.get("/permissions", response_model=list[dict])
 async def list_permissions(user: RequireManager, db: DB):
+    await _ensure_permissions_seeded(db)
     rows = (await db.scalars(select(Permission).order_by(Permission.module, Permission.code))).all()
     return [{"id": str(p.id), "code": p.code, "module": p.module,
              "description": p.description} for p in rows]
+
+
+class RolePermissionsUpdate(BaseModel):
+    permission_ids: list[uuid.UUID]
+
+
+@router.put("/roles/{role}/permissions", response_model=Message)
+async def set_role_permissions(role: UserRole, payload: RolePermissionsUpdate, user: RequireAdmin, db: DB):
+    """Replace this role's whole granted set in one call -- the picker sends
+    every permission_id it wants checked, not one grant/revoke at a time,
+    so this is a full replace (delete then re-insert) rather than a diff."""
+    valid_ids = set((await db.scalars(
+        select(Permission.id).where(Permission.id.in_(payload.permission_ids)))).all())
+    await db.execute(sa_delete(RolePermission).where(RolePermission.role == role))
+    for pid in valid_ids:
+        db.add(RolePermission(role=role, permission_id=pid))
+    await db.flush()
+    return Message(detail=f"{role.value.replace('_', ' ').title()} now has {len(valid_ids)} permission(s) granted.")
 
 
 # ---------------- Configuration ----------------
