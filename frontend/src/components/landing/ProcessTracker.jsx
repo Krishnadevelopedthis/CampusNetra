@@ -397,8 +397,12 @@ export function ProcessTracker() {
   }, [])
 
   // Animation loop
+  // Which step is highlighted is functional content, not decoration, and
+  // is always pausable (hover/tap a step) — so it keeps cycling even under
+  // prefers-reduced-motion. reducedMotion still governs the wire/particle
+  // flourish and pulsing box-shadow within ProcessStep below.
   const runAnimation = useCallback(() => {
-    if (!isVisible || reducedMotion) return
+    if (!isVisible) return
 
     setIsAnimating(true)
 
@@ -440,7 +444,7 @@ export function ProcessTracker() {
 
   // Start animation when visible
   useEffect(() => {
-    if (isVisible && !reducedMotion) {
+    if (isVisible) {
       runAnimation()
     }
     return () => {
@@ -541,17 +545,6 @@ export function ProcessTracker() {
                 />
               ))}
             </div>
-          )}
-
-          {/* Reduced motion fallback message */}
-          {reducedMotion && isVisible && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center mt-12 text-body-md text-slate-500"
-            >
-              Animation disabled — showing final state. Enable motion in system settings for the live workflow animation.
-            </motion.p>
           )}
         </div>
       </div>

@@ -215,6 +215,22 @@
   }
 }
 
+/* The landing page feature marquee is functional content (the list of
+   modules), not decorative flourish, and is always pausable by hovering
+   it — so it's exempt from the reduced-motion kill switch above. */
+:root.reduce-motion .animate-marquee,
+:root.reduce-motion .animate-marquee-reverse {
+  animation-duration: 30s !important;
+  animation-iteration-count: infinite !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee, .animate-marquee-reverse {
+    animation-duration: 30s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; }

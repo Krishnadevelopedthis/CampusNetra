@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
 import { accent } from '@/lib/accentColors'
@@ -27,6 +28,15 @@ const ROW_2 = [
 const ACCENT_COLORS = ['secondary', 'primary', 'cyan', 'emerald', 'amber', 'secondary', 'primary', 'cyan']
 
 export function FeatureMarquee() {
+  const [isPaused, setIsPaused] = useState(false)
+  const pauseHandlers = {
+    onMouseEnter: () => setIsPaused(true),
+    onMouseLeave: () => setIsPaused(false),
+    onTouchStart: () => setIsPaused(true),
+    onTouchEnd: () => setTimeout(() => setIsPaused(false), 1500),
+  }
+  const playState = { animationPlayState: isPaused ? 'paused' : 'running' }
+
   return (
     <section className="py-12 bg-surface-base relative overflow-hidden">
       {/* Background Radial Spotlights */}
@@ -41,7 +51,7 @@ export function FeatureMarquee() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
         <div className="space-y-3">
           {/* Row 1 — scroll left */}
-          <div className="flex gap-4 animate-marquee whitespace-nowrap">
+          <div className="flex gap-4 animate-marquee whitespace-nowrap" style={playState} {...pauseHandlers}>
             {/* Double list for seamless loop */}
             {[...ROW_1, ...ROW_1].map((item, i) => (
               <motion.span
@@ -59,7 +69,7 @@ export function FeatureMarquee() {
           </div>
 
           {/* Row 2 — scroll right */}
-          <div className="flex gap-4 animate-marquee-reverse whitespace-nowrap">
+          <div className="flex gap-4 animate-marquee-reverse whitespace-nowrap" style={playState} {...pauseHandlers}>
             {[...ROW_2, ...ROW_2].map((item, i) => (
               <motion.span
                 key={`row2-${i}`}
