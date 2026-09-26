@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import Optional
 
@@ -25,6 +26,12 @@ log = logging.getLogger(__name__)
 _client = None
 _write_api = None
 _import_failed = False
+
+# get_status() is called on every GET /health (the frontend's liveness
+# probe, polled periodically) -- cached so that doesn't mean a real network
+# round trip to InfluxDB Cloud on every poll.
+_STATUS_CACHE_SECONDS = 30
+_status_cache: tuple[float, str] | None = None
 
 
 def _get_write_api():
@@ -52,6 +59,36 @@ def _write_sync(point) -> None:
     if write_api is None:
         return
     write_api.write(bucket=settings.INFLUXDB_BUCKET, record=point)
+
+
+def _ping_sync() -> bool:
+    return _client.ping() if _client is not None else False
+
+
+async def get_status() -> str:
+    """Read by GET /health (app/main.py) so a deployment's InfluxDB wiring
+    can be confirmed from the outside -- e.g. after setting INFLUXDB_* env
+    vars on Render -- without needing log/dashboard access to that host.
+    A real round trip (client.ping()), not just "credentials present" --
+    cached for _STATUS_CACHE_SECONDS since /health is polled."""
+    global _status_cache
+
+    if not (settings.INFLUXDB_URL and settings.INFLUXDB_TOKEN and settings.INFLUXDB_ORG):
+        return "disabled"
+    if _get_write_api() is None:
+        return "error: influxdb-client not installed"
+
+    now = time.monotonic()
+    if _status_cache is not None and now - _status_cache[0] < _STATUS_CACHE_SECONDS:
+        return _status_cache[1]
+
+    try:
+        ok = await asyncio.to_thread(_ping_sync)
+        result = "connected" if ok else "error: ping failed"
+    except Exception as exc:  # noqa: BLE001
+        result = f"error: {exc}"
+    _status_cache = (now, result)
+    return result
 
 
 async def write_room_telemetry(
