@@ -1,5 +1,5 @@
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { AuthShell } from '@/features/auth/AuthShell'
@@ -20,9 +20,19 @@ export default function Login() {
   const captcha = useCaptcha()
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
-  const expired = params.get('expired')
-  const expiredReason = params.get('reason')
+  const [params, setParams] = useSearchParams()
+  // Captured once, not read from `params` on every render: a plain page
+  // refresh re-requests the exact same URL, query string included, so a
+  // banner driven directly by params.get('expired') would show forever
+  // until the user navigated somewhere else -- refreshing looked like it
+  // should dismiss a "this just happened" notice but silently didn't.
+  // Reading it once into state, then clearing it from the URL right below,
+  // means a refresh lands on a plain /login with nothing left to show.
+  const [expired] = useState(() => params.get('expired'))
+  const [expiredReason] = useState(() => params.get('reason'))
+  useEffect(() => {
+    if (params.get('expired')) setParams({}, { replace: true })
+  }, [])
 
   const submit = async (e) => {
     e.preventDefault()
