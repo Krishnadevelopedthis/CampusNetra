@@ -1,63 +1,43 @@
-import { Star, MessageSquare, Users, GraduationCap, Wrench, Shield, ArrowLeft, ArrowRight } from 'lucide-react'
-import { motion, useScroll, useTransform, useMotionValueEvent } from 'framer-motion'
+import { MessageSquare, GraduationCap, Wrench, Shield, Users, ArrowLeft, ArrowRight } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useRef, useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { accent } from '@/lib/accentColors'
 
-const DEMO_FEEDBACK = [
+// These used to be a "Testimonials" section: named authors, star ratings,
+// and fabricated specific outcomes ("prevented three server room
+// incidents", "response time dropped from 45 to 8 minutes") attributed to
+// invented people at invented institutions -- presented as if they were
+// real customer reviews. That's a real problem for an early-stage product
+// (a university evaluating this for procurement would take those numbers
+// at face value), not just a style one. Reframed as honest, unattributed
+// use-case scenarios instead: what each role actually does in the app,
+// with no named author, no star rating, and no invented metric standing
+// in for a result nobody has actually measured yet.
+const USE_CASES = [
   {
     role: 'Facility Director',
-    institution: 'Demo University',
-    quote: 'CampusNetra brought complete visibility to our 14 buildings. What used to take days of phone calls now resolves in hours through the automated work order queue.',
-    author: 'Campus Operations Lead',
-    initials: 'CO',
+    scenario: 'Managing issues and work orders across every building from one queue, instead of a separate spreadsheet or phone chain per department.',
+    icon: GraduationCap,
     accentColor: 'secondary',
-    icon: GraduationCap,
   },
   {
-    role: 'Head of Maintenance',
-    institution: 'Technical College (Demo)',
-    quote: 'The digital twin view alone changed how we coordinate our technicians. We can see where issues are clustered before sending a team out.',
-    author: 'Maintenance Coordinator',
-    initials: 'MC',
-    accentColor: 'cyan',
+    role: 'Maintenance Technician',
+    scenario: 'Seeing exactly where an assigned job is on the digital twin before heading out, instead of hunting for a room number from a text message.',
     icon: Wrench,
-  },
-  {
-    role: 'Student Council President',
-    institution: 'University Campus (Demo)',
-    quote: 'Reporting broken equipment in our labs is finally effortless. We get actual updates when things are fixed instead of wondering if anyone noticed.',
-    author: 'Student Representative',
-    initials: 'SR',
-    accentColor: 'primary',
-    icon: Shield,
-  },
-  {
-    role: 'IT Operations Lead',
-    institution: 'Research Institute (Demo)',
-    quote: 'The predictive maintenance alerts have prevented three major server room incidents this quarter alone. ROI is undeniable.',
-    author: 'IT Operations Director',
-    initials: 'ID',
-    accentColor: 'emerald',
-    icon: Users,
-  },
-  {
-    role: 'Campus Security Chief',
-    institution: 'Metropolitan University (Demo)',
-    quote: 'Real-time issue tracking and automated dispatch means our response time dropped from 45 minutes to under 8 minutes.',
-    author: 'Security Operations Chief',
-    initials: 'SC',
-    accentColor: 'amber',
-    icon: Shield,
-  },
-  {
-    role: 'Sustainability Officer',
-    institution: 'Green Campus Initiative (Demo)',
-    quote: 'Energy dashboards and occupancy analytics helped us cut facility waste by 23% in the first year.',
-    author: 'Sustainability Lead',
-    initials: 'SL',
     accentColor: 'cyan',
-    icon: GraduationCap,
+  },
+  {
+    role: 'Student',
+    scenario: 'Reporting a broken fixture with a photo in under a minute, then getting a real status update instead of wondering if anyone saw it.',
+    icon: Shield,
+    accentColor: 'primary',
+  },
+  {
+    role: 'IT / Facilities Lead',
+    scenario: 'Getting a predictive maintenance flag on an asset trending toward failure, before it turns into an unplanned outage.',
+    icon: Users,
+    accentColor: 'emerald',
   },
 ]
 
@@ -66,8 +46,6 @@ const AVATAR_COLORS = [
   'bg-gradient-to-br from-cyan-500 to-blue-500',
   'bg-gradient-to-br from-primary-500 to-primary-600',
   'bg-gradient-to-br from-emerald-500 to-teal-500',
-  'bg-gradient-to-br from-amber-500 to-orange-500',
-  'bg-gradient-to-br from-cyan-500 to-emerald-500',
 ]
 
 export function Testimonials() {
@@ -113,21 +91,17 @@ export function Testimonials() {
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
             <MessageSquare size={14} className="text-secondary" />
-            <span className="text-gradient-electric">Feedback</span>
+            <span className="text-gradient-electric">How It's Used</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
             Designed for the Realities of Campus Life
           </h2>
           <p className="mt-4 text-body-lg text-ink-muted max-w-2xl mx-auto">
-            From facility managers to students — built around real campus workflows.
+            From facility directors to students — built around real campus workflows.
           </p>
-          <div className="mt-2 inline-flex items-center gap-1.5 text-body-sm text-ink-faint">
-            <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-            Illustrative user scenarios
-          </div>
         </motion.div>
 
-        {/* Horizontal Scrolling Testimonials Marquee */}
+        {/* Horizontal Scrolling Use-Case Cards */}
         <div className="relative">
           {/* Navigation arrows */}
           <div className="flex items-center justify-between mb-8">
@@ -136,14 +110,14 @@ export function Testimonials() {
               <button
                 onClick={() => scrollContainer.current?.scrollBy({ left: -400, behavior: 'smooth' })}
                 className="p-2 rounded-full glass-panel border border-glass-border text-ink-muted hover:text-ink hover:bg-surface-sunken transition-colors"
-                aria-label="Scroll testimonials left"
+                aria-label="Scroll left"
               >
                 <ArrowLeft size={18} />
               </button>
               <button
                 onClick={() => scrollContainer.current?.scrollBy({ left: 400, behavior: 'smooth' })}
                 className="p-2 rounded-full glass-panel border border-glass-border text-ink-muted hover:text-ink hover:bg-surface-sunken transition-colors"
-                aria-label="Scroll testimonials right"
+                aria-label="Scroll right"
               >
                 <ArrowRight size={18} />
               </button>
@@ -159,11 +133,11 @@ export function Testimonials() {
             onTouchStart={() => setIsPaused(true)}
             onTouchEnd={() => setTimeout(() => setIsPaused(false), 2500)}
           >
-            {DEMO_FEEDBACK.map(({ role, institution, quote, author, initials, accentColor, icon: Icon }, idx) => {
+            {USE_CASES.map(({ role, scenario, icon: Icon, accentColor }, idx) => {
               const a = accent(accentColor)
               return (
               <motion.div
-                key={author}
+                key={role}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 + idx * 0.1, duration: 0.5, ease: [0.24, 0, 0.38, 1] }}
@@ -177,35 +151,16 @@ export function Testimonials() {
                 <div className={clsx('absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none', a.glow)} />
 
                 <div className="relative z-10">
-                  {/* Stars */}
-                  <div className="flex gap-1 mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={14} className="fill-warning text-warning" />
-                    ))}
+                  <div className={clsx('w-10 h-10 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center flex-shrink-0 mb-4', AVATAR_COLORS[idx % AVATAR_COLORS.length])}>
+                    <Icon size={16} className="text-white" />
                   </div>
-
-                  {/* Quote */}
-                  <p className="text-body-md text-ink-muted leading-relaxed italic mb-6 relative">
-                    <span className="text-4xl text-secondary/20 font-serif leading-none absolute -top-3 -left-2">"</span>
-                    {quote}
+                  <p className="text-body-md text-ink-muted leading-relaxed">
+                    {scenario}
                   </p>
                 </div>
 
-                <div className="border-t border-glass-border pt-4 relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className={clsx('w-10 h-10 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center text-body-sm font-bold text-white flex-shrink-0', AVATAR_COLORS[idx % AVATAR_COLORS.length])}>
-                      {initials}
-                    </div>
-                    <div>
-                      <p className="text-body-md font-semibold text-ink">{author}</p>
-                      <p className="text-body-sm text-ink-faint">{role} · {institution}</p>
-                    </div>
-                  </div>
-                  {/* Role badge */}
-                  <div className="mt-3 flex items-center gap-2">
-                    <Icon size={12} className={clsx(a.text400)} />
-                    <span className="text-[11px] font-medium text-ink-muted uppercase tracking-wider">{role}</span>
-                  </div>
+                <div className="border-t border-glass-border pt-4 mt-6 relative z-10">
+                  <p className="text-[11px] font-medium text-ink-muted uppercase tracking-wider">{role}</p>
                 </div>
               </motion.div>
               )

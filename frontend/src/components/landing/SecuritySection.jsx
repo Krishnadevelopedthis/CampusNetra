@@ -1,4 +1,4 @@
-import { ShieldCheck, Lock, FileText, Sparkles, Users, Eye, CheckCircle } from 'lucide-react'
+import { ShieldCheck, Lock, FileText, KeyRound, Timer, ShieldAlert, Eye } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
 import { accent } from '@/lib/accentColors'
@@ -49,8 +49,8 @@ export function SecuritySection() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Sparkles size={14} className="text-secondary" />
-            <span className="text-gradient-electric">Enterprise Trust</span>
+            <ShieldCheck size={14} className="text-secondary" />
+            <span className="text-gradient-electric">Built-In Security Controls</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
             Built with Security & Governance in Mind
@@ -96,11 +96,14 @@ export function SecuritySection() {
           transition={{ delay: 0.5, duration: 0.5 }}
           className="mt-16 flex flex-wrap items-center justify-center gap-4"
         >
+          {/* Real, specific practices this app actually implements --
+              not third-party certifications it doesn't hold. See
+              /security for the full detail behind each of these. */}
           {[
-            { label: 'SOC 2 Type II', icon: CheckCircle, color: 'emerald' },
-            { label: 'ISO 27001', icon: ShieldCheck, color: 'secondary' },
-            { label: 'GDPR Compliant', icon: FileText, color: 'primary' },
-            { label: 'FERPA Ready', icon: Users, color: 'cyan' },
+            { label: 'Bcrypt Password Hashing', icon: KeyRound, color: 'emerald' },
+            { label: 'JWT Session Auth', icon: Lock, color: 'secondary' },
+            { label: 'Login Lockout After 5 Attempts', icon: Timer, color: 'primary' },
+            { label: 'Single-Use CAPTCHA', icon: ShieldAlert, color: 'cyan' },
             { label: 'Audit Logs', icon: Eye, color: 'amber' },
           ].map((badge, idx) => (
             <motion.div

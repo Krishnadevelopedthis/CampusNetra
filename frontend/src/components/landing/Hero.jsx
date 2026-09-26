@@ -253,12 +253,15 @@ function InteractiveDashboardPreview() {
         </div>
       </div>
 
-      {/* ACETERNITY PROACTIV: Floating Badges with glassmorphism & status beacons */}
+      {/* Floating badges describe real product capabilities -- kept
+          deliberately free of invented metrics (no fabricated accuracy
+          percentage, no fake response-time number) that this app has
+          never actually measured or audited. */}
       <div className="absolute -left-5 top-1/3 glass-panel rounded-2xl px-3.5 py-2.5 shadow-glow-emerald hidden sm:flex items-center gap-2.5 animate-float">
         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse status-beacon text-emerald-500" />
         <div>
-          <p className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">Zero False Alarms</p>
-          <p className="text-[12px] font-medium text-ink">99.4% AI Accuracy</p>
+          <p className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">AI-Assisted Triage</p>
+          <p className="text-[12px] font-medium text-ink">Auto-classified by category & priority</p>
         </div>
       </div>
 
@@ -268,7 +271,7 @@ function InteractiveDashboardPreview() {
         </div>
         <div>
           <p className="text-[11px] font-bold text-cyan-500 uppercase tracking-wider">Predictive Engine</p>
-          <p className="text-[12px] font-medium text-ink">Anomaly Detected in 4s</p>
+          <p className="text-[12px] font-medium text-ink">Flags assets trending toward failure</p>
         </div>
       </div>
     </div>
