@@ -1,6 +1,6 @@
 import {
   GraduationCap, Building2, FlaskConical, Dumbbell, Utensils, Trees,
-  Users, Award, TrendingUp, Shield, Globe, Zap
+  Boxes, Radar, ShieldCheck, ListChecks, Workflow, Clock
 } from 'lucide-react'
 import clsx from 'clsx'
 import { motion } from 'framer-motion'
@@ -15,22 +15,19 @@ const INSTITUTION_TYPES = [
   { icon: Trees, label: 'Large Campuses', color: 'secondary', description: 'Distributed infrastructure' },
 ]
 
+// Real, checkable claims about what the product actually does -- not
+// invented usage numbers or compliance certifications nobody has audited.
+// A prospective customer (a university's own IT/procurement team) will
+// ask for the SOC 2 report or the customer count that used to sit here;
+// neither existed, which is a real liability for an early-stage product
+// being evaluated by an institution, not just a style problem.
 const TRUST_METRICS = [
-  { icon: Users, label: '50+', sublabel: 'Institutions', color: 'secondary', glow: 'glow-secondary' },
-  { icon: Award, label: '99.4%', sublabel: 'AI Precision', color: 'primary', glow: 'glow-primary' },
-  { icon: TrendingUp, label: '40%', sublabel: 'Faster Resolution', color: 'cyan', glow: 'glow-cyan' },
-  { icon: Shield, label: 'SOC 2', sublabel: 'Certified', color: 'emerald', glow: 'glow-emerald' },
-  { icon: Globe, label: 'Global', sublabel: 'Deployment Ready', color: 'amber', glow: 'glow-amber' },
-  { icon: Zap, label: '<200ms', sublabel: 'API Latency', color: 'secondary', glow: 'glow-secondary' },
-]
-
-const DEMO_INSTITUTIONS = [
-  { name: 'Metro State University', type: 'University', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=metro-state', color: 'secondary' },
-  { name: 'Tech Valley College', type: 'College', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=tech-valley', color: 'primary' },
-  { name: 'Quantum Research Institute', type: 'Research', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=quantum-research', color: 'cyan' },
-  { name: 'Apex Sports Academy', type: 'Sports', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=apex-sports', color: 'emerald' },
-  { name: 'Campus Dining Services', type: 'Dining', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=campus-dining', color: 'amber' },
-  { name: 'Greenfield Mega Campus', type: 'Large Campus', avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=greenfield', color: 'secondary' },
+  { icon: Boxes, label: '9', sublabel: 'Connected Modules', color: 'secondary', glow: 'glow-secondary' },
+  { icon: Radar, label: 'Live', sublabel: 'Digital Twin', color: 'primary', glow: 'glow-primary' },
+  { icon: Workflow, label: 'AI', sublabel: 'Issue Triage', color: 'cyan', glow: 'glow-cyan' },
+  { icon: ShieldCheck, label: 'RBAC', sublabel: 'Access Control', color: 'emerald', glow: 'glow-emerald' },
+  { icon: ListChecks, label: 'Full', sublabel: 'Audit Trail', color: 'amber', glow: 'glow-amber' },
+  { icon: Clock, label: 'Real-Time', sublabel: 'SLA Tracking', color: 'secondary', glow: 'glow-secondary' },
 ]
 
 export function TrustSection() {
@@ -55,8 +52,8 @@ export function TrustSection() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary mb-4">
-            <Award size={14} className="text-secondary" />
-            <span className="text-gradient-electric">Trusted by Leading Institutions</span>
+            <Boxes size={14} className="text-secondary" />
+            <span className="text-gradient-electric">One Platform, Every Module</span>
           </div>
           <h2 className="text-headline-lg text-ink font-bold" style={{ textWrap: 'balance' }}>
             Built for Modern Campus Operations
@@ -136,56 +133,6 @@ export function TrustSection() {
               </motion.div>
               )
             })}
-          </div>
-        </motion.div>
-
-        {/* Avatar Stack - Demo Institutions */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
-          className="space-y-6"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-headline-md text-ink font-semibold">Active CampusNetra Deployments</h3>
-              <p className="text-body-sm text-ink-muted mt-0.5">Illustrative institutions powered by CampusNetra</p>
-            </div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full glass-panel border border-glass-border text-body-sm font-semibold text-secondary">
-              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-              <span className="text-gradient-cyber">Live Demo Data</span>
-            </div>
-          </div>
-
-          <div className="avatar-stack" style={{ '--avatar-count': 6 }}>
-            {DEMO_INSTITUTIONS.map(({ name, type, avatar, color }, idx) => (
-              <motion.div
-                key={name}
-                initial={{ opacity: 0, x: idx * -20, scale: 0.8 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                transition={{ delay: 0.45 + idx * 0.05, type: 'spring', stiffness: 300 }}
-                className="relative"
-                style={{ zIndex: 6 - idx }}
-                title={`${name} — ${type}`}
-              >
-                <div className="w-12 h-12 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 bg-gradient-to-br overflow-hidden shadow-lg ring-1 ring-inset">
-                  <img src={avatar} alt={name} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent" />
-                </div>
-                <div className={clsx('absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 flex items-center justify-center text-[10px] font-bold', accent(color).bg20.replace('/20', ''))}>
-                  <Shield size={10} className="text-white" />
-                </div>
-              </motion.div>
-            ))}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.75, type: 'spring', stiffness: 300 }}
-              className="w-12 h-12 rounded-full border-2 border-obsidian-950 dark:border-obsidian-50 bg-gradient-to-br from-secondary-400/20 to-primary/20 flex items-center justify-center shadow-lg ring-1 ring-inset"
-              title="50+ Institutions"
-            >
-              <span className="text-body-sm font-bold text-secondary">50+</span>
-            </motion.div>
           </div>
         </motion.div>
       </div>
