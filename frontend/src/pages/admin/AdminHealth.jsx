@@ -38,10 +38,29 @@ const IOT_LABEL_COLOUR = {
   FAULT: '#ef4444',
 }
 
-function AssetRow({ asset, onSelect }) {
+// The raw sensor reading behind an asset's WORKING/SUSPECTED FAULT label --
+// distinct from that health verdict, since a technician (or anyone
+// double-checking the verdict) wants the actual rotation/brightness
+// reading, not just the conclusion drawn from it.
+function assetRawReading(asset, device) {
+  if (!device || !asset.iot_label) return null
+  const cat = (asset.category || '').toLowerCase()
+  if (cat.includes('fan')) {
+    if (device.fan_rotation == null) return null
+    return device.fan_rotation ? 'Rotating' : 'Not rotating'
+  }
+  if (cat.includes('light')) {
+    if (device.light_brightness == null) return null
+    return `Brightness ${device.light_brightness}`
+  }
+  return null
+}
+
+function AssetRow({ asset, device, onSelect }) {
   const s = TWIN_STATE[asset.state] || NO_SENSORS
   const iot = asset.iot_label
   const iotColour = iot && (IOT_LABEL_COLOUR[iot] || s.colour)
+  const raw = assetRawReading(asset, device)
   return (
     <button
       type="button"
@@ -54,6 +73,7 @@ function AssetRow({ asset, onSelect }) {
         <span className="text-body-xs text-ink-faint shrink-0">{asset.tag}</span>
       </span>
       <span className="flex items-center gap-2 shrink-0">
+        {raw && <span className="text-body-xs text-ink-faint">{raw}</span>}
         {!asset.has_sensor && <span className="pill bg-neutral-bg text-neutral-text">No sensor</span>}
         {asset.has_sensor && (
           <span className="pill" style={{ background: `${iotColour || s.colour}1a`, color: iotColour || s.colour }}>
@@ -77,7 +97,10 @@ function RoomDeviceSummary({ device }) {
         </span>
       </span>
       {device.main_power != null && (
-        <span className="text-ink-muted">Power: {device.main_power ? 'ON' : 'OFF'}</span>
+        <span className="text-ink-muted">
+          Power: {device.main_power ? 'ON' : 'OFF'}
+          {device.main_current_a != null && ` (${device.main_current_a}A)`}
+        </span>
       )}
       {device.temperature_c != null && (
         <span className="flex items-center gap-1 text-ink-muted">
@@ -109,7 +132,7 @@ function RoomCard({ room, onSelectAsset }) {
       ) : (
         <div className="divide-y divide-border-subtle -mx-1">
           {room.assets.map((a) => (
-            <AssetRow key={a.id} asset={a} onSelect={onSelectAsset} />
+            <AssetRow key={a.id} asset={a} device={room.device} onSelect={onSelectAsset} />
           ))}
         </div>
       )}
