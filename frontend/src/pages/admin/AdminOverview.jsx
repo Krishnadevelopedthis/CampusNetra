@@ -1,11 +1,95 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Activity, Database, Server, Sparkles, Users } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react'
 
-import { ErrorState, Metric, MetricRow, Spinner, Widget } from '@/components/ui'
+import { Button, ErrorState, Metric, MetricRow, Modal, Spinner, toast, Widget } from '@/components/ui'
 import { api, API_ORIGIN } from '@/lib/api'
 
+/** Grant/revoke which permission *types* a role carries. This only
+ * changes what this admin screen records as granted -- real authorization
+ * throughout the app still gates on role directly (RequireStaff/Manager/
+ * Admin), not on this table. Wiring actual enforcement to consult it is a
+ * separate, larger change; this is the record-keeping half on its own. */
+function ManagePermissionsModal({ role, onClose }) {
+  const qc = useQueryClient()
+  const permissions = useQuery({
+    queryKey: ['admin-permissions'],
+    queryFn: () => api.get('/admin/permissions'),
+  })
+  const [selected, setSelected] = useState(null)
+
+  // Seed local selection from the role's currently-granted set, once we
+  // know both the full catalogue (for ids) and what this role already has.
+  const initial = new Set((role.permissions || []).map((p) => p.code))
+  if (selected === null && permissions.data) {
+    setSelected(new Set(
+      permissions.data.filter((p) => initial.has(p.code)).map((p) => p.id),
+    ))
+  }
+
+  const save = useMutation({
+    mutationFn: () => api.put(`/admin/roles/${role.role}/permissions`, {
+      permission_ids: [...(selected || [])],
+    }),
+    onSuccess: (d) => {
+      toast.success(d.detail)
+      qc.invalidateQueries({ queryKey: ['admin-roles'] })
+      onClose()
+    },
+    onError: (e) => toast.error(e.detail || 'Could not save permissions'),
+  })
+
+  const byModule = {}
+  for (const p of permissions.data || []) {
+    (byModule[p.module] ||= []).push(p)
+  }
+
+  return (
+    <Modal
+      open onClose={onClose} title={`${role.label} permissions`} size="md"
+      footer={(
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button loading={save.isPending} onClick={() => save.mutate()}>Save</Button>
+        </>
+      )}
+    >
+      {permissions.isLoading || selected === null ? <Spinner /> : (
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          {Object.entries(byModule).map(([mod, perms]) => (
+            <div key={mod}>
+              <p className="text-label-caps uppercase text-ink-muted mb-1.5">
+                {mod.replace(/_/g, ' ')}
+              </p>
+              <div className="space-y-1.5">
+                {perms.map((p) => (
+                  <label key={p.id} className="flex items-start gap-2.5 text-body-md text-ink cursor-pointer">
+                    <input
+                      type="checkbox" className="mt-0.5 rounded border-border accent-secondary"
+                      checked={selected.has(p.id)}
+                      onChange={(e) => setSelected((s) => {
+                        const next = new Set(s)
+                        if (e.target.checked) next.add(p.id); else next.delete(p.id)
+                        return next
+                      })}
+                    />
+                    <span>
+                      {p.description || p.code}
+                      <span className="text-ink-faint"> — {p.code}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 export default function AdminOverview() {
+  const [managingRole, setManagingRole] = useState(null)
   const health = useQuery({
     queryKey: ['system-health'],
     // /health sits outside the versioned /api/v1 prefix, so it's fetched
@@ -122,7 +206,9 @@ export default function AdminOverview() {
                     </div>
                   </td>
                   <td>
-                    <Link to="/admin/users" className="btn-ghost btn-sm">Manage</Link>
+                    <button className="btn-ghost btn-sm" onClick={() => setManagingRole(r)}>
+                      Manage
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -130,6 +216,10 @@ export default function AdminOverview() {
           </table>
         </div>
       </Widget>
+
+      {managingRole && (
+        <ManagePermissionsModal role={managingRole} onClose={() => setManagingRole(null)} />
+      )}
     </div>
   )
 }
