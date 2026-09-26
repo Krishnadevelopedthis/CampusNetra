@@ -19,6 +19,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import SessionLocal, engine
+from app.services import influx_client
 from app.services import iot_health as iot_health_svc
 from app.services import mqtt_client
 from app.services import permissions as perm_service
@@ -254,6 +255,13 @@ async def health():
         # email from one whose mail is simply slow: production hides the
         # fallback code, so both look identical from the browser.
         "email": settings.email_provider,
+        # MQTT: "disabled" (no MQTT_* env vars set) / "connecting" /
+        # "connected" / "reconnecting" / "error: ...". InfluxDB: "disabled"
+        # / "connected" (real ping) / "error: ...". Both let a deployment's
+        # IoT wiring be confirmed from the outside after setting env vars,
+        # without needing host log/dashboard access.
+        "mqtt": mqtt_client.get_status(),
+        "influx": await influx_client.get_status(),
         "environment": settings.ENVIRONMENT,
         "version": app.version,
     }

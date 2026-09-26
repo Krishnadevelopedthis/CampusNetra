@@ -36,6 +36,15 @@ log = logging.getLogger(__name__)
 
 TOPIC_FILTER = "campusnetra/device/+/telemetry"
 
+# Read by GET /health (app/main.py) so a deployment's MQTT wiring can be
+# confirmed from the outside -- e.g. after setting MQTT_* env vars on Render
+# -- without needing log/dashboard access to that host.
+_status = "disabled"
+
+
+def get_status() -> str:
+    return _status
+
 
 def _device_id_from_topic(topic: str) -> str | None:
     # campusnetra/device/{DEVICE_ID}/telemetry
@@ -116,6 +125,8 @@ async def run() -> None:
     on its own. A no-op (logs once, returns) if MQTT isn't configured --
     same "fails soft, app still boots without it" pattern as the email/SMS
     provider settings."""
+    global _status
+
     if not (settings.MQTT_BROKER_HOST and settings.MQTT_USERNAME and settings.MQTT_PASSWORD):
         log.info("MQTT not configured (MQTT_BROKER_HOST/USERNAME/PASSWORD unset) -- telemetry bridge disabled")
         return
@@ -124,25 +135,32 @@ async def run() -> None:
         import paho.mqtt.client as mqtt
     except ImportError:
         log.warning("paho-mqtt not installed -- MQTT telemetry bridge disabled")
+        _status = "error: paho-mqtt not installed"
         return
 
+    _status = "connecting"
     loop = asyncio.get_running_loop()
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, protocol=mqtt.MQTTv5)
     client.username_pw_set(settings.MQTT_USERNAME, settings.MQTT_PASSWORD)
     client.tls_set()  # system CA bundle -- HiveMQ Cloud's cert is publicly trusted
 
     def on_connect(c, userdata, flags, reason_code, properties=None):
+        global _status
         if reason_code == 0:
             log.info("MQTT connected to %s:%s", settings.MQTT_BROKER_HOST, settings.MQTT_BROKER_PORT)
             c.subscribe(TOPIC_FILTER, qos=1)
+            _status = "connected"
         else:
             log.error("MQTT connect failed: %s", reason_code)
+            _status = f"error: {reason_code}"
 
     def on_message(c, userdata, msg):
         asyncio.run_coroutine_threadsafe(_handle_message(msg.topic, msg.payload), loop)
 
     def on_disconnect(c, userdata, flags, reason_code, properties=None):
+        global _status
         log.warning("MQTT disconnected (reason=%s) -- paho reconnects automatically", reason_code)
+        _status = "reconnecting"
 
     client.on_connect = on_connect
     client.on_message = on_message
