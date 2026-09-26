@@ -11,6 +11,7 @@ this feature existed.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -18,12 +19,39 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, RequireAdmin
+from app.core.config import settings
 from app.core.enums import AssetState
 from app.core.routing import CommitRoute
 from app.models.iot import AssetSensorMapping, HealthEvent, IoTDevice
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.models.work import Inspection, WorkOrder
 from app.schemas.iot import HealthEventOut, SensorMappingOut
+
+
+def _device_out(device: IoTDevice) -> dict:
+    """Recomputes online/offline against the configured timeout at read
+    time, on top of the is_online flag the background sweep (services/
+    iot_health.offline_sweep_scheduler) already keeps current -- belt and
+    suspenders for the up-to-60s gap between sweeps."""
+    online = device.is_online
+    if online and device.last_seen_at:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=settings.IOT_DEVICE_OFFLINE_MINUTES)
+        last_seen = device.last_seen_at
+        if last_seen.tzinfo is None:
+            last_seen = last_seen.replace(tzinfo=timezone.utc)
+        online = last_seen >= cutoff
+    env = device.last_environment or {}
+    return {
+        "id": str(device.id), "device_id": device.device_id, "label": device.label,
+        "is_online": online,
+        "last_seen_at": device.last_seen_at.isoformat() if device.last_seen_at else None,
+        "main_power": env.get("main_power"),
+        "main_current_a": env.get("main_current_a"),
+        "fan_rotation": env.get("fan_rotation"),
+        "light_brightness": env.get("light_brightness"),
+        "temperature_c": env.get("temperature_c"),
+        "humidity_pct": env.get("humidity_pct"),
+    }
 
 router = APIRouter(route_class=CommitRoute, prefix="/health", tags=["IoT Health"])
 
@@ -87,6 +115,16 @@ async def health_tree(
             .order_by(Asset.name)
         )).all()
 
+    # One IoT device per room at most (a room's ESP32 assignment) -- used to
+    # show Main Power / Fan / Light / Temperature / Humidity / Online
+    # straight on the room card, per the Admin -> Health integration spec.
+    devices_by_room: dict[uuid.UUID, IoTDevice] = {}
+    if rooms:
+        device_rows = (await db.scalars(
+            select(IoTDevice).where(IoTDevice.room_id.in_([r.id for r in rooms]))
+        )).all()
+        devices_by_room = {d.room_id: d for d in device_rows if d.room_id}
+
     # Which assets have at least one sensor mapped, so a room with
     # electronic assets but zero configured sensors shows "no sensors"
     # (spec: explicit exception) rather than a silent healthy state.
@@ -114,8 +152,42 @@ async def health_tree(
     for b in buildings:
         buildings_by_campus.setdefault(b.campus_id, []).append(b)
 
+    def _iot_label(asset: Asset, device: Optional[IoTDevice]) -> Optional[str]:
+        """Fan/Light-specific wording (WORKING / OFF-NO POWER / SUSPECTED
+        FAULT) layered on top of the existing generic asset-state pill --
+        every other asset keeps using that pill unchanged. Only applies to
+        an asset this room's device actually has a sensor mapped to (i.e.
+        its category name/code says fan or light); anything else falls
+        back to None and the frontend shows the existing generic label."""
+        if not asset.category or device is None or not device.last_environment:
+            # No telemetry received yet -- nothing to base WORKING/OFF/
+            # SUSPECTED FAULT wording on, so don't claim one. Falls back to
+            # the existing generic asset-state pill.
+            return None
+        cat = asset.category.name.lower()
+        is_fan = "fan" in cat or asset.category.code.lower() == "fan"
+        is_light = "light" in cat or asset.category.code.lower() == "light"
+        if not (is_fan or is_light):
+            return None
+        if asset.state == AssetState.FAULT:
+            return "FAULT"
+        if asset.state in (AssetState.WARNING, AssetState.INSPECTION_REQUIRED):
+            return "SUSPECTED FAULT"
+        if asset.state == AssetState.UNDER_MAINTENANCE:
+            return "Under maintenance"
+        if asset.state == AssetState.DECOMMISSIONED:
+            return "Decommissioned"
+        # HEALTHY: WORKING unless this reading's main power was confirmed
+        # off -- absence of current explains an idle Fan/Light, it isn't
+        # evidence either is faulty (see services/iot_health.py).
+        env = device.last_environment or {}
+        if env.get("main_power") is False:
+            return "OFF / NO POWER"
+        return "WORKING"
+
     def room_out(room: Room) -> dict:
         room_assets = assets_by_room.get(room.id, [])
+        device = devices_by_room.get(room.id)
         # "no_sensors" covers both a room with no electronic assets at all
         # and one with electronic assets that simply have no sensor mapped
         # yet -- neither can produce a real health reading, so neither
@@ -125,12 +197,14 @@ async def health_tree(
             "id": str(room.id), "name": room.name, "code": room.code, "kind": room.kind.value,
             "has_electronic_assets": bool(room_assets),
             "status": _room_status([a.state for a in room_assets]) if has_sensors else "no_sensors",
+            "device": _device_out(device) if device else None,
             "assets": [
                 {
                     "id": str(a.id), "name": a.name, "tag": a.tag,
                     "category": a.category.name if a.category else None,
                     "state": a.state.value,
                     "has_sensor": a.id in mapped_asset_ids,
+                    "iot_label": _iot_label(a, device) if a.id in mapped_asset_ids else None,
                 }
                 for a in room_assets
             ],

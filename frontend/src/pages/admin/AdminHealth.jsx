@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Cpu, Gauge, HeartPulse } from 'lucide-react'
+import { Cpu, Gauge, HeartPulse, Radio, Thermometer } from 'lucide-react'
 import { useState } from 'react'
 
+import { IoTDevicesPanel } from '@/components/admin/IoTDevicesPanel'
 import { EmptyState, ErrorState, Field, Modal, Select, SkeletonRows, Widget } from '@/components/ui'
 import { api } from '@/lib/api'
-import { dt, TWIN_STATE } from '@/lib/format'
+import { ago, dt, TWIN_STATE } from '@/lib/format'
 
 /**
  * Admin-only Health page: Campus -> Building -> Floor -> Room -> electronic
@@ -27,8 +28,20 @@ function StateDot({ status }) {
   )
 }
 
+// Fan/Light-specific wording (WORKING / OFF-NO POWER / SUSPECTED FAULT) the
+// backend derives from real telemetry, shown instead of the generic status
+// pill only for the asset(s) an IoT device is actually reporting on.
+const IOT_LABEL_COLOUR = {
+  WORKING: '#10b981',
+  'OFF / NO POWER': '#94a3b8',
+  'SUSPECTED FAULT': '#f59e0b',
+  FAULT: '#ef4444',
+}
+
 function AssetRow({ asset, onSelect }) {
   const s = TWIN_STATE[asset.state] || NO_SENSORS
+  const iot = asset.iot_label
+  const iotColour = iot && (IOT_LABEL_COLOUR[iot] || s.colour)
   return (
     <button
       type="button"
@@ -43,12 +56,39 @@ function AssetRow({ asset, onSelect }) {
       <span className="flex items-center gap-2 shrink-0">
         {!asset.has_sensor && <span className="pill bg-neutral-bg text-neutral-text">No sensor</span>}
         {asset.has_sensor && (
-          <span className="pill" style={{ background: `${s.colour}1a`, color: s.colour }}>
-            {s.label}
+          <span className="pill" style={{ background: `${iotColour || s.colour}1a`, color: iotColour || s.colour }}>
+            {iot || s.label}
           </span>
         )}
       </span>
     </button>
+  )
+}
+
+function RoomDeviceSummary({ device }) {
+  if (!device) return null
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-surface-sunken px-2.5 py-1.5 text-body-xs">
+      <span className="flex items-center gap-1 font-medium text-ink">
+        <Radio size={12} className={device.is_online ? 'text-success-text' : 'text-ink-faint'} />
+        {device.device_id}
+        <span className={clsx('pill ml-0.5', device.is_online ? 'bg-success-bg text-success-text' : 'bg-neutral-bg text-neutral-text')}>
+          {device.is_online ? 'Online' : 'Offline'}
+        </span>
+      </span>
+      {device.main_power != null && (
+        <span className="text-ink-muted">Power: {device.main_power ? 'ON' : 'OFF'}</span>
+      )}
+      {device.temperature_c != null && (
+        <span className="flex items-center gap-1 text-ink-muted">
+          <Thermometer size={12} /> {device.temperature_c}°C
+          {device.humidity_pct != null && ` · ${device.humidity_pct}%`}
+        </span>
+      )}
+      {device.last_seen_at && (
+        <span className="text-ink-faint">Last update: {ago(device.last_seen_at)}</span>
+      )}
+    </div>
   )
 }
 
@@ -61,6 +101,7 @@ function RoomCard({ room, onSelectAsset }) {
         </div>
         <StateDot status={room.status} />
       </div>
+      <RoomDeviceSummary device={room.device} />
       {!room.has_electronic_assets ? (
         <p className="text-body-xs text-ink-faint">No electronic assets in this room.</p>
       ) : room.status === 'no_sensors' ? (
@@ -255,6 +296,8 @@ export default function AdminHealth() {
           Narrow with the selectors below, or leave them on "All" to scroll the whole organisation.
         </p>
       </div>
+
+      <IoTDevicesPanel />
 
       <Widget title="Where">
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">

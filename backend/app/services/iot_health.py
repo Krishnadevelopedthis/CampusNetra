@@ -8,6 +8,8 @@ Deliberately rule-based, not ML -- see the spec this was built against:
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -17,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.core.enums import (
     AssetState, HealthEventKind, HealthEventSeverity, HealthEventStatus, SensorType,
 )
@@ -30,11 +33,19 @@ from app.services import work_orders as wo_svc
 from app.services.references import next_public_id
 from app.services.twin import set_asset_state
 
+log = logging.getLogger(__name__)
+
 IOT_TEMPLATE_NAME = "IoT Sensor Anomaly Check"
 
 # A reading older than this is rejected outright rather than processed --
 # spec #7's "reject stale timestamps".
 MAX_TELEMETRY_AGE = timedelta(minutes=15)
+
+# Below this, ACS712 reads as "no current flowing" rather than "on but
+# abnormal" -- the same noise floor evaluate_current() uses for NO_CURRENT.
+# For the MQTT/device-level payload this is also the Fan+Light power gate:
+# see process_device_telemetry().
+MAIN_POWER_ON_THRESHOLD_A = Decimal("0.02")
 
 
 def _now() -> datetime:
@@ -297,3 +308,230 @@ async def process_telemetry(
             confirmed.append(event)
 
     return confirmed
+
+
+async def evaluate_fan_rotation(
+    db: AsyncSession, mapping: AssetSensorMapping, asset: Asset, rotation_detected: bool,
+    organization_id: uuid.UUID, department_id: Optional[uuid.UUID],
+) -> Optional[HealthEvent]:
+    """IR sensor: only called while main current is already confirmed on
+    (see process_device_telemetry) -- current-on + no-rotation is the
+    truth table's Fan = SUSPECTED FAULT case. Mirrors evaluate_current()'s
+    debounce/confirm/recover shape exactly, just over a boolean reading
+    instead of a threshold band."""
+    now = _now()
+    mapping.last_value = Decimal("1") if rotation_detected else Decimal("0")
+    mapping.last_reading_at = now
+
+    if rotation_detected:
+        if mapping.consecutive_abnormal:
+            mapping.consecutive_abnormal = 0
+            mapping.first_abnormal_at = None
+            await _recover_if_open(db, asset, HealthEventKind.FAN_NOT_ROTATING)
+        return None
+
+    if mapping.consecutive_abnormal == 0:
+        mapping.first_abnormal_at = now
+    mapping.consecutive_abnormal += 1
+
+    elapsed = (now - mapping.first_abnormal_at).total_seconds() if mapping.first_abnormal_at else 0
+    if elapsed < mapping.debounce_seconds:
+        return None
+
+    return await _confirm_anomaly(
+        db, mapping, asset, organization_id, department_id,
+        HealthEventKind.FAN_NOT_ROTATING, Decimal("0"), None, None,
+    )
+
+
+async def evaluate_light_brightness(
+    db: AsyncSession, mapping: AssetSensorMapping, asset: Asset, brightness: int,
+    organization_id: uuid.UUID, department_id: Optional[uuid.UUID],
+) -> Optional[HealthEvent]:
+    """LDR: only called while main current is already confirmed on -- see
+    process_device_telemetry. current-on + brightness below the mapping's
+    configured floor is the truth table's Light = SUSPECTED FAULT case.
+    No threshold configured (brightness_min unset) means the reading is
+    stored but not judged, same as evaluate_current() with no band set --
+    an admin not yet having calibrated this room is not itself a fault."""
+    now = _now()
+    brightness_dec = Decimal(str(brightness))
+    mapping.last_value = brightness_dec
+    mapping.last_reading_at = now
+
+    threshold = mapping.brightness_min
+    if threshold is None:
+        return None
+
+    dark = brightness < threshold
+    if not dark:
+        if mapping.consecutive_abnormal:
+            mapping.consecutive_abnormal = 0
+            mapping.first_abnormal_at = None
+            await _recover_if_open(db, asset, HealthEventKind.LOW_BRIGHTNESS)
+        return None
+
+    if mapping.consecutive_abnormal == 0:
+        mapping.first_abnormal_at = now
+    mapping.consecutive_abnormal += 1
+
+    elapsed = (now - mapping.first_abnormal_at).total_seconds() if mapping.first_abnormal_at else 0
+    if elapsed < mapping.debounce_seconds:
+        return None
+
+    return await _confirm_anomaly(
+        db, mapping, asset, organization_id, department_id,
+        HealthEventKind.LOW_BRIGHTNESS, brightness_dec, Decimal(threshold), None,
+    )
+
+
+async def process_device_telemetry(
+    db: AsyncSession, device: IoTDevice, payload: dict,
+) -> dict:
+    """The MQTT/ESP32 payload shape: {device_id, timestamp, main_current_a,
+    fan:{rotation,state}, light:{brightness,state}, environment:{...}} --
+    one combined reading for the room's shared power path, not the older
+    per-asset list process_telemetry() above handles. Kept as a separate
+    function because the payload shapes don't overlap, not because the
+    underlying health logic differs: both end up in the same
+    evaluate_*() / _confirm_anomaly() / _recover_if_open() machinery.
+
+    Device -> room resolution is a single read of device.room_id (set by
+    the admin via PATCH /iot/devices/{id}/room -- see api/v1/iot.py); if
+    unset, this never guesses a room, and returns with only the device's
+    own last-seen/last-environment fields updated.
+    """
+    ts = payload.get("timestamp")
+    if ts:
+        try:
+            reading_time = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        except ValueError:
+            raise TelemetryError("timestamp is not valid ISO-8601")
+        if reading_time.tzinfo is None:
+            reading_time = reading_time.replace(tzinfo=timezone.utc)
+        if _now() - reading_time > MAX_TELEMETRY_AGE:
+            raise TelemetryError("telemetry timestamp is too old (stale)")
+
+    if "main_current_a" not in payload:
+        raise TelemetryError("main_current_a is required")
+    try:
+        main_current_a = Decimal(str(payload["main_current_a"]))
+    except Exception as exc:  # noqa: BLE001
+        raise TelemetryError("invalid main_current_a") from exc
+    if main_current_a < 0 or main_current_a > 100:
+        raise TelemetryError("main_current_a out of plausible range")
+
+    device.is_online = True
+    device.last_seen_at = _now()
+
+    fan = payload.get("fan") or {}
+    light = payload.get("light") or {}
+    env = payload.get("environment") or {}
+    rotation_detected = bool(fan.get("rotation"))
+    brightness = int(light.get("brightness") or 0)
+    powered = main_current_a > MAIN_POWER_ON_THRESHOLD_A
+
+    # Everything the Health page's device panel needs to display -- kept in
+    # the same JSONB field process_telemetry() already writes to (just a
+    # richer dict), rather than adding new columns for what is, either way,
+    # a "most recent snapshot" display value, not a threshold/anomaly input.
+    device.last_environment = {
+        "main_current_a": float(main_current_a),
+        "main_power": powered,
+        "fan_rotation": rotation_detected,
+        "fan_state_reported": fan.get("state"),
+        "light_brightness": brightness,
+        "light_state_reported": light.get("state"),
+        "temperature_c": env.get("temperature_c"),
+        "humidity_pct": env.get("humidity_pct"),
+        "recorded_at": _now().isoformat(),
+    }
+
+    confirmed: list[HealthEvent] = []
+    if device.room_id is None:
+        log.info("Telemetry from unassigned device %s stored; no room to update", device.device_id)
+        return {"confirmed": confirmed, "unassigned": True, "powered": powered}
+
+    mappings = (await db.scalars(
+        select(AssetSensorMapping)
+        .options(selectinload(AssetSensorMapping.asset).selectinload(Asset.category))
+        .where(
+            AssetSensorMapping.device_id == device.id,
+            AssetSensorMapping.sensor_type.in_([SensorType.IR_PROXIMITY, SensorType.LDR]),
+        )
+    )).all()
+
+    for mapping in mappings:
+        asset = mapping.asset
+        if asset is None:
+            continue
+        department_id = asset.category.default_department_id if asset.category else None
+        is_fan = mapping.sensor_type == SensorType.IR_PROXIMITY
+
+        if not powered:
+            # No main current explains both Fan and Light being idle -- not
+            # evidence either is faulty (spec: OFF/NO POWER, never a fault).
+            # Clears any not-yet-inspected anomaly the same way a reading
+            # returning to normal does; doesn't count this as an abnormal
+            # reading either way.
+            if mapping.consecutive_abnormal:
+                mapping.consecutive_abnormal = 0
+                mapping.first_abnormal_at = None
+            kind = HealthEventKind.FAN_NOT_ROTATING if is_fan else HealthEventKind.LOW_BRIGHTNESS
+            await _recover_if_open(db, asset, kind)
+            continue
+
+        if is_fan:
+            event = await evaluate_fan_rotation(
+                db, mapping, asset, rotation_detected, device.organization_id, department_id,
+            )
+        else:
+            event = await evaluate_light_brightness(
+                db, mapping, asset, brightness, device.organization_id, department_id,
+            )
+        if event:
+            confirmed.append(event)
+
+    return {"confirmed": confirmed, "unassigned": False, "powered": powered}
+
+
+# ---------- device online/offline sweep ----------
+# A device going quiet is the passage of time, so nothing in the request/
+# MQTT-message path can notice it -- same reasoning as app.services.sla's
+# breach sweep, same shape of background task.
+
+OFFLINE_SWEEP_SECONDS = 60
+
+
+async def _sweep_offline_devices(session_factory) -> None:
+    threshold = timedelta(minutes=settings.IOT_DEVICE_OFFLINE_MINUTES)
+    async with session_factory() as db:
+        cutoff = _now() - threshold
+        stale = (await db.scalars(
+            select(IoTDevice).where(
+                IoTDevice.is_online.is_(True),
+                IoTDevice.last_seen_at.is_not(None),
+                IoTDevice.last_seen_at < cutoff,
+            )
+        )).all()
+        if not stale:
+            return
+        for device in stale:
+            device.is_online = False
+        await db.commit()
+        log.info("Marked %d IoT device(s) offline (no telemetry in %d min)",
+                  len(stale), settings.IOT_DEVICE_OFFLINE_MINUTES)
+
+
+async def offline_sweep_scheduler(session_factory) -> None:
+    """Sweep forever, surviving its own failures -- identical reasoning to
+    app.services.sla.scheduler: a sweep that raises must not end the loop."""
+    log.info("IoT device offline sweep scheduled every %d second(s)", OFFLINE_SWEEP_SECONDS)
+    while True:
+        try:
+            await _sweep_offline_devices(session_factory)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            log.exception("IoT offline sweep failed; retrying at the next interval")
+        await asyncio.sleep(OFFLINE_SWEEP_SECONDS)

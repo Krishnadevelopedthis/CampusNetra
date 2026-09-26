@@ -19,6 +19,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import SessionLocal, engine
+from app.services import iot_health as iot_health_svc
+from app.services import mqtt_client
 from app.services import permissions as perm_service
 from app.services import sla
 
@@ -61,11 +63,23 @@ async def lifespan(app: FastAPI):
     # notice it. This is the only thing in the system that runs on its own.
     sweeper = asyncio.create_task(sla.scheduler(SessionLocal))
 
+    # ESP32 -> HiveMQ Cloud telemetry bridge (no-op if MQTT isn't configured)
+    # and the IoT device offline sweep -- same "runs on its own, the request
+    # path can't notice it" reasoning as the SLA sweeper above.
+    mqtt_task = asyncio.create_task(mqtt_client.run())
+    iot_offline_sweeper = asyncio.create_task(iot_health_svc.offline_sweep_scheduler(SessionLocal))
+
     yield
 
     sweeper.cancel()
     with suppress(asyncio.CancelledError):
         await sweeper
+    mqtt_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await mqtt_task
+    iot_offline_sweeper.cancel()
+    with suppress(asyncio.CancelledError):
+        await iot_offline_sweeper
     await engine.dispose()
 
 
