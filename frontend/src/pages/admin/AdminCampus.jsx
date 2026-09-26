@@ -97,7 +97,7 @@ export default function AdminCampus() {
         title={campus?.name || 'Campus'}
         subtitle={campus?.address}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <Button
               variant="secondary" icon={MapPin}
               onClick={() => setLocationForm({

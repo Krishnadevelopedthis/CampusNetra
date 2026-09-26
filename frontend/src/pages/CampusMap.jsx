@@ -392,7 +392,7 @@ export default function CampusMap() {
           <div className="p-widget">
             <div className="skeleton w-full rounded-xl" style={{ aspectRatio: '16 / 9' }} />
           </div>
-        ) : view === 'campus' && buildings.length === 0 ? (
+        ) : view === 'campus' && buildings.length === 0 && !hasOutdoorMap ? (
           <EmptyState icon={Landmark} title="No buildings yet"
                       description="Add a building to see it appear on the campus."
                       action={canEdit ? (
@@ -400,6 +400,14 @@ export default function CampusMap() {
                       ) : undefined} />
         ) : (
           <div className="relative bg-surface-sunken" style={{ height: 560 }}>
+            {/* A geolocated campus with no buildings yet still gets its real
+                map rendered (below) rather than a generic empty state — the
+                admin set that crop for a reason and should see it took. */}
+            {view === 'campus' && hasOutdoorMap && buildings.length === 0 && (
+              <p className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-body-sm text-ink-faint bg-surface/90 backdrop-blur px-3 py-1.5 rounded-full border border-border-subtle">
+                {canEdit ? 'No buildings yet — click the map to add one.' : 'No buildings on this campus yet.'}
+              </p>
+            )}
             {view === 'campus' && hasOutdoorMap && buildingsMissingGeo > 0 && (
               <p className="absolute top-2 left-1/2 -translate-x-1/2 z-10 text-body-sm text-ink-faint bg-surface/90 backdrop-blur px-3 py-1.5 rounded-full border border-border-subtle">
                 {buildingsMissingGeo} building{buildingsMissingGeo === 1 ? '' : 's'} without map coordinates aren't shown on the outdoor map.
