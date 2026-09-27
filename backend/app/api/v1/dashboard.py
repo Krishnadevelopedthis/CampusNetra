@@ -1,9 +1,10 @@
 """Role-aware dashboard aggregates."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+import calendar as _calendar
+from datetime import date, datetime, timedelta, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func, select
 
 from app.api.deps import DB, CurrentUser
@@ -219,3 +220,63 @@ async def dashboard(user: CurrentUser, db: DB):
             Inspection, Inspection.organization_id == org,
             Inspection.status.in_(["scheduled", "in_progress"])),
     }
+
+
+@router.get("/calendar", response_model=dict)
+async def calendar(user: CurrentUser, db: DB, month: str = Query(..., description="YYYY-MM")):
+    """Everything with a date this month, bucketed by day — Issues by when
+    they were reported, Inspections/WorkOrders by when they're scheduled.
+    Reuses the existing three tables (no new table for this): a calendar is
+    just a different read of data that already exists, org-scoped exactly
+    like every other dashboard number on this page.
+    """
+    try:
+        year, mon = (int(p) for p in month.split("-", 1))
+        _calendar.monthrange(year, mon)  # raises for an out-of-range month
+    except (ValueError, TypeError):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "month must be YYYY-MM")
+
+    org = user.organization_id
+    start = datetime(year, mon, 1, tzinfo=timezone.utc)
+    days_in_month = _calendar.monthrange(year, mon)[1]
+    end = datetime(year, mon, days_in_month, 23, 59, 59, tzinfo=timezone.utc)
+
+    issues = (await db.scalars(
+        select(Issue).where(
+            Issue.organization_id == org,
+            Issue.created_at >= start, Issue.created_at <= end,
+        ).order_by(Issue.created_at.asc())
+    )).all()
+    inspections = (await db.scalars(
+        select(Inspection).where(
+            Inspection.organization_id == org,
+            Inspection.scheduled_for >= start, Inspection.scheduled_for <= end,
+        ).order_by(Inspection.scheduled_for.asc())
+    )).all()
+    work_orders = (await db.scalars(
+        select(WorkOrder).where(
+            WorkOrder.organization_id == org,
+            WorkOrder.scheduled_for >= start, WorkOrder.scheduled_for <= end,
+        ).order_by(WorkOrder.scheduled_for.asc())
+    )).all()
+
+    by_day: dict[str, dict[str, list]] = {}
+    for i in issues:
+        iso = i.created_at.date().isoformat()
+        by_day.setdefault(iso, {"issues": [], "inspections": [], "work_orders": []})["issues"].append({
+            "id": str(i.id), "reference": i.reference, "title": i.title, "status": i.status.value,
+            "priority": i.priority.value,
+        })
+    for insp in inspections:
+        iso = insp.scheduled_for.date().isoformat()
+        by_day.setdefault(iso, {"issues": [], "inspections": [], "work_orders": []})["inspections"].append({
+            "id": str(insp.id), "reference": insp.reference, "status": insp.status.value,
+        })
+    for wo in work_orders:
+        iso = wo.scheduled_for.date().isoformat()
+        by_day.setdefault(iso, {"issues": [], "inspections": [], "work_orders": []})["work_orders"].append({
+            "id": str(wo.id), "reference": wo.reference, "title": wo.title, "status": wo.status.value,
+            "priority": wo.priority.value,
+        })
+
+    return {"month": month, "days": by_day}

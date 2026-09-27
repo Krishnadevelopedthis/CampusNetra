@@ -26,6 +26,7 @@ import {
   Widget,
 } from '@/components/ui'
 import { SkeletonChart, SkeletonList, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
+import CalendarWidget from '@/features/dashboard/CalendarWidget'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
@@ -457,6 +458,8 @@ function StaffBody({ data, user }) {
           </div>
         )}
       </Widget>
+
+      <CalendarWidget />
     </>
   )
 }

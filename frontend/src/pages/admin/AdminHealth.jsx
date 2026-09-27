@@ -113,6 +113,11 @@ function AssetRow({ asset, device, onSelect }) {
 
 function RoomDeviceSummary({ device }) {
   if (!device) return null
+  // A device that has gone offline can't still be drawing whatever current
+  // it last reported -- that reading is just the last thing heard from it,
+  // not a live fact. Once offline, power always reads OFF, full stop, no
+  // matter what main_power/main_current_a last said.
+  const powerOn = device.is_online && device.main_power
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-surface-sunken px-2.5 py-1.5 text-body-xs">
       <span className="flex items-center gap-1 font-medium text-ink">
@@ -123,10 +128,10 @@ function RoomDeviceSummary({ device }) {
         </span>
       </span>
       {device.main_power != null && (
-        <span className={clsx('flex items-center gap-1', device.main_power ? 'text-success-text' : 'text-ink-faint')}>
-          {device.main_power ? <Power size={12} /> : <PowerOff size={12} />}
-          Power: {device.main_power ? 'ON' : 'OFF'}
-          {device.main_current_a != null && ` (${device.main_current_a}A)`}
+        <span className={clsx('flex items-center gap-1', powerOn ? 'text-success-text' : 'text-ink-faint')}>
+          {powerOn ? <Power size={12} /> : <PowerOff size={12} />}
+          Power: {powerOn ? 'ON' : 'OFF'}
+          {powerOn && device.main_current_a != null && ` (${device.main_current_a}A)`}
         </span>
       )}
       {device.temperature_c != null && (
