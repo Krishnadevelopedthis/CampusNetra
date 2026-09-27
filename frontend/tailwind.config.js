@@ -165,6 +165,12 @@ export default {
         'body-lg':         ['16px', { lineHeight: '24px' }],
         'body-md':         ['14px', { lineHeight: '20px' }],
         'body-sm':         ['12px', { lineHeight: '16px' }],
+        // Was referenced from ~20 components (status pills, timestamps,
+        // secondary labels) but never actually defined — every one of those
+        // `text-body-xs` classes compiled to nothing and silently fell back
+        // to the browser default. clamp() so it also shrinks slightly on
+        // very narrow viewports instead of staying one fixed size.
+        'body-xs':         ['clamp(10px, 2.6vw, 12px)', { lineHeight: '15px' }],
         'label-caps':      ['11px', { lineHeight: '16px', letterSpacing: '0.06em', fontWeight: '700' }],
         // Form labels specifically. 11px is below the floor for text someone
         // has to read to know what to type; the caps role stays 11px for the

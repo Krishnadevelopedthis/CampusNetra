@@ -27,6 +27,7 @@ import {
 } from '@/components/ui'
 import { SkeletonChart, SkeletonList, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
 import CalendarWidget from '@/features/dashboard/CalendarWidget'
+import CampusHealthWidget from '@/features/dashboard/CampusHealthWidget'
 import { useChartTheme } from '@/hooks/useChartTheme'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
@@ -196,6 +197,10 @@ function ReporterBody({ data }) {
             ))}
           </ol>
         </Widget>
+      </div>
+
+      <div className="lg:col-span-3">
+        <CampusHealthWidget />
       </div>
     </div>
   )
@@ -378,13 +383,15 @@ function StaffBody({ data, user }) {
         </Widget>
       </div>
 
-      {isAdmin && (
+      {isAdmin ? (
         <Widget
           title="Asset Health by Location"
           subtitle="Every electronic asset's current state, room by room."
         >
           <AssetHealthChart enabled={isAdmin} />
         </Widget>
+      ) : (
+        <CampusHealthWidget />
       )}
 
       {user?.role === 'technician' && data.my_queue?.length > 0 && (
