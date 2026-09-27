@@ -121,7 +121,17 @@
 
   .pill {
     @apply inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1
-           text-body-sm font-medium whitespace-nowrap;
+           font-medium max-w-full;
+    /* A status pill's label is often generated ("SUSPECTED FAULT (awaiting
+       inspection)") and can't be shortened without losing meaning, so it
+       wraps onto a second line at narrow widths instead of clipping or
+       forcing its row into horizontal scroll -- and scales down slightly on
+       very small screens rather than staying one fixed size regardless of
+       viewport. */
+    white-space: normal;
+    word-break: break-word;
+    font-size: clamp(10px, 2.6vw, 12px);
+    line-height: 15px;
   }
 
   /* ---- High-density tables ---- */

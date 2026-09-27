@@ -1,9 +1,9 @@
 import clsx from 'clsx'
-import { QrCode } from 'lucide-react'
+import { QrCode, ScanLine } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { Modal, toast } from '@/components/ui'
+import { Modal, Spinner, toast } from '@/components/ui'
 
 const READER_ID = 'cn-qr-reader'
 
@@ -20,43 +20,79 @@ const READER_ID = 'cn-qr-reader'
  */
 export function QrScanButton() {
   const [open, setOpen] = useState(false)
+  const [status, setStatus] = useState('starting') // 'starting' | 'ready' | 'error'
+  const [errorMessage, setErrorMessage] = useState('')
   const navigate = useNavigate()
-  const scannerRef = useRef(null)
+  const instanceRef = useRef(null)
 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    let scanner
+    setStatus('starting')
+    setErrorMessage('')
 
-    import('html5-qrcode').then(({ Html5QrcodeScanner }) => {
+    import('html5-qrcode').then(async ({ Html5Qrcode }) => {
       if (cancelled) return
-      scanner = new Html5QrcodeScanner(READER_ID, { fps: 10, qrbox: 240 }, false)
-      scannerRef.current = scanner
-      scanner.render(
-        (decodedText) => {
-          let path = null
-          try {
-            const url = new URL(decodedText)
-            if (url.origin === window.location.origin) path = url.pathname + url.search
-          } catch {
-            // Not a URL at all — not one of ours, fall through to the error toast below.
-          }
-          scanner.clear().catch(() => {})
-          setOpen(false)
-          if (path) {
-            navigate(path)
-          } else {
-            toast.error('That QR code is not a recognised CampusNetra asset code.')
-          }
-        },
-        () => {}, // per-frame "no code found yet" — expected on almost every frame, not an error
-      )
+      const qr = new Html5Qrcode(READER_ID)
+      instanceRef.current = qr
+
+      const onScan = (decodedText) => {
+        let path = null
+        try {
+          const url = new URL(decodedText)
+          if (url.origin === window.location.origin) path = url.pathname + url.search
+        } catch {
+          // Not a URL at all — not one of ours, fall through to the error toast below.
+        }
+        setOpen(false)
+        if (path) {
+          navigate(path)
+        } else {
+          toast.error('That QR code is not a recognised CampusNetra asset code.')
+        }
+      }
+
+      try {
+        // { exact: 'environment' } — not just a preference, a requirement —
+        // is what actually rules out the front/selfie camera on phones that
+        // otherwise default to it; { facingMode: 'environment' } alone is
+        // only a hint some browsers ignore.
+        await qr.start(
+          { facingMode: { exact: 'environment' } },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          onScan,
+          () => {}, // per-frame "no code found yet" — expected on almost every frame, not an error
+        )
+        if (!cancelled) setStatus('ready')
+      } catch {
+        // Some laptops/desktops have no camera that reports as
+        // "environment" at all — fall back to whatever camera exists
+        // rather than leaving the scanner dead on those devices.
+        try {
+          await qr.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 240, height: 240 } },
+            onScan,
+            () => {},
+          )
+          if (!cancelled) setStatus('ready')
+        } catch (err) {
+          if (cancelled) return
+          setStatus('error')
+          setErrorMessage(
+            err?.name === 'NotAllowedError'
+              ? 'Camera permission was denied. Allow camera access and try again.'
+              : 'Could not start the camera on this device.',
+          )
+        }
+      }
     })
 
     return () => {
       cancelled = true
-      scannerRef.current?.clear().catch(() => {})
-      scannerRef.current = null
+      const qr = instanceRef.current
+      instanceRef.current = null
+      if (qr) qr.stop().then(() => qr.clear()).catch(() => {})
     }
   }, [open, navigate])
 
@@ -65,22 +101,37 @@ export function QrScanButton() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Scan asset QR code"
+        title="Scan asset QR code"
         className={clsx(
           'fixed z-40 grid place-items-center rounded-full shadow-level3',
-          'bg-surface border border-border-subtle text-ink-muted hover:text-secondary hover:border-secondary',
-          'bottom-[4.25rem] right-3 h-9 w-9 sm:bottom-[5.75rem] sm:right-6 sm:h-11 sm:w-11',
+          'bg-secondary text-white hover:brightness-110',
+          'bottom-[4.5rem] right-3 h-10 w-10 sm:bottom-[6rem] sm:right-6 sm:h-12 sm:w-12',
           'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}
       >
-        <QrCode size={18} />
+        <QrCode size={20} />
       </button>
 
       <Modal open={open} onClose={() => setOpen(false)} title="Scan asset QR code" size="sm">
-        <p className="text-body-sm text-ink-faint mb-3">
-          Point your camera at the QR code on the asset to raise a complaint for it directly.
+        <p className="text-body-sm text-ink-faint mb-3 flex items-center gap-1.5">
+          <ScanLine size={14} className="text-secondary shrink-0" />
+          Point your back camera at the QR code on the asset to raise a complaint for it directly.
         </p>
-        <div id={READER_ID} />
+
+        <div className="relative rounded-lg overflow-hidden bg-surface-sunken min-h-[240px]">
+          {status === 'starting' && (
+            <div className="absolute inset-0 grid place-items-center">
+              <Spinner label="Starting camera…" />
+            </div>
+          )}
+          {status === 'error' && (
+            <div className="absolute inset-0 grid place-items-center p-4 text-center">
+              <p className="text-body-sm text-danger-text">{errorMessage}</p>
+            </div>
+          )}
+          <div id={READER_ID} className={status === 'ready' ? '' : 'invisible'} />
+        </div>
       </Modal>
     </>
   )
