@@ -1,12 +1,21 @@
-"""Thin wrapper over the configured AI provider.
+"""Thin wrapper over the configured AI provider(s).
 
 Every AI feature in Campus Netra has a deterministic fallback, so the platform
 stays fully functional with no API key configured. `call_json` returns None
 whenever the model is unavailable or misbehaves, and the caller degrades.
 
-Supported providers:
-- OpenRouter
-- Anthropic
+Two paths, selected by settings.AI_FREE_ONLY (default true):
+- Free-only (default): every call goes through app/ai/router.py, which
+  fails over across whichever of OpenRouter/Gemini/Groq have a key
+  configured the moment one hits a rate limit, quota, or outage -- see
+  that module for the actual routing/retry/cooldown logic. Never selects
+  Anthropic (no genuine free API tier).
+- Legacy single-provider (AI_FREE_ONLY=false): the original behaviour,
+  unchanged -- one configured AI_PROVIDER/AI_MODEL, including Anthropic,
+  for anyone who deliberately wants to pay for it.
+
+Both paths return the same AIResult contract, so classifier.py, matching.py
+and api/v1/ai.py never need to know which path ran.
 """
 from __future__ import annotations
 
@@ -17,6 +26,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from app.ai import router as free_router
 from app.core.config import settings
 
 log = logging.getLogger(__name__)
@@ -102,6 +112,23 @@ async def call_json(
     """Ask the model for a JSON object. Never raises — inspect `.ok`."""
 
     started = time.perf_counter()
+
+    if settings.AI_FREE_ONLY:
+        result = await free_router.complete_text(
+            system, prompt, max_tokens=max_tokens, temperature=temperature, images=images,
+        )
+        if not result.ok:
+            return AIResult(
+                data=None, model=result.model, latency_ms=result.latency_ms,
+                input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+                used_fallback=True, error=result.error,
+            )
+        data = _extract_json(result.text or "")
+        return AIResult(
+            data=data, model=f"{result.provider}/{result.model}", latency_ms=result.latency_ms,
+            input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+            error=None if data else "unparseable_response",
+        )
 
     client = _get_client()
 
@@ -281,13 +308,36 @@ async def call_agent(
     `AIResult.data["reply"]` is the final text; `AIResult.data["tool_calls"]`
     lists which tools ran, in order, for telemetry/response metadata.
 
-    Only wired up for OpenRouter's OpenAI-compatible API (the current
-    provider per settings.AI_PROVIDER) — returns an
-    `unsupported_ai_provider` result for anything else rather than silently
-    falling back to a tool-less reply, so a provider misconfiguration is
-    visible instead of quietly losing tool access.
+    Free-only mode (default) fails over across every configured
+    tool-capable free provider (OpenRouter, Groq) via app/ai/router.py —
+    see that module's complete_agent() for why a mid-conversation failure
+    (after a tool may already have run) degrades to the fallback instead
+    of switching providers, rather than risking a duplicated side effect.
+
+    Legacy mode (AI_FREE_ONLY=false) is unchanged: only wired up for
+    OpenRouter's OpenAI-compatible API — returns an `unsupported_ai_provider`
+    result for anything else rather than silently falling back to a
+    tool-less reply, so a provider misconfiguration is visible instead of
+    quietly losing tool access.
     """
     started = time.perf_counter()
+
+    if settings.AI_FREE_ONLY:
+        result = await free_router.complete_agent(
+            system, messages, tools, run_tool, max_tokens=max_tokens, max_tool_hops=max_tool_hops,
+        )
+        if not result.ok:
+            return AIResult(
+                data=None, model=result.model, latency_ms=result.latency_ms,
+                input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+                used_fallback=True, error=result.error,
+            )
+        return AIResult(
+            data={"reply": result.text or "", "tool_calls": result.tool_calls or []},
+            model=f"{result.provider}/{result.model}", latency_ms=result.latency_ms,
+            input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+        )
+
     client = _get_client()
 
     if client is None:
@@ -417,6 +467,10 @@ async def call_text(
     max_tokens: int = 1024,
 ) -> Optional[str]:
     """Free-form completion, used by the campus assistant."""
+
+    if settings.AI_FREE_ONLY:
+        result = await free_router.complete_text(system, prompt, max_tokens=max_tokens, temperature=0.3)
+        return result.text if result.ok else None
 
     client = _get_client()
 

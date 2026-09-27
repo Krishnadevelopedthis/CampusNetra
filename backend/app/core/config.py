@@ -86,21 +86,44 @@ class Settings(BaseSettings):
     NAME_MATCH_THRESHOLD: float = 0.6
 
     # AI
-    # AI
     AI_ENABLED: bool = True
 
+    # Legacy single-provider path (app/ai/client.py's original behaviour,
+    # preserved byte-for-byte) -- only reachable when AI_FREE_ONLY=false.
+    # The default path (AI_FREE_ONLY=true) never looks at this; it always
+    # routes through app/ai/router.py across whichever of OpenRouter/Gemini/
+    # Groq have a key configured, and never selects Anthropic (no genuine
+    # free API tier to fail into).
     AI_PROVIDER: Literal["anthropic", "openrouter"] = "openrouter"
-
-    # "openrouter/free" (the old default here) isn't a real OpenRouter model
-    # slug -- every call quietly 400'd and fell back to the heuristic
-    # classifier, with nothing in the UI to say why. Model IDs are
-    # provider/model, e.g. "meta-llama/llama-3.3-70b-instruct:free" for a
-    # free-tier model, or a paid one like "anthropic/claude-3.5-sonnet".
-    # Override with AI_MODEL in the environment for anything else.
     AI_MODEL: str = "meta-llama/llama-3.3-70b-instruct:free"
-
     ANTHROPIC_API_KEY: str = ""
+
+    # Free-only multi-provider router (app/ai/router.py). On by default --
+    # this is the safe mode: the router only ever selects a model it has
+    # verified costs $0, and fails over across whichever providers below
+    # have a key set the moment one hits a rate limit, quota, or outage.
+    # Every provider key is optional; the router simply uses fewer
+    # candidates with fewer configured. Setting this to false falls back to
+    # the single AI_PROVIDER/AI_MODEL path above (including Anthropic, for
+    # anyone who deliberately wants to pay for it).
+    AI_FREE_ONLY: bool = True
+
     OPENROUTER_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GROQ_API_KEY: str = ""
+
+    # Gemini and Groq don't expose per-model pricing over their APIs the way
+    # OpenRouter does (see app/ai/providers.py's OpenRouterProvider for real
+    # dynamic free-model discovery) -- an AI Studio Gemini key and Groq's
+    # public API are free-tier by construction, but *which model names*
+    # that covers changes over time, so this stays a conservative,
+    # explicitly-set allowlist rather than assuming every model a key can
+    # reach is free. Comma-separated; intersected at runtime against
+    # whichever of these models the provider's own /models endpoint
+    # confirms still exists, so a renamed/retired model drops out cleanly
+    # instead of erroring.
+    GEMINI_MODELS: str = "gemini-2.0-flash,gemini-1.5-flash,gemini-1.5-flash-8b"
+    GROQ_MODELS: str = "llama-3.3-70b-versatile,llama-3.1-8b-instant,gemma2-9b-it"
 
     # Storage
     # "local" writes to UPLOAD_DIR on the server's own disk — fine for local
@@ -286,6 +309,9 @@ class Settings(BaseSettings):
     def ai_available(self) -> bool:
         if not self.AI_ENABLED:
             return False
+
+        if self.AI_FREE_ONLY:
+            return bool(self.OPENROUTER_API_KEY or self.GEMINI_API_KEY or self.GROQ_API_KEY)
 
         if self.AI_PROVIDER == "anthropic":
             return bool(self.ANTHROPIC_API_KEY)
