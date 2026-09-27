@@ -118,12 +118,20 @@ function RoomAssignModal({ device, onClose }) {
     setRoomId(device?.room_id || '')
   }, [device?.id, device?.room_id])
 
-  const unchanged = (roomId || null) === (device?.room_id || null)
+  // Only the true no-op (still unassigned, still nothing picked) blocks
+  // Save -- re-picking the room it's ALREADY assigned to is a legitimate
+  // action, not a no-op: assign_device_room drops and rebuilds every
+  // Fan/Light sensor mapping for that room from what's actually there
+  // right now, so it's the fix for "I added a Light asset after the room
+  // was already assigned and it still shows No sensor" (only the original
+  // assignment auto-provisions; a re-save re-scans).
+  const isNoOpUnassign = !device?.room_id && !roomId
+  const isResync = !!roomId && roomId === device?.room_id
 
   const assign = useMutation({
     mutationFn: () => api.patch(`/iot/devices/${device.id}/room`, { room_id: roomId || null }),
     onSuccess: () => {
-      toast.success(roomId ? 'Room assigned.' : 'Device unassigned.')
+      toast.success(isResync ? 'Sensors re-synced to this room\'s current assets.' : roomId ? 'Room assigned.' : 'Device unassigned.')
       qc.invalidateQueries({ queryKey: ['iot-devices'] })
       qc.invalidateQueries({ queryKey: ['health-tree'] })
       onClose()
@@ -136,9 +144,11 @@ function RoomAssignModal({ device, onClose }) {
       <div className="space-y-3">
         <Field
           label="Classroom / Room"
-          hint={unchanged
-            ? (roomId ? 'This is already the assigned room.' : 'This device isn\'t assigned to a room yet — pick one below.')
-            : 'Every future telemetry message from this device updates this room\'s Health status automatically.'}
+          hint={
+            isNoOpUnassign ? 'This device isn\'t assigned to a room yet — pick one below.'
+              : isResync ? 'Already assigned here. Saving again re-scans this room\'s Fan/Light assets and re-syncs their sensor mappings — use this if an asset added after assignment still shows "No sensor".'
+              : 'Every future telemetry message from this device updates this room\'s Health status automatically.'
+          }
         >
           <Select value={roomId} onChange={(e) => setRoomId(e.target.value)} disabled={isLoading}>
             <option value="">Unassigned</option>
@@ -149,10 +159,10 @@ function RoomAssignModal({ device, onClose }) {
         </Field>
         <Button
           variant="primary" className="w-full" loading={assign.isPending}
-          disabled={unchanged}
+          disabled={isNoOpUnassign}
           onClick={() => assign.mutate()}
         >
-          Save assignment
+          {isResync ? 'Re-sync sensors' : 'Save assignment'}
         </Button>
       </div>
     </Modal>

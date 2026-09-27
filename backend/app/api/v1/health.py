@@ -172,7 +172,18 @@ async def health_tree(
         if asset.state == AssetState.FAULT:
             return "FAULT"
         if asset.state in (AssetState.WARNING, AssetState.INSPECTION_REQUIRED):
-            return "SUSPECTED FAULT"
+            # A confirmed anomaly only clears once a technician inspects it
+            # (see services/iot_health.py's _recover_if_open -- deliberate:
+            # a reading looking fine again isn't proof by itself). The raw
+            # reading can look fine well before that happens, which reads
+            # as a flat contradiction ("Rotating" next to "SUSPECTED
+            # FAULT") without this -- the suffix says why they can coexist.
+            env = device.last_environment or {}
+            looks_fine_now = (
+                bool(env.get("fan_rotation")) if is_fan
+                else (env.get("light_brightness") or 0) > 0
+            )
+            return "SUSPECTED FAULT (awaiting inspection)" if looks_fine_now else "SUSPECTED FAULT"
         if asset.state == AssetState.UNDER_MAINTENANCE:
             return "Under maintenance"
         if asset.state == AssetState.DECOMMISSIONED:
