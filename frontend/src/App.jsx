@@ -58,6 +58,7 @@ const AdminUsers = lazy(() => import('@/pages/admin/AdminUsers'))
 const AdminPredictive = lazy(() => import('@/pages/admin/AdminPredictive'))
 const AdminAI = lazy(() => import('@/pages/admin/AdminAI'))
 const AdminAssets = lazy(() => import('@/pages/admin/AdminAssets'))
+const AdminAssetQR = lazy(() => import('@/pages/admin/AdminAssetQR'))
 const AdminCosts = lazy(() => import('@/pages/admin/AdminCosts'))
 const AdminCampus = lazy(() => import('@/pages/admin/AdminCampus'))
 const AdminLostFound = lazy(() => import('@/pages/admin/AdminLostFound'))
@@ -438,6 +439,22 @@ export default function App() {
                 }
               />
 
+              {/* QR-code-triggered complaint — any authenticated role, not
+                  just student/teacher (spec: "any user and admin too"). An
+                  unauthenticated scan is already sent to /login by
+                  RequireAuth, and login already lands back on the caller's
+                  normal home page rather than here — matching the intended
+                  flow of "log in first, then scan again" rather than a
+                  silent deep-link resume. */}
+              <Route
+                path="/scan/asset/:assetId"
+                element={
+                  <RequireAuth>
+                    <ReportIssue />
+                  </RequireAuth>
+                }
+              />
+
               {/* Issue map */}
               <Route
                 path="/issues/map"
@@ -767,6 +784,11 @@ export default function App() {
                 <Route
                   path="assets"
                   element={<AdminAssets />}
+                />
+
+                <Route
+                  path="assets/qr"
+                  element={<AdminAssetQR />}
                 />
 
                 <Route
