@@ -22,11 +22,12 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.enums import (
     AssetState, HealthEventKind, HealthEventSeverity, HealthEventStatus, InspectionStatus, SensorType,
+    WorkOrderStatus,
 )
 from app.models.identity import User
 from app.models.iot import AssetSensorMapping, HealthEvent, IoTDevice
 from app.models.spatial import Asset
-from app.models.work import Inspection, InspectionTemplate, InspectionTemplateItem
+from app.models.work import Inspection, InspectionTemplate, InspectionTemplateItem, WorkOrder
 from app.services import inspections as inspections_svc
 from app.services import notifications as notify_svc
 from app.services import work_orders as wo_svc
@@ -273,6 +274,7 @@ async def evaluate_current(
             mapping.first_abnormal_at = None
             await _recover_if_open(db, asset, HealthEventKind.ABNORMAL_CURRENT)
             await _recover_if_open(db, asset, HealthEventKind.NO_CURRENT)
+        await _heal_stale_state(db, asset)
         return None
 
     if mapping.consecutive_abnormal == 0:
@@ -307,6 +309,46 @@ async def _recover_if_open(db: AsyncSession, asset: Asset, kind: HealthEventKind
         event.resolved_at = _now()
         if asset.state == AssetState.INSPECTION_REQUIRED:
             await set_asset_state(db, asset, AssetState.HEALTHY, reason=f"{event.reference} cleared before inspection")
+
+
+_OPEN_WO_STATUSES = [
+    s for s in WorkOrderStatus
+    if s not in (WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED,
+                 WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED)
+]
+
+
+async def _heal_stale_state(db: AsyncSession, asset: Asset) -> None:
+    """A live good reading is the ground truth for a sensor-mapped asset --
+    it shouldn't keep showing Fault/Warning/etc. forever just because
+    nothing else ever re-checked it. This covers the gap _recover_if_open
+    doesn't: that one only fires right as an abnormal streak just ended and
+    only clears an OPEN HealthEvent, so an asset whose event already
+    resolved hours ago (or whose state was set by hand) with no further
+    abnormal readings since never gets re-examined by anything. Skips
+    healing while a HealthEvent is still actively open/inspecting, or a
+    WorkOrder against this asset is still actively in progress -- those
+    still need a human to close the loop, not a single good reading.
+    """
+    if asset.state in (AssetState.HEALTHY, AssetState.DECOMMISSIONED):
+        return
+    active_event = await db.scalar(
+        select(HealthEvent.id).where(
+            HealthEvent.asset_id == asset.id,
+            HealthEvent.status.in_([HealthEventStatus.OPEN, HealthEventStatus.INSPECTING]),
+        )
+    )
+    if active_event:
+        return
+    active_wo = await db.scalar(
+        select(WorkOrder.id).where(
+            WorkOrder.asset_id == asset.id,
+            WorkOrder.status.in_(_OPEN_WO_STATUSES),
+        )
+    )
+    if active_wo:
+        return
+    await set_asset_state(db, asset, AssetState.HEALTHY, reason="sensor reading confirms normal operation")
 
 
 # A reading that recovers within this window of an anomaly being confirmed
@@ -458,6 +500,7 @@ async def evaluate_fan_rotation(
             mapping.first_abnormal_at = None
             await _recover_if_open(db, asset, HealthEventKind.FAN_NOT_ROTATING)
             await _auto_resolve_if_recently_inspecting(db, asset, HealthEventKind.FAN_NOT_ROTATING, organization_id)
+        await _heal_stale_state(db, asset)
         return None
 
     if mapping.consecutive_abnormal == 0:
@@ -500,6 +543,7 @@ async def evaluate_light_brightness(
             mapping.first_abnormal_at = None
             await _recover_if_open(db, asset, HealthEventKind.LOW_BRIGHTNESS)
             await _auto_resolve_if_recently_inspecting(db, asset, HealthEventKind.LOW_BRIGHTNESS, organization_id)
+        await _heal_stale_state(db, asset)
         return None
 
     if mapping.consecutive_abnormal == 0:
