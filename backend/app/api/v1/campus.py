@@ -1253,12 +1253,13 @@ async def asset_detail(asset_id: uuid.UUID, user: CurrentUser, db: DB):
     # The whole chain, not just the room: "Class 103" locates nothing on its
     # own, and a technician dispatched to a five-storey block needs the floor.
     placement = (await db.execute(
-        select(Room, Floor, Building)
+        select(Room, Floor, Building, Campus)
         .join(Floor, Floor.id == Room.floor_id, isouter=True)
         .join(Building, Building.id == Floor.building_id, isouter=True)
+        .join(Campus, Campus.id == Building.campus_id, isouter=True)
         .where(Room.id == asset.room_id)
     )).first() if asset.room_id else None
-    room, floor, building = placement if placement else (None, None, None)
+    room, floor, building, campus = placement if placement else (None, None, None, None)
 
     return {
         "asset": AssetOut.model_validate(asset).model_dump(mode="json"),
@@ -1271,7 +1272,10 @@ async def asset_detail(asset_id: uuid.UUID, user: CurrentUser, db: DB):
             "floor_id": str(floor.id) if floor else None,
             "floor_level": floor.level if floor else None,
             "building": building.name if building else None,
+            "building_id": str(building.id) if building else None,
             "building_code": building.code if building else None,
+            "campus_id": str(campus.id) if campus else None,
+            "campus_name": campus.name if campus else None,
         } if room else None,
         "condition_history": [
             {"from": h.from_state.value if h.from_state else None,

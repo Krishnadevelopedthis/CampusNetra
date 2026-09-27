@@ -4,6 +4,57 @@ import { useEffect, useRef, useState } from 'react'
 
 import '@/lib/maplibreSetup'
 
+// Cycled by CameraAngleControl below, in order, on every click. "isometric"
+// matches the map's own default construction values (pitch 55 / bearing
+// -17) so the very first click away from the default and back is a no-op
+// in feel, not just in numbers.
+const CAMERA_PRESETS = [
+  { key: 'isometric', label: 'Isometric view', pitch: 55, bearing: -17, zoomDelta: 0 },
+  { key: 'top-down', label: 'Top-down view', pitch: 0, bearing: 0, zoomDelta: 0 },
+  { key: 'street', label: 'Street-level view', pitch: 75, bearing: -17, zoomDelta: 1.5 },
+]
+
+// A plain MapLibre IControl (not a React component) — control widgets render
+// outside React's tree entirely, added via map.addControl like
+// NavigationControl above, so this follows the same non-React pattern rather
+// than fighting it with a portal.
+class CameraAngleControl {
+  constructor(baseZoom) {
+    this._baseZoom = baseZoom
+    this._index = 0
+  }
+
+  onAdd(map) {
+    this._map = map
+    const container = document.createElement('div')
+    container.className = 'maplibregl-ctrl maplibregl-ctrl-group'
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.title = CAMERA_PRESETS[0].label
+    button.setAttribute('aria-label', 'Cycle camera angle')
+    button.innerHTML = '<span style="font-size:15px;line-height:1;display:inline-block;transform:translateY(-1px)">⟳</span>'
+    button.addEventListener('click', () => {
+      this._index = (this._index + 1) % CAMERA_PRESETS.length
+      const preset = CAMERA_PRESETS[this._index]
+      button.title = preset.label
+      this._map.easeTo({
+        pitch: preset.pitch,
+        bearing: preset.bearing,
+        zoom: this._baseZoom + preset.zoomDelta,
+        duration: 600,
+      })
+    })
+    container.appendChild(button)
+    this._container = container
+    return container
+  }
+
+  onRemove() {
+    this._container.parentNode?.removeChild(this._container)
+    this._map = undefined
+  }
+}
+
 // OpenFreeMap: free vector tiles, no API key, no billing — MapLibre's own
 // recommended free host. "liberty" already ships OSM road/building/land-use
 // layers and a 3d-buildings fill-extrusion layer driven by OSM height tags,
@@ -355,6 +406,7 @@ export function OutdoorCampusMap({
       })
       mapRef.current = map
       map.addControl(new NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true }), 'top-right')
+      map.addControl(new CameraAngleControl(16.5), 'top-right')
 
       // The "liberty" style's POI layers (gate, sports_centre, atm, etc.)
       // reference icon sprites that don't always resolve from the sprite

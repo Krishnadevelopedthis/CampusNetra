@@ -11,6 +11,7 @@ import { Logo, LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
 import { AssistantWidget } from '@/features/assistant/AssistantWidget'
+import { QrScanButton } from '@/features/assistant/QrScanButton'
 import { api, connectNotifications } from '@/lib/api'
 import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
@@ -449,6 +450,7 @@ export default function AppLayout() {
       </div>
 
       <AssistantWidget />
+      <QrScanButton />
     </div>
   )
 }

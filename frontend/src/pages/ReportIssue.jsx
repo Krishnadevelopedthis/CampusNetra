@@ -3,7 +3,7 @@ import {
   Armchair, CheckCircle2, Droplet, Fan, HelpCircle, Lightbulb, MapPin, Monitor, Send, Sparkles, Video, Wifi, Wrench,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import {
   Button, Field, Input, Modal, PriorityPill, Select, Textarea, Widget, toast,
@@ -19,6 +19,9 @@ const ICONS = {
 
 export default function ReportIssue() {
   const navigate = useNavigate()
+  // Present only on the /scan/asset/:assetId route (see App.jsx) — a QR
+  // code scanned on the physical asset, never a manually-typed URL param.
+  const { assetId: qrAssetId } = useParams()
 
   const [campusId, setCampusId] = useState('')
   const [buildingId, setBuildingId] = useState('')
@@ -37,8 +40,31 @@ export default function ReportIssue() {
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })
   useEffect(() => {
-    if (!campusId && campuses.data?.length) setCampusId(campuses.data[0].id)
-  }, [campuses.data, campusId])
+    // A QR scan resolves its own campus from the asset below — defaulting
+    // to the org's first campus here would race it and flash the wrong one.
+    if (!campusId && campuses.data?.length && !qrAssetId) setCampusId(campuses.data[0].id)
+  }, [campuses.data, campusId, qrAssetId])
+
+  // The asset a QR code was scanned for — resolved server-side, org-scoped
+  // and auth-gated by the existing /campus/assets/{id} endpoint, so a scan
+  // can never leak or claim an asset outside the scanner's own organisation.
+  const qrAsset = useQuery({
+    queryKey: ['qr-asset-detail', qrAssetId],
+    queryFn: () => api.get(`/campus/assets/${qrAssetId}`),
+    enabled: !!qrAssetId,
+  })
+  const [qrApplied, setQrApplied] = useState(false)
+  useEffect(() => {
+    if (!qrAsset.data || qrApplied) return
+    const { asset, room } = qrAsset.data
+    if (room?.campus_id) setCampusId(room.campus_id)
+    if (room?.building_id) setBuildingId(room.building_id)
+    if (room?.floor_id) setFloorId(room.floor_id)
+    if (room?.id) setRoomId(room.id)
+    setAssetId(asset.id)
+    setTitle((t) => t || `Issue with ${asset.name}`)
+    setQrApplied(true)
+  }, [qrAsset.data, qrApplied])
 
   const buildings = useQuery({
     queryKey: ['buildings', campusId],
@@ -125,13 +151,26 @@ export default function ReportIssue() {
   }
 
 
+  if (qrAssetId && qrAsset.isLoading) {
+    return <p className="text-body-md text-ink-faint py-10 text-center">Loading asset…</p>
+  }
+  if (qrAssetId && qrAsset.error) {
+    return (
+      <p className="text-body-md text-danger-text py-10 text-center">
+        This QR code doesn't match a known asset — {qrAsset.error.detail || 'it may have been removed.'}
+      </p>
+    )
+  }
+
   return (
     <>
     <form onSubmit={onSubmit} className="space-y-5 max-w-6xl">
       <header>
         <h1 className="text-headline-lg text-ink">Report an Issue</h1>
         <p className="text-body-md text-ink-muted mt-1">
-          Report a faulty asset or facility problem. It's routed to the right team automatically.
+          {qrAssetId
+            ? "Scanned from the asset's QR code — its location is filled in for you. Just describe the problem below."
+            : "Report a faulty asset or facility problem. It's routed to the right team automatically."}
         </p>
       </header>
 
@@ -140,19 +179,19 @@ export default function ReportIssue() {
           {/* 1. Location */}
           <Widget title={<span className="flex items-center gap-2"><MapPin size={18} className="text-secondary" /> 1. Identify Location</span>}>
             <p className="text-body-sm text-ink-faint -mt-1 mb-3">
-              Don't know the exact building, floor or room? Leave those
-              blank and describe where it is in the note below instead —
-              only the campus is required.
+              {qrAssetId
+                ? 'Auto-filled from the scanned QR code.'
+                : "Don't know the exact building, floor or room? Leave those blank and describe where it is in the note below instead — only the campus is required."}
             </p>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Campus" error={errors.campus_id} required>
-                <Select value={campusId} onChange={(e) => setCampusId(e.target.value)}>
+                <Select value={campusId} disabled={!!qrAssetId} onChange={(e) => setCampusId(e.target.value)}>
                   {(campuses.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </Select>
               </Field>
               <Field label="Building">
                 <Select
-                  value={buildingId}
+                  value={buildingId} disabled={!!qrAssetId}
                   onChange={(e) => { setBuildingId(e.target.value); setFloorId(''); setRoomId(''); setAssetId('') }}
                 >
                   <option value="">Select building — or leave blank if unsure</option>
@@ -161,7 +200,7 @@ export default function ReportIssue() {
               </Field>
               <Field label="Floor">
                 <Select
-                  value={floorId} disabled={!buildingId}
+                  value={floorId} disabled={!buildingId || !!qrAssetId}
                   onChange={(e) => { setFloorId(e.target.value); setRoomId(''); setAssetId('') }}
                 >
                   <option value="">Select floor</option>
@@ -170,7 +209,7 @@ export default function ReportIssue() {
               </Field>
               <Field label="Room / Area">
                 <Select
-                  value={roomId} disabled={!floorId}
+                  value={roomId} disabled={!floorId || !!qrAssetId}
                   onChange={(e) => { setRoomId(e.target.value); setAssetId('') }}
                 >
                   <option value="">Select room</option>
