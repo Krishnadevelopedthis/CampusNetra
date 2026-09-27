@@ -36,14 +36,18 @@ const IOT_LABEL_COLOUR = {
   'OFF / NO POWER': '#94a3b8',
   'SUSPECTED FAULT': '#f59e0b',
   FAULT: '#ef4444',
+  'UNKNOWN (device offline)': '#94a3b8',
 }
 
 // The raw sensor reading behind an asset's WORKING/SUSPECTED FAULT label --
 // distinct from that health verdict, since a technician (or anyone
 // double-checking the verdict) wants the actual rotation/brightness
-// reading, not just the conclusion drawn from it.
+// reading, not just the conclusion drawn from it. Suppressed while the
+// device is offline -- that reading is whatever it last sent before going
+// quiet, not a live value, and showing it next to "UNKNOWN (device
+// offline)" would still read as more current than it actually is.
 function assetRawReading(asset, device) {
-  if (!device || !asset.iot_label) return null
+  if (!device || !asset.iot_label || !device.is_online) return null
   const cat = (asset.category || '').toLowerCase()
   if (cat.includes('fan')) {
     if (device.fan_rotation == null) return null

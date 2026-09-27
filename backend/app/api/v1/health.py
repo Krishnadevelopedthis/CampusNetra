@@ -28,7 +28,7 @@ from app.models.work import Inspection, WorkOrder
 from app.schemas.iot import HealthEventOut, SensorMappingOut
 
 
-def _device_out(device: IoTDevice) -> dict:
+def _is_effectively_online(device: IoTDevice) -> bool:
     """Recomputes online/offline against the configured timeout at read
     time, on top of the is_online flag the background sweep (services/
     iot_health.offline_sweep_scheduler) already keeps current -- belt and
@@ -40,6 +40,11 @@ def _device_out(device: IoTDevice) -> dict:
         if last_seen.tzinfo is None:
             last_seen = last_seen.replace(tzinfo=timezone.utc)
         online = last_seen >= cutoff
+    return online
+
+
+def _device_out(device: IoTDevice) -> dict:
+    online = _is_effectively_online(device)
     env = device.last_environment or {}
     return {
         "id": str(device.id), "device_id": device.device_id, "label": device.label,
@@ -188,9 +193,15 @@ async def health_tree(
             return "Under maintenance"
         if asset.state == AssetState.DECOMMISSIONED:
             return "Decommissioned"
-        # HEALTHY: WORKING unless this reading's main power was confirmed
-        # off -- absence of current explains an idle Fan/Light, it isn't
-        # evidence either is faulty (see services/iot_health.py).
+        # HEALTHY, but the device hasn't sent anything in a while -- WORKING
+        # would claim the LAST reading is still true right now, which isn't
+        # known. No fault is claimed either (offline is not itself evidence
+        # of one); this is a distinct third state from both.
+        if not _is_effectively_online(device):
+            return "UNKNOWN (device offline)"
+        # HEALTHY and online: WORKING unless this reading's main power was
+        # confirmed off -- absence of current explains an idle Fan/Light,
+        # it isn't evidence either is faulty (see services/iot_health.py).
         env = device.last_environment or {}
         if env.get("main_power") is False:
             return "OFF / NO POWER"
