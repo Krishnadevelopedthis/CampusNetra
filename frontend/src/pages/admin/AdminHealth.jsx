@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { Cpu, Gauge, HeartPulse, Radio, Thermometer } from 'lucide-react'
+import { CheckCircle2, Cpu, Gauge, HeartPulse, Power, PowerOff, Radio, Thermometer, Unplug } from 'lucide-react'
 import { useState } from 'react'
 
 import { IoTDevicesPanel } from '@/components/admin/IoTDevicesPanel'
@@ -60,6 +60,18 @@ function assetRawReading(asset, device) {
   return null
 }
 
+// A glance-able icon on the pill itself -- checkmark for a confirmed-good
+// reading, a broken-plug for a confirmed or suspected fault, so the state
+// reads even before the text does (and independent of colour, for anyone
+// who can't rely on colour alone).
+function iotStatusIcon(label) {
+  if (!label) return null
+  if (label.startsWith('WORKING')) return CheckCircle2
+  if (label.startsWith('SUSPECTED FAULT') || label === 'FAULT') return Unplug
+  if (label === 'OFF / NO POWER') return PowerOff
+  return null
+}
+
 function AssetRow({ asset, device, onSelect }) {
   const s = TWIN_STATE[asset.state] || NO_SENSORS
   const iot = asset.iot_label
@@ -70,6 +82,7 @@ function AssetRow({ asset, device, onSelect }) {
       : s.colour)
   )
   const raw = assetRawReading(asset, device)
+  const StatusIcon = iotStatusIcon(iot)
   return (
     <button
       type="button"
@@ -89,6 +102,7 @@ function AssetRow({ asset, device, onSelect }) {
             className="pill whitespace-normal text-center leading-snug"
             style={{ background: `${iotColour || s.colour}1a`, color: iotColour || s.colour }}
           >
+            {StatusIcon && <StatusIcon size={12} className="shrink-0" />}
             {iot || s.label}
           </span>
         )}
@@ -109,7 +123,8 @@ function RoomDeviceSummary({ device }) {
         </span>
       </span>
       {device.main_power != null && (
-        <span className="text-ink-muted">
+        <span className={clsx('flex items-center gap-1', device.main_power ? 'text-success-text' : 'text-ink-faint')}>
+          {device.main_power ? <Power size={12} /> : <PowerOff size={12} />}
           Power: {device.main_power ? 'ON' : 'OFF'}
           {device.main_current_a != null && ` (${device.main_current_a}A)`}
         </span>
