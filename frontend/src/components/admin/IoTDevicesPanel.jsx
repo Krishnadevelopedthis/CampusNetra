@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { Cable, Check, Copy, Plus, Radio } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Button, EmptyState, Field, Input, Modal, Select, SkeletonRows, toast, Widget } from '@/components/ui'
 import { api } from '@/lib/api'
@@ -109,6 +109,17 @@ function RoomAssignModal({ device, onClose }) {
   const { options, isLoading } = useRoomIndex()
   const [roomId, setRoomId] = useState(device?.room_id || '')
 
+  // The select's initial value is only read once, on this component's own
+  // first mount -- reopening the same modal instance for a different (or
+  // the same, externally-changed) device would otherwise show whatever
+  // was left over from the last time it was open, not that device's
+  // actual current assignment.
+  useEffect(() => {
+    setRoomId(device?.room_id || '')
+  }, [device?.id, device?.room_id])
+
+  const unchanged = (roomId || null) === (device?.room_id || null)
+
   const assign = useMutation({
     mutationFn: () => api.patch(`/iot/devices/${device.id}/room`, { room_id: roomId || null }),
     onSuccess: () => {
@@ -125,7 +136,9 @@ function RoomAssignModal({ device, onClose }) {
       <div className="space-y-3">
         <Field
           label="Classroom / Room"
-          hint="Every future telemetry message from this device updates this room's Health status automatically."
+          hint={unchanged
+            ? (roomId ? 'This is already the assigned room.' : 'This device isn\'t assigned to a room yet — pick one below.')
+            : 'Every future telemetry message from this device updates this room\'s Health status automatically.'}
         >
           <Select value={roomId} onChange={(e) => setRoomId(e.target.value)} disabled={isLoading}>
             <option value="">Unassigned</option>
@@ -134,7 +147,11 @@ function RoomAssignModal({ device, onClose }) {
             ))}
           </Select>
         </Field>
-        <Button variant="primary" className="w-full" loading={assign.isPending} onClick={() => assign.mutate()}>
+        <Button
+          variant="primary" className="w-full" loading={assign.isPending}
+          disabled={unchanged}
+          onClick={() => assign.mutate()}
+        >
           Save assignment
         </Button>
       </div>
