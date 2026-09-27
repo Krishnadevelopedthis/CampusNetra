@@ -47,6 +47,64 @@ MAX_TELEMETRY_AGE = timedelta(minutes=15)
 # see process_device_telemetry().
 MAIN_POWER_ON_THRESHOLD_A = Decimal("0.02")
 
+# Default brightness floor for an auto-provisioned LDR mapping -- roughly
+# "clearly dark" on a typical LDR/ADC reading. Deliberately conservative
+# (few false positives); an admin can tighten it per-room via
+# POST /iot/sensors like any other mapping.
+DEFAULT_LDR_BRIGHTNESS_MIN = 200
+
+
+def _category_match(category, keyword: str) -> bool:
+    if category is None:
+        return False
+    return category.code.lower() == keyword or keyword in category.name.lower()
+
+
+async def auto_map_room_sensors(
+    db: AsyncSession, room_id: uuid.UUID, organization_id: uuid.UUID,
+    category, assets: list[Asset],
+) -> None:
+    """A Fan or Light asset registered into a room that already has an IoT
+    device assigned gets wired up to that device's IR/LDR reading the same
+    way PATCH /iot/devices/{id}/room's own auto-provisioning does --
+    otherwise a room only ever gets sensor coverage for whichever Fan/Light
+    asset happened to exist at the moment the device was assigned, and
+    anything added afterwards silently shows "No sensor" forever.
+
+    Never touches an existing mapping: only fills in a sensor_type this
+    device doesn't already have one for. A room's IR sensor and LDR sensor
+    are each singular (one ESP32, one shared circuit) -- a second Fan or
+    Light asset added later intentionally does NOT get its own mapping,
+    the same one-per-sensor-type rule assign_device_room already enforces.
+    """
+    if category is None or not assets:
+        return
+    is_fan = _category_match(category, "fan")
+    is_light = _category_match(category, "light")
+    if not (is_fan or is_light):
+        return
+
+    device = await db.scalar(
+        select(IoTDevice).where(IoTDevice.room_id == room_id, IoTDevice.organization_id == organization_id)
+    )
+    if device is None:
+        return
+
+    sensor_type = SensorType.IR_PROXIMITY if is_fan else SensorType.LDR
+    already = await db.scalar(
+        select(AssetSensorMapping.id).where(
+            AssetSensorMapping.device_id == device.id, AssetSensorMapping.sensor_type == sensor_type,
+        )
+    )
+    if already:
+        return
+
+    db.add(AssetSensorMapping(
+        asset_id=assets[0].id, device_id=device.id, sensor_type=sensor_type,
+        brightness_min=DEFAULT_LDR_BRIGHTNESS_MIN if sensor_type == SensorType.LDR else None,
+        debounce_seconds=60,
+    ))
+
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)

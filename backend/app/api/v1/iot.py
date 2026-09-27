@@ -30,12 +30,6 @@ from app.schemas.iot import (
 )
 from app.services import iot_health as svc
 
-# Default brightness floor for an auto-provisioned LDR mapping -- roughly
-# "clearly dark" on a typical LDR/ADC reading. Deliberately conservative
-# (few false positives); an admin can tighten it per-room via
-# POST /iot/sensors like any other mapping.
-_DEFAULT_LDR_BRIGHTNESS_MIN = 200
-
 router = APIRouter(route_class=CommitRoute, prefix="/iot", tags=["IoT Health"])
 
 
@@ -137,7 +131,7 @@ async def assign_device_room(device_id: uuid.UUID, payload: DeviceRoomAssignIn, 
         if light_asset:
             db.add(AssetSensorMapping(
                 asset_id=light_asset.id, device_id=device.id, sensor_type=SensorType.LDR,
-                brightness_min=_DEFAULT_LDR_BRIGHTNESS_MIN, debounce_seconds=60,
+                brightness_min=svc.DEFAULT_LDR_BRIGHTNESS_MIN, debounce_seconds=60,
             ))
 
     await db.flush()

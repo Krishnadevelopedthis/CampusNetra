@@ -164,7 +164,10 @@ export function IoTDevicesPanel() {
   const [registerOpen, setRegisterOpen] = useState(false)
   const [assignTarget, setAssignTarget] = useState(null)
 
-  const devices = useQuery({ queryKey: ['iot-devices'], queryFn: () => api.get('/iot/devices') })
+  const devices = useQuery({
+    queryKey: ['iot-devices'], queryFn: () => api.get('/iot/devices'),
+    refetchInterval: 10_000,
+  })
   const { labelByRoomId } = useRoomIndex()
 
   const remove = useMutation({

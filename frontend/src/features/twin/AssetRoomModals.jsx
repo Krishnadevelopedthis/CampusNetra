@@ -163,7 +163,7 @@ export function AssetModal({ open, asset, roomId, campusId, categories, initialP
       warranty_months: asset.warranty_months != null ? String(asset.warranty_months)
         : (asset.warranty_expiry ? 'custom' : ''),
       quantity: 1,
-    } : { ...BLANK, category_id: categories[0]?.id || '' })
+    } : { ...BLANK })
   }
 
   const set = (k) => (e) => {
