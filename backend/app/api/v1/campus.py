@@ -31,6 +31,7 @@ from app.schemas.campus import (
     FloorOut, FloorPlanOut, MapBounds, RoomCreate, RoomOut, RoomWithMarkers, TwinEventOut,
 )
 from app.schemas.common import Message, Page
+from app.services.iot_health import auto_map_room_sensors
 from app.services.realtime import hub
 from app.services.twin import STATE_COLOURS, STATE_LABELS, set_asset_state
 
@@ -968,6 +969,11 @@ async def create_asset(
     db.add(asset)
     await db.flush()
     await db.refresh(asset)
+
+    category = await db.get(AssetCategory, payload.category_id)
+    await auto_map_room_sensors(db, room_id, user.organization_id, category, [asset])
+    await db.flush()
+
     return AssetOut.model_validate(asset)
 
 
@@ -1056,6 +1062,11 @@ async def create_assets_bulk(
     await db.flush()
     for a in created:
         await db.refresh(a)
+
+    category = await db.get(AssetCategory, payload.category_id)
+    await auto_map_room_sensors(db, room_id, user.organization_id, category, created)
+    await db.flush()
+
     return [AssetOut.model_validate(a) for a in created]
 
 

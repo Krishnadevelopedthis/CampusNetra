@@ -24,7 +24,7 @@ from app.models.work import (
     Inspection, InspectionResult, InspectionTemplate, InspectionTemplateItem,
 )
 from app.services import notifications as notify_svc
-from app.services.references import next_reference
+from app.services.references import next_public_id
 from app.services.twin import campus_id_for_room, record_event, set_asset_state
 
 
@@ -57,7 +57,7 @@ async def schedule_inspection(
         )
 
     inspection = Inspection(
-        reference=await next_reference(db, actor.organization_id, "INS"),
+        reference=await next_public_id(db, Inspection, "INS"),
         template_id=template.id,
         organization_id=actor.organization_id,
         room_id=room_id,
@@ -114,7 +114,7 @@ async def _raise_issue_from_failure(
     )
 
     issue = Issue(
-        reference=await next_reference(db, inspection.organization_id, "CMP"),
+        reference=await next_public_id(db, Issue, "CMP"),
         organization_id=inspection.organization_id,
         campus_id=campus_id,
         title=f"Inspection failure: {prompt[:120]}",

@@ -303,6 +303,12 @@ export default function AdminHealth() {
       const qs = params.toString()
       return api.get(`/health/tree${qs ? `?${qs}` : ''}`)
     },
+    // ESP32 telemetry arrives every ~5s; without polling, "Last update: Xs
+    // ago" ticks up convincingly while the numbers underneath it (current
+    // draw, temperature, rotation) stay frozen from whichever fetch
+    // happened to run when the page loaded — indistinguishable from live
+    // at a glance, but not actually live.
+    refetchInterval: 10_000,
   })
 
   const campusesOut = tree.data?.campuses || []
