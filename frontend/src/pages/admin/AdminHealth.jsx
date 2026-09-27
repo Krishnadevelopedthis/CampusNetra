@@ -63,7 +63,12 @@ function assetRawReading(asset, device) {
 function AssetRow({ asset, device, onSelect }) {
   const s = TWIN_STATE[asset.state] || NO_SENSORS
   const iot = asset.iot_label
-  const iotColour = iot && (IOT_LABEL_COLOUR[iot] || (iot.startsWith('SUSPECTED FAULT') ? IOT_LABEL_COLOUR['SUSPECTED FAULT'] : s.colour))
+  const iotColour = iot && (
+    IOT_LABEL_COLOUR[iot]
+    || (iot.startsWith('SUSPECTED FAULT') ? IOT_LABEL_COLOUR['SUSPECTED FAULT']
+      : iot.startsWith('WORKING') ? IOT_LABEL_COLOUR.WORKING
+      : s.colour)
+  )
   const raw = assetRawReading(asset, device)
   return (
     <button
