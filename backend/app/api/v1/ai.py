@@ -378,6 +378,13 @@ async def ai_performance(user: RequireManager, db: DB, days: int = Query(30, ge=
     return {
         "window_days": days,
         "mode": "live" if settings.ai_available else "heuristic",
-        "model": settings.AI_MODEL if settings.ai_available else "heuristic-v1",
+        # Free-only mode routes across whichever provider/model answered
+        # each individual call (see AIInvocation.model per-row for that) --
+        # there's no longer one fixed model to name here the way legacy
+        # single-provider mode had.
+        "model": (
+            "multi-provider (free-only)" if settings.ai_available and settings.AI_FREE_ONLY
+            else settings.AI_MODEL if settings.ai_available else "heuristic-v1"
+        ),
         "tasks": tasks,
     }

@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.ai.client import call_agent
+from app.ai.providers import ModelCandidate
 
 
 def _tool_call(call_id, name, arguments):
@@ -35,10 +36,20 @@ def _response(*, tool_calls=None, content=None):
 
 @pytest.fixture
 def fake_client(monkeypatch):
+    """call_agent now routes through app.ai.router (free-only by default),
+    which discovers candidates via app.ai.providers.free_candidates() and
+    resolves an OpenAI-compatible client via get_openai_client() -- these
+    are the seams to patch, in place of the old single _get_client()."""
+    from app.ai import health
+
     client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=AsyncMock())))
-    monkeypatch.setattr("app.ai.client._get_client", lambda: client)
-    monkeypatch.setattr("app.core.config.settings.AI_PROVIDER", "openrouter")
-    monkeypatch.setattr("app.core.config.settings.AI_MODEL", "test-model")
+    health.reset_all()
+    monkeypatch.setattr(
+        "app.ai.providers.free_candidates",
+        AsyncMock(return_value=[ModelCandidate(provider="openrouter", model="test-model", supports_tools=True)]),
+    )
+    monkeypatch.setattr("app.ai.providers.get_openai_client", lambda provider: client)
+    monkeypatch.setattr("app.core.config.settings.AI_FREE_ONLY", True)
     return client
 
 
