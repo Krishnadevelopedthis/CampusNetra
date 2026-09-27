@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import {
   Button,
+  confirmDialog,
   EmptyState,
   ErrorState,
   Field,
@@ -91,8 +92,9 @@ export function AdminInspectionConfig() {
                     <Button size="sm" variant="ghost" icon={Trash2} className="text-danger-text"
                             aria-label={`Delete ${t.name}`}
                             loading={deactivate.isPending}
-                            onClick={() => {
-                              if (confirm(`Delete ${t.name}? This cannot be undone.`)) deactivate.mutate(t.id)
+                            onClick={async () => {
+                              const ok = await confirmDialog(`Delete ${t.name}? This cannot be undone.`, { danger: true, confirmLabel: 'Delete' })
+                              if (ok) deactivate.mutate(t.id)
                             }} />
                   </div>
                 </div>

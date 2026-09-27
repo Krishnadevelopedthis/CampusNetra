@@ -6,7 +6,7 @@ import {
 import { useEffect, useState } from 'react'
 
 import {
-  Avatar, Button, EmptyState, ErrorState, Field, Input, Modal, Select,
+  Avatar, Button, confirmDialog, EmptyState, ErrorState, Field, Input, Modal, Select,
   SkeletonRows, StatusPill, Widget, toast,
 } from '@/components/ui'
 import { api, fetchAuthedBlob } from '@/lib/api'
@@ -96,19 +96,22 @@ export default function AdminUsers() {
     onSettled: () => setPendingId(null),
   })
 
-  const askRemove = (u) => {
-    if (!confirm(
-      `Delete ${u.full_name}?\n\nThis removes the account permanently and cannot `
-      + 'be undone.',
-    )) return
+  const askRemove = async (u) => {
+    const ok = await confirmDialog(
+      `Delete ${u.full_name}?\n\nThis removes the account permanently and cannot be undone.`,
+      { danger: true, confirmLabel: 'Delete' },
+    )
+    if (!ok) return
     remove.mutate({ id: u.id, anonymise: false }, {
-      onError: (err) => {
+      onError: async (err) => {
         if (err.status !== 409) return toast.error(err.detail || 'Could not delete')
-        if (confirm(
+        const anonymise = await confirmDialog(
           `${err.detail}\n\nRemove their name from the account instead? They will no `
           + 'longer be able to sign in, and their reports stay on the record without '
           + 'their name. This cannot be undone.',
-        )) {
+          { danger: true, confirmLabel: 'Remove name' },
+        )
+        if (anonymise) {
           remove.mutate({ id: u.id, anonymise: true },
                         { onError: (e) => toast.error(e.detail || 'Could not delete') })
         }
@@ -220,11 +223,13 @@ export default function AdminUsers() {
                                         className="text-danger-text"
                                         loading={pendingId === u.id}
                                         disabled={!!pendingId}
-                                        onClick={() => {
-                                          if (confirm(
+                                        onClick={async () => {
+                                          const ok = await confirmDialog(
                                             `Deactivate ${u.full_name}? They will be signed out `
                                             + 'of every device and cannot sign in until reactivated.',
-                                          )) setStatus.mutate({ id: u.id, action: 'deactivate' })
+                                            { danger: true, confirmLabel: 'Deactivate' },
+                                          )
+                                          if (ok) setStatus.mutate({ id: u.id, action: 'deactivate' })
                                         }}>
                                   Deactivate
                                 </Button>
@@ -849,8 +854,9 @@ function NameChangeRow({ request: r, decide }) {
         </Button>
         <Button
           size="sm" loading={busy}
-          onClick={() => {
-            if (!confirm(`Rename ${r.previous_name} to "${r.requested_name}"?`)) return
+          onClick={async () => {
+            const ok = await confirmDialog(`Rename ${r.previous_name} to "${r.requested_name}"?`, { confirmLabel: 'Approve' })
+            if (!ok) return
             decide.mutate({ id: r.id, action: 'approve', note: null })
           }}
         >
@@ -935,13 +941,15 @@ function DeletionRequests({ onDecided }) {
                 <Button
                   size="sm" variant="danger"
                   loading={decide.isPending && decide.variables?.id === r.id}
-                  onClick={() => {
-                    if (!confirm(
+                  onClick={async () => {
+                    const ok = await confirmDialog(
                       `Anonymise ${r.user.full_name}'s account?\n\n`
                       + 'Their name, email and contact details are removed and they can '
                       + 'no longer sign in. This cannot be undone. The work listed below '
                       + 'stays on the record without their name.',
-                    )) return
+                      { danger: true, confirmLabel: 'Anonymise' },
+                    )
+                    if (!ok) return
                     decide.mutate({ id: r.id, action: 'approve', note: null })
                   }}
                 >

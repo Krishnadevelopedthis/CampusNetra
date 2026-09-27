@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { toast } from '@/components/ui'
+import { confirmDialog, toast } from '@/components/ui'
 import { api } from '@/lib/api'
 
 /**
@@ -23,12 +23,17 @@ export function useCascadingDelete({ path, onDone }) {
     onSettled: () => setPendingId(null),
   })
 
-  const remove = (id, label) => {
-    if (!confirm(`Delete ${label}?`)) return
+  const remove = async (id, label) => {
+    const ok = await confirmDialog(`Delete ${label}?`, { danger: true, confirmLabel: 'Delete' })
+    if (!ok) return
     run.mutate({ id, cascade: false }, {
-      onError: (err) => {
+      onError: async (err) => {
         if (err.status !== 409) return toast.error(err.detail || 'Could not delete that')
-        if (confirm(`${err.detail}\n\nDelete it and everything inside? This cannot be undone.`)) {
+        const cascade = await confirmDialog(
+          `${err.detail}\n\nDelete it and everything inside? This cannot be undone.`,
+          { danger: true, confirmLabel: 'Delete everything' },
+        )
+        if (cascade) {
           run.mutate({ id, cascade: true },
                      { onError: (e) => toast.error(e.detail || 'Could not delete that') })
         }

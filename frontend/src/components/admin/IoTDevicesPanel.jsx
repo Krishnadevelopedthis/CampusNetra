@@ -3,7 +3,7 @@ import clsx from 'clsx'
 import { Cable, Check, Copy, Plus, Radio } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
-import { Button, EmptyState, Field, Input, Modal, Select, SkeletonRows, toast, Widget } from '@/components/ui'
+import { Button, confirmDialog, EmptyState, Field, Input, Modal, Select, SkeletonRows, toast, Widget } from '@/components/ui'
 import { api } from '@/lib/api'
 import { ago } from '@/lib/format'
 
@@ -223,7 +223,11 @@ export function IoTDevicesPanel() {
                 </Button>
                 <Button
                   size="sm" variant="danger"
-                  onClick={() => { if (confirm(`Remove ${d.device_id}? This cannot be undone.`)) remove.mutate(d.id) }}
+                  onClick={async () => {
+                    if (await confirmDialog(`Remove ${d.device_id}? This cannot be undone.`, { danger: true, confirmLabel: 'Remove' })) {
+                      remove.mutate(d.id)
+                    }
+                  }}
                 >
                   Remove
                 </Button>
