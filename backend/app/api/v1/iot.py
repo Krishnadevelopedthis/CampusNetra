@@ -126,12 +126,12 @@ async def assign_device_room(device_id: uuid.UUID, payload: DeviceRoomAssignIn, 
         if fan_asset:
             db.add(AssetSensorMapping(
                 asset_id=fan_asset.id, device_id=device.id, sensor_type=SensorType.IR_PROXIMITY,
-                debounce_seconds=60,
+                debounce_seconds=svc.DEFAULT_DEBOUNCE_SECONDS,
             ))
         if light_asset:
             db.add(AssetSensorMapping(
                 asset_id=light_asset.id, device_id=device.id, sensor_type=SensorType.LDR,
-                brightness_min=svc.DEFAULT_LDR_BRIGHTNESS_MIN, debounce_seconds=60,
+                brightness_min=svc.DEFAULT_LDR_BRIGHTNESS_MIN, debounce_seconds=svc.DEFAULT_DEBOUNCE_SECONDS,
             ))
 
     await db.flush()

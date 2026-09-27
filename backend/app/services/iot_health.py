@@ -21,12 +21,12 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.enums import (
-    AssetState, HealthEventKind, HealthEventSeverity, HealthEventStatus, SensorType,
+    AssetState, HealthEventKind, HealthEventSeverity, HealthEventStatus, InspectionStatus, SensorType,
 )
 from app.models.identity import User
 from app.models.iot import AssetSensorMapping, HealthEvent, IoTDevice
 from app.models.spatial import Asset
-from app.models.work import InspectionTemplate, InspectionTemplateItem
+from app.models.work import Inspection, InspectionTemplate, InspectionTemplateItem
 from app.services import inspections as inspections_svc
 from app.services import notifications as notify_svc
 from app.services import work_orders as wo_svc
@@ -46,6 +46,15 @@ MAX_TELEMETRY_AGE = timedelta(minutes=15)
 # For the MQTT/device-level payload this is also the Fan+Light power gate:
 # see process_device_telemetry().
 MAIN_POWER_ON_THRESHOLD_A = Decimal("0.02")
+
+# How long a Fan/Light reading has to stay abnormal, with telemetry
+# arriving every ~5s, before it's confirmed rather than dismissed as
+# noise -- two bad readings' worth. Short on purpose: this is a physical
+# fault (a fan that stopped, a bulb that's out), not a billing/quota
+# signal that benefits from a long debounce -- the sooner it's flagged,
+# the sooner a real fault gets looked at. An admin can lengthen it per-
+# sensor via POST /iot/sensors if a specific room's wiring is noisier.
+DEFAULT_DEBOUNCE_SECONDS = 10
 
 # Default brightness floor for an auto-provisioned LDR mapping -- roughly
 # "clearly dark" on a typical LDR/ADC reading. Deliberately conservative
@@ -102,7 +111,7 @@ async def auto_map_room_sensors(
     db.add(AssetSensorMapping(
         asset_id=assets[0].id, device_id=device.id, sensor_type=sensor_type,
         brightness_min=DEFAULT_LDR_BRIGHTNESS_MIN if sensor_type == SensorType.LDR else None,
-        debounce_seconds=60,
+        debounce_seconds=DEFAULT_DEBOUNCE_SECONDS,
     ))
 
 
@@ -300,6 +309,68 @@ async def _recover_if_open(db: AsyncSession, asset: Asset, kind: HealthEventKind
             await set_asset_state(db, asset, AssetState.HEALTHY, reason=f"{event.reference} cleared before inspection")
 
 
+# A reading that recovers within this window of an anomaly being confirmed
+# (and auto-escalated to a scheduled inspection, see _confirm_anomaly) is
+# treated as a sensor false positive -- a loose wire, a momentary glitch --
+# and the inspection is auto-submitted as passed rather than left for a
+# technician to walk over and confirm what already fixed itself. Past this
+# window, a real human still has to look at it: the longer it stayed bad,
+# the less likely a "just recovered" reading is the whole story.
+RECOVERY_GRACE_SECONDS = 180
+
+
+async def _auto_resolve_if_recently_inspecting(
+    db: AsyncSession, asset: Asset, kind: HealthEventKind, organization_id: uuid.UUID,
+) -> None:
+    """Companion to _recover_if_open() above, for the stage after it: an
+    anomaly that already reached INSPECTING (a technician was assigned,
+    per _confirm_anomaly) but recovers on its own shortly after. Auto-
+    submits the scheduled inspection with its critical check marked
+    PASS -- inspections.submit_inspection() already clears the asset back
+    to Healthy when nothing is raised, the same path a technician's own
+    real pass would take, so this isn't a second way of reaching Healthy,
+    just an earlier trigger for the existing one."""
+    event = await db.scalar(
+        select(HealthEvent).where(
+            HealthEvent.asset_id == asset.id, HealthEvent.kind == kind,
+            HealthEvent.status == HealthEventStatus.INSPECTING,
+        )
+    )
+    if event is None or event.inspection_id is None:
+        return
+    if (_now() - event.detected_at).total_seconds() > RECOVERY_GRACE_SECONDS:
+        return  # too long ago -- a human should confirm this one, not auto-clear it
+
+    inspection = await db.get(Inspection, event.inspection_id)
+    if inspection is None or inspection.status != InspectionStatus.SCHEDULED:
+        return  # already submitted (a technician may have gotten there first) or cancelled
+
+    items = (await db.scalars(
+        select(InspectionTemplateItem).where(InspectionTemplateItem.template_id == inspection.template_id)
+    )).all()
+    if not items:
+        return
+
+    actor = (
+        await db.get(User, inspection.assigned_to) if inspection.assigned_to
+        else await _fallback_actor(db, organization_id)
+    )
+    if actor is None:
+        return
+
+    await inspections_svc.submit_inspection(
+        db, inspection, actor,
+        [
+            {"item_id": str(it.id), "prompt": it.prompt, "result": "pass",
+             "note": "Auto-resolved: sensor reading recovered before a technician completed the inspection."}
+            for it in items
+        ],
+        notes="Auto-submitted — sensor false positive (recovered within the grace window).",
+    )
+    event.status = HealthEventStatus.RESOLVED
+    event.resolved_at = _now()
+
+
 async def process_telemetry(
     db: AsyncSession, device: IoTDevice, payload: dict,
 ) -> list[HealthEvent]:
@@ -386,6 +457,7 @@ async def evaluate_fan_rotation(
             mapping.consecutive_abnormal = 0
             mapping.first_abnormal_at = None
             await _recover_if_open(db, asset, HealthEventKind.FAN_NOT_ROTATING)
+            await _auto_resolve_if_recently_inspecting(db, asset, HealthEventKind.FAN_NOT_ROTATING, organization_id)
         return None
 
     if mapping.consecutive_abnormal == 0:
@@ -427,6 +499,7 @@ async def evaluate_light_brightness(
             mapping.consecutive_abnormal = 0
             mapping.first_abnormal_at = None
             await _recover_if_open(db, asset, HealthEventKind.LOW_BRIGHTNESS)
+            await _auto_resolve_if_recently_inspecting(db, asset, HealthEventKind.LOW_BRIGHTNESS, organization_id)
         return None
 
     if mapping.consecutive_abnormal == 0:
