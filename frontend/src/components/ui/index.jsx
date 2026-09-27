@@ -167,6 +167,54 @@ export function Toaster() {
   )
 }
 
+/* ---------------- Confirm dialog ----------------
+ * Same imperative-call shape as `toast` above (call it from anywhere, no
+ * JSX at the call site) but for "are you sure?" -- replaces the browser's
+ * own window.confirm(), which renders as an unstyled native OS dialog
+ * that looks nothing like the rest of the app. Built on the existing
+ * Modal component, so it inherits its portal-to-body/focus-trap/Escape
+ * behaviour for free. */
+let _resolveConfirm = null
+let _setConfirmState = null
+
+export function ConfirmDialogHost() {
+  const [state, setState] = useState(null)
+  useEffect(() => { _setConfirmState = setState }, [])
+
+  const settle = (result) => {
+    setState(null)
+    _resolveConfirm?.(result)
+    _resolveConfirm = null
+  }
+
+  return (
+    <Modal open={!!state} onClose={() => settle(false)} title={state?.title || 'Are you sure?'} size="sm">
+      {state && (
+        <div className="space-y-4">
+          <p className="text-body-md text-ink-muted whitespace-pre-line">{state.message}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => settle(false)}>{state.cancelLabel || 'Cancel'}</Button>
+            <Button variant={state.danger ? 'danger' : 'primary'} onClick={() => settle(true)} autoFocus>
+              {state.confirmLabel || 'Confirm'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
+/** await confirmDialog('Delete this?', { danger: true }) -> boolean. Only
+ * one confirmation can be pending at a time (matching window.confirm's own
+ * single-dialog-at-once behaviour) -- a second call before the first
+ * resolves replaces it rather than queuing. */
+export function confirmDialog(message, { title, confirmLabel, cancelLabel, danger = false } = {}) {
+  return new Promise((resolve) => {
+    _resolveConfirm = resolve
+    _setConfirmState?.({ message, title, confirmLabel, cancelLabel, danger })
+  })
+}
+
 /* ---------------- Widget (Level 1: bordered, no shadow) ---------------- */
 export function Widget({ title, subtitle, action, children, className, bodyClass, ...rest }) {
   return (

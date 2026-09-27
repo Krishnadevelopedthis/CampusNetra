@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import {
-  Button, EmptyState, ErrorState, Field, Input, Modal, Spinner, Widget, toast,
+  Button, confirmDialog, EmptyState, ErrorState, Field, Input, Modal, Spinner, Widget, toast,
 } from '@/components/ui'
 import { CampusLocationPicker } from '@/features/twin/CampusLocationPicker'
 import { useCascadingDelete } from '@/hooks/useCascadingDelete'
@@ -113,12 +113,14 @@ export default function AdminCampus() {
             <Button
               variant="ghost" icon={Trash2} className="text-danger-text"
               loading={deleteCampus.isPending}
-              onClick={() => {
+              onClick={async () => {
                 if (!campus) return
-                if (!confirm(
+                const ok = await confirmDialog(
                   `Delete ${campus.name}? This only works while it has no buildings left in it — ` +
-                  'you\'ll be told exactly what\'s still inside if it refuses.'
-                )) return
+                  'you\'ll be told exactly what\'s still inside if it refuses.',
+                  { danger: true, confirmLabel: 'Delete' },
+                )
+                if (!ok) return
                 deleteCampus.mutate()
               }}
             >

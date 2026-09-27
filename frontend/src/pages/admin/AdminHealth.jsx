@@ -74,18 +74,21 @@ function AssetRow({ asset, device, onSelect }) {
     <button
       type="button"
       onClick={() => onSelect(asset.id)}
-      className="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left hover:bg-surface-hover"
+      className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md px-3 py-2 text-left hover:bg-surface-hover"
     >
       <span className="flex items-center gap-2 min-w-0">
         <Cpu size={14} className="text-ink-faint shrink-0" />
         <span className="truncate text-body-sm text-ink">{asset.name}</span>
         <span className="text-body-xs text-ink-faint shrink-0">{asset.tag}</span>
       </span>
-      <span className="flex items-center gap-2 shrink-0">
-        {raw && <span className="text-body-xs text-ink-faint">{raw}</span>}
+      <span className="flex flex-wrap items-center gap-2 max-w-full">
+        {raw && <span className="text-body-xs text-ink-faint whitespace-nowrap">{raw}</span>}
         {!asset.has_sensor && <span className="pill bg-neutral-bg text-neutral-text">No sensor</span>}
         {asset.has_sensor && (
-          <span className="pill" style={{ background: `${iotColour || s.colour}1a`, color: iotColour || s.colour }}>
+          <span
+            className="pill whitespace-normal text-center leading-snug"
+            style={{ background: `${iotColour || s.colour}1a`, color: iotColour || s.colour }}
+          >
             {iot || s.label}
           </span>
         )}

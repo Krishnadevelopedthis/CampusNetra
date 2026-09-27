@@ -6,7 +6,7 @@ import {
 import { useMemo, useState } from 'react'
 
 import {
-  Button, EmptyState, ErrorState, Field, Metric, MetricRow, Select,
+  Button, confirmDialog, EmptyState, ErrorState, Field, Metric, MetricRow, Select,
   SkeletonRows, Widget, toast,
 } from '@/components/ui'
 import { AssetModal, RoomModal } from '@/features/twin/AssetRoomModals'
@@ -319,10 +319,12 @@ export default function AdminAssets() {
                             <Pencil size={14} />
                           </button>
                           <button
-                            onClick={() => {
-                              if (confirm(`Remove asset ${a.tag}? Costs already booked against it stay in the ledger.`)) {
-                                removeAsset.mutate(a.id)
-                              }
+                            onClick={async () => {
+                              const ok = await confirmDialog(
+                                `Remove asset ${a.tag}? Costs already booked against it stay in the ledger.`,
+                                { danger: true, confirmLabel: 'Remove' },
+                              )
+                              if (ok) removeAsset.mutate(a.id)
                             }}
                             className="btn-ghost btn-sm text-danger-text" aria-label={`Delete ${a.tag}`}
                           >
