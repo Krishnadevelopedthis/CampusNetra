@@ -26,6 +26,7 @@ from app.models.iot import AssetSensorMapping, HealthEvent, IoTDevice
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.models.work import Inspection, WorkOrder
 from app.schemas.iot import HealthEventOut, SensorMappingOut
+from app.services import iot_health as svc
 
 
 def _is_effectively_online(device: IoTDevice) -> bool:
@@ -205,6 +206,28 @@ async def health_tree(
         env = device.last_environment or {}
         if env.get("main_power") is False:
             return "OFF / NO POWER"
+        if env.get("main_power") is True:
+            # The asset's CONFIRMED state (still Healthy) can legitimately
+            # lag the latest raw reading by design -- evaluate_fan_rotation/
+            # evaluate_light_brightness in services/iot_health.py require
+            # several consecutive abnormal readings over debounce_seconds
+            # before flipping the asset to Suspected Fault, specifically so
+            # one noisy reading doesn't false-alarm. Without this, a single
+            # "Not rotating" reading shows next to a flat "WORKING" --
+            # exactly as contradictory-looking as the reverse case above,
+            # just before confirmation instead of after recovery.
+            # brightness_min is per-mapping and not cheaply available here;
+            # this reuses the same default auto-provisioning applies
+            # (services/iot_health.DEFAULT_LDR_BRIGHTNESS_MIN) as a
+            # reasonable approximation for this hint -- the actual
+            # confirm/recover decision still uses each mapping's real
+            # configured threshold, this only affects the wording shown.
+            looks_bad_now = (
+                env.get("fan_rotation") is False if is_fan
+                else (env.get("light_brightness") or 0) < svc.DEFAULT_LDR_BRIGHTNESS_MIN
+            )
+            if looks_bad_now:
+                return "WORKING (confirming — reading looks off)"
         return "WORKING"
 
     def room_out(room: Room) -> dict:
