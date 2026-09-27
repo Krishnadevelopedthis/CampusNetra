@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { Send, X } from 'lucide-react'
+import { Send, Smile, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Avatar } from '@/components/ui'
@@ -12,6 +12,44 @@ const SUGGESTIONS = [
   'How do I report a broken projector?',
   'Show SLA breaches this week',
 ]
+
+// A curated set rather than a full emoji-picker library/dependency for
+// what's a lightweight "add a bit of tone to a chat message" affordance,
+// not a general-purpose picker.
+const EMOJIS = [
+  '😀', '😂', '🙂', '😉', '😍', '🤔', '😅', '😢', '😡', '👍',
+  '👎', '🙏', '👏', '🎉', '🔥', '✅', '❌', '⚠️', '❓', '💡',
+  '📌', '📷', '🛠️', '🔧', '🚪', '💻', '🖥️', '🪑', '🚽', '🧹',
+  '💧', '⚡', '🌡️', '🏫', '🏢', '📅', '⏰', '📍', '👋', '❤️',
+]
+
+function EmojiPicker({ onPick, onClose }) {
+  const ref = useRef(null)
+  useEffect(() => {
+    const onClick = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [onClose])
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full left-0 mb-2 w-64 max-h-52 overflow-y-auto p-2 rounded-xl border border-border-subtle bg-surface shadow-level3 grid grid-cols-8 gap-1 z-10"
+      role="menu" aria-label="Choose an emoji"
+    >
+      {EMOJIS.map((e, i) => (
+        <button
+          key={`${e}-${i}`}
+          type="button"
+          onClick={() => onPick(e)}
+          className="h-7 w-7 grid place-items-center rounded hover:bg-surface-hover text-body-lg"
+        >
+          {e}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 // The assistant's face wherever it appears (FAB, header, message avatar,
 // typing indicator) — one place to keep all four in sync. The source gif
@@ -61,8 +99,25 @@ export function AssistantWidget() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showEmoji, setShowEmoji] = useState(false)
   const endRef = useRef(null)
   const inputRef = useRef(null)
+
+  // Inserts at the cursor (or replaces a selection) rather than just
+  // appending, so picking an emoji partway through a sentence lands where
+  // you were actually typing.
+  const insertEmoji = (emoji) => {
+    const el = inputRef.current
+    const start = el?.selectionStart ?? input.length
+    const end = el?.selectionEnd ?? input.length
+    const next = input.slice(0, start) + emoji + input.slice(end)
+    setInput(next)
+    requestAnimationFrame(() => {
+      el?.focus()
+      const pos = start + emoji.length
+      el?.setSelectionRange(pos, pos)
+    })
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -257,12 +312,29 @@ export function AssistantWidget() {
               className="p-3 sm:p-4 border-t border-border-subtle shrink-0"
             >
               <div className="relative">
+                {showEmoji && (
+                  <EmojiPicker
+                    onPick={(e) => insertEmoji(e)}
+                    onClose={() => setShowEmoji(false)}
+                  />
+                )}
                 <input
                   ref={inputRef}
                   value={input} onChange={(e) => setInput(e.target.value)}
                   placeholder="Ask anything about your campus…"
-                  className="input pr-11" disabled={busy}
+                  className="input pr-16" disabled={busy}
                 />
+                <button
+                  type="button" disabled={busy}
+                  onClick={() => setShowEmoji((v) => !v)}
+                  className={clsx(
+                    'absolute right-9 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center transition-colors disabled:opacity-40',
+                    showEmoji ? 'text-secondary bg-secondary/10' : 'text-ink-faint hover:text-ink',
+                  )}
+                  aria-label="Add emoji" aria-expanded={showEmoji}
+                >
+                  <Smile size={16} />
+                </button>
                 <button
                   type="submit" disabled={!input.trim() || busy}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center bg-secondary text-on-secondary disabled:opacity-40"
