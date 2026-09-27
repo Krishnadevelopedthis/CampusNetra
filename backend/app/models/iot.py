@@ -69,7 +69,15 @@ class IoTDevice(TimestampMixin, Base):
     # signal the way ACS712 current readings are.
     last_environment: Mapped[Optional[dict]] = mapped_column(JSONB)
 
-    sensors: Mapped[list["AssetSensorMapping"]] = relationship(back_populates="device")
+    # passive_deletes=True: device_id on AssetSensorMapping is NOT NULL, so
+    # without this SQLAlchemy's default delete handling tries to UPDATE
+    # each child's device_id to NULL before issuing the DELETE (its normal
+    # way of managing a one-to-many relationship) -- which fails outright
+    # against a NOT NULL column, even though the DB's own FK already has
+    # ON DELETE CASCADE and would handle removing these rows correctly.
+    # This tells SQLAlchemy to trust that DB-level cascade instead of
+    # trying to manage the relationship itself.
+    sensors: Mapped[list["AssetSensorMapping"]] = relationship(back_populates="device", passive_deletes=True)
 
 
 class AssetSensorMapping(Base):
