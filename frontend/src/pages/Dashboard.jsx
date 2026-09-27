@@ -1,11 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, ArrowRight, ClipboardList, MapPinned, PlusCircle, Search } from 'lucide-react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -213,9 +217,121 @@ function QuickAction({ to, icon: Icon, label, primary }) {
 }
 
 /* ---------------- Technician / manager / admin ---------------- */
+// Flattens GET /health/tree's Campus->Building->Floor->Room->Asset nesting
+// into one list per asset, each carrying its full location path -- the
+// same tree the Admin Health page already renders, reused here rather
+// than adding a second backend endpoint for the same data.
+function useAssetHealthBreakdown(enabled) {
+  const tree = useQuery({
+    queryKey: ['health-tree', '', '', '', ''],
+    queryFn: () => api.get('/health/tree'),
+    enabled,
+  })
+  const rows = useMemo(() => {
+    const out = []
+    for (const c of tree.data?.campuses || []) {
+      for (const b of c.buildings) {
+        for (const f of b.floors) {
+          for (const r of f.rooms) {
+            for (const a of r.assets) {
+              out.push({
+                state: a.state, name: a.name, tag: a.tag,
+                campus: c.name, building: b.name, floor: f.name, room: `${r.code} · ${r.name}`,
+              })
+            }
+          }
+        }
+      }
+    }
+    return out
+  }, [tree.data])
+  return { rows, isLoading: tree.isLoading }
+}
+
+function AssetHealthTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  const shown = d.items.slice(0, 8)
+  return (
+    <div className="rounded-lg border border-border-subtle bg-surface px-3 py-2.5 shadow-level2 max-w-xs">
+      <p className="text-body-sm font-semibold text-ink flex items-center gap-1.5">
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.colour }} />
+        {d.label} · {d.count}
+      </p>
+      <ul className="mt-1.5 space-y-1 text-body-xs text-ink-muted max-h-48 overflow-y-auto">
+        {shown.map((it, i) => (
+          <li key={i} className="leading-snug">
+            <span className="text-ink font-medium">{it.name}</span>
+            <span className="block text-ink-faint">{it.campus} / {it.building} / {it.floor} / {it.room}</span>
+          </li>
+        ))}
+      </ul>
+      {d.count > shown.length && (
+        <p className="mt-1.5 text-body-xs text-ink-faint">+{d.count - shown.length} more</p>
+      )}
+    </div>
+  )
+}
+
+/** Donut of every electronic asset's current health state, grouped by
+ * campus/building/floor/room -- hovering a slice lists which specific
+ * assets it's made of and exactly where each one is, since the number
+ * alone ("3 Warning") doesn't say which room to actually go check. */
+function AssetHealthChart({ enabled }) {
+  const { rows, isLoading } = useAssetHealthBreakdown(enabled)
+  const byState = useMemo(() => {
+    const groups = {}
+    for (const r of rows) {
+      (groups[r.state] ??= []).push(r)
+    }
+    return Object.entries(groups)
+      .map(([state, items]) => ({
+        state, items, count: items.length,
+        colour: TWIN_STATE[state]?.colour || '#94a3b8',
+        label: TWIN_STATE[state]?.label || state,
+      }))
+      .sort((a, b) => b.count - a.count)
+  }, [rows])
+
+  if (!enabled) return null
+  if (isLoading) return <SkeletonChart />
+  if (!rows.length) {
+    return (
+      <EmptyState icon={Activity} title="No electronic assets yet"
+                  description="Assets with IoT sensors will appear here once added, broken down by health state and location." />
+    )
+  }
+
+  return (
+    <div className="grid sm:grid-cols-[220px_1fr] gap-5 items-center">
+      <ResponsiveContainer width="100%" height={220}>
+        <PieChart>
+          <Pie data={byState} dataKey="count" nameKey="label" innerRadius={55} outerRadius={90} paddingAngle={2}>
+            {byState.map((d) => <Cell key={d.state} fill={d.colour} />)}
+          </Pie>
+          <Tooltip content={<AssetHealthTooltip />} />
+        </PieChart>
+      </ResponsiveContainer>
+      <div className="space-y-2">
+        {byState.map((d) => (
+          <div key={d.state} className="flex items-center justify-between text-body-sm">
+            <span className="flex items-center gap-2 text-ink-muted">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.colour }} />
+              {d.label}
+            </span>
+            <span className="tabular font-medium text-ink">{d.count}</span>
+          </div>
+        ))}
+        <p className="text-body-xs text-ink-faint pt-1">Hover a slice to see which assets and rooms it covers.</p>
+      </div>
+    </div>
+  )
+}
+
 function StaffBody({ data, user }) {
   const chart = useChartTheme()
   const states = Object.entries(data.asset_states || {}).filter(([, v]) => v > 0)
+  const isAdmin = ['admin', 'super_admin'].includes(user?.role)
 
   return (
     <>
@@ -260,6 +376,15 @@ function StaffBody({ data, user }) {
           </ResponsiveContainer>
         </Widget>
       </div>
+
+      {isAdmin && (
+        <Widget
+          title="Asset Health by Location"
+          subtitle="Every electronic asset's current state, room by room."
+        >
+          <AssetHealthChart enabled={isAdmin} />
+        </Widget>
+      )}
 
       {user?.role === 'technician' && data.my_queue?.length > 0 && (
         <Widget
