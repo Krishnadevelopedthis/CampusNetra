@@ -1750,3 +1750,30 @@ either way. Whoever picks this up next: the fastest unblock for all three
 is a screenshot (for #1) or the "Browser Use" plugin / any real
 screenshot tool (for #37/#40) — every fix reachable by reading code alone
 has now been made across five sessions' worth of passes.
+
+## Addendum — bulk room-seeding script for user-created buildings (this session)
+
+Ask: two buildings the user created themselves through the live app's Campus
+map/Floor-Plan Editor ("Main" and "ANNEX", visible on the outdoor 3D map)
+needed a standard set of "normal college" rooms (classrooms, labs, staff
+room, washrooms, library, etc., varied by floor) added to every currently
+empty floor, ground to top.
+
+These buildings only exist in the live running database, not in this repo's
+seed data, so there was nothing to patch in `database/seeds/`. Added
+`scripts/bulk_seed_rooms.py` instead: a standalone script that drives the
+same `/campus/*` REST API the Floor Plan Editor UI itself uses (list
+buildings → create any missing floor 1..floors_count → for any floor with
+zero rooms, POST a curated room set). Idempotent — re-running it is a no-op
+against floors that already have rooms. Full usage (including how to grab a
+short-lived access token from `localStorage['cn.auth']`, since `/auth/login`
+now requires a captcha a script can't solve) is in the script's own
+docstring — run `python scripts/bulk_seed_rooms.py --help`.
+
+Verified against a local mock of the five endpoints it calls (not the real
+deployment — I have no route to `campusnetra.onrender.com` or any live
+credentials from this sandbox): confirmed it creates the right floors and
+room sets on a fresh building, correctly skips a floor that already has a
+room, and is a true no-op on a second run. **Not yet run against the actual
+live "Main"/"ANNEX" buildings** — that needs the user (or whoever has an
+admin login) to run it once with a real `--api-base` and `--token`.
