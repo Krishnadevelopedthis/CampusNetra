@@ -32,7 +32,7 @@ export function RoleTabs({ value, onChange, tabs = ROLE_TABS }) {
     // them fall to a second row exactly when they no longer fit.
     <div
       role="tablist" aria-label="Account type"
-      className="flex flex-wrap gap-1 p-1 bg-brand-soft rounded-lg"
+      className="flex flex-wrap gap-1.5 rounded-2xl border border-border-subtle bg-surface-sunken/70 p-1.5"
     >
       {tabs.map((t) => {
         const active = value === t.value
@@ -42,10 +42,10 @@ export function RoleTabs({ value, onChange, tabs = ROLE_TABS }) {
             onClick={() => onChange(t.value)}
             className={clsx(
               'flex flex-1 basis-[108px] items-center justify-center gap-1.5 min-h-11 px-2',
-              'rounded text-body-md font-medium transition-colors',
+              'rounded-xl text-[clamp(0.72rem,1.4vw,0.86rem)] font-semibold transition-all',
               active
                 ? 'bg-primary text-white shadow-level2'
-                : 'text-ink-muted hover:text-ink hover:bg-surface/60',
+                : 'text-ink-muted hover:bg-surface hover:text-ink',
             )}
           >
             <t.icon size={15} className="shrink-0" aria-hidden="true" />
