@@ -1,11 +1,11 @@
-import { Activity, ArrowUpRight, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { Activity, BrainCircuit, CheckCircle2, FileCheck2, Radio, ShieldCheck } from 'lucide-react'
 import { Logo } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 const SIGNALS = [
-  ['AI', 'Auto-routing'],
-  ['Live', 'Digital twin'],
-  ['Clear', 'Audit trails'],
+  ['AI', 'Auto-routing', BrainCircuit],
+  ['Live', 'Digital twin', Radio],
+  ['Clear', 'Audit trails', FileCheck2],
 ]
 
 export function AuthShell({ title, subtitle, children, footer }) {
@@ -25,20 +25,25 @@ export function AuthShell({ title, subtitle, children, footer }) {
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-white/75">
             <Activity size={13} className="text-secondary-300" /> Campus operations, connected
           </div>
-          <h2 className="text-reveal max-w-lg text-[clamp(2.4rem,4.5vw,4.4rem)] font-bold leading-[0.98] tracking-[-0.055em] text-white">
+          <h2 className="text-reveal auth-copy-float max-w-lg text-[clamp(2.4rem,4.5vw,4.4rem)] font-bold leading-[0.98] tracking-[-0.055em] text-white">
             Every fault, every fix — on one live map of your campus.
           </h2>
-          <p className="mt-7 max-w-md text-base leading-relaxed text-white/65 xl:text-lg">
+          <p className="auth-copy-float auth-copy-float-delay mt-7 max-w-md text-base leading-relaxed text-white/65 xl:text-lg">
             Report an issue with a photo. CampusNetra classifies it, routes it to the right team, and keeps the digital twin current until it is fixed.
           </p>
           <div className="mt-10 grid max-w-md grid-cols-3 gap-4 border-t border-white/15 pt-6">
-            {SIGNALS.map(([key, label]) => <div key={label}><p className="text-xl font-bold tracking-tight text-white">{key}</p><p className="mt-1 text-[11px] text-white/55">{label}</p></div>)}
+            {SIGNALS.map(([key, label, Icon], index) => (
+              <div key={label} className="auth-signal" style={{ animationDelay: `${index * 120}ms` }}>
+                <Icon size={16} className="mb-2 text-secondary-300" aria-hidden="true" />
+                <p className="text-xl font-bold tracking-tight text-white">{key}</p>
+                <p className="mt-1 text-[11px] text-white/55">{label}</p>
+              </div>
+            ))}
           </div>
         </div>
 
         <div className="relative flex items-center justify-between text-[11px] text-white/45">
           <span className="inline-flex items-center gap-2"><ShieldCheck size={14} className="text-success" /> Role-based access by default</span>
-          <span className="inline-flex items-center gap-1">Explore platform <ArrowUpRight size={13} /></span>
         </div>
       </aside>
 
