@@ -113,16 +113,8 @@ async def assign_device_room(device_id: uuid.UUID, payload: DeviceRoomAssignIn, 
             select(Asset).options(selectinload(Asset.category)).where(Asset.room_id == payload.room_id)
         )).all()
 
-        def _match(keyword: str) -> Asset | None:
-            for a in room_assets:
-                if not a.category:
-                    continue
-                if a.category.code.lower() == keyword or keyword in a.category.name.lower():
-                    return a
-            return None
-
-        fan_asset = _match("fan")
-        light_asset = _match("light")
+        fan_asset = svc.pick_category_asset(room_assets, "fan")
+        light_asset = svc.pick_category_asset(room_assets, "light")
         if fan_asset:
             db.add(AssetSensorMapping(
                 asset_id=fan_asset.id, device_id=device.id, sensor_type=SensorType.IR_PROXIMITY,

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -65,9 +66,23 @@ DEFAULT_LDR_BRIGHTNESS_MIN = 200
 
 
 def _category_match(category, keyword: str) -> bool:
+    """Exact code, or the keyword as a whole word in the name. A plain
+    substring test let categories like "Air Conditioning / Fans" (synced
+    from Issue Configuration) be mistaken for the room's fan."""
     if category is None:
         return False
-    return category.code.lower() == keyword or keyword in category.name.lower()
+    if category.code.lower() == keyword:
+        return True
+    return re.search(r"\b" + re.escape(keyword) + r"\b", category.name.lower()) is not None
+
+
+def pick_category_asset(assets, keyword: str):
+    """The room asset whose category is `keyword`, preferring an exact
+    category-code match over a name match."""
+    with_code = [a for a in assets if a.category and a.category.code.lower() == keyword]
+    if with_code:
+        return with_code[0]
+    return next((a for a in assets if _category_match(a.category, keyword)), None)
 
 
 async def auto_map_room_sensors(

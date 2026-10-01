@@ -31,6 +31,8 @@ function CreateCategoryModal({ open, onClose }) {
     onSuccess: () => {
       toast.success('Category created')
       qc.invalidateQueries({ queryKey: ['issue-config'] })
+      // Issue categories double as asset categories (see backend sync).
+      qc.invalidateQueries({ queryKey: ['asset-categories'] })
       setForm(CREATE_DEFAULTS)
       onClose()
     },
@@ -164,6 +166,7 @@ export function AdminIssueConfig() {
       toast.success(d.detail)
       setEdits((e) => { const n = { ...e }; delete n[vars.id]; return n })
       qc.invalidateQueries({ queryKey: ['issue-config'] })
+      qc.invalidateQueries({ queryKey: ['asset-categories'] })
     },
     onError: (err) => toast.error(err.detail || 'Could not update category'),
   })

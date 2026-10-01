@@ -4,6 +4,7 @@ import { ChevronRight, Copy } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 import { Button, Field, Input, Modal, Select, toast } from '@/components/ui'
+import { SearchSelect } from '@/components/SearchSelect'
 import { api } from '@/lib/api'
 
 /**
@@ -287,11 +288,17 @@ export function AssetModal({ open, asset, roomId, campusId, categories, initialP
                    placeholder="e.g. Ceiling Fan" />
           </Field>
           <Field label="Category" required error={errors.category_id}>
-            <Select value={form.category_id} onChange={set('category_id')}
-                    error={errors.category_id}>
-              <option value="">Select category</option>
-              {(categories || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </Select>
+            <SearchSelect
+              value={form.category_id}
+              onChange={(v) => set('category_id')({ target: { value: v } })}
+              error={errors.category_id}
+              placeholder="Select category"
+              searchPlaceholder="Search categories or keywords…"
+              emptyText="No category matches — add one in Issue Configuration"
+              options={(categories || []).map((c) => ({
+                value: c.id, label: c.name, code: c.code, keywords: c.keywords,
+              }))}
+            />
           </Field>
         </div>
 
