@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Menu, X, ChevronDown } from 'lucide-react'
+import { Menu, X, ArrowUpRight } from 'lucide-react'
 import clsx from 'clsx'
 import { Logo } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -9,9 +9,7 @@ const NAV_LINKS = [
   { label: 'Platform', href: '#platform' },
   { label: 'Digital Twin', href: '#twin' },
   { label: 'AI Triage', href: '#ai' },
-  { label: 'Analytics', href: '#analytics' },
   { label: 'How It Works', href: '#how-it-works' },
-  { label: 'FAQ', href: '#faq' },
 ]
 
 export function Navbar() {
@@ -105,15 +103,24 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* Desktop CTA - single Get Started button */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Desktop actions */}
+          <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
+            <Link
+              to="/login"
+              className={clsx(
+                'px-3 py-2 rounded-lg text-body-md font-medium transition-colors',
+                scrolled ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken' : 'text-white/80 hover:text-white hover:bg-white/10',
+              )}
+            >
+              Sign in
+            </Link>
             <button
               type="button"
               onClick={handleGetStarted}
-              className="px-4 h-9 rounded-lg text-body-md font-medium bg-gradient-to-r from-secondary-400 to-primary text-white hover:from-secondary-600 hover:to-primary-800 transition-all duration-150 inline-flex items-center shadow-glow-secondary border-shimmer"
+              className="px-4 h-9 rounded-lg text-body-md font-semibold bg-secondary-500 text-white hover:bg-secondary-400 transition-all duration-150 inline-flex items-center gap-1.5 shadow-glow-secondary"
             >
-              Get Started
+              Start exploring <ArrowUpRight size={15} />
             </button>
           </div>
 
@@ -158,6 +165,16 @@ export function Navbar() {
               {link.label}
             </a>
           ))}
+          <Link
+            to="/login"
+            onClick={() => setMobileOpen(false)}
+            className={clsx(
+              'block px-3 py-2.5 rounded-lg text-body-md font-medium transition-colors',
+              scrolled ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken' : 'text-white/80 hover:text-white hover:bg-white/10',
+            )}
+          >
+            Sign in
+          </Link>
           <div className="pt-3 flex flex-col gap-2">
             <div className="flex items-center justify-end">
               <ThemeToggle variant="segmented" />
@@ -167,7 +184,7 @@ export function Navbar() {
               onClick={handleGetStarted}
               className="block px-4 py-2.5 rounded-lg text-body-md font-medium bg-gradient-to-r from-secondary-400 to-primary text-white hover:from-secondary-600 hover:to-primary-800 text-center transition-all border-shimmer shadow-glow-secondary"
             >
-              Get Started
+              Start exploring
             </button>
           </div>
         </div>
