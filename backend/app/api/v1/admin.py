@@ -29,6 +29,7 @@ from app.schemas.common import Message, Page, UserBrief
 from app.services import permissions as perm_service
 from app.services import predictive
 from app.services.audit import record_audit
+from app.services.categories import sync_asset_categories
 from app.services.templates import NOTIFICATION_CODES, codes_payload
 from app.services.work_orders import create_work_order, handover_open_work
 
@@ -407,6 +408,8 @@ async def create_issue_category(payload: IssueCategoryCreate, admin: RequireAdmi
     )
     db.add(category)
     await db.flush()
+    # Make it selectable as an asset category straight away.
+    await sync_asset_categories(db, admin.organization_id)
 
     await record_audit(
         db, action="issue_category.create", actor_id=admin.id,

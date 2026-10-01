@@ -147,6 +147,7 @@ class AssetCategoryOut(ORMModel):
     code: str
     icon: Optional[str] = None
     default_priority: str
+    keywords: list[str] = []
 
 
 class BuildingCreate(BaseModel):

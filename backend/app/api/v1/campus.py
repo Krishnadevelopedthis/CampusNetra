@@ -19,7 +19,7 @@ from app.core.database import SessionLocal
 from app.core.enums import AssetState, IssueStatus, RoomKind
 from app.core.security import decode_token
 from app.models.identity import Organization, User
-from app.models.issues import Issue
+from app.models.issues import Issue, IssueCategory
 from app.models.spatial import (
     Asset, AssetCategory, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent,
 )
@@ -31,6 +31,7 @@ from app.schemas.campus import (
     FloorOut, FloorPlanOut, MapBounds, RoomCreate, RoomOut, RoomWithMarkers, TwinEventOut,
 )
 from app.schemas.common import Message, Page
+from app.services.categories import sync_asset_categories
 from app.services.iot_health import auto_map_room_sensors
 from app.services.realtime import hub
 from app.services.twin import STATE_COLOURS, STATE_LABELS, set_asset_state
@@ -1133,12 +1134,23 @@ async def room_assets(room_id: uuid.UUID, user: RequireAssetsView, db: DB):
 
 @router.get("/asset-categories", response_model=list[AssetCategoryOut])
 async def asset_categories(user: CurrentUser, db: DB):
+    """Every asset category, including one per issue category from Issue
+    Configuration (created on the fly if missing), each with that issue
+    category's keywords so pickers can search by them."""
+    await sync_asset_categories(db, user.organization_id)
     rows = (await db.scalars(
         select(AssetCategory)
         .where(AssetCategory.organization_id == user.organization_id)
         .order_by(AssetCategory.name)
     )).all()
-    return [AssetCategoryOut.model_validate(c) for c in rows]
+    keywords = dict((await db.execute(
+        select(IssueCategory.code, IssueCategory.keywords)
+        .where(IssueCategory.organization_id == user.organization_id)
+    )).all())
+    return [
+        AssetCategoryOut.model_validate(c).model_copy(update={"keywords": keywords.get(c.code) or []})
+        for c in rows
+    ]
 
 
 @router.get("/assets", response_model=Page[dict])
