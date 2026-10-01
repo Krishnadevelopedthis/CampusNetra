@@ -30,11 +30,11 @@ export function CTA() {
           <Link
             to="/register"
             className={clsx(
-              'inline-flex items-center justify-center gap-2 px-8 h-12 rounded-lg border-shimmer bg-gradient-to-r from-secondary-400 to-primary text-white font-semibold hover:from-secondary-600 hover:to-primary-800 transition-all duration-300 text-body-lg shadow-glow-secondary',
+              'landing-button inline-flex min-w-0 max-w-full items-center justify-center gap-2 rounded-lg border-shimmer bg-gradient-to-r from-secondary-400 to-primary px-[clamp(1rem,5vw,2rem)] py-[clamp(0.7rem,2.5vw,0.85rem)] text-[clamp(0.8rem,2.4vw,1rem)] leading-tight text-white font-semibold shadow-glow-secondary transition-all duration-300 hover:from-secondary-600 hover:to-primary-800',
             )}
           >
             Get Started Free
-            <ArrowRight size={18} />
+            <ArrowRight size={18} className="shrink-0" />
           </Link>
         </div>
       </div>
