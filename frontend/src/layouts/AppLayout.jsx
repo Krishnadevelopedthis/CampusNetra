@@ -67,7 +67,7 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
       ref={ref}
       className={clsx(
         mobileOpen
-          ? 'fixed inset-x-0 top-16 z-40 bg-surface border-b border-border-subtle shadow-level3 p-3 sm:static sm:inset-auto sm:top-auto sm:z-auto sm:bg-transparent sm:border-0 sm:shadow-none sm:p-0 sm:flex-1 sm:max-w-md'
+          ? 'fixed inset-x-3 top-[5.25rem] z-40 rounded-2xl bg-surface border border-border-subtle shadow-level3 p-3 sm:static sm:inset-auto sm:top-auto sm:z-auto sm:bg-transparent sm:border-0 sm:shadow-none sm:p-0 sm:flex-1 sm:max-w-md'
           : 'hidden sm:block sm:flex-1 sm:max-w-md',
       )}
     >
@@ -221,7 +221,7 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-h-[calc(100vh-5rem)] sm:max-h-none bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up flex flex-col">
+        <div className="fixed inset-x-3 top-[5.25rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-h-[calc(100vh-5rem)] sm:max-h-none bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
             <span className="text-headline-md">Notifications</span>
             {unread > 0 && (
@@ -371,7 +371,11 @@ export default function AppLayout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface/90 px-4 shadow-[0_1px_0_rgb(var(--c-border-subtle)/0.35)] backdrop-blur-xl lg:px-6 no-print">
+        {/* Floating navbar card, matching the sidebar. The wrapper's
+            fading backdrop keeps scrolled content from showing through the
+            gap above it. */}
+        <div className="sticky top-0 z-30 bg-gradient-to-b from-surface-base via-surface-base/85 to-transparent px-3 pt-3 no-print">
+        <header className="flex min-h-16 items-center gap-3 rounded-2xl border border-border-subtle bg-surface/95 px-4 shadow-level2 backdrop-blur-xl lg:px-5">
           <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
           </button>
@@ -391,6 +395,7 @@ export default function AppLayout() {
             <UserMenu />
           </div>
         </header>
+        </div>
 
         <main className="page-reveal min-w-0 flex-1 px-4 pb-6 pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
           <Outlet />
