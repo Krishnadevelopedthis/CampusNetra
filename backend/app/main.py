@@ -175,13 +175,22 @@ def _failure(request: Request, status_code: int, detail: str, ref: str | None = 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    # 5xx raised as an HTTPException is still a server fault; only the 4xx
-    # messages were written with a reader in mind.
+    # A route that explicitly raises HTTPException — 4xx or 5xx — already
+    # wrote that message for the person reading it (a 502 "search is
+    # temporarily unavailable" is exactly as safe to show as a 404 "not
+    # found"); it is still logged with a reference below for traceability,
+    # but the message itself is not replaced. Masking was previously
+    # applied to every 5xx regardless, which silently swallowed deliberate,
+    # non-sensitive messages like the location-search proxy's own "try
+    # again" text and replaced them with the generic unhandled-bug message
+    # instead. Only a *true* unhandled exception (below, never routed
+    # through StarletteHTTPException at all) still gets GENERIC_ERROR.
     if exc.status_code >= 500:
         ref = _reference()
         log.error("[%s] %s %s -> %s: %s",
                   ref, request.method, request.url.path, exc.status_code, exc.detail)
-        return _failure(request, exc.status_code, GENERIC_ERROR, ref)
+        detail = exc.detail if isinstance(exc.detail, str) else GENERIC_ERROR
+        return _failure(request, exc.status_code, detail, ref)
     return _failure(request, exc.status_code, exc.detail if isinstance(exc.detail, str)
                     else "That request could not be completed.")
 

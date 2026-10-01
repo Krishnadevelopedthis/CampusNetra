@@ -461,11 +461,16 @@ async def geocode_search(
     how many admins are searching at once, rather than trusting the browser.
     """
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
             resp = await client.get(
                 "https://nominatim.openstreetmap.org/search",
                 params={"q": q, "format": "jsonv2", "limit": 5},
-                headers={"User-Agent": "CampusNetra/1.0 (admin location picker)"},
+                # Nominatim's usage policy asks for a real identifying
+                # User-Agent *with contact info* — a generic one like the
+                # previous "CampusNetra/1.0 (admin location picker)" is
+                # exactly what gets a shared cloud-hosting IP throttled or
+                # blocked outright, which read here as an opaque failure.
+                headers={"User-Agent": "CampusNetra/1.0 (+https://campusnetra.dpdns.org)"},
             )
     except httpx.HTTPError:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Location search is temporarily unavailable.")
@@ -473,19 +478,25 @@ async def geocode_search(
     if resp.status_code != 200:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Location search is temporarily unavailable.")
 
-    results = resp.json()
-    return [
-        {
-            "display_name": r.get("display_name"),
-            "lat": float(r["lat"]),
-            "lon": float(r["lon"]),
-            # [south, north, west, east] as Nominatim returns it, or None —
-            # used to pre-size the crop box to roughly the searched place's
-            # own extent instead of always starting at one fixed size.
-            "bounding_box": [float(x) for x in r["boundingbox"]] if r.get("boundingbox") else None,
-        }
-        for r in results
-    ]
+    try:
+        results = resp.json()
+        return [
+            {
+                "display_name": r.get("display_name"),
+                "lat": float(r["lat"]),
+                "lon": float(r["lon"]),
+                # [south, north, west, east] as Nominatim returns it, or None —
+                # used to pre-size the crop box to roughly the searched place's
+                # own extent instead of always starting at one fixed size.
+                "bounding_box": [float(x) for x in r["boundingbox"]] if r.get("boundingbox") else None,
+            }
+            for r in results
+        ]
+    except (ValueError, KeyError, TypeError):
+        # A malformed/unexpected response body from Nominatim is still
+        # "search didn't work right now", not a bug in this app — same
+        # clean message as the two guards above, not an unhandled 500.
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Location search is temporarily unavailable.")
 
 
 @router.post("/campuses", response_model=CampusOut, status_code=201)
