@@ -56,7 +56,7 @@ export default function Dashboard() {
         className="pb-4"
         title={<span className="font-bold tracking-tight">{greeting.title}</span>}
         subtitle={(
-          <span className="mt-1 block">
+          <span className="mt-1.5 block">
             <span className="font-medium text-ink-muted">{greeting.dayName}</span>
             {' — '}
             <span className="italic">{greeting.quote}</span>

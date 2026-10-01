@@ -3,6 +3,7 @@ import {
   Clock, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, X,
 } from 'lucide-react'
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, NavLink } from 'react-router-dom'
 
 import { LogoMark } from '@/components/Logo'
@@ -39,14 +40,15 @@ function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
         <Icon size={17} className={clsx('shrink-0', active && 'text-secondary')} />
         {!collapsed && <span className="truncate">{label}</span>}
       </NavLink>
-      {collapsed && tip && (
+      {collapsed && tip && createPortal(
         <span
-          className="pointer-events-none fixed z-[60] -translate-y-1/2 whitespace-nowrap rounded-md bg-secondary
+          className="pointer-events-none fixed z-[100] -translate-y-1/2 whitespace-nowrap rounded-md bg-secondary
                      px-2 py-1 text-[11px] font-semibold text-on-secondary shadow-level2"
           style={{ top: tip.top, left: tip.left }}
         >
           {label}
-        </span>
+        </span>,
+        document.body,
       )}
     </>
   )
@@ -88,13 +90,13 @@ function ThemeSwitch({ collapsed }) {
         aria-label="Dark theme"
         onClick={toggle}
         className={clsx(
-          'relative h-6 w-11 rounded-full transition-colors',
+          'relative h-6 w-11 shrink-0 overflow-hidden rounded-full p-0 transition-colors',
           dark ? 'bg-primary-700' : 'bg-secondary',
         )}
       >
         <span
           className={clsx(
-            'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-level2 transition-transform duration-200',
+            'absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow-level2 transition-transform duration-200',
             dark ? 'translate-x-[22px]' : 'translate-x-0.5',
           )}
         />
@@ -123,9 +125,9 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
 
   return (
     <div className="flex h-full flex-col">
-      {/* Logo, with the collapse toggle directly beneath it */}
-      <div className={clsx('flex shrink-0 flex-col gap-2.5 pb-2 pt-4', isCollapsed ? 'items-center px-2' : 'px-4')}>
-        <div className="flex items-center gap-2.5">
+      {/* Logo, with the collapse toggle beneath it */}
+      <div className={clsx('flex shrink-0 flex-col gap-4 pb-1 pt-4', isCollapsed ? 'items-center px-2' : 'px-3')}>
+        <div className={clsx('flex items-center gap-2.5', !isCollapsed && 'px-1')}>
           <Link
             to="/dashboard" onClick={onNavigate}
             aria-label="Campus Netra home"
@@ -143,7 +145,7 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
             <button
               onClick={onClose}
               aria-label="Close menu"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-border-subtle text-ink-muted hover:text-ink"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
             >
               <X size={16} />
             </button>
@@ -154,9 +156,14 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
             onClick={onToggle}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="grid h-8 w-8 place-items-center rounded-lg border border-border-subtle text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
+            className={clsx(
+              'flex items-center rounded-lg bg-surface-sunken/60 text-ink-muted transition-colors',
+              'hover:bg-surface-sunken hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-secondary',
+              isCollapsed ? 'h-9 w-9 justify-center' : 'h-9 gap-2.5 px-3 text-body-sm font-medium',
+            )}
           >
             {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            {!isCollapsed && <span>Collapse sidebar</span>}
           </button>
         )}
       </div>
