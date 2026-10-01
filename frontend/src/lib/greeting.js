@@ -1,11 +1,22 @@
-const PERIOD_LABEL = {
-  morning: 'Good morning',
-  afternoon: 'Good afternoon',
-  evening: 'Good evening',
-  night: 'Good night',
+// `{name}` is replaced with the viewer's first name. Late-night logins get a
+// rotating nickname-style greeting instead of "Good night", which reads as a
+// sign-off rather than a hello.
+const TITLES = {
+  morning: ['Good morning, {name}'],
+  afternoon: ['Good afternoon, {name}'],
+  evening: ['Good evening, {name}'],
+  night: [
+    'Hey Night Owl, {name}',
+    'Still up, {name}?',
+    'Hello, midnight hero {name}',
+    'Burning the midnight oil, {name}?',
+    'Hey {name}, the moon shift is on',
+    'Welcome back, night watcher {name}',
+    'Hi {name}, fellow insomniac',
+  ],
 }
 
-const QUOTES = {
+const REPORTER_QUOTES = {
   morning: [
     'A fresh campus day — small fixes reported early save bigger repairs later.',
     'Early reports get the fastest turnaround. Good time to look around.',
@@ -24,7 +35,27 @@ const QUOTES = {
   night: [
     'Working late? Anything urgent is still routed straight to the right team.',
     'Quiet hours on campus — a good time to catch up on what needs reporting.',
-    'Burning the midnight oil. The campus team’s got your reports covered till morning.',
+    'The campus is asleep, but your reports aren’t — they’re covered till morning.',
+  ],
+}
+
+const STAFF_QUOTES = {
+  morning: [
+    'Here’s where the campus stands as the day starts.',
+    'Fresh queue, fresh coffee — let’s see what needs attention first.',
+  ],
+  afternoon: [
+    'Midday snapshot of every open issue, work order and asset.',
+    'Halfway there — here’s what’s moving and what’s stuck.',
+  ],
+  evening: [
+    'End-of-day view: what got closed, and what carries into tomorrow.',
+    'Evening wrap-up — a quick look before signing off.',
+  ],
+  night: [
+    'Night shift view — anything critical is surfaced right here.',
+    'The campus is quiet; the sensors aren’t. Here’s the live picture.',
+    'Late-night check-in — alerts, sensors and queues, all in one place.',
   ],
 }
 
@@ -38,22 +69,22 @@ function periodFor(hour) {
 
 /**
  * Time-of-day greeting + weekday + a short rotating quote, all derived from
- * the viewer's own device clock (not the server's) — so it always matches
- * whatever's actually on their screen, regardless of where the backend runs.
- * The quote is picked deterministically from the day-of-year so it stays put
- * across re-renders/refreshes within the same day instead of reshuffling
- * every time the dashboard reloads.
+ * the viewer's own device clock (not the server's). Picks are deterministic
+ * per day-of-year so they stay put across refreshes within the same day.
  */
-export function getGreeting(date = new Date()) {
+export function getGreeting({ name, staff = false, date = new Date() } = {}) {
   const period = periodFor(date.getHours())
   const dayName = date.toLocaleDateString(undefined, { weekday: 'long' })
   const dayOfYear = Math.floor(
     (date - new Date(date.getFullYear(), 0, 0)) / 86400000,
   )
-  const pool = QUOTES[period]
+  const titles = TITLES[period]
+  const quotes = (staff ? STAFF_QUOTES : REPORTER_QUOTES)[period]
+  const title = titles[dayOfYear % titles.length]
   return {
-    label: PERIOD_LABEL[period],
+    period,
+    title: title.replace('{name}', name || 'there'),
     dayName,
-    quote: pool[dayOfYear % pool.length],
+    quote: quotes[dayOfYear % quotes.length],
   }
 }

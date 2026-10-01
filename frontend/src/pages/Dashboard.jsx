@@ -46,29 +46,21 @@ export default function Dashboard() {
   const isReporter = ['student', 'teacher'].includes(user?.role)
   const first = user?.full_name?.split(' ')[0]
   const busy = isLoading || refreshing
-  const greeting = getGreeting()
+  const greeting = getGreeting({ name: first, staff: !isReporter })
 
   if (error && !data) return <ErrorState error={error} onRetry={refetch} />
 
   return (
     <div className="dashboard-page space-y-6">
       <PageHeader
-        title={isReporter
-          ? (
-            <span className="font-bold tracking-tight">
-              {greeting.label}, {first}
-            </span>
-          )
-          : 'Campus Overview'}
-        subtitle={isReporter
-          ? (
-            <>
-              <span className="font-medium text-ink-muted">{greeting.dayName}</span>
-              {' — '}
-              <span className="italic">{greeting.quote}</span>
-            </>
-          )
-          : 'Real-time telemetry and operational metrics.'}
+        title={<span className="font-bold tracking-tight">{greeting.title}</span>}
+        subtitle={(
+          <>
+            <span className="font-medium text-ink-muted">{greeting.dayName}</span>
+            {' — '}
+            <span className="italic">{greeting.quote}</span>
+          </>
+        )}
         onRefresh={refresh}
         refreshing={refreshing}
         actions={isReporter && (
