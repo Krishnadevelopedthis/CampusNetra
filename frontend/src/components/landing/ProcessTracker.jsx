@@ -366,11 +366,16 @@ export function ProcessTracker() {
 
   // Check for reduced motion preference
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const mediaQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)')
+    if (!mediaQuery) return undefined
     setReducedMotion(mediaQuery.matches)
     const handler = (e) => setReducedMotion(e.matches)
-    mediaQuery.addEventListener('change', handler)
-    return () => mediaQuery.removeEventListener('change', handler)
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handler)
+      return () => mediaQuery.removeEventListener('change', handler)
+    }
+    mediaQuery.addListener?.(handler)
+    return () => mediaQuery.removeListener?.(handler)
   }, [])
 
   // Check mobile breakpoint
@@ -383,6 +388,10 @@ export function ProcessTracker() {
 
   // Intersection Observer to start animation when visible
   useEffect(() => {
+    if (!('IntersectionObserver' in window)) {
+      setIsVisible(true)
+      return undefined
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
