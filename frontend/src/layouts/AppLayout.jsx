@@ -320,6 +320,15 @@ export default function AppLayout() {
   }, [collapsed])
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+  // Once the page scrolls, the navbar turns into frosted glass (translucent
+  // + blurred) so content stays faintly visible behind it.
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
   const location = useLocation()
   const items = navFor(user?.role)
 
@@ -374,8 +383,16 @@ export default function AppLayout() {
         {/* Floating navbar card, matching the sidebar. The wrapper's
             fading backdrop keeps scrolled content from showing through the
             gap above it. */}
-        <div className="sticky top-0 z-30 bg-gradient-to-b from-surface-base via-surface-base/85 to-transparent px-3 pt-3 no-print">
-        <header className="flex min-h-16 items-center gap-3 rounded-2xl border border-border-subtle bg-surface/95 px-4 shadow-level2 backdrop-blur-xl lg:px-5">
+        <div className="sticky top-0 z-30 px-3 pt-3 no-print lg:bg-gradient-to-b lg:from-surface-base lg:via-surface-base/85 lg:to-transparent">
+        <header
+          className={clsx(
+            'flex min-h-16 items-center gap-3 rounded-2xl border px-4 backdrop-blur-xl backdrop-saturate-150 [&_.btn-ghost]:backdrop-blur-none',
+            'transition-[background-color,box-shadow,border-color] duration-300 lg:px-5',
+            scrolled
+              ? 'border-border-subtle/60 bg-surface/55 shadow-level3 lg:border-border-subtle lg:bg-surface/95 lg:shadow-level2'
+              : 'border-border-subtle bg-surface/90 shadow-level2 lg:bg-surface/95',
+          )}
+        >
           <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
           </button>
