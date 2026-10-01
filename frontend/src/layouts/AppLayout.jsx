@@ -1,13 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, LogOut, Menu,
+  Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
   PlusCircle, Search, Settings, User as UserIcon, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
-import { LogoMark } from '@/components/Logo'
+import { Logo, LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
 import { AssistantWidget } from '@/features/assistant/AssistantWidget'
@@ -311,115 +311,9 @@ function MenuItem({ icon: Icon, to, children, onClick }) {
   )
 }
 
-/**
- * The nav rail itself — a dark floating "island" (reused, restyled, for the
- * desktop collapsed/expanded aside and the mobile drawer alike) rather than
- * the flush light sidebar this used to be. Icon-only by default on desktop
- * (collapsed) with a hover tooltip per item standing in for the label;
- * `expanded` (toggled on desktop, always true on mobile where there's no
- * hover to show a tooltip on) shows the label inline instead.
- */
-function SidebarRail({ items, activePath, accent, roleLabel, expanded }) {
-  return (
-    <div className={clsx('flex h-full flex-col gap-1 py-4', expanded ? 'px-3' : 'px-2')}>
-      <div className={clsx(
-        'flex items-center gap-3 pb-4 mb-2 border-b border-white/10',
-        expanded ? 'px-1' : 'justify-center',
-      )}>
-        <LogoMark size={40} className="shrink-0 ring-2 ring-white/10" />
-        {expanded && (
-          <div className="min-w-0">
-            <p className="text-body-md font-semibold text-white truncate">Campus Netra</p>
-            <p className="text-body-sm text-white/50 truncate">{roleLabel}</p>
-          </div>
-        )}
-      </div>
-
-      <nav className="stagger-children flex-1 overflow-y-auto overflow-x-hidden space-y-1.5">
-        {items.map((item) => {
-          const active = item.to === activePath
-          return (
-            <div key={item.to} className="group relative">
-              <NavLink
-                to={item.to}
-                className={clsx(
-                  'flex items-center rounded-2xl transition-colors',
-                  expanded ? 'h-11 gap-3 px-3' : 'mx-auto h-11 w-11 justify-center',
-                  active
-                    ? 'bg-white text-primary shadow-level2'
-                    : 'text-white/55 hover:bg-white/10 hover:text-white',
-                )}
-              >
-                <item.icon size={18} className="shrink-0" />
-                {expanded && <span className="truncate text-body-md font-medium">{item.label}</span>}
-              </NavLink>
-              {active && (
-                <span
-                  className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: accent, boxShadow: '0 0 0 2px rgb(var(--c-primary))' }}
-                />
-              )}
-              {/* Hover tooltip — only meaningful (and only rendered) when the
-                  rail is icon-only; redundant once the label is already
-                  showing inline. */}
-              {!expanded && (
-                <span
-                  className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap
-                             rounded-lg bg-primary-900 px-2.5 py-1.5 text-body-sm text-white opacity-0 shadow-level2
-                             transition-opacity duration-150 group-hover:opacity-100"
-                >
-                  {item.label}
-                </span>
-              )}
-            </div>
-          )
-        })}
-      </nav>
-
-      <div className={clsx('mt-1 border-t border-white/10 pt-3', !expanded && 'flex justify-center')}>
-        <div className="group relative">
-          <NavLink
-            to="/settings"
-            className={({ isActive }) => clsx(
-              'flex items-center rounded-2xl transition-colors',
-              expanded ? 'h-11 gap-3 px-3' : 'h-11 w-11 justify-center',
-              isActive ? 'bg-white text-primary shadow-level2' : 'text-white/55 hover:bg-white/10 hover:text-white',
-            )}
-          >
-            <Settings size={18} className="shrink-0" />
-            {expanded && <span className="truncate text-body-md font-medium">Settings</span>}
-          </NavLink>
-          {!expanded && (
-            <span
-              className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 whitespace-nowrap
-                         rounded-lg bg-primary-900 px-2.5 py-1.5 text-body-sm text-white opacity-0 shadow-level2
-                         transition-opacity duration-150 group-hover:opacity-100"
-            >
-              Settings
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function AppLayout() {
   const { user } = useAuth()
-  // Icon-only by default (the compact rail is the primary look now, not a
-  // fallback of the labelled one) — but once someone expands it, remember
-  // that across visits rather than snapping back every reload.
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      const saved = localStorage.getItem('cn-sidebar-collapsed')
-      return saved === null ? true : saved === 'true'
-    } catch {
-      return true
-    }
-  })
-  useEffect(() => {
-    try { localStorage.setItem('cn-sidebar-collapsed', String(collapsed)) } catch { /* ignore */ }
-  }, [collapsed])
+  const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const location = useLocation()
@@ -441,50 +335,85 @@ export default function AppLayout() {
   useEffect(() => setMobileOpen(false), [location.pathname])
 
   const canReport = ['student', 'teacher'].includes(user?.role)
-  const roleLabel = ROLE_LABEL[user?.role]
+
+  const sidebar = (
+    <>
+      {/* Role-coloured accent line, per the design spec. Absolutely
+          positioned so it doesn't add to the block's own height below --
+          it used to sit in-flow and push the logo block a few px taller
+          than the header's h-16, so the border under it never lined up
+          with the header's own bottom border across the seam. */}
+      <div className="relative shrink-0">
+        <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
+        <div className={clsx(
+          'h-16 flex items-center px-4 border-b border-border-subtle',
+          collapsed && 'px-3 justify-center',
+        )}>
+          {collapsed ? (
+            <LogoMark size={36} />
+          ) : (
+            <Logo subtitle={ROLE_LABEL[user?.role]} />
+          )}
+        </div>
+      </div>
+
+      <nav className="stagger-children flex-1 overflow-y-auto p-3 space-y-1">
+        {items.map((item) => (
+          <NavLink
+            key={item.to} to={item.to}
+            title={collapsed ? item.label : undefined}
+            className={clsx(
+              'sidebar-link',
+              item.to === activePath && 'sidebar-link-active',
+              collapsed && 'justify-center px-0',
+            )}
+          >
+            <item.icon size={18} className="shrink-0" />
+            {!collapsed && <span className="truncate">{item.label}</span>}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* h-16, same as the footer row it sits beside at the bottom of the
+          page — both used to size from their own padding+content (p-3 here,
+          py-4 there), which landed at different totals and never lined up. */}
+      <div className="h-16 flex items-center px-3 border-t border-border-subtle">
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <PanelLeft size={16} /> : <><PanelLeftClose size={16} /> Collapse</>}
+        </button>
+      </div>
+    </>
+  )
 
   return (
     <div className="min-h-screen flex bg-surface-base">
-      {/* Desktop rail — a floating dark "island", not flush to the viewport
-          edge: the p-3 wrapper is what gives it a visible gap on every
-          side, and the toggle button below overlaps its own right edge the
-          way a detached floating control reads, rather than living inside
-          the rail as one more row. */}
-      <div className="relative hidden lg:block shrink-0 p-3">
-        <aside
-          className={clsx(
-            'sticky top-3 flex h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[28px]',
-            'bg-primary shadow-level3 transition-[width] duration-200',
-            collapsed ? 'w-[84px]' : 'w-sidebar',
-          )}
-        >
-          <SidebarRail items={items} activePath={activePath} accent={accent} roleLabel={roleLabel} expanded={!collapsed} />
-        </aside>
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className="absolute -right-3.5 top-9 z-40 grid h-7 w-7 place-items-center rounded-full
-                     border border-border-subtle bg-surface text-ink-muted shadow-level2
-                     transition-colors hover:text-ink"
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-      </div>
+      {/* Desktop sidebar */}
+      <aside
+        className={clsx(
+          'hidden lg:flex flex-col bg-surface border-r border-border-subtle shrink-0 sticky top-0 h-screen transition-[width] duration-200',
+          collapsed ? 'w-[76px]' : 'w-sidebar',
+        )}
+      >
+        {sidebar}
+      </aside>
 
-      {/* Mobile drawer (Level 3 overlay) — always shows labels (expanded):
-          there's no hover on touch to reveal an icon-only tooltip by. */}
+      {/* Mobile drawer (Level 3 overlay) */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-sidebar max-w-[85vw] h-full bg-primary flex flex-col shadow-level3 animate-slide-up">
+          <aside className="relative w-sidebar max-w-[85vw] h-full bg-surface flex flex-col shadow-level3 animate-slide-up">
             <button
               onClick={() => setMobileOpen(false)}
-              className="absolute top-3 right-3 h-8 w-8 p-0 rounded-lg z-10 grid place-items-center text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              className="absolute top-3 right-3 btn-ghost h-8 w-8 p-0 rounded-lg z-10"
               aria-label="Close menu"
             >
               <X size={18} />
             </button>
-            <SidebarRail items={items} activePath={activePath} accent={accent} roleLabel={roleLabel} expanded />
+            {sidebar}
           </aside>
         </div>
       )}
@@ -498,11 +427,6 @@ export default function AppLayout() {
           <HeaderSearch mobileOpen={mobileSearchOpen} onMobileClose={() => setMobileSearchOpen(false)} />
 
           <div className="ml-auto flex items-center gap-1">
-            {canReport && (
-              <Link to="/issues/new" className="btn-dark h-9 hidden sm:flex items-center gap-1.5 px-3 text-body-sm">
-                <PlusCircle size={15} /> Report Issue
-              </Link>
-            )}
             <button
               onClick={() => setMobileSearchOpen(true)}
               className={clsx('btn-ghost h-9 w-9 p-0 rounded-lg sm:hidden', mobileSearchOpen && 'hidden')}
