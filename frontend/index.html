@@ -3,23 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0b1220" />
-    <meta name="description" content="CampusNetra is the operations layer for modern campuses — unifying issue reporting, work orders, digital twins, inspections, and predictive maintenance." />
+    <meta name="theme-color" content="#f4f3f0" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="CampusNetra" />
+    <meta name="description" content="CampusNetra is campus facility management software for issue reporting, work orders, digital twins, inspections, and predictive maintenance." />
     <meta name="keywords" content="smart campus, facility management, digital twin, work orders, issue tracking, predictive maintenance, campus operations" />
-    <meta property="og:title" content="CampusNetra | The operations layer for modern campuses" />
-    <meta property="og:description" content="Give campus teams one operational home for issues, work orders, assets, digital twins, and service-level accountability." />
+    <meta property="og:title" content="CampusNetra | Campus facility management software" />
+    <meta property="og:description" content="Manage campus facilities from one place with issue tracking, work orders, digital twins, inspections, and proactive maintenance." />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CampusNetra" />
+    <meta property="og:image" content="https://campusnetra.dpdns.org/logo-dark.svg" />
     <meta property="og:url" content="https://campusnetra.dpdns.org/" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="CampusNetra | The operations layer for modern campuses" />
-    <meta name="twitter:description" content="AI-assisted campus operations with shared work orders, digital twin context, and proactive maintenance." />
+    <meta name="twitter:title" content="CampusNetra | Campus facility management software" />
+    <meta name="twitter:description" content="Campus facility management with AI-assisted triage, shared work orders, digital twin context, and proactive maintenance." />
+    <meta name="twitter:image" content="https://campusnetra.dpdns.org/logo-dark.svg" />
     <link rel="canonical" href="https://campusnetra.dpdns.org/" />
     <!-- Campus Netra logo favicon -->
     <link rel="icon" href="/logo-dark.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <title>CampusNetra | The operations layer for modern campuses</title>
+    <title>CampusNetra | Campus facility management software</title>
     <script>
       // Runs before the first paint to prevent theme flash on load.
       // User color theme is intentionally NOT loaded from localStorage — it resets
@@ -30,14 +35,14 @@
           var mode = saved === 'light' || saved === 'dark' ? saved
             : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           document.documentElement.dataset.theme = mode
-          document.documentElement.dataset.userColorTheme = '#2563eb'
+          document.documentElement.dataset.userColorTheme = '#f4602a'
 
           if (mode === 'dark') {
             document.querySelector('meta[name="theme-color"]').content = '#141418'
           }
         } catch (e) {
           document.documentElement.dataset.theme = 'light'
-          document.documentElement.dataset.userColorTheme = '#2563eb'
+          document.documentElement.dataset.userColorTheme = '#f4602a'
         }
       })()
     </script>

@@ -1,15 +1,15 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Menu, X, ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, Menu, X } from 'lucide-react'
 import clsx from 'clsx'
 import { Logo } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
 const NAV_LINKS = [
   { label: 'Platform', href: '#platform' },
-  { label: 'Digital Twin', href: '#twin' },
-  { label: 'AI Triage', href: '#ai' },
-  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'Digital twin', href: '#twin' },
+  { label: 'AI triage', href: '#ai' },
+  { label: 'How it works', href: '#how-it-works' },
 ]
 
 export function Navbar() {
@@ -20,29 +20,21 @@ export function Navbar() {
   const toggleRef = useRef(null)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 16)
+    const onScroll = () => setScrolled(window.scrollY > 12)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Close mobile menu on Escape
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') setMobileOpen(false) }
+    const onKey = (event) => { if (event.key === 'Escape') setMobileOpen(false) }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Close mobile menu on an outside click/tap. mobileRef was already wired
-  // to the panel but nothing was actually listening for outside clicks.
   useEffect(() => {
-    if (!mobileOpen) return
-    const onPointerDown = (e) => {
-      if (
-        mobileRef.current && !mobileRef.current.contains(e.target) &&
-        toggleRef.current && !toggleRef.current.contains(e.target)
-      ) {
-        setMobileOpen(false)
-      }
+    if (!mobileOpen) return undefined
+    const onPointerDown = (event) => {
+      if (mobileRef.current && !mobileRef.current.contains(event.target) && toggleRef.current && !toggleRef.current.contains(event.target)) setMobileOpen(false)
     }
     document.addEventListener('mousedown', onPointerDown)
     document.addEventListener('touchstart', onPointerDown)
@@ -52,141 +44,38 @@ export function Navbar() {
     }
   }, [mobileOpen])
 
-  const handleAnchor = (e, href) => {
-    e.preventDefault()
+  const handleAnchor = (event, href) => {
+    event.preventDefault()
     setMobileOpen(false)
-    const el = document.querySelector(href)
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const handleGetStarted = (e) => {
-    e.preventDefault()
+  const handleGetStarted = () => {
     setMobileOpen(false)
     navigate('/register')
   }
 
+  const linkTone = scrolled ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken' : 'text-ink-muted hover:text-ink hover:bg-white/70'
+
   return (
-    <header
-      className={clsx(
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        scrolled
-          ? 'bg-spotlight-primary bg-[length:100%_100%] glass-panel shadow-level3 border-b border-border-subtle'
-          : 'bg-transparent',
-      )}
-    >
-      {/* Grid beam backdrop on dark */}
-      <div className="absolute inset-0 bg-grid-beam pointer-events-none opacity-50" aria-hidden="true" />
-
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex-shrink-0">
-            <Logo subtitle={false} size={36} isDynamic />
-          </Link>
-
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                onClick={(e) => handleAnchor(e, link.href)}
-                className={clsx(
-                  'px-3 py-2 rounded-lg text-body-md font-medium transition-colors duration-150 relative overflow-hidden',
-                  scrolled
-                    ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken'
-                    : 'text-white/80 hover:text-white hover:bg-white/10',
-                )}
-              >
-                {link.label}
-              </a>
-            ))}
-          </nav>
-
-          {/* Desktop actions */}
-          <div className="hidden md:flex items-center gap-2">
-            <ThemeToggle />
-            <Link
-              to="/login"
-              className={clsx(
-                'px-3 py-2 rounded-lg text-body-md font-medium transition-colors',
-                scrolled ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken' : 'text-white/80 hover:text-white hover:bg-white/10',
-              )}
-            >
-              Sign in
-            </Link>
-            <button
-              type="button"
-              onClick={handleGetStarted}
-              className="px-4 h-9 rounded-lg text-body-md font-semibold bg-secondary-500 text-white hover:bg-secondary-400 transition-all duration-150 inline-flex items-center gap-1.5 shadow-glow-secondary"
-            >
-              Start exploring <ArrowUpRight size={15} />
-            </button>
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            ref={toggleRef}
-            className={clsx(
-              'md:hidden p-3 -m-1 rounded-lg transition-colors',
-              scrolled ? 'text-ink hover:bg-surface-sunken' : 'text-white hover:bg-white/10',
-            )}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((v) => !v)}
-          >
-            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+    <header className={clsx('fixed inset-x-0 top-0 z-50 transition-all duration-300', scrolled ? 'border-b border-border-subtle bg-surface/90 shadow-level2 backdrop-blur-xl' : 'bg-surface-base/75 backdrop-blur-md')}>
+      <div className="mx-auto flex h-[4.5rem] max-w-7xl items-center justify-between px-6 lg:px-8">
+        <Link to="/" className="shrink-0" aria-label="CampusNetra home"><Logo subtitle={false} size={34} isDynamic /></Link>
+        <nav className="hidden items-center gap-1 md:flex" aria-label="Main navigation">
+          {NAV_LINKS.map((link) => <a key={link.label} href={link.href} onClick={(event) => handleAnchor(event, link.href)} className={clsx('rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors', linkTone)}>{link.label}</a>)}
+        </nav>
+        <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
+          <Link to="/login" className={clsx('rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors', linkTone)}>Sign in</Link>
+          <button type="button" onClick={handleGetStarted} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3.5 text-[13px] font-bold text-white transition hover:bg-primary-800">Get started <ArrowUpRight size={14} /></button>
         </div>
+        <button ref={toggleRef} type="button" className={clsx('rounded-lg p-2.5 transition-colors md:hidden', linkTone)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
-
-      {/* Mobile drawer */}
-      <div
-        ref={mobileRef}
-        className={clsx(
-          'md:hidden overflow-hidden transition-all duration-300',
-          mobileOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0 pointer-events-none',
-          scrolled ? 'bg-surface/95 backdrop-blur-md border-b border-border-subtle' : 'bg-primary/95 backdrop-blur-md',
-        )}
-        aria-hidden={!mobileOpen}
-      >
-        <div className="px-6 py-4 space-y-1">
-          {NAV_LINKS.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              onClick={(e) => handleAnchor(e, link.href)}
-              className={clsx(
-                'block px-3 py-2.5 rounded-lg text-body-md font-medium transition-colors',
-                scrolled ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken' : 'text-white/80 hover:text-white hover:bg-white/10',
-              )}
-            >
-              {link.label}
-            </a>
-          ))}
-          <Link
-            to="/login"
-            onClick={() => setMobileOpen(false)}
-            className={clsx(
-              'block px-3 py-2.5 rounded-lg text-body-md font-medium transition-colors',
-              scrolled ? 'text-ink-muted hover:text-ink hover:bg-surface-sunken' : 'text-white/80 hover:text-white hover:bg-white/10',
-            )}
-          >
-            Sign in
-          </Link>
-          <div className="pt-3 flex flex-col gap-2">
-            <div className="flex items-center justify-end">
-              <ThemeToggle variant="segmented" />
-            </div>
-            <button
-              type="button"
-              onClick={handleGetStarted}
-              className="block px-4 py-2.5 rounded-lg text-body-md font-medium bg-gradient-to-r from-secondary-400 to-primary text-white hover:from-secondary-600 hover:to-primary-800 text-center transition-all border-shimmer shadow-glow-secondary"
-            >
-              Start exploring
-            </button>
-          </div>
+      <div ref={mobileRef} className={clsx('overflow-hidden border-t border-border-subtle bg-surface/95 backdrop-blur-xl transition-all md:hidden', mobileOpen ? 'max-h-96 opacity-100' : 'pointer-events-none max-h-0 opacity-0')} aria-hidden={!mobileOpen}>
+        <div className="space-y-1 px-6 py-4">
+          {NAV_LINKS.map((link) => <a key={link.label} href={link.href} onClick={(event) => handleAnchor(event, link.href)} className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink-muted hover:bg-surface-sunken hover:text-ink">{link.label}</a>)}
+          <Link to="/login" onClick={() => setMobileOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-ink-muted hover:bg-surface-sunken hover:text-ink">Sign in</Link>
+          <div className="flex items-center justify-between gap-3 pt-3"><ThemeToggle variant="segmented" /><button type="button" onClick={handleGetStarted} className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary text-sm font-bold text-white">Get started <ArrowUpRight size={15} /></button></div>
         </div>
       </div>
     </header>
