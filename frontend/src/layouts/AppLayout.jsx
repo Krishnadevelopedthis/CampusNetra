@@ -73,12 +73,12 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
     >
       <div className="relative">
         <Search
-          size={17} strokeWidth={2.25}
+          size={15} strokeWidth={2.25}
           className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
         />
         <input
           autoFocus={mobileOpen}
-          className="input pl-9 pr-9"
+          className="input h-9 pl-9 pr-9 text-body-sm"
           placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, complaints, lost & found…'}
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -266,11 +266,11 @@ function UserMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2.5 h-9 pl-2 pr-1 rounded-lg hover:bg-surface-sunken transition-colors"
+        className="flex h-11 items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-sunken/40 py-1.5 pl-1.5 pr-2 transition-colors hover:bg-surface-sunken sm:pl-3"
       >
-        <div className="text-right hidden sm:block leading-tight">
-          <p className="text-body-md font-medium text-ink truncate max-w-[140px]">{user?.full_name}</p>
-          <p className="text-body-sm text-ink-faint">{ROLE_LABEL[user?.role]}</p>
+        <div className="hidden min-w-0 flex-col gap-0.5 text-right leading-none sm:flex">
+          <p className="max-w-[140px] truncate text-body-sm font-semibold text-ink">{user?.full_name}</p>
+          <p className="text-[11px] text-ink-faint">{ROLE_LABEL[user?.role]}</p>
         </div>
         <Avatar name={user?.full_name} src={user?.avatar_url} size={32} />
         <ChevronDown size={14} className="text-ink-faint" />
