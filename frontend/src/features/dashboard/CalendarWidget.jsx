@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, PlusCircle, Wrench } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Clock3, PlusCircle, Wrench } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -204,6 +204,16 @@ export default function CalendarWidget() {
 
   const grid = useMemo(() => buildGrid(cursor), [cursor])
   const today = isoDay(new Date())
+  const upcoming = useMemo(() => {
+    const rows = []
+    for (const [date, entry] of Object.entries(data?.days || {})) {
+      if (date < today) continue
+      for (const item of entry.issues || []) rows.push({ date, type: 'Issue', title: item.title, status: item.status, href: `/issues/${item.id}`, tone: 'bg-secondary' })
+      for (const item of entry.inspections || []) rows.push({ date, type: 'Inspection', title: item.reference, status: item.status, href: `/inspections/${item.id}`, tone: 'bg-violet-500' })
+      for (const item of entry.work_orders || []) rows.push({ date, type: 'Work order', title: item.title, status: item.status, href: `/work-orders/${item.id}`, tone: 'bg-info' })
+    }
+    return rows.sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5)
+  }, [data, today])
 
   const shiftMonth = (delta) => setCursor((c) => {
     const next = new Date(c)
@@ -234,7 +244,7 @@ export default function CalendarWidget() {
           </div>
         }
       >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink-muted">
             <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-secondary" /> Issues</span>
             <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-violet-500" /> Inspections</span>
@@ -244,6 +254,8 @@ export default function CalendarWidget() {
             Today
           </button>
         </div>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.75fr)]">
+        <div className="min-w-0 rounded-2xl border border-border-subtle/70 bg-surface-sunken/25 p-2.5 sm:p-3">
         <div className="grid grid-cols-7 gap-1.5 text-center sm:gap-2">
           {WEEKDAYS.map((w) => (
             <div key={w} className="py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint sm:text-[11px]">{w}</div>
@@ -282,6 +294,41 @@ export default function CalendarWidget() {
               </button>
             )
           })}
+        </div>
+        </div>
+        <aside className="min-w-0 rounded-2xl border border-border-subtle/70 bg-surface-sunken/25 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">Next up</p>
+              <h4 className="mt-1 text-base font-semibold tracking-tight text-ink">Upcoming activity</h4>
+            </div>
+            <span className="icon-tile h-9 w-9 rounded-xl"><Clock3 size={16} /></span>
+          </div>
+          {upcoming.length === 0 ? (
+            <div className="py-8 text-center">
+              <CalendarDays size={22} className="mx-auto text-ink-faint" />
+              <p className="mt-3 text-sm font-medium text-ink">Your schedule is clear</p>
+              <p className="mt-1 text-xs leading-relaxed text-ink-faint">New issues, inspections and work orders will appear here.</p>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-2.5">
+              {upcoming.map((item, index) => (
+                <Link key={`${item.href}-${index}`} to={item.href} className="group flex items-start gap-3 rounded-xl border border-border-subtle/70 bg-surface/80 p-3 transition-all hover:-translate-y-0.5 hover:border-secondary/40 hover:shadow-level2">
+                  <span className="mt-0.5 flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-surface-sunken text-[10px] font-bold leading-none text-ink">
+                    <span>{new Date(`${item.date}T00:00:00`).toLocaleDateString(undefined, { month: 'short' })}</span>
+                    <span className="mt-0.5 text-sm">{new Date(`${item.date}T00:00:00`).getDate()}</span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-ink-faint"><i className={clsx('h-1.5 w-1.5 rounded-full', item.tone)} /> {item.type}</span>
+                    <span className="mt-1 block truncate text-sm font-medium text-ink group-hover:text-secondary">{item.title}</span>
+                    {item.status && <span className="mt-1 block text-[11px] text-ink-faint">{item.status.replaceAll('_', ' ')}</span>}
+                  </span>
+                  <ChevronRight size={14} className="mt-2 shrink-0 text-ink-faint transition-transform group-hover:translate-x-0.5 group-hover:text-secondary" />
+                </Link>
+              ))}
+            </div>
+          )}
+        </aside>
         </div>
       </Widget>
 
