@@ -35,10 +35,10 @@ export const ROLE_LABEL = {
 
 /** Accent line at the top of the sidebar, per the design spec. */
 export const ROLE_ACCENT = {
-  student: '#3b82f6',
-  teacher: '#8b5cf6',
-  technician: '#f59e0b',
-  facility_manager: '#10b981',
+  student: 'rgb(var(--c-secondary))',
+  teacher: 'rgb(var(--c-secondary-400))',
+  technician: 'rgb(var(--c-warning))',
+  facility_manager: 'rgb(var(--c-success))',
   admin: 'rgb(var(--c-primary))',
   super_admin: 'rgb(var(--c-primary))',
 }

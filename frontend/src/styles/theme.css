@@ -209,41 +209,41 @@
   /* Primary: dark mode's "other" filled button (.btn-dark) and the same
      hero surfaces as light mode — a deep violet, distinct from the plain
      dark ground so those panels still read as a deliberate block. */
-  --c-primary: 45 33 84;
-  --c-primary-50: 30 24 56;
-  --c-primary-100: 40 32 74;
-  --c-primary-200: 58 44 102;
-  --c-primary-300: 84 64 140;
-  --c-primary-400: 110 88 176;
-  --c-primary-500: 133 112 200;
-  --c-primary-600: 45 33 84;
-  --c-primary-700: 36 27 68;
-  --c-primary-800: 58 44 102;
-  --c-primary-900: 176 160 230;
-  --c-primary-950: 20 15 40;
+  --c-primary: 23 20 15;
+  --c-primary-50: 244 243 240;
+  --c-primary-100: 231 229 224;
+  --c-primary-200: 214 211 203;
+  --c-primary-300: 176 172 160;
+  --c-primary-400: 120 115 103;
+  --c-primary-500: 74 71 63;
+  --c-primary-600: 23 20 15;
+  --c-primary-700: 15 13 9;
+  --c-primary-800: 42 38 31;
+  --c-primary-900: 214 211 203;
+  --c-primary-950: 8 7 5;
 
-  --c-brand: 168 168 176;
-  --c-brand-soft: 30 30 36;
+  --c-brand: 176 172 160;
+  --c-brand-soft: 34 31 25;
 
   /* Secondary: dark mode's one confident accent — drives .btn-primary,
      active nav, focus rings. Bright lime, so its "on" colour must be dark,
      not white — a bright fill with white text fails contrast outright. */
-  --c-secondary: 200 241 63;
-  --c-secondary-50: 245 253 220;
-  --c-secondary-100: 233 250 185;
-  --c-secondary-200: 220 247 145;
-  --c-secondary-300: 210 244 110;
-  --c-secondary-400: 205 243 87;
-  --c-secondary-500: 200 241 63;
-  --c-secondary-600: 200 241 63;
-  --c-secondary-700: 174 214 45;
-  --c-secondary-800: 140 173 35;
-  --c-secondary-900: 95 122 20;
+  --c-secondary: 244 96 42;
+  --c-secondary-50: 254 240 234;
+  --c-secondary-100: 253 223 208;
+  --c-secondary-200: 250 195 168;
+  --c-secondary-300: 247 160 118;
+  --c-secondary-400: 244 122 72;
+  --c-secondary-500: 244 96 42;
+  --c-secondary-600: 240 85 28;
+  --c-secondary-700: 207 68 18;
+  --c-secondary-800: 168 54 15;
+  --c-secondary-900: 122 40 11;
 
-  --c-on-primary: 240 238 250;
-  --c-on-secondary: 20 24 8;
-  --c-on-secondary-600: 20 24 8;
-  --c-on-brand: 20 20 24;
+  --c-on-primary: 247 246 244;
+  --c-on-secondary: 255 255 255;
+  --c-on-secondary-600: 255 255 255;
+  --c-on-brand: 255 255 255;
 
   --c-success-bg: 6 42 32;
   --c-success-border: 16 96 63;
