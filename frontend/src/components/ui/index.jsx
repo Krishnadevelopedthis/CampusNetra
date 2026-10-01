@@ -448,9 +448,9 @@ export function Avatar({ name, src: path, size = 32, className }) {
  * belongs in the same place on every one of them — a control that moves is a
  * control people stop looking for.
  */
-export function PageHeader({ title, subtitle, actions, onRefresh, refreshing }) {
+export function PageHeader({ title, subtitle, actions, onRefresh, refreshing, className }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4 text-reveal">
+    <header className={clsx('flex flex-wrap items-start justify-between gap-4 text-reveal', className)}>
       <div className="min-w-0">
         <h1 className="text-[clamp(1.45rem,3vw,2rem)] font-bold tracking-[-0.035em] text-ink">{title}</h1>
         {subtitle && <p className="mt-1 text-[clamp(0.78rem,1.2vw,0.94rem)] leading-relaxed text-ink-muted">{subtitle}</p>}
