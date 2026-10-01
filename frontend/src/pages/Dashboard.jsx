@@ -53,13 +53,14 @@ export default function Dashboard() {
   return (
     <div className="dashboard-page space-y-6">
       <PageHeader
+        className="pb-4"
         title={<span className="font-bold tracking-tight">{greeting.title}</span>}
         subtitle={(
-          <>
+          <span className="mt-1 block">
             <span className="font-medium text-ink-muted">{greeting.dayName}</span>
             {' — '}
             <span className="italic">{greeting.quote}</span>
-          </>
+          </span>
         )}
         onRefresh={refresh}
         refreshing={refreshing}
