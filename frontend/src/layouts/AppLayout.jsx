@@ -6,6 +6,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
+import { LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
 import { AssistantWidget } from '@/features/assistant/AssistantWidget'
@@ -396,6 +397,12 @@ export default function AppLayout() {
           <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
           </button>
+          <Link to="/dashboard" aria-label="Campus Netra home" className="flex min-w-0 items-center gap-2 lg:hidden">
+            <LogoMark size={30} />
+            <span className="hidden truncate text-body-md font-bold tracking-tight text-ink min-[400px]:inline">
+              Campus Netra
+            </span>
+          </Link>
 
           <HeaderSearch mobileOpen={mobileSearchOpen} onMobileClose={() => setMobileSearchOpen(false)} />
 

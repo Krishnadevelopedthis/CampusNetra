@@ -190,9 +190,12 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
         </div>
       </nav>
 
-      <div className={clsx('shrink-0 border-t border-border-subtle pb-4 pt-3', isCollapsed ? 'px-2' : 'px-3')}>
-        <ThemeSwitch collapsed={isCollapsed} />
-      </div>
+      {/* On mobile the navbar already carries the theme toggle. */}
+      {!mobile && (
+        <div className={clsx('shrink-0 border-t border-border-subtle pb-4 pt-3', isCollapsed ? 'px-2' : 'px-3')}>
+          <ThemeSwitch collapsed={isCollapsed} />
+        </div>
+      )}
     </div>
   )
 }
