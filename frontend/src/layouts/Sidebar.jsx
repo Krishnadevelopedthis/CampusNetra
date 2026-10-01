@@ -10,9 +10,18 @@ import { LogoMark } from '@/components/Logo'
 import { ROLE_LABEL } from '@/lib/auth'
 import { useTheme } from '@/lib/theme'
 
+// Collapsing animates only the rail's width. Everything inside keeps one
+// fixed geometry in both states (icons sit at the same x, so they never
+// jump) and labels fade instead of mounting/unmounting.
+const fade = (collapsed) => clsx(
+  'whitespace-nowrap transition-opacity duration-200 motion-reduce:transition-none',
+  collapsed ? 'pointer-events-none opacity-0' : 'opacity-100 delay-100',
+)
+
 function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
-  // Fixed-position tooltip: the rail scrolls and clips its overflow, so a
-  // plain absolutely-positioned label would be cut off at the rail's edge.
+  // Fixed-position tooltip in a portal: the rail clips its overflow and sits
+  // in its own stacking context, so an in-place label would be cut off or
+  // painted under page content.
   const [tip, setTip] = useState(null)
   const show = (e) => {
     if (!collapsed) return
@@ -30,15 +39,14 @@ function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
         onBlur={() => setTip(null)}
         aria-label={collapsed ? label : undefined}
         className={clsx(
-          'flex h-10 items-center rounded-xl text-body-md font-medium transition-colors',
-          collapsed ? 'mx-auto w-10 justify-center' : 'gap-3 px-3',
+          'flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl px-[15px] text-body-md font-medium transition-colors',
           active
             ? 'bg-surface-sunken text-ink'
             : 'text-ink-muted hover:bg-surface-sunken/60 hover:text-ink',
         )}
       >
         <Icon size={17} className={clsx('shrink-0', active && 'text-secondary')} />
-        {!collapsed && <span className="truncate">{label}</span>}
+        <span className={clsx('truncate', fade(collapsed))}>{label}</span>
       </NavLink>
       {collapsed && tip && createPortal(
         <span
@@ -55,11 +63,24 @@ function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
 }
 
 function SectionLabel({ children, collapsed }) {
-  if (collapsed) return <div className="mx-auto my-2 h-px w-6 bg-border-subtle" />
   return (
-    <p className="px-3 pb-1.5 pt-3 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
-      {children}
-    </p>
+    <div className="relative h-8">
+      <p
+        className={clsx(
+          'absolute bottom-1.5 left-[15px] text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink-faint',
+          fade(collapsed),
+        )}
+      >
+        {children}
+      </p>
+      <span
+        aria-hidden
+        className={clsx(
+          'absolute bottom-3 left-1/2 h-px w-6 -translate-x-1/2 bg-border-subtle transition-opacity duration-200',
+          collapsed ? 'opacity-100 delay-100' : 'opacity-0',
+        )}
+      />
+    </div>
   )
 }
 
@@ -68,26 +89,20 @@ function ThemeSwitch({ collapsed }) {
   const setMode = useTheme((s) => s.setMode)
   const dark = resolved === 'dark'
   const toggle = () => setMode(dark ? 'light' : 'dark')
-
-  if (collapsed) {
-    return (
-      <button
-        onClick={toggle}
-        aria-label={dark ? 'Switch to light theme' : 'Switch to dark theme'}
-        className="mx-auto grid h-10 w-10 place-items-center rounded-xl text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink"
-      >
-        {dark ? <Moon size={17} /> : <Sun size={17} />}
-      </button>
-    )
-  }
+  // The sun/moon hints shrink away when collapsed; the switch itself stays.
+  const hint = clsx(
+    'shrink-0 overflow-hidden transition-all duration-300 motion-reduce:transition-none',
+    collapsed ? 'w-0 opacity-0' : 'w-[15px] opacity-100',
+  )
 
   return (
-    <div className="flex items-center justify-center gap-2.5 py-1">
-      <Sun size={15} className={dark ? 'text-ink-faint' : 'text-secondary'} />
+    <div className={clsx('flex items-center justify-center py-1 transition-[gap] duration-300', collapsed ? 'gap-0' : 'gap-2.5')}>
+      <Sun size={15} className={clsx(hint, dark ? 'text-ink-faint' : 'text-secondary')} />
       <button
         role="switch"
         aria-checked={dark}
         aria-label="Dark theme"
+        title={dark ? 'Switch to light theme' : 'Switch to dark theme'}
         onClick={toggle}
         className={clsx(
           'relative h-6 w-11 shrink-0 overflow-hidden rounded-full p-0 transition-colors',
@@ -101,7 +116,7 @@ function ThemeSwitch({ collapsed }) {
           )}
         />
       </button>
-      <Moon size={15} className={dark ? 'text-secondary' : 'text-ink-faint'} />
+      <Moon size={15} className={clsx(hint, dark ? 'text-secondary' : 'text-ink-faint')} />
     </div>
   )
 }
@@ -126,20 +141,18 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
   return (
     <div className="flex h-full flex-col">
       {/* Logo, with the collapse toggle beneath it */}
-      <div className={clsx('flex shrink-0 flex-col gap-4 pb-1 pt-4', isCollapsed ? 'items-center px-2' : 'px-3')}>
-        <div className={clsx('flex items-center gap-2.5', !isCollapsed && 'px-1')}>
+      <div className="flex shrink-0 flex-col gap-4 px-3 pb-1 pt-4">
+        <div className="flex items-center gap-2">
           <Link
             to="/dashboard" onClick={onNavigate}
             aria-label="Campus Netra home"
-            className="flex min-w-0 flex-1 items-center gap-2.5"
+            className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden px-2"
           >
-            <LogoMark size={isCollapsed ? 36 : 32} />
-            {!isCollapsed && (
-              <div className="min-w-0 leading-tight">
-                <p className="truncate text-body-md font-bold tracking-tight text-ink">Campus Netra</p>
-                <p className="truncate text-[11px] text-ink-faint">{ROLE_LABEL[role]}</p>
-              </div>
-            )}
+            <LogoMark size={32} />
+            <div className={clsx('min-w-0 leading-tight', fade(isCollapsed))}>
+              <p className="truncate text-body-md font-bold tracking-tight text-ink">Campus Netra</p>
+              <p className="truncate text-[11px] text-ink-faint">{ROLE_LABEL[role]}</p>
+            </div>
           </Link>
           {mobile && (
             <button
@@ -156,19 +169,19 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
             onClick={onToggle}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={clsx(
-              'flex items-center rounded-lg bg-surface-sunken/60 text-ink-muted transition-colors',
-              'hover:bg-surface-sunken hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-secondary',
-              isCollapsed ? 'h-9 w-9 justify-center' : 'h-9 gap-2.5 px-3 text-body-sm font-medium',
-            )}
+            className="flex h-9 w-full items-center gap-3 overflow-hidden rounded-lg bg-surface-sunken/60 px-4 text-body-sm font-medium
+                       text-ink-muted transition-colors hover:bg-surface-sunken hover:text-ink
+                       focus-visible:outline focus-visible:outline-2 focus-visible:outline-secondary"
           >
-            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
-            {!isCollapsed && <span>Collapse sidebar</span>}
+            {collapsed
+              ? <PanelLeftOpen size={16} className="shrink-0" />
+              : <PanelLeftClose size={16} className="shrink-0" />}
+            <span className={fade(isCollapsed)}>Collapse sidebar</span>
           </button>
         )}
       </div>
 
-      <nav className={clsx('min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2', isCollapsed ? 'px-2' : 'px-3')}>
+      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-2">
         <SectionLabel collapsed={isCollapsed}>Navigation</SectionLabel>
         <div className="space-y-0.5">
           {navigation.map((item) => (
@@ -192,7 +205,7 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
 
       {/* On mobile the navbar already carries the theme toggle. */}
       {!mobile && (
-        <div className={clsx('shrink-0 border-t border-border-subtle pb-4 pt-3', isCollapsed ? 'px-2' : 'px-3')}>
+        <div className="shrink-0 border-t border-border-subtle px-3 pb-4 pt-3">
           <ThemeSwitch collapsed={isCollapsed} />
         </div>
       )}
