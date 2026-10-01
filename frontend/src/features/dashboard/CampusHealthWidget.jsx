@@ -91,15 +91,17 @@ export default function CampusHealthWidget() {
         <EmptyState icon={Activity} title="No electronic assets yet"
                     description="Assets with IoT sensors will appear here once added." />
       ) : (
-        <div className="grid sm:grid-cols-[180px_1fr] gap-4 items-center">
-          <ResponsiveContainer width="100%" height={180}>
+        <div className="grid items-center gap-5 sm:grid-cols-[minmax(160px,210px)_1fr]">
+          <div className="h-[180px] w-full sm:h-[210px]">
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={byState} dataKey="count" nameKey="label" innerRadius={45} outerRadius={75} paddingAngle={2}>
+              <Pie data={byState} dataKey="count" nameKey="label" innerRadius="42%" outerRadius="72%" paddingAngle={2}>
                 {byState.map((d) => <Cell key={d.state} fill={d.colour} />)}
               </Pie>
               <Tooltip content={<CampusHealthTooltip />} />
             </PieChart>
           </ResponsiveContainer>
+          </div>
           <div className="space-y-1.5 min-w-0">
             {byState.map((d) => (
               <div key={d.state} className="flex items-center justify-between gap-2 text-body-sm">
