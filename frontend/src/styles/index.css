@@ -570,3 +570,35 @@ button,
 @media (max-width: 639px) {
   .app-footer { min-height: 4.5rem; height: auto; padding-block: 0.9rem; align-items: flex-start; }
 }
+
+
+/* ============================================================
+ * AUTHENTICATED PRODUCT SHELL
+ * Shared warm orange/ink surfaces for every logged-in role.
+ * ============================================================ */
+.app-shell {
+  background-image:
+    radial-gradient(circle at 76% 0%, rgb(var(--c-secondary) / 0.07), transparent 28rem),
+    linear-gradient(135deg, rgb(var(--c-surface-base)) 0%, rgb(var(--c-surface-base)) 72%, rgb(var(--c-secondary) / 0.035) 100%);
+}
+.app-sidebar {
+  background-image: linear-gradient(180deg, rgb(var(--c-surface) / 0.98), rgb(var(--c-surface-sunken) / 0.72));
+  box-shadow: 8px 0 32px -28px rgb(var(--c-primary) / 0.45);
+}
+.app-sidebar-brand {
+  background: linear-gradient(135deg, rgb(var(--c-surface)) 0%, rgb(var(--c-secondary) / 0.045) 100%);
+}
+.app-sidebar-accent { box-shadow: 0 2px 18px rgb(var(--c-secondary) / 0.24); }
+.app-sidebar-nav { scrollbar-width: thin; scrollbar-color: rgb(var(--c-border-strong) / 0.7) transparent; }
+.app-header {
+  background-image: linear-gradient(90deg, rgb(var(--c-surface) / 0.96), rgb(var(--c-surface) / 0.88));
+}
+.app-main { background-image: radial-gradient(circle at 90% 4%, rgb(var(--c-secondary) / 0.045), transparent 24rem); }
+.app-footer { background: rgb(var(--c-surface) / 0.42); }
+@media (max-width: 1023px) {
+  .app-main { padding-inline: clamp(0.85rem, 3.5vw, 1.25rem); }
+  .app-header { padding-inline: clamp(0.75rem, 3vw, 1rem); }
+}
+@media (max-width: 639px) {
+  .app-footer { min-height: 4.5rem; height: auto; padding-block: 0.9rem; align-items: flex-start; }
+}
