@@ -42,6 +42,14 @@ const HOME_JSON_LD = {
       logo: `${SITE_URL}/logo-dark.svg`,
     },
     {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: 'CampusNetra',
+      url: SITE_URL,
+      description: 'Campus facility management software for issue reporting, work orders, digital twins, inspections, and predictive maintenance.',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+    {
       '@type': 'SoftwareApplication',
       name: 'CampusNetra',
       applicationCategory: 'BusinessApplication',
@@ -52,17 +60,23 @@ const HOME_JSON_LD = {
         + 'and research facilities.',
       url: SITE_URL,
       publisher: { '@id': `${SITE_URL}/#organization` },
+      featureList: [
+        'Campus issue reporting',
+        'Work order management',
+        'Digital twin and campus maps',
+        'AI-assisted incident triage',
+        'Predictive maintenance',
+      ],
     },
   ],
 }
 
 export default function LandingPage() {
   usePageSEO({
-    title: 'Smart Campus Facility Management System',
+    title: 'Campus facility management software',
     description:
-      'CampusNetra is an intelligent campus facility management platform combining issue '
-      + 'reporting, work order orchestration, digital twin visualisation, and AI-driven '
-      + 'predictive maintenance.',
+      'CampusNetra is campus facility management software for issue reporting, work orders, '
+      + 'digital twins, inspections, and predictive maintenance.',
     path: '/',
     jsonLd: HOME_JSON_LD,
   })

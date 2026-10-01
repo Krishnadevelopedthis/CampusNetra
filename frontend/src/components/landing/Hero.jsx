@@ -1,278 +1,140 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  Activity,
   ArrowRight,
-  Play,
-  Shield,
-  Zap,
-  BarChart3,
-  Layers,
-  Sparkles,
   CheckCircle2,
-  AlertTriangle,
-  Clock,
   ChevronRight,
+  CircleDot,
+  Clock3,
+  Layers3,
+  Map,
+  ShieldCheck,
+  Sparkles,
+  Wrench,
 } from 'lucide-react'
-import clsx from 'clsx'
 
-// 21st.dev / shadcn-saas Interactive Mock Dashboard
-function InteractiveDashboardPreview() {
-  const [activeTab, setActiveTab] = useState('overview')
+function CampusCommandCenter() {
+  const incidents = [
+    { id: 'WO-298', title: 'Library HVAC spike', team: 'Mechanical', status: 'Assigned', tone: 'warning' },
+    { id: 'WO-297', title: 'North quad lighting', team: 'Electrical', status: 'In route', tone: 'info' },
+    { id: 'WO-296', title: 'Lab airflow restored', team: 'Safety ops', status: 'Resolved', tone: 'success' },
+  ]
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto group">
-      {/* ACETERNITY PROACTIV: Ambient Glow Backdrop + Radial Spotlight */}
-      <div className="absolute -inset-1.5 bg-gradient-to-r from-secondary-400/40 via-primary-500/30 to-cyan-500/40 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200" />
-      <div className="absolute -inset-2.5 bg-spotlight-primary rounded-3xl blur-3xl opacity-60 pointer-events-none" aria-hidden />
-
-      {/* Window Container — Glassmorphic */}
-      <div className="relative glass-panel rounded-2xl shadow-glow-secondary overflow-hidden transition-all duration-300">
-        {/* Title Bar & Interactive View Switcher */}
-        <div className="flex items-center justify-between px-4 py-3 bg-surface-sunken/80 border-b border-border-subtle">
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-danger/80 border border-danger/20" />
-              <div className="w-3 h-3 rounded-full bg-warning/80 border border-warning/20" />
-              <div className="w-3 h-3 rounded-full bg-success/80 border border-success/20" />
+    <div className="relative mx-auto w-full max-w-[620px]">
+      <div className="absolute -inset-5 rounded-[2rem] bg-secondary/10 blur-3xl" aria-hidden="true" />
+      <div className="relative overflow-hidden rounded-[1.5rem] border border-border bg-surface shadow-[0_24px_70px_-28px_rgb(23_20_15/0.45)]">
+        <div className="flex items-center justify-between border-b border-border-subtle bg-surface-raised px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="grid h-7 w-7 place-items-center rounded-lg bg-primary text-white">
+              <Activity size={14} />
             </div>
-            <span className="text-[11px] font-mono text-ink-faint px-2 py-0.5 rounded bg-surface/60 border border-border-subtle hidden sm:inline-block">
-              app.campusnetra.io/live
-            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-faint">CampusNetra</p>
+              <p className="text-xs font-semibold text-ink">Operations command center</p>
+            </div>
           </div>
-
-          {/* Interactive Navigation Tabs — ACETERNITY PROACTIV: Animated active tab */}
-          <div className="flex items-center gap-1 bg-surface-base p-1 rounded-lg border border-border-subtle">
-            {[
-              { id: 'overview', label: 'Overview', icon: BarChart3 },
-              { id: 'twin', label: 'Twin View', icon: Layers },
-              { id: 'ai', label: 'AI Triage', icon: Sparkles },
-            ].map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setActiveTab(id)}
-                className={clsx(
-                  'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-body-sm font-medium transition-all duration-200',
-                  activeTab === id
-                    ? 'bg-gradient-to-r from-secondary-600 to-primary-800 text-white shadow-glow-secondary'
-                    : 'text-ink-muted hover:text-ink hover:bg-surface-sunken',
-                )}
-              >
-                <Icon size={13} />
-                <span>{label}</span>
-              </button>
-            ))}
+          <div className="flex items-center gap-2 rounded-full border border-success-border bg-success-bg px-2.5 py-1 text-[10px] font-semibold text-success-text">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" /> Live systems
           </div>
         </div>
 
-        {/* Dynamic Tab Body */}
-        <div className="p-4 sm:p-5">
-          {activeTab === 'overview' && (
-            <div className="space-y-3.5">
-              {/* Metric Cards */}
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Active Issues', value: '24', change: '-14% today', color: 'text-warning', bg: 'bg-warning-bg/60 border-warning-border' },
-                  { label: 'Work Orders', value: '8', change: '5 in progress', color: 'text-info-text', bg: 'bg-info-bg/60 border-info-border' },
-                  { label: 'SLA Target', value: '94.2%', change: '+3.1% vs avg', color: 'text-success-text', bg: 'bg-success-bg/60 border-success-border' },
-                ].map((m) => (
-                  <div key={m.label} className={clsx('rounded-xl p-3 border transition-transform duration-200 hover:-translate-y-0.5', m.bg)}>
-                    <p className="text-body-sm text-ink-faint font-medium">{m.label}</p>
-                    <p className={clsx('text-headline-md font-bold mt-0.5', m.color)}>{m.value}</p>
-                    <p className="text-[11px] text-ink-muted mt-1">{m.change}</p>
+        <div className="grid md:grid-cols-[148px_1fr]">
+          <aside className="hidden border-r border-border-subtle bg-surface-sunken/55 p-3 md:block">
+            <p className="mb-3 px-2 text-[10px] font-bold uppercase tracking-[0.16em] text-ink-faint">Workspace</p>
+            {[
+              ['Overview', Activity],
+              ['Issues & work orders', Wrench],
+              ['Digital twin', Layers3],
+              ['Campus map', Map],
+            ].map(([label, Icon], index) => (
+              <div key={label} className={`mb-1 flex items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-medium ${index === 0 ? 'bg-primary text-white' : 'text-ink-muted'}`}>
+                <Icon size={13} /> {label}
+              </div>
+            ))}
+            <div className="mt-8 rounded-xl border border-secondary/20 bg-secondary/10 p-3">
+              <Sparkles size={14} className="mb-2 text-secondary" />
+              <p className="text-[11px] font-semibold text-ink">AI triage ready</p>
+              <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">New reports are being classified and routed.</p>
+            </div>
+          </aside>
+
+          <div className="min-w-0 p-4 sm:p-5">
+            <div className="mb-4 flex items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-secondary">Tuesday · 09:41</p>
+                <h3 className="mt-1 text-lg font-bold tracking-tight text-ink">Good morning, facilities team</h3>
+              </div>
+              <button type="button" className="hidden rounded-lg border border-border-subtle px-2.5 py-1.5 text-[10px] font-semibold text-ink-muted sm:block">Last 30 days</button>
+            </div>
+
+            <div className="mb-4 grid grid-cols-3 gap-2">
+              {[
+                ['24', 'Open issues', '−14%'],
+                ['08', 'Active work orders', '5 in progress'],
+                ['94%', 'SLA on track', '+3.1%'],
+              ].map(([value, label, delta], index) => (
+                <div key={label} className="rounded-xl border border-border-subtle bg-surface-raised p-3">
+                  <p className="text-xl font-bold tracking-tight text-ink">{value}</p>
+                  <p className="mt-1 text-[10px] font-medium leading-tight text-ink-muted">{label}</p>
+                  <p className={`mt-2 text-[10px] font-semibold ${index === 1 ? 'text-info-text' : 'text-success-text'}`}>{delta}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-[1.1fr_0.9fr]">
+              <div className="rounded-xl border border-border-subtle bg-surface-sunken/45 p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-ink">Campus health</p>
+                  <span className="text-[10px] font-semibold text-success-text">Stable</span>
+                </div>
+                <svg viewBox="0 0 300 92" className="h-24 w-full" role="img" aria-label="Campus health trend rising steadily">
+                  <defs>
+                    <linearGradient id="campusHealthFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stopColor="rgb(244 96 42)" stopOpacity="0.22" />
+                      <stop offset="1" stopColor="rgb(244 96 42)" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path d="M0 74H300M0 48H300M0 22H300" stroke="currentColor" strokeDasharray="3 5" className="text-border-subtle" />
+                  <path d="M0 71 C24 67 30 49 52 56 S83 66 106 45 S142 43 159 50 S190 36 210 40 S245 27 267 31 S287 17 300 13 V92 H0Z" fill="url(#campusHealthFill)" />
+                  <path d="M0 71 C24 67 30 49 52 56 S83 66 106 45 S142 43 159 50 S190 36 210 40 S245 27 267 31 S287 17 300 13" fill="none" stroke="rgb(244 96 42)" strokeWidth="2.5" strokeLinecap="round" />
+                  <circle cx="300" cy="13" r="4" fill="rgb(244 96 42)" />
+                </svg>
+                <div className="flex items-center justify-between text-[10px] text-ink-faint"><span>Mon</span><span>Today</span></div>
+              </div>
+
+              <div className="rounded-xl border border-border-subtle bg-primary p-3 text-white">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-[11px] font-semibold">Priority queue</p>
+                  <CircleDot size={14} className="text-secondary-300" />
+                </div>
+                <p className="text-3xl font-bold tracking-tight">03</p>
+                <p className="mt-1 text-[10px] text-white/60">items need attention now</p>
+                <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/15"><div className="h-full w-2/3 rounded-full bg-secondary-400" /></div>
+                <p className="mt-2 text-[10px] text-white/60">Next SLA review in 18 min</p>
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-border-subtle bg-surface-raised p-3">
+              <div className="mb-2.5 flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-ink">Live dispatch</p>
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-ink-faint"><Clock3 size={11} /> Updated just now</span>
+              </div>
+              <div className="space-y-1.5">
+                {incidents.map((incident) => (
+                  <div key={incident.id} className="flex items-center justify-between gap-2 rounded-lg bg-surface-sunken/55 px-2.5 py-2 text-[10px]">
+                    <div className="flex min-w-0 items-center gap-2"><span className="font-mono text-ink-faint">#{incident.id}</span><span className="truncate font-semibold text-ink">{incident.title}</span></div>
+                    <span className={`shrink-0 rounded-full px-2 py-1 font-semibold ${incident.tone === 'warning' ? 'bg-warning-bg text-warning-text' : incident.tone === 'info' ? 'bg-info-bg text-info-text' : 'bg-success-bg text-success-text'}`}>{incident.status}</span>
                   </div>
                 ))}
               </div>
-
-              {/* Sparkline & SLA Progress */}
-              <div className="grid sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2 rounded-xl bg-surface border border-border-subtle p-3.5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-body-sm font-medium text-ink">Campus Incident Velocity</span>
-                    <span className="text-label-caps text-success font-semibold">Real-Time</span>
-                  </div>
-                  <svg viewBox="0 0 240 54" fill="none" className="w-full h-11">
-                    <defs>
-                      <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgb(59 130 246)" stopOpacity="0.35" />
-                        <stop offset="100%" stopColor="rgb(59 130 246)" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M0 40 Q 30 48, 60 28 T 120 22 T 180 34 T 240 12"
-                      stroke="rgb(59 130 246)"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      fill="none"
-                    />
-                    <path
-                      d="M0 40 Q 30 48, 60 28 T 120 22 T 180 34 T 240 12 L 240 54 L 0 54 Z"
-                      fill="url(#heroGrad)"
-                    />
-                    <circle cx="240" cy="12" r="3.5" fill="rgb(59 130 246)" className="animate-ping" />
-                    <circle cx="240" cy="12" r="3.5" fill="rgb(59 130 246)" />
-                  </svg>
-                </div>
-
-                <div className="rounded-xl bg-surface border border-border-subtle p-3.5 flex flex-col justify-between">
-                  <div>
-                    <span className="text-body-sm text-ink-faint">Auto-Assignment</span>
-                    <div className="flex items-baseline gap-1 mt-1">
-                      <span className="text-headline-md font-bold text-ink">98.6%</span>
-                      <span className="text-[11px] text-success-text font-medium">accuracy</span>
-                    </div>
-                  </div>
-                  <div className="w-full bg-surface-sunken rounded-full h-2 overflow-hidden mt-2">
-                    <div className="bg-secondary-600 h-2 rounded-full" style={{ width: '98.6%' }} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Live Incident Activity */}
-              <div className="rounded-xl bg-surface border border-border-subtle p-3.5">
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-body-sm font-semibold text-ink">Live Triage Dispatch</span>
-                  <span className="text-[11px] text-ink-faint">Auto-updated 2s ago</span>
-                </div>
-                <div className="space-y-2">
-                  {[
-                    { id: '#WO-298', title: 'Main Library HVAC Spike', team: 'HVAC Team', status: 'Assigned', badge: 'bg-warning-bg text-warning-text border-warning-border' },
-                    { id: '#WO-297', title: 'Block B Elevators Inspection Routine', team: 'Elevator Specialist', status: 'In Route', badge: 'bg-info-bg text-info-text border-info-border' },
-                    { id: '#WO-296', title: 'Science Lab 4 Fume Hood Airflow Restored', team: 'Safety Ops', status: 'Resolved', badge: 'bg-success-bg text-success-text border-success-border' },
-                  ].map((row) => (
-                    <div key={row.id} className="flex items-center justify-between p-2 rounded-lg bg-surface-sunken/60 border border-border-subtle/50 text-body-sm">
-                      <div className="flex items-center gap-2 min-w-0 pr-2">
-                        <span className="font-mono text-ink-muted text-[12px]">{row.id}</span>
-                        <span className="truncate text-ink font-medium">{row.title}</span>
-                      </div>
-                      <span className={clsx('text-[11px] font-medium px-2 py-0.5 rounded-full border whitespace-nowrap', row.badge)}>
-                        {row.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
-          )}
-
-          {activeTab === 'twin' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-body-sm font-semibold text-ink">Floor 2 — Engineering Complex</p>
-                  <p className="text-[11px] text-ink-faint">Live overview of campus facilities</p>
-                </div>
-                <span className="text-label-caps text-success font-semibold bg-success-bg border border-success-border px-2 py-0.5 rounded-full">
-                  All Systems Online
-                </span>
-              </div>
-
-              {/* Interactive Mini Blueprint */}
-              <div className="relative bg-surface-sunken rounded-xl border border-border-subtle p-3 overflow-hidden">
-                <svg viewBox="0 0 320 130" fill="none" className="w-full h-32">
-                  {/* Grid Lines */}
-                  <line x1="0" y1="65" x2="320" y2="65" stroke="currentColor" strokeDasharray="3 3" className="text-border-subtle" />
-                  <line x1="160" y1="0" x2="160" y2="130" stroke="currentColor" strokeDasharray="3 3" className="text-border-subtle" />
-
-                  {/* Room Nodes */}
-                  <rect x="10" y="10" width="90" height="50" rx="6" className="fill-success-bg/80 stroke-success-border" strokeWidth="1.5" />
-                  <text x="55" y="32" textAnchor="middle" className="text-[11px] font-semibold fill-success-text">CAD Lab 201</text>
-                  <text x="55" y="46" textAnchor="middle" className="text-[9px] fill-ink-muted">12 Active</text>
-
-                  <rect x="110" y="10" width="100" height="50" rx="6" className="fill-warning-bg/80 stroke-warning-border" strokeWidth="1.5" />
-                  <text x="160" y="32" textAnchor="middle" className="text-[11px] font-semibold fill-warning-text">Server Room B</text>
-                  <text x="160" y="46" textAnchor="middle" className="text-[9px] fill-ink-muted">High Load</text>
-
-                  <rect x="220" y="10" width="90" height="50" rx="6" className="fill-success-bg/80 stroke-success-border" strokeWidth="1.5" />
-                  <text x="265" y="32" textAnchor="middle" className="text-[11px] font-semibold fill-success-text">Faculty Lounge</text>
-                  <text x="265" y="46" textAnchor="middle" className="text-[9px] fill-ink-muted">Nominal</text>
-
-                  <rect x="10" y="70" width="140" height="50" rx="6" className="fill-surface stroke-border-subtle" strokeWidth="1.5" />
-                  <text x="80" y="95" textAnchor="middle" className="text-[11px] font-semibold fill-ink">Auditorium 2A</text>
-                  <text x="80" y="108" textAnchor="middle" className="text-[9px] fill-ink-faint">Idle • Standby Mode</text>
-
-                  <rect x="160" y="70" width="150" height="50" rx="6" className="fill-info-bg/80 stroke-info-border" strokeWidth="1.5" />
-                  <text x="235" y="95" textAnchor="middle" className="text-[11px] font-semibold fill-info-text">Robotics Workshop</text>
-                  <text x="235" y="108" textAnchor="middle" className="text-[9px] fill-ink-muted">Inspection in Progress</text>
-                </svg>
-              </div>
-
-              <div className="flex items-center justify-between text-body-sm text-ink-muted px-1">
-                <span>5 Nodes Tracked</span>
-                <span className="text-secondary font-medium cursor-pointer hover:underline">Launch Full Twin Experience →</span>
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'ai' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <Sparkles size={16} className="text-secondary" />
-                  <span className="text-body-sm font-semibold text-ink">CampusNetra AI Reasoning Engine</span>
-                </div>
-                <span className="text-label-caps font-mono text-secondary bg-ai-bg border border-ai-border px-2 py-0.5 rounded-full">
-                  Latency: 180ms
-                </span>
-              </div>
-
-              {/* Step-by-Step AI Pipeline Breakdown */}
-              <div className="space-y-2 text-body-sm">
-                <div className="p-3 rounded-xl bg-ai-bg/60 border border-ai-border flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-secondary-600 text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
-                    1
-                  </div>
-                  <div>
-                    <p className="font-semibold text-ink text-[13px]">Natural Language Incident Ingestion</p>
-                    <p className="text-ink-muted text-[12px] italic">"Water leakage from second floor ceiling near chemical storage room"</p>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-surface border border-border-subtle flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-warning/20 text-warning flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
-                    2
-                  </div>
-                  <div>
-                    <p className="font-semibold text-ink text-[13px]">Hazard & Urgency Assessment</p>
-                    <p className="text-ink-muted text-[12px]">Classified: <strong className="text-warning-text">High Risk (Chemical Proximity)</strong> • Priority: P1 • SLA: 15m</p>
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-xl bg-success-bg/60 border border-success-border flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-success text-white flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
-                    ✓
-                  </div>
-                  <div>
-                    <p className="font-semibold text-success-text text-[13px]">Autonomous Work Order Dispatch</p>
-                    <p className="text-ink-muted text-[12px]">Assigned to Lead Plumber & Lab Safety Officer with digital twin coordinate pin.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       </div>
-
-      {/* Floating badges describe real product capabilities -- kept
-          deliberately free of invented metrics (no fabricated accuracy
-          percentage, no fake response-time number) that this app has
-          never actually measured or audited. */}
-      <div className="absolute -left-5 top-1/3 glass-panel rounded-2xl px-3.5 py-2.5 shadow-glow-emerald hidden sm:flex items-center gap-2.5 animate-float">
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse status-beacon text-emerald-500" />
-        <div>
-          <p className="text-[11px] font-bold text-emerald-500 uppercase tracking-wider">AI-Assisted Triage</p>
-          <p className="text-[12px] font-medium text-ink">Auto-classified by category & priority</p>
-        </div>
-      </div>
-
-      <div className="absolute -right-5 bottom-12 glass-panel rounded-2xl px-3.5 py-2.5 shadow-glow-cyan hidden sm:flex items-center gap-2.5 animate-float-reverse">
-        <div className="w-7 h-7 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-500 status-beacon text-cyan-500">
-          <Zap size={14} />
-        </div>
-        <div>
-          <p className="text-[11px] font-bold text-cyan-500 uppercase tracking-wider">Predictive Engine</p>
-          <p className="text-[12px] font-medium text-ink">Flags assets trending toward failure</p>
-        </div>
+      <div className="absolute -bottom-5 -left-4 hidden items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 shadow-level3 sm:flex">
+        <div className="grid h-7 w-7 place-items-center rounded-lg bg-success-bg text-success-text"><CheckCircle2 size={15} /></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint">Resolved</p><p className="text-xs font-semibold text-ink">Fume hood airflow</p></div>
       </div>
     </div>
   )
@@ -280,125 +142,42 @@ function InteractiveDashboardPreview() {
 
 export function Hero() {
   return (
-    <section className="relative min-h-[92vh] flex flex-col justify-center overflow-hidden bg-primary pt-24 pb-20">
-      {/* ACETERNITY PROACTIV: Radial spotlight glows & gradient mesh */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden>
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-secondary-600/25 rounded-full blur-[120px]" />
-        <div className="absolute bottom-10 right-1/4 w-[450px] h-[450px] bg-primary-700/60 rounded-full blur-[100px]" />
-        <div className="absolute top-10 right-10 w-[350px] h-[350px] bg-secondary-400/15 rounded-full blur-[80px]" />
-        {/* Radial spotlight glow — top center ambient illumination */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-spotlight-primary rounded-full blur-[80px] pointer-events-none opacity-80" aria-hidden />
-      </div>
-
-      {/* High-Tech Architectural Grid */}
-      <svg className="absolute inset-0 w-full h-full opacity-[0.05]" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="heroGrid" width="48" height="48" patternUnits="userSpaceOnUse">
-            <path d="M 48 0 L 0 0 0 48" fill="none" stroke="white" strokeWidth="0.75" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#heroGrid)" />
-      </svg>
-
-      {/* Grid beam background overlay */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden>
-        <div className="bg-grid-beam opacity-60" />
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          {/* Left Hero Column */}
-          <div>
-            {/* Announcement pill (was duplicated below — removed the second copy) */}
-            <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 rounded-full px-3.5 py-1.5 mb-7 transition-all duration-200 cursor-pointer">
-              <div className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
-              </div>
-              <span className="text-[13px] font-medium text-white/90">
-                The operations layer for modern campuses
-              </span>
-              <ChevronRight size={14} className="text-white/60" />
-            </div>
-
-            {/* Main Headline */}
-            <h1 className="text-[clamp(2.5rem,5.5vw,4.25rem)] font-bold text-white leading-[1.1] tracking-tight" style={{ textWrap: 'balance' }}>
-              Turn campus signals{' '}
-              <span className="relative inline-block">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400">
-                  into action.
-                </span>
-              </span>
-            </h1>
-
-            <p className="mt-6 text-body-lg text-white/75 max-w-xl leading-relaxed">
-              CampusNetra gives every report, work order, asset, and service-level target a shared
-              operational home — so the right team sees what matters and moves before small issues
-              become expensive disruptions.
-            </p>
-
-            {/* Action CTAs */}
-            <div className="mt-9 flex flex-col sm:flex-row gap-4">
-              <Link
-                to="/register"
-                className="group relative inline-flex items-center justify-center gap-2 px-7 h-12 rounded-xl bg-secondary-500 hover:bg-secondary-400 text-white font-semibold transition-all duration-200 text-body-lg shadow-level3 hover:shadow-secondary-500/25 border-shimmer"
-              >
-                <span>See CampusNetra in action</span>
-                <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
-              </Link>
-              <a
-                href="#twin"
-                onClick={(e) => {
-                  e.preventDefault()
-                  document.querySelector('#twin')?.scrollIntoView({ behavior: 'smooth' })
-                }}
-                className="inline-flex items-center justify-center gap-2 px-6 h-12 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors duration-200 text-body-lg border border-white/20 border-shimmer"
-              >
-                <Play size={16} />
-                <span>Explore the platform</span>
-              </a>
-            </div>
-
-            {/* Trust Badges + Avatar Stack Social Proof */}
-            <div className="mt-12 pt-8 border-t border-white/10">
-              <div className="flex items-center justify-between mb-6">
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { label: 'Role-Based Access', sub: 'Granular permissions' },
-                    { label: 'AI Incident Triage', sub: 'Route every report clearly' },
-                    { label: 'Real-Time SLA', sub: 'Live compliance tracking' },
-                  ].map((item) => (
-                    <div key={item.label}>
-                      <p className="text-white font-semibold text-[13px]">{item.label}</p>
-                      <p className="text-white/60 text-[11px] mt-0.5">{item.sub}</p>
-                    </div>
-                  ))}
-                </div>
-                {/* ACETERNITY PROACTIV: Avatar stack social proof badge */}
-                <div className="hidden lg:flex items-center gap-2 text-white/60 text-[11px] font-medium mr-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Built for campus operations
-                </div>
-                <div className="avatar-stack flex items-center -space-x-2">
-                  <div className="w-8 h-8 bg-secondary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AC</div>
-                  <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">DT</div>
-                  <div className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AI</div>
-                  <div className="w-8 h-8 bg-emerald-500 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">SL</div>
-                  <div className="w-8 h-8 bg-primary-600 text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">+12</div>
-                </div>
-              </div>
-            </div>
+    <section className="relative overflow-hidden border-b border-border-subtle bg-surface-base pt-28 pb-20 sm:pt-36 sm:pb-28">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_15%,rgba(244,96,42,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.3),transparent_45%)]" aria-hidden="true" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-secondary/30" aria-hidden="true" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-6 lg:grid-cols-[0.86fr_1.14fr] lg:gap-16 lg:px-8">
+        <div className="max-w-xl">
+          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-secondary/25 bg-secondary/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-secondary-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-secondary" /> Campus operations, connected
           </div>
-
-          {/* Right Hero Column: 21st.dev Interactive Preview */}
-          <div className="relative">
-            <InteractiveDashboardPreview />
+          <h1 className="max-w-2xl text-[clamp(2.75rem,5.8vw,5.25rem)] font-bold leading-[0.98] tracking-[-0.055em] text-ink" style={{ textWrap: 'balance' }}>
+            Every campus issue has a <span className="text-secondary">next move.</span>
+          </h1>
+          <p className="mt-7 max-w-lg text-lg leading-relaxed text-ink-muted sm:text-xl">
+            CampusNetra gives universities one clear operating layer for issue reporting, work orders, inspections, assets, and the digital twin that connects them.
+          </p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <Link to="/register" className="group inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-bold text-white shadow-level3 transition hover:-translate-y-0.5 hover:bg-primary-800">
+              See how it works <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
+            </Link>
+            <a href="#platform" className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border-strong bg-surface px-6 text-sm font-bold text-ink transition hover:border-primary hover:bg-surface-raised">
+              Explore the platform <ChevronRight size={16} />
+            </a>
+          </div>
+          <div className="mt-10 grid max-w-lg grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-6 sm:grid-cols-3">
+            {[
+              ['One source of truth', 'From report to resolution'],
+              ['AI-assisted routing', 'The right team, sooner'],
+              ['Built for trust', 'Roles, SLAs, audit trails'],
+            ].map(([title, body]) => <div key={title}><p className="text-xs font-bold text-ink">{title}</p><p className="mt-1 text-[11px] leading-relaxed text-ink-faint">{body}</p></div>)}
           </div>
         </div>
+        <CampusCommandCenter />
       </div>
-
-      {/* Bottom Subtle Gradient Transition */}
-      <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-surface-base to-transparent pointer-events-none" aria-hidden />
+      <div className="relative mx-auto mt-20 flex max-w-7xl flex-wrap items-center justify-between gap-5 border-t border-border-subtle px-6 pt-6 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-faint lg:px-8">
+        <span>For universities</span><span>For colleges</span><span>For research facilities</span><span>For facilities teams</span>
+        <span className="inline-flex items-center gap-2 normal-case tracking-normal text-ink-muted"><ShieldCheck size={14} className="text-success-text" /> Access controls built in</span>
+      </div>
     </section>
   )
 }
