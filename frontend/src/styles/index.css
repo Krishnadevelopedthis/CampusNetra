@@ -458,3 +458,36 @@
   .page-reveal, .text-reveal, .stagger-children > * { animation: none !important; }
   .sidebar-link:hover { transform: none; }
 }
+
+
+.auth-copy-float {
+  animation: auth-copy-float 6s ease-in-out infinite;
+}
+
+.auth-copy-float-delay {
+  animation-delay: -2.2s;
+  animation-duration: 7.5s;
+}
+
+.auth-signal {
+  animation: auth-signal-in 650ms cubic-bezier(0.22, 1, 0.36, 1) both, auth-signal-float 5.5s ease-in-out 700ms infinite;
+}
+
+@keyframes auth-copy-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes auth-signal-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes auth-signal-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-copy-float, .auth-copy-float-delay, .auth-signal { animation: none; }
+}
