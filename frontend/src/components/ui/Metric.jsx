@@ -1,59 +1,59 @@
 import clsx from 'clsx'
 import { Children, cloneElement } from 'react'
-import { Bar, BarChart, Cell, ResponsiveContainer } from 'recharts'
 
-// Split out of components/ui/index.jsx: this is the only thing in that
-// whole shared UI kit that needs recharts, and index.jsx is imported
-// eagerly by App.jsx (for RingLoader/Toaster) -- with Metric/Sparkline
-// defined in that same file, Rollup had no module boundary to tree-shake
-// recharts out of, so every visitor (including an anonymous landing-page
-// one who never sees a Metric tile) downloaded it anyway. A live
-// Lighthouse run against production confirmed the real cost: a 1.1MB main
-// bundle and 4.76s of main-thread blocking time on the landing page.
-
-// The backend sends a fixed hex per metric (warning/success/info intent),
-// the same value regardless of theme. Recognize the known ones and route
-// them through the theme-aware token instead of using the literal hex --
-// this is the only way these colors can actually shift with light/dark,
-// since the raw string from the API never will.
+// Compact KPI visualizations stay SVG-based so they remain crisp, lightweight,
+// and responsive inside a small card at every viewport width.
 const KNOWN_ACCENT_HEX = {
   '#f59e0b': 'rgb(var(--c-warning))',
   '#10b981': 'rgb(var(--c-success))',
   '#3b82f6': 'rgb(var(--c-info))',
   '#ef4444': 'rgb(var(--c-danger))',
 }
+
 function resolveAccent(hex) {
-  if (!hex) return undefined
+  if (!hex) return 'rgb(var(--c-secondary))'
   return KNOWN_ACCENT_HEX[hex.toLowerCase()] || hex
 }
 
-// A KPI card with a bare number reads as a snapshot; the same card with a
-// trend beside it reads as something moving. `sparkline` is optional and
-// only ever real data already fetched for this dashboard (each day's own
-// count) -- never fabricated points, since a graph that doesn't correspond
-// to anything real is worse than no graph.
-// Bars, not a smoothed line: each point is one day's real count, and a
-// `type="monotone"` curve interpolates *between* those days, which can bow
-// a line up above zero (or below its neighbours) even when every real
-// value it passes through is flat at 0 -- a shape that doesn't correspond
-// to anything that actually happened. A bar per day has no such overshoot:
-// zero days sit flush on the baseline and only render taller as the count
-// climbs, so the shape tracks the numbers directly.
-function Sparkline({ data, color }) {
-  if (!data || data.length < 2) return null
-  const allZero = data.every((v) => !v)
+function MiniTrend({ data, color, hero = false }) {
+  if (!data || data.length < 2) return <span className="h-10 w-24 shrink-0" aria-hidden="true" />
+
+  const values = data.map((value) => Number(value) || 0)
+  const max = Math.max(...values, 1)
+  const min = Math.min(...values, 0)
+  const range = Math.max(max - min, 1)
+  const width = 132
+  const height = hero ? 52 : 44
+  const pad = 5
+  const step = (width - pad * 2) / Math.max(values.length - 1, 1)
+  const points = values.map((value, index) => {
+    const x = pad + index * step
+    const y = height - pad - ((value - min) / range) * (height - pad * 2)
+    return [x, y]
+  })
+  const line = points.map(([x, y]) => `${x},${y}`).join(' ')
+  const area = `${pad},${height - pad} ${line} ${width - pad},${height - pad}`
+  const barWidth = Math.max(3, Math.min(8, step * 0.42))
+
   return (
-    <div className="h-9 -mx-1 -mb-1">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data.map((v) => ({ v }))} margin={{ top: 2, right: 1, bottom: 0, left: 1 }} barCategoryGap="20%">
-          <Bar dataKey="v" radius={[1.5, 1.5, 0, 0]} isAnimationActive={false}>
-            {data.map((v, i) => (
-              <Cell key={i} fill={color} fillOpacity={allZero ? 0.25 : 0.35 + 0.65 * (i / (data.length - 1))} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <span className="relative block h-11 w-[clamp(5.5rem,28vw,8.25rem)] shrink-0 sm:h-12" aria-label="Recent trend">
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-full w-full overflow-visible" preserveAspectRatio="none" role="img">
+        <defs>
+          <linearGradient id={`metric-fill-${color.replace(/[^a-z0-9]/gi, '')}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="currentColor" strokeOpacity="0.12" strokeWidth="1" />
+        {points.map(([x], index) => {
+          const barHeight = Math.max(3, ((values[index] - min) / range) * (height - pad * 2))
+          return <rect key={index} x={x - barWidth / 2} y={height - pad - barHeight} width={barWidth} height={barHeight} rx="2" fill={color} opacity="0.14" />
+        })}
+        <polygon points={area} fill={`url(#metric-fill-${color.replace(/[^a-z0-9]/gi, '')})`} />
+        <polyline points={line} fill="none" stroke={color} strokeWidth={hero ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx={points[points.length - 1][0]} cy={points[points.length - 1][1]} r={hero ? 3 : 2.5} fill={color} stroke="rgb(var(--c-surface))" strokeWidth="2" />
+      </svg>
+    </span>
   )
 }
 
@@ -71,42 +71,39 @@ export function Metric({
   return (
     <div
       className={clsx(
-        'widget dashboard-kpi flex min-h-[116px] min-w-0 flex-col gap-2.5',
-        isHero ? 'p-5 sm:p-6 xl:min-h-[168px] xl:p-7' : 'p-4 sm:p-5',
+        'widget dashboard-kpi flex min-h-[96px] min-w-0 flex-col justify-between gap-2 overflow-hidden',
+        isHero ? 'min-h-[112px] p-4 sm:p-5' : 'p-3.5 sm:p-4',
         className,
       )}
       style={{
-        borderLeftWidth: 3,
-        borderLeftColor: resolvedAccent,
-        // A hero tile earns a faint wash of its own accent so it visually
-        // leads the row -- everything else stays on the plain surface,
-        // matching "one accent stands out, the rest don't compete".
-        background: isHero && resolvedAccent ? `linear-gradient(135deg, color-mix(in srgb, ${resolvedAccent} 10%, transparent), transparent 60%)` : undefined,
+        // A quiet top glow replaces the old heavy left rail while preserving
+        // the metric's semantic accent.
+        background: `linear-gradient(135deg, color-mix(in srgb, ${resolvedAccent} ${isHero ? 9 : 6}%, transparent), transparent 58%)`,
       }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[clamp(0.62rem,0.75vw,0.72rem)] font-semibold uppercase tracking-[0.14em] text-ink-muted">{label}</span>
-        {Icon && <span className="icon-tile h-8 w-8 rounded-lg"><Icon size={isHero ? 18 : 15} className="shrink-0" /></span>}
-      </div>
-      <div className="flex items-baseline gap-2 flex-wrap">
-        <span
-          className={clsx('tabular leading-none tracking-[-0.055em]', isHero ? 'text-[clamp(2.15rem,5vw,3.4rem)]' : 'text-[clamp(1.7rem,3vw,2.35rem)]')}
-          style={resolvedAccent ? { color: resolvedAccent } : undefined}
-        >
-          {value}
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-1.5 text-[clamp(0.6rem,0.72vw,0.7rem)] font-bold uppercase tracking-[0.13em] text-ink-muted">
+          <i className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: resolvedAccent }} aria-hidden="true" />
+          <span className="truncate">{label}</span>
         </span>
-        {delta && <span className={clsx('pill text-body-sm', tones[deltaTone])}>{delta}</span>}
+        {Icon && <span className="icon-tile h-7 w-7 shrink-0 rounded-lg" style={{ color: resolvedAccent }}><Icon size={isHero ? 16 : 14} /></span>}
       </div>
-      <Sparkline data={sparkline} color={resolvedAccent || 'rgb(var(--c-secondary))'} />
+      <div className="flex min-w-0 items-end justify-between gap-2">
+        <div className="min-w-0">
+          <span
+            className={clsx('tabular block leading-none tracking-[-0.06em]', isHero ? 'text-[clamp(1.9rem,4.5vw,2.8rem)]' : 'text-[clamp(1.55rem,3vw,2.15rem)]')}
+            style={{ color: resolvedAccent }}
+          >
+            {value}
+          </span>
+          {delta && <span className={clsx('mt-1 inline-flex pill text-[10px]', tones[deltaTone])}>{delta}</span>}
+        </div>
+        <MiniTrend data={sparkline} color={resolvedAccent} hero={isHero} />
+      </div>
     </div>
   )
 }
 
-// Wraps a set of <Metric> elements so the first visually leads (bigger,
-// tinted) and the rest sit smaller beside/below it -- the "one primary,
-// several supporting" KPI hierarchy every page with a stat row should
-// have, applied by wrapping the existing <Metric> children rather than
-// restructuring each page's own metric list into a separate data shape.
 export function MetricRow({ children, className }) {
   const items = Children.toArray(children).filter(Boolean)
   if (items.length === 0) return null
@@ -118,7 +115,7 @@ export function MetricRow({ children, className }) {
         className: clsx('col-span-2 sm:col-span-1', hero.props.className),
       })}
       {rest.length > 0 && (
-        <div className="col-span-2 sm:col-span-1 grid grid-cols-2 gap-3">
+        <div className="col-span-2 grid grid-cols-2 gap-3 sm:col-span-1">
           {rest}
         </div>
       )}
