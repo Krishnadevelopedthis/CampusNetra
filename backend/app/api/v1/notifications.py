@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import jwt
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from app.api.deps import DB, CurrentUser
 from app.core.routing import CommitRoute
@@ -66,6 +66,13 @@ async def mark_all_read(user: CurrentUser, db: DB):
         .where(Notification.user_id == user.id, Notification.read_at.is_(None))
         .values(read_at=datetime.now(timezone.utc)))
     return Message(detail=f"{result.rowcount} notification(s) marked as read.")
+
+
+@router.delete("", response_model=Message)
+async def clear_all(user: CurrentUser, db: DB):
+    """Remove every notification for the signed-in user."""
+    result = await db.execute(delete(Notification).where(Notification.user_id == user.id))
+    return Message(detail=f"{result.rowcount} notification(s) cleared.")
 
 
 @router.websocket("/ws")
