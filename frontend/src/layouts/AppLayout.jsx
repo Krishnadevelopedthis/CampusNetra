@@ -350,7 +350,7 @@ export default function AppLayout() {
   const toggleCollapsed = useCallback(() => setCollapsed((c) => !c), [])
 
   return (
-    <div className="min-h-screen flex bg-surface-base">
+    <div className="app-shell min-h-screen flex bg-surface-base">
       {/* Desktop sidebar: a floating card inset from the viewport edges */}
       <div className="hidden lg:block shrink-0 p-3 pr-0">
         <aside
@@ -421,11 +421,11 @@ export default function AppLayout() {
         </header>
         </div>
 
-        <main className="page-reveal min-w-0 flex-1 px-4 pb-6 pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
+        <main className="app-main page-reveal min-w-0 flex-1 px-4 pb-6 pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
           <Outlet />
         </main>
 
-        <footer className="h-16 border-t border-border-subtle px-4 lg:px-margin text-body-sm text-ink-faint flex flex-wrap items-center justify-between gap-2 no-print">
+        <footer className="app-footer h-16 border-t border-border-subtle px-4 lg:px-margin text-body-sm text-ink-faint flex flex-wrap items-center justify-between gap-2 no-print">
           <span>© {new Date().getFullYear()} Campus Netra. Powered by Precision Intelligence.</span>
         </footer>
       </div>
