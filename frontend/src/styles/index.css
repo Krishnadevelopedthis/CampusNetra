@@ -562,13 +562,12 @@ button,
   background-image: linear-gradient(90deg, rgb(var(--c-surface) / 0.96), rgb(var(--c-surface) / 0.88));
 }
 .app-main { background-image: radial-gradient(circle at 90% 4%, rgb(var(--c-secondary) / 0.045), transparent 24rem); }
-.app-footer { background: rgb(var(--c-surface) / 0.42); }
 @media (max-width: 1023px) {
   .app-main { padding-inline: clamp(0.85rem, 3.5vw, 1.25rem); }
   .app-header { padding-inline: clamp(0.75rem, 3vw, 1rem); }
 }
 @media (max-width: 639px) {
-  .app-footer { min-height: 4.5rem; height: auto; padding-block: 0.9rem; align-items: flex-start; }
+  .app-footer { align-items: flex-start; flex-direction: column; }
 }
 
 

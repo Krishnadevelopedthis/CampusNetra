@@ -79,7 +79,7 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
         />
         <input
           autoFocus={mobileOpen}
-          className="input h-9 pl-9 pr-9 text-body-sm"
+          className="input !min-h-0 h-11 rounded-xl pl-9 pr-9 text-body-sm"
           placeholder={isProfileContext ? 'Search profile & settings…' : 'Search issues, complaints, lost & found…'}
           value={value}
           onChange={(e) => setValue(e.target.value)}
@@ -422,9 +422,17 @@ export default function AppLayout() {
           <Outlet />
         </main>
 
-        <footer className="app-footer h-16 border-t border-border-subtle px-4 lg:px-margin text-body-sm text-ink-faint flex flex-wrap items-center justify-between gap-2 no-print">
-          <span>© {new Date().getFullYear()} Campus Netra. Powered by Precision Intelligence.</span>
-        </footer>
+        {/* Floating footer card, matching the navbar and sidebar */}
+        <div className="px-3 pb-3 no-print">
+          <footer className="app-footer flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-2xl border border-border-subtle bg-surface/95 py-3 pl-5 pr-16 text-body-sm text-ink-faint shadow-level2 sm:pr-24">
+            <span>© {new Date().getFullYear()} Campus Netra. Powered by Precision Intelligence.</span>
+            <nav className="flex items-center gap-4">
+              <Link to="/help" className="transition-colors hover:text-ink">Help &amp; Support</Link>
+              <Link to="/privacy" className="transition-colors hover:text-ink">Privacy</Link>
+              <Link to="/terms" className="transition-colors hover:text-ink">Terms</Link>
+            </nav>
+          </footer>
+        </div>
       </div>
 
       <AssistantWidget />
