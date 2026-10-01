@@ -1777,3 +1777,72 @@ room sets on a fresh building, correctly skips a floor that already has a
 room, and is a true no-op on a second run. **Not yet run against the actual
 live "Main"/"ANNEX" buildings** — that needs the user (or whoever has an
 admin login) to run it once with a real `--api-base` and `--token`.
+
+## Addendum — bulk asset-seeding script (this session)
+
+Ask: once rooms existed on every floor of a building, every room needed a
+realistic set of assets for its category -- benches and a digital board for
+a classroom, lab workbenches and computers for a laboratory, wash basins and
+a geyser for a washroom, and so on, "jaise ek normal college building mein
+hota hai".
+
+Added `scripts/bulk_seed_assets.py`, which connects **directly to the
+database** via `DATABASE_URL` (same pattern as the pre-existing
+`scripts/create_iot_tables.py` -- venv re-exec, reads `backend/.env`),
+rather than going through the HTTP API like `bulk_seed_rooms.py` does. Two
+reasons for the different approach this time:
+1. `asset_categories` is scoped per organization, and there is **no API
+   endpoint to create one** -- a self-service "enterprise" signup starts
+   with zero categories (only the demo seed org has any), so there was
+   nothing for the room-filling approach to call. The script creates
+   whichever of a 12-category standard set (Furniture, Projector, Digital
+   Board, AC Unit, Ceiling Fan, Lighting, Computer, Network, Plumbing
+   Fixture, Audio System, Fire Safety, CCTV Camera) an organization is
+   missing, `ON CONFLICT (organization_id, code) DO NOTHING` -- existing
+   categories, under any name, are never touched or duplicated.
+2. No access-token expiry or Render cold-start flakiness to work around for
+   what's a bulk write of ~150-200 rows.
+
+Per-room-kind asset plans live in `ROOM_PLANS` in the script -- classroom,
+lecture_hall, laboratory, office, library, washroom, corridor, cafeteria,
+auditorium, hostel_room, server_room, store, utility, other. A room that
+already has *any* asset is left completely untouched (same "don't disturb
+what a human already placed" rule `bulk_seed_rooms.py` uses for floors).
+
+**A real bug was caught and fixed before this ever touched the live
+database**: the first version tagged assets as `{room_code}-{category_code}`
+(e.g. `ANNEX-101-FRN`), which collides whenever a room's plan lists two
+different items from the same category -- "Office Desk" and "Office Chair"
+are both Furniture; "Wash Basin" and "WC" are both Plumbing Fixture. The
+DB's `ON CONFLICT (tag) DO NOTHING` then silently dropped every row of
+whichever item inserted second, and the script's own "adding N assets"
+tally kept reporting the *intended* count, not what actually landed -- it
+would have looked like it worked. Caught by actually querying row counts in
+a local Postgres test instance after running it, not by trusting the
+script's own output. Fixed by keying each tag off the item's position in
+its room's plan (`{room_code}-{code}{entry_no}`), which can never collide
+within one room regardless of how many entries share a category.
+
+**How this was verified** (genuinely, this time, not just a dry-run read):
+stood up a real local PostgreSQL 16 instance in the sandbox, applied every
+migration in `database/migrations/` in order plus `create_iot_tables.py`
+(reproducing exactly what production should have), loaded the seed data,
+then **additionally hand-built a second organization with zero
+asset_categories** -- deliberately mirroring the real target org, which
+(per `GET /campus/asset-categories` against the live deployment, called
+earlier this session) also has none. Ran the script dry-run, fixed the
+dry-run-undercounts-because-categories-don't-exist-yet bug that surfaced,
+ran it for real, queried actual row counts per room (not the script's
+tally) to catch the tag-collision bug above, fixed it, wiped and re-ran
+clean, re-verified row counts matched exactly with zero duplicate tags
+database-wide, and ran it a second time to confirm true idempotency (0
+added, every room correctly reported as already populated).
+
+**Not done**: not run against the actual live Neon database -- that needs
+the person running this to put the real Render/Neon `DATABASE_URL` in a
+local `backend/.env` first (same requirement `create_iot_tables.py` already
+has). Asset `cost`/`purchase_date`/`warranty_expiry` etc. are left null --
+the plan only sets what's needed for the floor plan view and category
+grouping to render correctly; filling in realistic purchase/warranty data
+per asset was out of scope for "add the assets" and would be a reasonable
+follow-up if wanted.
