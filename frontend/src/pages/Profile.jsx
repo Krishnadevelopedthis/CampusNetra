@@ -103,7 +103,9 @@ export default function Profile() {
           {user?.enrollment_no && (
             <ReadOnlyRow icon={IdCard} label="Enrollment number" value={user.enrollment_no} mono />
           )}
-          {user?.employee_id && (
+          {['admin', 'super_admin'].includes(user?.role) ? (
+            <EmployeeIdRow user={user} setUser={setUser} />
+          ) : user?.employee_id && (
             <ReadOnlyRow icon={IdCard} label="Employee ID" value={user.employee_id} mono />
           )}
           <ReadOnlyRow
@@ -729,6 +731,55 @@ function CodeEntryModal({ icon: Icon, label, to, expiresAt, confirming, resendin
         </div>
       </div>
     </Modal>
+  )
+}
+
+/** Admins can correct their own employee ID in place. */
+function EmployeeIdRow({ user, setUser }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(user?.employee_id || '')
+  const save = useMutation({
+    mutationFn: () => api.patch('/auth/me/employee-id', { employee_id: value.trim() }),
+    onSuccess: (u) => { setUser(u); setEditing(false); toast.success('Employee ID updated.') },
+    onError: (err) => toast.error(err.detail || 'Could not update employee ID'),
+  })
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-3 py-2.5">
+        <IdCard size={16} className="text-ink-faint shrink-0" />
+        <dt className="text-body-md text-ink-muted flex-1 min-w-0">Employee ID</dt>
+        <dd className="flex items-center gap-2 text-right font-mono text-body-sm text-ink">
+          {user?.employee_id || <span className="font-sans text-ink-faint">Not set</span>}
+          <button
+            type="button"
+            onClick={() => { setValue(user?.employee_id || ''); setEditing(true) }}
+            className="btn-ghost h-7 w-7 p-0 rounded-md"
+            aria-label="Edit employee ID"
+          >
+            <Pencil size={13} />
+          </button>
+        </dd>
+      </div>
+    )
+  }
+
+  return (
+    <form
+      className="flex items-center gap-2 py-2"
+      onSubmit={(e) => { e.preventDefault(); if (value.trim()) save.mutate() }}
+    >
+      <IdCard size={16} className="text-ink-faint shrink-0" />
+      <Input
+        autoFocus value={value} maxLength={40}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Employee ID" className="font-mono"
+      />
+      <Button type="submit" size="sm" icon={Check} loading={save.isPending} disabled={!value.trim()}>
+        Save
+      </Button>
+      <Button type="button" size="sm" variant="ghost" icon={X} onClick={() => setEditing(false)} aria-label="Cancel" />
+    </form>
   )
 }
 

@@ -187,6 +187,50 @@ async def resolve_organization(db: AsyncSession, address: str) -> tuple[Optional
                   "An administrator must register the institution first.")
 
 
+STUDENT_ID_MISMATCH = "Please enter the correct Student ID as shown on your ID card."
+
+
+async def match_student_id(
+    db: AsyncSession, student_id: Optional[str],
+) -> tuple[Optional[uuid.UUID], Optional[str]]:
+    """Check a self-registering student's ID against approved lists.
+
+    Each college keeps its list in Organization.settings["approved_student_ids"]
+    as {student_id: course_code}. Returns (organization_id, course_code) for a
+    match. If no college has a list configured, returns (None, None) so
+    registration falls back to email-based campus detection. Otherwise an
+    unknown ID, or one that already belongs to a verified account, is refused.
+    """
+    orgs = [
+        o for o in (await db.scalars(select(Organization))).all()
+        if (o.settings or {}).get("approved_student_ids")
+    ]
+    if not orgs:
+        return None, None
+
+    sid = (student_id or "").strip()
+    for org in orgs:
+        approved = org.settings["approved_student_ids"]
+        if sid in approved:
+            taken = await db.scalar(
+                select(User.id).where(
+                    User.organization_id == org.id,
+                    User.role == UserRole.STUDENT,
+                    User.enrollment_no == sid,
+                    User.status.in_([UserStatus.ACTIVE, UserStatus.SUSPENDED]),
+                )
+            )
+            if taken is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "This Student ID is already registered. Sign in with the email "
+                    "address you registered with.",
+                )
+            return org.id, approved[sid] or None
+
+    raise HTTPException(status.HTTP_403_FORBIDDEN, STUDENT_ID_MISMATCH)
+
+
 async def register_user(db: AsyncSession, payload: RegisterRequest):
     """Create the account and email the verification code.
 
@@ -200,6 +244,14 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
 
     org_id = payload.organization_id
     role = payload.role
+
+    # Students must present an ID from their college's approved list; the
+    # match also tells us which campus they belong to and their course.
+    student_course = None
+    if role == UserRole.STUDENT and payload.organization_name is None:
+        matched_org, student_course = await match_student_id(db, payload.enrollment_no)
+        if matched_org is not None:
+            org_id = matched_org
 
     if payload.organization_name is None and org_id is None:
         # Self-service signup: derive the campus from the email address.
@@ -241,11 +293,14 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
     # Academic programme — students/teachers only, and a distinct table from
     # Department above (see AcademicProgramme's docstring).
     programme_id = None
-    if payload.programme_code and org_id and role in (UserRole.STUDENT, UserRole.TEACHER):
+    # A student who skipped the course picker gets the course their ID is
+    # listed under.
+    programme_code = payload.programme_code or (student_course if role == UserRole.STUDENT else None)
+    if programme_code and org_id and role in (UserRole.STUDENT, UserRole.TEACHER):
         programme_id = await db.scalar(
             select(AcademicProgramme.id).where(
                 AcademicProgramme.organization_id == org_id,
-                AcademicProgramme.code == payload.programme_code,
+                AcademicProgramme.code == programme_code,
             )
         )
 

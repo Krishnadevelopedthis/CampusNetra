@@ -204,6 +204,16 @@ function NotificationBell() {
     } catch { /* ignore */ }
   }
 
+  const clearAll = async () => {
+    try {
+      await api.del('/notifications')
+      setUnread(0)
+      setItems([])
+    } catch {
+      toast.error('Could not clear notifications')
+    }
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button
@@ -225,11 +235,18 @@ function NotificationBell() {
         <div className="fixed inset-x-3 top-[5.25rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-h-[calc(100vh-5rem)] sm:max-h-none bg-surface rounded-xl shadow-popover border border-border-subtle z-50 overflow-hidden animate-slide-up flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
             <span className="text-headline-md">Notifications</span>
-            {unread > 0 && (
-              <button onClick={markAll} className="text-body-sm text-secondary hover:underline">
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unread > 0 && (
+                <button onClick={markAll} className="text-body-sm text-secondary hover:underline">
+                  Mark all read
+                </button>
+              )}
+              {items.length > 0 && (
+                <button onClick={clearAll} className="text-body-sm text-ink-muted hover:text-danger-text hover:underline">
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
           <div className="max-h-96 sm:max-h-96 flex-1 min-h-0 overflow-y-auto">
             {items.length === 0 ? (

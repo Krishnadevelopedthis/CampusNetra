@@ -77,7 +77,7 @@ async def register_options(db: DB, email: Optional[str] = None):
     """
     org_id, _rejection = await auth_service.resolve_organization(db, email or "")
     if org_id is None:
-        return {"departments": [], "programmes": []}
+        return {"departments": [], "programmes": [], "teacher_departments": []}
 
     departments = (await db.scalars(
         select(Department).where(
@@ -91,10 +91,17 @@ async def register_options(db: DB, email: Optional[str] = None):
         ).order_by(AcademicProgramme.name)
     )).all()
 
+    # Academic programmes with level "department" are a college's teaching
+    # and administrative departments (Finance, HR, ...): what a teacher
+    # picks. Everything else is a course a student enrols on.
     return {
         "departments": [{"code": d.code, "name": d.name} for d in departments],
         "programmes": [
-            {"code": p.code, "name": p.name, "level": p.level} for p in programmes
+            {"code": p.code, "name": p.name, "level": p.level}
+            for p in programmes if p.level != "department"
+        ],
+        "teacher_departments": [
+            {"code": p.code, "name": p.name} for p in programmes if p.level == "department"
         ],
     }
 
@@ -135,6 +142,19 @@ async def verify_email(payload: VerifyEmailRequest, db: DB, request: Request):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "This account is already verified")
 
     await auth_service.consume_verification_code(db, user, "email_verify", payload.code)
+
+    # Two unverified sign-ups can share a Student ID; only the first to verify keeps it.
+    if user.role == UserRole.STUDENT and user.enrollment_no:
+        taken = await db.scalar(select(User.id).where(
+            User.id != user.id, User.organization_id == user.organization_id,
+            User.role == UserRole.STUDENT, User.enrollment_no == user.enrollment_no,
+            User.status.in_([UserStatus.ACTIVE, UserStatus.SUSPENDED]),
+        ))
+        if taken is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "This Student ID is already registered. Sign in with the email address you registered with.",
+            )
 
     now = datetime.now(timezone.utc)
     user.status = UserStatus.ACTIVE
@@ -280,6 +300,35 @@ async def update_me(payload: UpdateProfileRequest, user: CurrentUser, db: DB):
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(user, field, value)
     await db.flush()
+    return UserOut.model_validate(user)
+
+
+class EmployeeIdUpdate(BaseModel):
+    employee_id: str = Field(min_length=1, max_length=40)
+
+
+@router.patch("/me/employee-id", response_model=UserOut)
+async def update_my_employee_id(payload: EmployeeIdUpdate, user: CurrentUser, db: DB, request: Request):
+    """Admins may correct their own employee ID directly; for everyone else
+    it stays read-only (it identifies them to their institution)."""
+    if user.role not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only administrators can change their own employee ID")
+    new_id = payload.employee_id.strip()
+    if not new_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Employee ID cannot be blank")
+    clash = await db.scalar(select(User.id).where(
+        User.organization_id == user.organization_id, User.employee_id == new_id, User.id != user.id,
+    ))
+    if clash is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Another account in your organization already uses that employee ID")
+    before = user.employee_id
+    user.employee_id = new_id
+    await db.flush()
+    await record_audit(
+        db, action="user.employee_id.update", actor_id=user.id, organization_id=user.organization_id,
+        entity_type="user", entity_id=user.id,
+        before={"employee_id": before}, after={"employee_id": new_id}, ip_address=client_ip(request),
+    )
     return UserOut.model_validate(user)
 
 

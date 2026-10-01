@@ -11,8 +11,9 @@ import { scorePassword } from '@/lib/format'
 
 /** Extra fields each account type needs beyond name/email/password. */
 const EXTRA_FIELDS = {
-  student:    [{ name: 'enrollment_no', label: 'Enrollment number', placeholder: '2143210',
-                 required: true, numeric: true, hint: 'Seven digits.' }],
+  student:    [{ name: 'enrollment_no', label: 'Student ID', placeholder: 'Your 7-digit Student ID',
+                 required: true, numeric: true,
+                 hint: 'Exactly as printed on your college ID card. Only approved Student IDs can register.' }],
   teacher:    [{ name: 'employee_id', label: 'Employee ID', placeholder: '2143210',
                  required: true, numeric: true, hint: 'Seven digits.' },
                { name: 'designation', label: 'Designation', placeholder: 'Assistant Professor' }],
@@ -35,7 +36,7 @@ export default function Register() {
   // academic courses (a student's/teacher's degree/subject). Mixing them —
   // the bug this replaced — let a course like "Computer Science" show up
   // as a candidate team for a broken tap, and vice versa.
-  const [options, setOptions] = useState({ departments: [], programmes: [] })
+  const [options, setOptions] = useState({ departments: [], programmes: [], teacher_departments: [] })
   const { register } = useAuth()
   const navigate = useNavigate()
 
@@ -136,7 +137,11 @@ export default function Register() {
       }
     >
       <form onSubmit={submit} noValidate className="space-y-5">
-        <RoleTabs value={role} onChange={setRole} tabs={REGISTER_TABS} />
+        <RoleTabs
+          value={role}
+          onChange={(r) => { setRole(r); setForm((f) => ({ ...f, programme_code: '' })) }}
+          tabs={REGISTER_TABS}
+        />
 
         {errors._ && (
           <div className="bg-danger-bg border border-danger-border rounded px-3 py-2.5 text-body-md text-danger-text">
@@ -170,21 +175,29 @@ export default function Register() {
         {/* Academic programme — students and teachers. A course (Computer
             Science, Data Science, Mass Media, Finance, ...), never the
             maintenance org chart below. */}
-        {isAcademic && (
-          <Field label="Course / Department" hint="Your academic programme">
-            <Select value={form.programme_code || ''} onChange={set('programme_code')}>
-              <option value="">Select your course</option>
-              {options.programmes.map((p) => (
-                <option key={p.code} value={p.code}>{p.name}</option>
-              ))}
-            </Select>
-            {options.programmes.length === 0 && (
-              <p className="hint mt-1">
-                No courses are configured yet — you can add this later from your profile.
-              </p>
-            )}
-          </Field>
-        )}
+        {isAcademic && (() => {
+          // Students pick a course; teachers pick their department.
+          const isTeacher = role === 'teacher'
+          const list = (isTeacher ? options.teacher_departments : options.programmes) || []
+          return (
+            <Field
+              label={isTeacher ? 'Department' : 'Course'}
+              hint={isTeacher ? 'The department you teach or work in' : 'Leave blank to use the course your Student ID is registered under'}
+            >
+              <Select value={form.programme_code || ''} onChange={set('programme_code')}>
+                <option value="">{isTeacher ? 'Select your department' : 'Select your course'}</option>
+                {list.map((p) => (
+                  <option key={p.code} value={p.code}>{p.name}</option>
+                ))}
+              </Select>
+              {list.length === 0 && (
+                <p className="hint mt-1">
+                  {isTeacher ? 'No departments' : 'No courses'} are configured yet — you can add this later from your profile.
+                </p>
+              )}
+            </Field>
+          )
+        })()}
 
         {role === 'student' && (
           <Field label="Academic year" hint="Which year of your course you're in">
