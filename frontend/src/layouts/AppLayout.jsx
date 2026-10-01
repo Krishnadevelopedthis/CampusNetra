@@ -1,22 +1,21 @@
 import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell, ChevronDown, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeft,
-  PlusCircle, Search, Settings, User as UserIcon, X,
+  Bell, ChevronDown, HelpCircle, LogOut, Menu, Search, Settings, User as UserIcon, X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
-import { Logo, LogoMark } from '@/components/Logo'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
 import { AssistantWidget } from '@/features/assistant/AssistantWidget'
 import { QrScanButton } from '@/features/assistant/QrScanButton'
 import { api, connectNotifications } from '@/lib/api'
-import { ROLE_ACCENT, ROLE_LABEL, useAuth } from '@/lib/auth'
+import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { searchProfileIndex } from '@/lib/profileSearchIndex'
 import { navFor } from './nav'
+import { Sidebar } from './Sidebar'
 
 function useOutsideClick(ref, handler) {
   useEffect(() => {
@@ -313,12 +312,16 @@ function MenuItem({ icon: Icon, to, children, onClick }) {
 
 export default function AppLayout() {
   const { user } = useAuth()
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem('cn-sidebar-collapsed') === 'true' } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('cn-sidebar-collapsed', String(collapsed)) } catch { /* private mode */ }
+  }, [collapsed])
   const [mobileOpen, setMobileOpen] = useState(false)
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const location = useLocation()
   const items = navFor(user?.role)
-  const accent = ROLE_ACCENT[user?.role] || 'rgb(var(--c-primary))'
 
   // NavLink's own matching cannot express this: prefix mode lights up both
   // /issues and /issues/new at once, while exact mode leaves /issues/:id with
@@ -334,86 +337,35 @@ export default function AppLayout() {
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setMobileOpen(false), [location.pathname])
 
-  const canReport = ['student', 'teacher'].includes(user?.role)
-
-  const sidebar = (
-    <>
-      {/* Role-coloured accent line, per the design spec. Absolutely
-          positioned so it doesn't add to the block's own height below --
-          it used to sit in-flow and push the logo block a few px taller
-          than the header's h-16, so the border under it never lined up
-          with the header's own bottom border across the seam. */}
-      <div className="relative shrink-0">
-        <div className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
-        <div className={clsx(
-          'h-16 flex items-center px-4 border-b border-border-subtle',
-          collapsed && 'px-3 justify-center',
-        )}>
-          {collapsed ? (
-            <LogoMark size={36} />
-          ) : (
-            <Logo subtitle={ROLE_LABEL[user?.role]} />
-          )}
-        </div>
-      </div>
-
-      <nav className="stagger-children flex-1 overflow-y-auto p-3 space-y-1">
-        {items.map((item) => (
-          <NavLink
-            key={item.to} to={item.to}
-            title={collapsed ? item.label : undefined}
-            className={clsx(
-              'sidebar-link',
-              item.to === activePath && 'sidebar-link-active',
-              collapsed && 'justify-center px-0',
-            )}
-          >
-            <item.icon size={18} className="shrink-0" />
-            {!collapsed && <span className="truncate">{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
-
-      {/* h-16, same as the footer row it sits beside at the bottom of the
-          page — both used to size from their own padding+content (p-3 here,
-          py-4 there), which landed at different totals and never lined up. */}
-      <div className="h-16 flex items-center px-3 border-t border-border-subtle">
-        <button
-          onClick={() => setCollapsed((c) => !c)}
-          className={clsx('btn-ghost w-full hidden lg:flex', collapsed && 'px-0')}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <PanelLeft size={16} /> : <><PanelLeftClose size={16} /> Collapse</>}
-        </button>
-      </div>
-    </>
-  )
+  const toggleCollapsed = useCallback(() => setCollapsed((c) => !c), [])
 
   return (
     <div className="min-h-screen flex bg-surface-base">
-      {/* Desktop sidebar */}
-      <aside
-        className={clsx(
-          'hidden lg:flex flex-col bg-surface border-r border-border-subtle shrink-0 sticky top-0 h-screen transition-[width] duration-200',
-          collapsed ? 'w-[76px]' : 'w-sidebar',
-        )}
-      >
-        {sidebar}
-      </aside>
+      {/* Desktop sidebar: a floating card inset from the viewport edges */}
+      <div className="hidden lg:block shrink-0 p-3 pr-0">
+        <aside
+          className={clsx(
+            'sticky top-3 h-[calc(100vh-1.5rem)] overflow-hidden rounded-2xl border border-border-subtle',
+            'bg-surface shadow-level2 transition-[width] duration-200',
+            collapsed ? 'w-[68px]' : 'w-[264px]',
+          )}
+        >
+          <Sidebar
+            items={items} activePath={activePath} pathname={location.pathname} role={user?.role}
+            collapsed={collapsed} onToggle={toggleCollapsed}
+          />
+        </aside>
+      </div>
 
       {/* Mobile drawer (Level 3 overlay) */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-sidebar max-w-[85vw] h-full bg-surface flex flex-col shadow-level3 animate-slide-up">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-3 right-3 btn-ghost h-8 w-8 p-0 rounded-lg z-10"
-              aria-label="Close menu"
-            >
-              <X size={18} />
-            </button>
-            {sidebar}
+          <aside className="relative h-full w-[280px] max-w-[85vw] bg-surface shadow-level3 animate-slide-up">
+            <Sidebar
+              items={items} activePath={activePath} pathname={location.pathname} role={user?.role}
+              mobile onClose={() => setMobileOpen(false)}
+            />
           </aside>
         </div>
       )}
@@ -434,7 +386,7 @@ export default function AppLayout() {
             >
               <Search size={18} />
             </button>
-            <ThemeToggle />
+            <ThemeToggle className="lg:hidden" />
             <NotificationBell />
             <UserMenu />
           </div>
