@@ -69,7 +69,15 @@ export function Navbar() {
           <Link to="/login" className={clsx('rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors', linkTone)}>Sign in</Link>
           <button type="button" onClick={handleGetStarted} className="landing-button inline-flex h-9 max-w-full min-w-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-[clamp(0.65rem,1.6vw,0.875rem)] text-[clamp(0.68rem,1vw,0.8125rem)] font-bold leading-tight text-white transition hover:bg-primary-800">Get started <ArrowUpRight size={14} className="shrink-0" /></button>
         </div>
-        <button ref={toggleRef} type="button" className={clsx('rounded-lg p-2.5 transition-colors md:hidden', linkTone)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
+        <div data-fix="mobile-navbar-cta" className="flex min-w-0 items-center gap-1.5 md:hidden">
+
+          <button type="button" onClick={handleGetStarted} className="landing-button inline-flex h-8 max-w-[7.25rem] min-w-0 items-center justify-center gap-1 rounded-lg bg-primary px-2.5 text-[clamp(0.62rem,2.8vw,0.75rem)] font-bold leading-none text-white transition hover:bg-primary-800">
+
+            <span className="truncate">Get started</span><ArrowUpRight size={13} className="shrink-0" />
+
+          </button>
+
+          <button ref={toggleRef} type="button" className={clsx('rounded-lg p-2.5 transition-colors md:hidden', linkTone)} aria-label={mobileOpen ? 'Close menu' : 'Open menu'} aria-expanded={mobileOpen} onClick={() => setMobileOpen((open) => !open)}>{mobileOpen ? <X size={20} /> : <Menu size={20} />}</button>
       </div>
       <div ref={mobileRef} className={clsx('overflow-hidden border-t border-border-subtle bg-surface/95 backdrop-blur-xl transition-all md:hidden', mobileOpen ? 'max-h-96 opacity-100' : 'pointer-events-none max-h-0 opacity-0')} aria-hidden={!mobileOpen}>
         <div className="space-y-1 px-6 py-4">
