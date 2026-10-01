@@ -20,6 +20,6 @@ CampusNetra replaces the paper forms, WhatsApp groups and spreadsheets most camp
 ## Company
 
 - [About](https://campusnetra.dpdns.org/about)
-- [Support](https://campusnetra.dpdns.org/support): support@campusnetra.dpdns.org
+- [Support](https://campusnetra.dpdns.org/support): techcareit.in@gmail.com
 - [Privacy Policy](https://campusnetra.dpdns.org/privacy)
 - [Terms of Service](https://campusnetra.dpdns.org/terms)

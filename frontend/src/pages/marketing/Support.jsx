@@ -15,8 +15,8 @@ export default function Support() {
         </div>
         <div>
           <p className="text-body-sm text-ink-faint">Email</p>
-          <a href="mailto:support@campusnetra.dpdns.org" className="text-body-lg text-ink font-semibold hover:text-secondary transition-colors">
-            support@campusnetra.dpdns.org
+          <a href="mailto:techcareit.in@gmail.com" className="text-body-lg text-ink font-semibold hover:text-secondary transition-colors">
+            techcareit.in@gmail.com
           </a>
         </div>
       </div>
