@@ -287,7 +287,7 @@ export function Hero() {
         <div className="absolute bottom-10 right-1/4 w-[450px] h-[450px] bg-primary-700/60 rounded-full blur-[100px]" />
         <div className="absolute top-10 right-10 w-[350px] h-[350px] bg-secondary-400/15 rounded-full blur-[80px]" />
         {/* Radial spotlight glow — top center ambient illumination */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] {bg-spotlight-primary} rounded-full blur-[80px] pointer-events-none opacity-80" aria-hidden />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-spotlight-primary rounded-full blur-[80px] pointer-events-none opacity-80" aria-hidden />
       </div>
 
       {/* High-Tech Architectural Grid */}
@@ -316,24 +316,25 @@ export function Hero() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
               </div>
               <span className="text-[13px] font-medium text-white/90">
-                Next-Gen Campus Facilities & Digital Twin 2.0
+                The operations layer for modern campuses
               </span>
               <ChevronRight size={14} className="text-white/60" />
             </div>
 
             {/* Main Headline */}
             <h1 className="text-[clamp(2.5rem,5.5vw,4.25rem)] font-bold text-white leading-[1.1] tracking-tight" style={{ textWrap: 'balance' }}>
-              Run Your Campus{' '}
+              Turn campus signals{' '}
               <span className="relative inline-block">
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-secondary-400 via-primary-400 to-cyan-400">
-                  With Precision.
+                  into action.
                 </span>
               </span>
             </h1>
 
             <p className="mt-6 text-body-lg text-white/75 max-w-xl leading-relaxed">
-              CampusNetra connects students, technicians, and facility directors through a unified
-              digital twin canvas, automated AI triage dispatch, and real-time SLA accountability.
+              CampusNetra gives every report, work order, asset, and service-level target a shared
+              operational home — so the right team sees what matters and moves before small issues
+              become expensive disruptions.
             </p>
 
             {/* Action CTAs */}
@@ -342,7 +343,7 @@ export function Hero() {
                 to="/register"
                 className="group relative inline-flex items-center justify-center gap-2 px-7 h-12 rounded-xl bg-secondary-500 hover:bg-secondary-400 text-white font-semibold transition-all duration-200 text-body-lg shadow-level3 hover:shadow-secondary-500/25 border-shimmer"
               >
-                <span>Launch Free Account</span>
+                <span>See CampusNetra in action</span>
                 <ArrowRight size={18} className="transition-transform duration-200 group-hover:translate-x-1" />
               </Link>
               <a
@@ -354,7 +355,7 @@ export function Hero() {
                 className="inline-flex items-center justify-center gap-2 px-6 h-12 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors duration-200 text-body-lg border border-white/20 border-shimmer"
               >
                 <Play size={16} />
-                <span>Explore Digital Twin</span>
+                <span>Explore the platform</span>
               </a>
             </div>
 
@@ -364,7 +365,7 @@ export function Hero() {
                 <div className="grid grid-cols-3 gap-4">
                   {[
                     { label: 'Role-Based Access', sub: 'Granular permissions' },
-                    { label: 'AI Incident Triage', sub: '< 200ms classification' },
+                    { label: 'AI Incident Triage', sub: 'Route every report clearly' },
                     { label: 'Real-Time SLA', sub: 'Live compliance tracking' },
                   ].map((item) => (
                     <div key={item.label}>
@@ -374,6 +375,10 @@ export function Hero() {
                   ))}
                 </div>
                 {/* ACETERNITY PROACTIV: Avatar stack social proof badge */}
+                <div className="hidden lg:flex items-center gap-2 text-white/60 text-[11px] font-medium mr-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  Built for campus operations
+                </div>
                 <div className="avatar-stack flex items-center -space-x-2">
                   <div className="w-8 h-8 bg-secondary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">AC</div>
                   <div className="w-8 h-8 bg-primary text-white rounded-full flex items-center justify-center text-xs font-bold ring-2 ring-white">DT</div>
