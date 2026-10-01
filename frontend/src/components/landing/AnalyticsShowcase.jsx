@@ -16,7 +16,6 @@ import {
   Clock,
   CheckCircle2,
   AlertTriangle,
-  Zap,
   Calculator,
   ArrowUpRight,
   ShieldCheck,

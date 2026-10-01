@@ -11,7 +11,6 @@ import {
   ArrowRight,
   ShieldCheck,
   Sparkles,
-  Zap,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import clsx from 'clsx'
