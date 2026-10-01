@@ -394,11 +394,8 @@ export default function AppLayout() {
               : 'border-border-subtle bg-surface/90 shadow-level2 lg:bg-surface/95',
           )}
         >
-          <Link to="/dashboard" aria-label="Campus Netra home" className="flex min-w-0 items-center gap-2 lg:hidden">
+          <Link to="/dashboard" aria-label="Campus Netra home" className="shrink-0 lg:hidden">
             <LogoMark size={30} />
-            <span className="hidden truncate text-body-md font-bold tracking-tight text-ink min-[400px]:inline">
-              Campus Netra
-            </span>
           </Link>
           <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
