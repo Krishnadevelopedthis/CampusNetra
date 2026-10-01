@@ -357,7 +357,7 @@ export default function AppLayout() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+      <nav className="stagger-children flex-1 overflow-y-auto p-3 space-y-1">
         {items.map((item) => (
           <NavLink
             key={item.to} to={item.to}
@@ -419,7 +419,7 @@ export default function AppLayout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-surface border-b border-border-subtle flex items-center gap-3 px-4 lg:px-6 sticky top-0 z-30 no-print">
+        <header className="sticky top-0 z-30 flex min-h-16 items-center gap-3 border-b border-border-subtle bg-surface/90 px-4 shadow-[0_1px_0_rgb(var(--c-border-subtle)/0.35)] backdrop-blur-xl lg:px-6 no-print">
           <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
             <Menu size={20} />
           </button>
@@ -440,7 +440,7 @@ export default function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 pt-4 pb-4 lg:px-margin lg:pt-margin lg:pb-margin min-w-0">
+        <main className="page-reveal min-w-0 flex-1 px-4 pb-6 pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
           <Outlet />
         </main>
 

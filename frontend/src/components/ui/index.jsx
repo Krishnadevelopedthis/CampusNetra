@@ -450,10 +450,10 @@ export function Avatar({ name, src: path, size = 32, className }) {
  */
 export function PageHeader({ title, subtitle, actions, onRefresh, refreshing }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4">
+    <header className="flex flex-wrap items-start justify-between gap-4 text-reveal">
       <div className="min-w-0">
-        <h1 className="text-headline-lg text-ink">{title}</h1>
-        {subtitle && <p className="text-body-md text-ink-muted mt-1">{subtitle}</p>}
+        <h1 className="text-[clamp(1.45rem,3vw,2rem)] font-bold tracking-[-0.035em] text-ink">{title}</h1>
+        {subtitle && <p className="mt-1 text-[clamp(0.78rem,1.2vw,0.94rem)] leading-relaxed text-ink-muted">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {actions}

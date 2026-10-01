@@ -335,3 +335,126 @@
   from { transform: translateY(0); opacity: 0.5; }
   to { transform: translateY(-0.6em); opacity: 1; }
 }
+
+
+/* ============================================================
+ * CAMPUSNETRA PRODUCT POLISH
+ * Shared responsive controls, surfaces, motion and icon language.
+ * These primitives deliberately sit below route components so every
+ * student, teacher, technician, manager and admin tab improves together.
+ * ============================================================ */
+@layer components {
+  .btn {
+    min-height: clamp(2.5rem, 5vw, 2.875rem);
+    height: auto;
+    min-width: 2.5rem;
+    padding-inline: clamp(0.75rem, 2vw, 1rem);
+    font-size: clamp(0.78rem, 0.18vw + 0.73rem, 0.94rem);
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .btn-sm {
+    min-height: clamp(2.15rem, 4vw, 2.35rem);
+    padding-inline: clamp(0.65rem, 1.5vw, 0.8rem);
+    font-size: clamp(0.72rem, 0.15vw + 0.68rem, 0.82rem);
+  }
+
+  .btn-lg {
+    min-height: clamp(2.75rem, 6vw, 3.15rem);
+    padding-inline: clamp(1rem, 3vw, 1.4rem);
+    font-size: clamp(0.86rem, 0.2vw + 0.8rem, 1rem);
+  }
+
+  .input,
+  .select {
+    min-height: clamp(2.65rem, 5vw, 3rem);
+    height: auto;
+    font-size: clamp(0.82rem, 0.18vw + 0.78rem, 0.94rem);
+  }
+
+  .widget {
+    border-radius: 1.1rem;
+    box-shadow: 0 1px 2px rgb(var(--c-primary) / 0.04), 0 16px 36px -24px rgb(var(--c-primary) / 0.28);
+    transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  }
+
+  .widget:hover {
+    border-color: rgb(var(--c-border-strong) / 0.8);
+    box-shadow: 0 2px 4px rgb(var(--c-primary) / 0.05), 0 20px 40px -26px rgb(var(--c-primary) / 0.32);
+  }
+
+  .widget-header {
+    padding: clamp(0.9rem, 2vw, 1.25rem) clamp(1rem, 2.5vw, 1.35rem);
+  }
+
+  .widget-title {
+    font-size: clamp(0.95rem, 0.3vw + 0.88rem, 1.1rem);
+    letter-spacing: -0.02em;
+  }
+
+  .sidebar-link {
+    min-height: clamp(2.65rem, 5vw, 2.9rem);
+    border: 1px solid transparent;
+    font-size: clamp(0.78rem, 0.16vw + 0.74rem, 0.9rem);
+  }
+
+  .sidebar-link:hover {
+    transform: translateX(2px);
+    border-color: rgb(var(--c-border-subtle) / 0.8);
+  }
+
+  .sidebar-link-active {
+    box-shadow: 0 8px 18px -12px rgb(var(--c-secondary) / 0.7);
+  }
+
+  .icon-tile {
+    display: inline-grid;
+    place-items: center;
+    width: clamp(2.2rem, 5vw, 2.75rem);
+    height: clamp(2.2rem, 5vw, 2.75rem);
+    border: 1px solid rgb(var(--c-border-subtle) / 0.8);
+    border-radius: 0.85rem;
+    background: rgb(var(--c-surface-sunken) / 0.65);
+    color: rgb(var(--c-secondary-700));
+  }
+
+  .page-reveal {
+    animation: page-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .text-reveal {
+    animation: text-reveal 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .stagger-children > * {
+    animation: page-reveal 450ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .stagger-children > *:nth-child(2) { animation-delay: 55ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 145ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 190ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 235ms; }
+}
+
+@keyframes page-reveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes text-reveal {
+  from { opacity: 0; transform: translateY(0.5em); letter-spacing: 0.015em; }
+  to { opacity: 1; transform: translateY(0); letter-spacing: inherit; }
+}
+
+@media (max-width: 640px) {
+  .table thead th { padding-inline: 0.65rem; }
+  .table tbody td { padding-inline: 0.65rem; }
+  .widget-body { padding: clamp(0.85rem, 4vw, 1.15rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-reveal, .text-reveal, .stagger-children > * { animation: none !important; }
+  .sidebar-link:hover { transform: none; }
+}
