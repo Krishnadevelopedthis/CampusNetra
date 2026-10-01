@@ -214,46 +214,70 @@ export default function CalendarWidget() {
   return (
     <>
       <Widget
-        title={<span className="flex items-center gap-2"><CalendarDays size={18} className="text-secondary" /> Calendar</span>}
-        subtitle="Inspections, work orders and issues by day"
+        title={<span className="flex items-center gap-2"><span className="icon-tile h-8 w-8 rounded-lg"><CalendarDays size={16} /></span> Calendar</span>}
+        subtitle="A clear view of campus activity and scheduled work"
         action={
-          <div className="flex items-center gap-1">
-            <button type="button" onClick={() => shiftMonth(-1)} className="p-1.5 rounded-md hover:bg-surface-hover" aria-label="Previous month">
-              <ChevronLeft size={16} />
+          <div className="flex items-center gap-1.5 rounded-xl border border-border-subtle bg-surface-sunken/60 p-1">
+            <button type="button" onClick={() => shiftMonth(-1)} className="btn-ghost h-8 w-8 rounded-lg p-0" aria-label="Previous month">
+              <ChevronLeft size={15} />
             </button>
-            <span className="text-body-sm font-medium text-ink w-32 text-center">
+            <button
+              type="button"
+              onClick={() => setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}
+              className="min-w-[7.5rem] rounded-lg px-2 py-1.5 text-center text-[clamp(0.72rem,1vw,0.82rem)] font-semibold text-ink transition-colors hover:bg-surface"
+            >
               {cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-            </span>
-            <button type="button" onClick={() => shiftMonth(1)} className="p-1.5 rounded-md hover:bg-surface-hover" aria-label="Next month">
-              <ChevronRight size={16} />
+            </button>
+            <button type="button" onClick={() => shiftMonth(1)} className="btn-ghost h-8 w-8 rounded-lg p-0" aria-label="Next month">
+              <ChevronRight size={15} />
             </button>
           </div>
         }
       >
-        <div className="grid grid-cols-7 gap-1 text-center">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
+          <div className="flex flex-wrap items-center gap-3 text-[11px] text-ink-muted">
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-secondary" /> Issues</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-violet-500" /> Inspections</span>
+            <span className="flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-info" /> Work orders</span>
+          </div>
+          <button type="button" onClick={() => setCursor(new Date(new Date().getFullYear(), new Date().getMonth(), 1))} className="text-[11px] font-semibold text-secondary hover:underline">
+            Today
+          </button>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5 text-center sm:gap-2">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="text-body-xs text-ink-faint font-medium py-1">{w}</div>
+            <div key={w} className="py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-ink-faint sm:text-[11px]">{w}</div>
           ))}
           {grid.map((d) => {
             const iso = isoDay(d)
             const inMonth = d.getMonth() === cursor.getMonth()
             const entry = data?.days?.[iso]
-            const count = entry ? entry.issues.length + entry.inspections.length + entry.work_orders.length : 0
+            const issueCount = entry?.issues?.length || 0
+            const inspectionCount = entry?.inspections?.length || 0
+            const workOrderCount = entry?.work_orders?.length || 0
+            const count = issueCount + inspectionCount + workOrderCount
+            const selected = selectedDay && isoDay(selectedDay) === iso
             return (
               <button
                 key={iso}
                 type="button"
                 onClick={() => setSelectedDay(d)}
+                aria-label={`${d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}${count ? `, ${count} item${count === 1 ? '' : 's'}` : ''}`}
                 className={clsx(
-                  'relative aspect-square rounded-md text-body-sm flex flex-col items-center justify-center gap-0.5 transition-colors',
-                  inMonth ? 'text-ink' : 'text-ink-faint/50',
-                  iso === today ? 'ring-1 ring-secondary font-semibold' : '',
-                  'hover:bg-surface-hover',
+                  'group relative flex min-h-[52px] flex-col items-center justify-center gap-1 rounded-xl border text-sm transition-all sm:min-h-[66px]',
+                  inMonth ? 'border-border-subtle/70 bg-surface/60 text-ink' : 'border-transparent bg-surface-sunken/25 text-ink-faint/45',
+                  iso === today ? 'border-secondary/60 bg-secondary/5 font-bold shadow-[0_0_0_3px_rgb(var(--c-secondary)/0.08)]' : '',
+                  selected ? 'bg-secondary text-white shadow-level2 hover:bg-secondary' : 'hover:-translate-y-0.5 hover:border-secondary/40 hover:bg-surface hover:shadow-level2',
                 )}
               >
-                {d.getDate()}
+                <span className="leading-none">{d.getDate()}</span>
                 {count > 0 && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
+                  <span className="flex items-center gap-0.5" aria-hidden="true">
+                    {issueCount > 0 && <i className={clsx('h-1.5 w-1.5 rounded-full', selected ? 'bg-white' : 'bg-secondary')} />}
+                    {inspectionCount > 0 && <i className={clsx('h-1.5 w-1.5 rounded-full', selected ? 'bg-white/75' : 'bg-violet-500')} />}
+                    {workOrderCount > 0 && <i className={clsx('h-1.5 w-1.5 rounded-full', selected ? 'bg-white/55' : 'bg-info')} />}
+                    <span className={clsx('ml-0.5 text-[9px] font-semibold', selected ? 'text-white/80' : 'text-ink-faint')}>{count}</span>
+                  </span>
                 )}
               </button>
             )
