@@ -71,8 +71,8 @@ export function Metric({
   return (
     <div
       className={clsx(
-        'widget flex flex-col gap-2 min-w-0',
-        isHero ? 'p-6 sm:p-7' : 'p-widget',
+        'widget dashboard-kpi flex min-h-[116px] min-w-0 flex-col gap-2.5',
+        isHero ? 'p-5 sm:p-6 xl:min-h-[168px] xl:p-7' : 'p-4 sm:p-5',
         className,
       )}
       style={{
@@ -85,12 +85,12 @@ export function Metric({
       }}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-label-caps uppercase text-ink-muted">{label}</span>
-        {Icon && <Icon size={isHero ? 20 : 16} className="text-ink-faint shrink-0" />}
+        <span className="text-[clamp(0.62rem,0.75vw,0.72rem)] font-semibold uppercase tracking-[0.14em] text-ink-muted">{label}</span>
+        {Icon && <span className="icon-tile h-8 w-8 rounded-lg"><Icon size={isHero ? 18 : 15} className="shrink-0" /></span>}
       </div>
       <div className="flex items-baseline gap-2 flex-wrap">
         <span
-          className={clsx('tabular leading-none', isHero ? 'text-display-hero' : 'text-display-metrics')}
+          className={clsx('tabular leading-none tracking-[-0.055em]', isHero ? 'text-[clamp(2.15rem,5vw,3.4rem)]' : 'text-[clamp(1.7rem,3vw,2.35rem)]')}
           style={resolvedAccent ? { color: resolvedAccent } : undefined}
         >
           {value}

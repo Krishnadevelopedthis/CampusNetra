@@ -51,7 +51,7 @@ export default function Dashboard() {
   if (error && !data) return <ErrorState error={error} onRetry={refetch} />
 
   return (
-    <div className="space-y-5">
+    <div className="dashboard-page space-y-6">
       <PageHeader
         title={isReporter
           ? (
@@ -94,17 +94,17 @@ export default function Dashboard() {
               thing for the same reason: one number leads, the rest are
               context, not four equally-loud boxes competing. */}
           {(data.metrics || []).length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="dashboard-kpi-grid grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <Metric
                 size="hero"
-                className="col-span-2 sm:col-span-1"
+                className="sm:col-span-2 xl:col-span-2"
                 key={data.metrics[0].label}
                 label={data.metrics[0].label}
                 value={data.metrics[0].value}
                 accent={data.metrics[0].accent}
                 sparkline={data.metrics[0].sparkline}
               />
-              <div className="col-span-2 sm:col-span-1 grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 sm:col-span-2 xl:col-span-2">
                 {data.metrics.slice(1).map((m) => (
                   <Metric key={m.label} label={m.label} value={m.value} accent={m.accent} sparkline={m.sparkline} />
                 ))}
@@ -122,7 +122,7 @@ export default function Dashboard() {
 /* ---------------- Student / teacher ---------------- */
 function ReporterBody({ data }) {
   return (
-    <div className="grid lg:grid-cols-3 gap-5 items-start">
+    <div className="dashboard-section-grid grid gap-5 items-start xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
       <Widget
         className="lg:col-span-2"
         title="Recent Activity"
@@ -199,7 +199,7 @@ function ReporterBody({ data }) {
         </Widget>
       </div>
 
-      <div className="lg:col-span-3">
+      <div className="xl:col-span-2">
         <CampusHealthWidget />
       </div>
     </div>
@@ -309,15 +309,17 @@ function AssetHealthChart({ enabled }) {
   }
 
   return (
-    <div className="grid sm:grid-cols-[220px_1fr] gap-5 items-center">
-      <ResponsiveContainer width="100%" height={220}>
+    <div className="grid items-center gap-5 sm:grid-cols-[minmax(190px,240px)_1fr]">
+      <div className="h-[210px] w-full sm:h-[240px]">
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={byState} dataKey="count" nameKey="label" innerRadius={55} outerRadius={90} paddingAngle={2}>
+          <Pie data={byState} dataKey="count" nameKey="label" innerRadius="42%" outerRadius="72%" paddingAngle={2}>
             {byState.map((d) => <Cell key={d.state} fill={d.colour} />)}
           </Pie>
           <Tooltip content={<AssetHealthTooltip />} />
         </PieChart>
       </ResponsiveContainer>
+      </div>
       <div className="space-y-2">
         {byState.map((d) => (
           <div key={d.state} className="flex items-center justify-between text-body-sm">
@@ -341,7 +343,7 @@ function StaffBody({ data, user }) {
 
   return (
     <>
-      <div className="grid lg:grid-cols-3 gap-5 items-start">
+      <div className="dashboard-section-grid grid gap-5 items-start xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.55fr)]">
         <Widget title="Operational Health">
           <div className="flex flex-col items-center py-2">
             <HealthRing score={data.health_score} />
@@ -368,8 +370,9 @@ function StaffBody({ data, user }) {
           )}
         </Widget>
 
-        <Widget className="lg:col-span-2" title="Created vs Resolved" subtitle="Last 7 days">
-          <ResponsiveContainer width="100%" height={260}>
+        <Widget className="min-w-0" title="Created vs Resolved" subtitle="Last 7 days">
+          <div className="dashboard-chart h-[220px] sm:h-[270px]">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data.trend || []} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} />
@@ -380,6 +383,7 @@ function StaffBody({ data, user }) {
               <Bar dataKey="resolved" name="Resolved" fill={chart.seriesStrong} radius={[4, 4, 0, 0]} maxBarSize={26} />
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </Widget>
       </div>
 
