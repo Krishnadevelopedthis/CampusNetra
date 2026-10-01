@@ -33,3 +33,5 @@ backend/_*.py
 
 # Runtime logs
 .logs/
+
+.claude/worktrees/
