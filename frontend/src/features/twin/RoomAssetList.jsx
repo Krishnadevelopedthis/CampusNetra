@@ -39,7 +39,7 @@ export function AssetFilterBar({ filter }) {
   return (
     <>
       {groups.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1" role="tablist" aria-label="Filter assets by category">
+        <div className="flex gap-2 overflow-x-auto pb-2 max-w-full min-w-0" role="tablist" aria-label="Filter assets by category">
           <button type="button" className={chip(category === 'all')} onClick={() => setCategory('all')}>
             All ({total})
           </button>
