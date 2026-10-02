@@ -204,10 +204,17 @@ async def match_student_id(
     registration falls back to email-based campus detection. Otherwise an
     unknown ID, or one that already belongs to a verified account, is refused.
     """
-    orgs = [
-        o for o in (await db.scalars(select(Organization))).all()
-        if (o.settings or {}).get("approved_student_ids")
-    ]
+    all_orgs = (await db.scalars(select(Organization))).all()
+
+    # Temporary switch an administrator can turn on (organizations.settings
+    # "student_id_check_disabled": true) while the approved list is incomplete:
+    # any 7-digit Student ID may register, the same as when no list exists. The
+    # ID format is still validated by the schema; one live account per ID is
+    # still enforced. Remove the key to enforce the list again.
+    if any((o.settings or {}).get("student_id_check_disabled") for o in all_orgs):
+        return None, None
+
+    orgs = [o for o in all_orgs if (o.settings or {}).get("approved_student_ids")]
     if not orgs:
         return None, None
 
