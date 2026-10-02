@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Boxes, Building2, ChevronRight, CircleDot, DoorOpen, Landmark, Layers, Pencil,
+  Boxes, Building2, ChevronRight, CircleDot, DoorOpen, Landmark, Layers, Megaphone, Pencil,
   Plus, Radio, X,
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -12,6 +12,7 @@ import {
 } from '@/components/ui'
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
 import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
+import RoomAssetList from '@/features/twin/RoomAssetList'
 import { useRefresh } from '@/hooks/useRefresh'
 import { useAuth } from '@/lib/auth'
 import { api, connectTwin } from '@/lib/api'
@@ -409,6 +410,7 @@ export default function DigitalTwin() {
           {(selectedAsset || selectedRoom) && (
             <Inspector
               asset={selectedAsset} room={selectedRoom}
+              onSelectAsset={setSelectedAsset}
               onClose={() => { setSelectedAsset(null); setSelectedRoom(null) }}
             />
           )}
@@ -445,7 +447,7 @@ export default function DigitalTwin() {
 }
 
 /** Detail card for whatever is selected on the plan. */
-function Inspector({ asset, room, onClose }) {
+function Inspector({ asset, room, onClose, onSelectAsset }) {
   const detail = useQuery({
     queryKey: ['asset', asset?.id],
     queryFn: () => api.get(`/campus/assets/${asset.id}`),
@@ -460,6 +462,12 @@ function Inspector({ asset, room, onClose }) {
         subtitle={`${asset.tag} · ${room?.name || ''}`}
         action={<button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close"><X size={16} /></button>}
       >
+        <Link to={`/scan/asset/${asset.id}`} className="btn-primary w-full sm:w-auto mb-4 inline-flex items-center justify-center gap-2">
+          <Megaphone size={16} /> Report a complaint
+        </Link>
+        <p className="text-body-sm text-ink-faint -mt-2 mb-4">
+          Building, floor and room are filled in for you — just describe the problem and add a photo.
+        </p>
         {detail.isLoading ? <Spinner label="Loading asset…" /> : (
           <div className="grid md:grid-cols-2 gap-5">
             <div className="space-y-3">
@@ -529,17 +537,7 @@ function Inspector({ asset, room, onClose }) {
       </div>
 
       {room.assets?.length > 0 && (
-        <div className="mt-5">
-          <p className="text-label-caps uppercase text-ink-muted mb-2">Assets in this room</p>
-          <div className="flex flex-wrap gap-2">
-            {room.assets.map((a) => (
-              <span key={a.id} className="pill border border-border-subtle bg-surface">
-                <span className="w-2 h-2 rounded-full" style={{ background: a.colour }} />
-                <span className="font-mono text-mono-data">{a.tag}</span>
-              </span>
-            ))}
-          </div>
-        </div>
+        <RoomAssetList key={room.id} assets={room.assets} onSelect={onSelectAsset} />
       )}
     </Widget>
   )

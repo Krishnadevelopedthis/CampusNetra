@@ -103,6 +103,7 @@ class AssetMarker(BaseModel):
     pos_y: Optional[float] = None
     surface: AssetSurface = "floor"
     category_icon: Optional[str] = None
+    category: Optional[str] = None
     open_issue_count: int = 0
     # Populated for markers currently in fault so the tooltip can show context.
     active_issue_reference: Optional[str] = None

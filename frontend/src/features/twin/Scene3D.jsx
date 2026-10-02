@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 
@@ -250,6 +250,22 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
   className,
 }, ref) {
   const mountRef = useRef(null)
+  // Screen-size tier for label text. Tracked live, so rotating a phone or
+  // resizing the window re-sizes the labels instead of keeping the size the
+  // scene was first built with.
+  const [sizeTier, setSizeTier] = useState('lg')
+  useEffect(() => {
+    const mount = mountRef.current
+    if (!mount) return undefined
+    const apply = () => {
+      const w = mount.clientWidth
+      setSizeTier(w < 520 ? 'sm' : w < 900 ? 'md' : 'lg')
+    }
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(mount)
+    return () => ro.disconnect()
+  }, [])
   const stateRef = useRef({})
   // Tracks which building/floor/room is actually "in view" so the content
   // effect below can tell a genuine drill-in/out from an incidental
@@ -726,9 +742,8 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
       // tapped, and always for small rooms. Size follows the screen width.
       const placedAssets = (roomAssets || []).filter((a) => a.pos_x != null && a.pos_y != null)
       const showAllLabels = placedAssets.length <= 8
-      const screenW = mountRef.current?.clientWidth || 900
-      const labelFont = screenW < 520 ? 16 : screenW < 900 ? 19 : 22
-      const labelScale = screenW < 520 ? 0.012 : screenW < 900 ? 0.0145 : 0.017
+      const labelFont = sizeTier === 'sm' ? 16 : sizeTier === 'md' ? 19 : 22
+      const labelScale = sizeTier === 'sm' ? 0.012 : sizeTier === 'md' ? 0.0145 : 0.017
       let stickyLabel = null
 
       ;(roomAssets || []).forEach((a) => {
@@ -799,7 +814,7 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
   }, [
     view, buildings, autoCount, mode, heatByBuilding, heatColour,
     selectedBuildingId, selectedFloorId, selectedRoomId, roomAssets, pendingPlacement,
-    ceilingEnabled, onSelectBuilding, onSelectFloor, onSelectRoom, onSelectAsset, onPlaceAsset,
+    ceilingEnabled, onSelectBuilding, onSelectFloor, onSelectRoom, onSelectAsset, onPlaceAsset, sizeTier,
   ])
 
   return <div ref={mountRef} className={className} />
