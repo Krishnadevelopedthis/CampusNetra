@@ -22,7 +22,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { ColorThemeSwitcher } from '@/components/ColorThemeSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button, Field, Input, Modal, PasswordInput, PasswordStrengthMeter, Select, Widget, toast } from '@/components/ui'
-import { api } from '@/lib/api'
+import { api, readAuth, writeAuth } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import { useColorTheme } from '@/lib/colorTheme'
 import { scorePassword } from '@/lib/format'
@@ -455,6 +455,8 @@ function SecuritySection({ user, logout, navigate }) {
       new_password: pw.new_password,
     }),
     onSuccess: (d) => {
+      // The server starts a fresh session for this device and ends the others.
+      if (d.tokens) writeAuth({ ...(readAuth() || {}), ...d.tokens })
       toast.success(d.detail || 'Password changed.')
       setPw({ current_password: '', new_password: '', confirm: '' })
       setErrors({})

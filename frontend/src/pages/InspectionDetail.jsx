@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { Button, ErrorState, Spinner, StatusPill, Textarea, Widget, toast } from '@/components/ui'
+import AdminDeleteButton from '@/components/AdminDeleteButton'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
 
@@ -90,6 +91,8 @@ export default function InspectionDetail() {
           <Link to="/inspections" className="inline-flex items-center gap-1.5 text-body-md text-ink-muted hover:text-ink mb-2">
             <ArrowLeft size={15} /> Back to inspections
           </Link>
+          <AdminDeleteButton path={`/inspections/${id}`} queryKey={['inspection', id]} backTo="/inspections" noun="inspection"
+            warning="Its checklist results are deleted with it." className="ml-3 mb-2" />
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-mono-data text-secondary">{insp.reference}</span>
             <StatusPill status={insp.status} />

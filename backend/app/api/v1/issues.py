@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, CurrentUser, Paging, RequireManager, require_permission
+from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireManager, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import IssueStatus, Priority, UserRole
 from app.models.identity import User
@@ -27,6 +27,7 @@ from app.schemas.issues import (
 )
 from app.services import issue_views
 from app.services import issues as issue_service
+from app.services import removal
 
 router = APIRouter(route_class=CommitRoute, prefix="/issues", tags=["Issues"])
 
@@ -366,3 +367,13 @@ async def dismiss_duplicates(issue_id: uuid.UUID, user: RequireManager, db: DB):
         .values(resolution="dismissed", reviewed_by=user.id)
     )
     return Message(detail=f"Dismissed {result.rowcount} duplicate suggestion(s).")
+
+
+@router.delete("/{issue_id}", response_model=Message)
+async def delete_issue(issue_id: uuid.UUID, user: RequireAdmin, db: DB):
+    """Permanently remove an issue and everything that exists only because of it."""
+    issue = await _get_issue_or_404(db, issue_id, user)
+    reference = issue.reference
+    counts = await removal.delete_issue(db, issue, user)
+    extra = removal.describe(counts)
+    return Message(detail=f"Issue {reference} deleted" + (f" along with {extra}." if extra else "."))

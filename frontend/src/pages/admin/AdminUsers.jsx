@@ -123,8 +123,8 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-5">
-      <NameChangeRequests onDecided={invalidate} />
-      <DeletionRequests onDecided={invalidate} />
+      {isAdmin() && <NameChangeRequests onDecided={invalidate} />}
+      {isAdmin() && <DeletionRequests onDecided={invalidate} />}
 
       <Widget bodyClass="p-0">
         <div className="flex flex-wrap items-center gap-2 p-widget border-b border-border-subtle">

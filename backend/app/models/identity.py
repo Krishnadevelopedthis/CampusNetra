@@ -163,6 +163,12 @@ class User(UpdatedMixin, Base):
         PGUUID(as_uuid=True), ForeignKey("academic_programmes.id", ondelete="SET NULL")
     )
     academic_year: Mapped[Optional[int]] = mapped_column(Integer)
+    # The account's one live session (token claim "sid"). A new login rotates
+    # it, which invalidates every token the previous device holds.
+    session_id: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True))
+    # 'replaced' = signed in on another device; 'revoked' = signed out,
+    # password change or admin action. Tells the old device what to say.
+    session_end_reason: Mapped[Optional[str]] = mapped_column(Text)
 
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="users")
     department: Mapped[Optional["Department"]] = relationship(back_populates="members")

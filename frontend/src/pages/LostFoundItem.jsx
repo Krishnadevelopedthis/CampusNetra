@@ -12,6 +12,7 @@ import {
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import AdminDeleteButton from '@/components/AdminDeleteButton'
 import { dt, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 
@@ -127,6 +128,8 @@ export default function LostFoundItem() {
           <Link to="/lost-found" className="inline-flex items-center gap-1.5 text-body-md text-ink-muted hover:text-ink mb-2">
             <ArrowLeft size={15} /> Back to registry
           </Link>
+          <AdminDeleteButton path={`/lost-found/items/${id}`} queryKey={['lf-item', id]} backTo="/lost-found" noun="report"
+            warning="Its photos, claims and AI matches are deleted with it." className="ml-3 mb-2" />
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-mono-data text-secondary">{item.reference}</span>
             <span className={`pill ${item.kind === 'lost' ? 'bg-warning-bg text-warning-text' : 'bg-info-bg text-info-text'}`}>

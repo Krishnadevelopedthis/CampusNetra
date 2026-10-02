@@ -34,10 +34,11 @@ def _now() -> datetime:
 
 def issue_tokens(user: User) -> tuple[TokenPair, str]:
     """Returns the pair plus the raw refresh token, which the caller must persist hashed."""
-    raw_refresh = create_refresh_token(str(user.id))
+    sid = str(user.session_id) if user.session_id else None
+    raw_refresh = create_refresh_token(str(user.id), sid=sid)
     return (
         TokenPair(
-            access_token=create_access_token(str(user.id), user.role.value, user.organization_id),
+            access_token=create_access_token(str(user.id), user.role.value, user.organization_id, sid=sid),
             refresh_token=raw_refresh,
             expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         ),
@@ -424,6 +425,14 @@ async def rotate_refresh_token(
     except (_jwt.PyJWTError, KeyError, ValueError):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token")
 
+    # Checked before the stored-token lookup: a displaced device's refresh
+    # tokens were revoked when the other device signed in, so without this it
+    # would only ever see a generic "revoked" error instead of being told its
+    # account signed in elsewhere.
+    owner = await db.scalar(select(User).where(User.id == user_id))
+    if owner is not None and not token_matches_session(owner, payload.get("sid")):
+        raise session_error(owner.session_end_reason)
+
     # Locked for the length of the transaction, so a second request presenting
     # the same token waits here rather than reading the row alongside us. Both
     # used to pass the revoked_at check before either had written it, which
@@ -446,16 +455,82 @@ async def rotate_refresh_token(
     user = await db.scalar(select(User).where(User.id == user_id))
     if user is None or user.status != UserStatus.ACTIVE:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account is unavailable")
-
     stored.revoked_at = _now()
     tokens, raw_new = issue_tokens(user)
     await persist_refresh_token(db, user, raw_new, ip, ua)
     return user, tokens
 
 
+SESSION_REPLACED_MESSAGE = (
+    "You were signed out because your account was signed in on another device."
+)
+SESSION_REVOKED_MESSAGE = "Your session has ended. Please sign in again."
+SESSION_PASSWORD_MESSAGE = "Your password was changed, so you were signed out. Please sign in again."
+
+_END_MESSAGES = {
+    "replaced": (SESSION_REPLACED_MESSAGE, "session_replaced"),
+    "password_changed": (SESSION_PASSWORD_MESSAGE, "session_ended"),
+}
+
+
+def session_error(reason: Optional[str]) -> HTTPException:
+    """401 for a token that no longer belongs to the account's live session."""
+    message, code = _END_MESSAGES.get(reason, (SESSION_REVOKED_MESSAGE, "session_ended"))
+    return HTTPException(
+        status.HTTP_401_UNAUTHORIZED,
+        detail={"message": message, "code": code},
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def token_matches_session(user: User, token_sid: Optional[str]) -> bool:
+    """A token is valid while it carries the account's current session id.
+    Accounts that have not signed in since single-session was introduced have
+    no session id yet, and their existing tokens keep working until they do."""
+    if user.session_id is None:
+        return True
+    return token_sid is not None and token_sid == str(user.session_id)
+
+
+async def start_session(db: AsyncSession, user: User, reason: str = "replaced") -> bool:
+    """Make this login the account's only live session.
+
+    Rotates the session id (so the previous device's access and refresh tokens
+    stop working at once), revokes its stored refresh tokens, and pushes a
+    live notice to any socket it still has open so it signs out immediately
+    rather than on its next request. Returns True when another device was
+    displaced.
+    """
+    from app.services.realtime import users as user_hub
+
+    # A live session exists unless the last thing that happened was a sign-out
+    # (reason "revoked"); accounts that never signed in under single-session
+    # have none recorded, so an open socket is the only sign of one.
+    had_live_session = user.session_id is not None and user.session_end_reason != "revoked"
+    displaced = had_live_session or bool(user_hub.is_online(str(user.id)))
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+        .values(revoked_at=_now())
+    )
+    user.session_id = uuid.uuid4()
+    user.session_end_reason = reason
+    await db.flush()
+    message, code = _END_MESSAGES.get(reason, (SESSION_REVOKED_MESSAGE, "session_ended"))
+    await user_hub.send(str(user.id), {"type": "session_ended", "code": code, "message": message})
+    await user_hub.close_all(str(user.id))
+    return displaced
+
+
 async def revoke_all_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
+    """End every session: stored refresh tokens revoked and the session id
+    rotated, so access tokens still within their lifetime die too."""
     await db.execute(
         update(RefreshToken)
         .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=_now())
+    )
+    await db.execute(
+        update(User).where(User.id == user_id)
+        .values(session_id=uuid.uuid4(), session_end_reason="revoked")
     )

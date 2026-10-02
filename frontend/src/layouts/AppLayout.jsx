@@ -11,7 +11,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
 import { AssistantWidget } from '@/features/assistant/AssistantWidget'
 import { QrScanButton } from '@/features/assistant/QrScanButton'
-import { api, connectNotifications } from '@/lib/api'
+import { api, connectNotifications, endSessionAndRedirect } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { searchProfileIndex } from '@/lib/profileSearchIndex'
@@ -184,6 +184,12 @@ function NotificationBell() {
   useEffect(() => {
     const disconnect = connectNotifications({
       onEvent: (evt) => {
+        if (evt?.type === 'session_ended') {
+          // Signed in on another device (or the session was ended): leave
+          // straight away rather than waiting for the next request to fail.
+          endSessionAndRedirect(evt.code)
+          return
+        }
         if (evt?.type !== 'notification') return
         setUnread((n) => n + 1)
         setPinged(true)

@@ -13,7 +13,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete, func, or_, select
 
-from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, RequireStaff, require_permission
+from app.api.deps import (
+    DB, CurrentUser, Paging, RequireAdmin, RequireStaff, require_permission, socket_session_valid,
+)
 from app.core.routing import CommitRoute
 from app.core.database import SessionLocal
 from app.core.enums import AssetState, IssueStatus, RoomKind
@@ -1505,6 +1507,9 @@ async def twin_socket(websocket: WebSocket, campus_id: str, token: str = Query(.
         org_id = payload.get("org")
         campus_uuid = uuid.UUID(campus_id)
     except (jwt.PyJWTError, KeyError, ValueError):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+    if not await socket_session_valid(payload):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
     async with SessionLocal() as db:

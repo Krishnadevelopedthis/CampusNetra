@@ -59,6 +59,9 @@ export default function Login() {
           ? `Welcome, ${user.full_name.split(' ')[0]}.`
           : `Welcome back, ${user.full_name.split(' ')[0]}.`
       )
+      if (user.signed_out_other_device) {
+        toast.info('Signed in. Your account was signed out on its other device.')
+      }
       navigate(ROLE_HOME[user.role] || '/dashboard', { replace: true })
     } catch (err) {
       const fields = err.fields
@@ -95,7 +98,16 @@ export default function Login() {
 
         {expired && (
           <div className="ai-surface px-3 py-2.5 text-body-md text-info-text">
-            {expiredReason === 'inactivity' ? (
+            {expiredReason === 'other_device' ? (
+              <>
+                <strong className="font-medium">Signed out.</strong>{' '}
+                Your account was signed in on another device, so this one was
+                signed out. Sign in again to continue here — that will sign out
+                the other device.
+              </>
+            ) : expiredReason === 'ended' ? (
+              'Your session has ended. Please sign in again.'
+            ) : expiredReason === 'inactivity' ? (
               <>
                 <strong className="font-medium">Session Expired.</strong>{' '}
                 You were logged out because there was no activity for 10 minutes.

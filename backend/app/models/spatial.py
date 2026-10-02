@@ -137,8 +137,10 @@ class Asset(UpdatedMixin, Base):
     __tablename__ = "assets"
 
     id: Mapped[uuid.UUID] = uuid_pk()
-    room_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("rooms.id", ondelete="SET NULL")
+    # Every asset lives in a room. RESTRICT: a room cannot be deleted from under
+    # its assets (the API removes them explicitly first, with confirmation).
+    room_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("rooms.id", ondelete="RESTRICT"), nullable=False
     )
     category_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("asset_categories.id", ondelete="RESTRICT"), nullable=False

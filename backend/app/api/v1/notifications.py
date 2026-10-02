@@ -8,7 +8,7 @@ import jwt
 from fastapi import APIRouter, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import delete, func, select, update
 
-from app.api.deps import DB, CurrentUser
+from app.api.deps import DB, CurrentUser, socket_session_valid
 from app.core.routing import CommitRoute
 from app.core.security import decode_token
 from app.models.platform import Notification
@@ -90,6 +90,10 @@ async def notification_socket(websocket: WebSocket, token: str = Query(...)):
     except (jwt.PyJWTError, KeyError):
         # 1008 = policy violation. Closing before accept() keeps an
         # unauthenticated peer from ever holding an open socket.
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    if not await socket_session_valid(payload):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         return
 

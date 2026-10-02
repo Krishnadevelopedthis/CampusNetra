@@ -14,6 +14,7 @@ from app.core.database import get_db
 from app.core.enums import UserRole, UserStatus
 from app.core.security import ACCESS_TOKEN, decode_token
 from app.models.identity import Permission, RolePermission, User
+from app.services.auth import session_error, token_matches_session
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -40,11 +41,29 @@ async def get_current_user(
     if user is None:
         raise CREDENTIALS_ERROR
 
+    # One live session per account: a token from a device that has since been
+    # displaced (or signed out) no longer matches the account's session id.
+    if not token_matches_session(user, payload.get("sid")):
+        raise session_error(user.session_end_reason)
+
     if user.status == UserStatus.PENDING_VERIFICATION:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Email address not verified")
     if user.status != UserStatus.ACTIVE:
         raise HTTPException(status.HTTP_403_FORBIDDEN, f"Account is {user.status.value}")
     return user
+
+
+async def socket_session_valid(payload: dict) -> bool:
+    """For WebSocket handshakes, which have no request-scoped DB session: does
+    this access token still belong to its account's live session?"""
+    from app.core.database import SessionLocal
+    try:
+        user_id = uuid.UUID(payload["sub"])
+    except (KeyError, ValueError):
+        return False
+    async with SessionLocal() as db:
+        user = await db.scalar(select(User).where(User.id == user_id))
+    return user is not None and token_matches_session(user, payload.get("sid"))
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

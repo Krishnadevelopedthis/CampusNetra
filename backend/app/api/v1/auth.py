@@ -174,6 +174,7 @@ async def verify_email(payload: VerifyEmailRequest, db: DB, request: Request):
     user.email_verified_at = now
     user.last_login_at = now
 
+    await auth_service.start_session(db, user)
     tokens, raw = auth_service.issue_tokens(user)
     await auth_service.persist_refresh_token(
         db, user, raw, client_ip(request), request.headers.get("user-agent")
@@ -208,11 +209,16 @@ async def login(payload: LoginRequest, db: DB, request: Request):
         db, payload.email, payload.password, payload.role,
         client_ip(request), request.headers.get("user-agent"),
     )
+    # Single live session: this sign-in displaces any other device.
+    displaced = await auth_service.start_session(db, user)
     tokens, raw = auth_service.issue_tokens(user)
     await auth_service.persist_refresh_token(
         db, user, raw, client_ip(request), request.headers.get("user-agent")
     )
-    return AuthResponse(user=UserOut.model_validate(user), tokens=tokens, first_login=is_first_login)
+    return AuthResponse(
+        user=UserOut.model_validate(user), tokens=tokens, first_login=is_first_login,
+        signed_out_other_device=displaced and not is_first_login,
+    )
 
 
 @router.post("/refresh", response_model=TokenPair)
@@ -232,17 +238,19 @@ async def logout(user: CurrentUser, db: DB):
 
 @router.post("/forgot-password", response_model=Message)
 async def forgot_password(payload: ForgotPasswordRequest, db: DB):
-    """Enumeration-safe: the response is identical whether or not the
-    email/phone is registered. Sends by whichever channel was given —
-    the schema enforces exactly one of the two.
+    """Sends a reset code by whichever channel was given — the schema
+    enforces exactly one of the two. An address or number that is not
+    registered is told so plainly instead of being sent a code. The captcha
+    check above is what keeps this from being a free "is this registered?"
+    lookup for scripts.
     """
     _require_captcha(payload.captcha_token, payload.captcha_answer)
 
     if payload.email:
-        generic = Message(detail="If that address is registered, a reset code has been sent.")
+        generic = Message(detail="A reset code has been sent to your email.")
         user = await db.scalar(select(User).where(User.email == payload.email))
         if user is None:
-            return generic
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "This email is not registered with us.")
         code = await auth_service.create_verification_code(db, user, "password_reset")
         sent = await send_otp(user.email, user.full_name, code, "password_reset")
         if not sent.delivered and settings.expose_dev_codes:
@@ -250,10 +258,10 @@ async def forgot_password(payload: ForgotPasswordRequest, db: DB):
                            dev_code=code, expires_in=settings.OTP_EXPIRE_MINUTES * 60)
         return generic
 
-    generic = Message(detail="If that number is registered, a reset code has been sent.")
+    generic = Message(detail="A reset code has been sent to your phone.")
     user = await db.scalar(select(User).where(User.phone == payload.phone))
     if user is None:
-        return generic
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This phone number is not registered with us.")
     code = await auth_service.create_verification_code(db, user, "password_reset")
     sent = await send_otp_sms(user.phone, code, "password_reset")
     if not sent.delivered and settings.expose_dev_phone_codes:
@@ -286,7 +294,7 @@ async def reset_password(payload: ResetPasswordRequest, db: DB, request: Request
     return Message(detail="Password updated. Please sign in with your new password.")
 
 
-@router.post("/change-password", response_model=Message)
+@router.post("/change-password", response_model=dict)
 async def change_password(payload: ChangePasswordRequest, user: CurrentUser, db: DB, request: Request):
     if not verify_password(payload.current_password, user.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
@@ -294,13 +302,19 @@ async def change_password(payload: ChangePasswordRequest, user: CurrentUser, db:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "New password must differ from the current one")
 
     user.password_hash = hash_password(payload.new_password)
-    await auth_service.revoke_all_tokens(db, user.id)
+    # This device stays signed in on a fresh session; every other one ends.
+    await auth_service.start_session(db, user, reason="password_changed")
+    tokens, raw = auth_service.issue_tokens(user)
+    await auth_service.persist_refresh_token(
+        db, user, raw, client_ip(request), request.headers.get("user-agent")
+    )
     await record_audit(
         db, action="user.change_password", actor_id=user.id,
         organization_id=user.organization_id, entity_type="user", entity_id=user.id,
         ip_address=client_ip(request),
     )
-    return Message(detail="Password changed. Other sessions have been signed out.")
+    return {"detail": "Password changed. Other sessions have been signed out.",
+            "tokens": tokens.model_dump()}
 
 
 @router.get("/me", response_model=UserOut)

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, STAFF_ROLES, CurrentUser, Paging, require_permission
+from app.api.deps import DB, STAFF_ROLES, CurrentUser, Paging, RequireAdmin, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import ClaimStatus, LFKind, LFStatus, MatchStatus, UserRole
 from app.models.identity import User
@@ -26,6 +26,7 @@ from app.schemas.lostfound import (
     LFItemListItem, LFMatchOut, MatchDecision, MatchFactorsOut,
 )
 from app.services import lostfound as lf_service
+from app.services import removal
 from app.services.audit import record_audit
 
 router = APIRouter(route_class=CommitRoute, prefix="/lost-found", tags=["Lost & Found"])
@@ -563,3 +564,14 @@ async def dashboard(user: CurrentUser, db: DB):
         pending_matches=[_match_out(m, previews) for m in match_rows],
         pending_claims=[_claim_out(c, i, u) for c, i, u in claim_rows],
     )
+
+
+@router.delete("/items/{item_id}", response_model=Message)
+async def delete_item(item_id: uuid.UUID, user: RequireAdmin, db: DB):
+    """Permanently remove a lost/found report with its photos, claims and matches."""
+    item = await db.get(LFItem, item_id)
+    if item is None or item.organization_id != user.organization_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Item not found")
+    counts = await removal.delete_lf_item(db, item, user)
+    extra = removal.describe(counts)
+    return Message(detail="Report deleted" + (f" along with {extra}." if extra else "."))

@@ -18,6 +18,7 @@ import {
 } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import AdminDeleteButton from '@/components/AdminDeleteButton'
 import { ago, dt, slaLabel, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 
@@ -239,6 +240,8 @@ export default function IssueDetail() {
             <ArrowLeft size={15} />
             Back to issues
           </Link>
+          <AdminDeleteButton path={`/issues/${id}`} queryKey={['issue', id]} backTo="/issues" noun="issue"
+            warning="Its work orders, photos, timeline and notifications are deleted with it." className="ml-3 mb-2" />
 
           <div className="flex flex-wrap items-center gap-2.5">
             <button

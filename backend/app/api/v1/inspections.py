@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, CurrentUser, Paging, require_permission
+from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import InspectionStatus, UserRole
 from app.models.identity import User
@@ -29,6 +29,7 @@ from app.schemas.work import (
 from app.models.iot import HealthEvent
 from app.core.enums import HealthEventStatus, Priority
 from app.services import inspections as svc
+from app.services import removal
 from app.services import work_orders as wo_svc
 
 router = APIRouter(route_class=CommitRoute, prefix="/inspections", tags=["Inspections"])
@@ -244,3 +245,15 @@ async def submit(
 
     return {"inspection": out.model_dump(mode="json"), "message": message,
             "raised_issues": [{"id": str(x.id), "reference": x.reference} for x in raised]}
+
+
+@router.delete("/{inspection_id}", response_model=Message)
+async def delete_inspection(inspection_id: uuid.UUID, user: RequireAdmin, db: DB):
+    """Permanently remove an inspection and its checklist results."""
+    i = await db.get(Inspection, inspection_id)
+    if i is None or i.organization_id != user.organization_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection not found")
+    reference = i.reference
+    counts = await removal.delete_inspection(db, i, user)
+    extra = removal.describe(counts)
+    return Message(detail=f"Inspection {reference} deleted" + (f" along with {extra}." if extra else "."))

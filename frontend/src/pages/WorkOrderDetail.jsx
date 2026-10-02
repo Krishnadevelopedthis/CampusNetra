@@ -10,6 +10,7 @@ import {
 import { api, upload } from '@/lib/api'
 import { ago, dt, money, slaLabel, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
+import AdminDeleteButton from '@/components/AdminDeleteButton'
 
 export default function WorkOrderDetail() {
   const { id } = useParams()
@@ -67,6 +68,8 @@ export default function WorkOrderDetail() {
           <Link to="/work-orders" className="inline-flex items-center gap-1.5 text-body-md text-ink-muted hover:text-ink mb-2">
             <ArrowLeft size={15} /> Back to work orders
           </Link>
+          <AdminDeleteButton path={`/work-orders/${id}`} queryKey={['work-order', id]} backTo="/work-orders" noun="work order"
+            warning="Its comments, photos, part requests and timeline are deleted with it." className="ml-3 mb-2" />
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="font-mono text-mono-data text-secondary">{wo.reference}</span>
             <StatusPill status={wo.status} />
