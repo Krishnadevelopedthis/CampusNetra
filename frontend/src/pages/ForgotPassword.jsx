@@ -56,7 +56,7 @@ export default function ForgotPassword() {
     return (
       <AuthShell
         title="Check your inbox"
-        subtitle={`If that ${channel === 'email' ? 'address' : 'number'} is registered, a reset code is on its way.`}
+        subtitle={`A reset code has been sent to your ${channel === 'email' ? 'email' : 'phone'}.`}
       >
         <div className="space-y-6">
           <div className="ai-surface p-4 flex gap-3">

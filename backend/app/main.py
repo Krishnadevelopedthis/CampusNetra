@@ -166,10 +166,13 @@ def _cors_headers(request: Request) -> dict[str, str]:
     }
 
 
-def _failure(request: Request, status_code: int, detail: str, ref: str | None = None) -> JSONResponse:
+def _failure(request: Request, status_code: int, detail: str, ref: str | None = None,
+             code: str | None = None) -> JSONResponse:
     body: dict[str, object] = {"detail": detail}
     if ref:
         body["reference"] = ref
+    if code:
+        body["code"] = code
     return JSONResponse(status_code=status_code, content=body, headers=_cors_headers(request))
 
 
@@ -191,6 +194,14 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
                   ref, request.method, request.url.path, exc.status_code, exc.detail)
         detail = exc.detail if isinstance(exc.detail, str) else GENERIC_ERROR
         return _failure(request, exc.status_code, detail, ref)
+    if isinstance(exc.detail, dict) and isinstance(exc.detail.get("message"), str):
+        # A machine-readable reason alongside the message (e.g. a session that
+        # ended because the account signed in elsewhere).
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail["message"], "code": exc.detail.get("code")},
+            headers={**(exc.headers or {}), **_cors_headers(request)},
+        )
     return _failure(request, exc.status_code, exc.detail if isinstance(exc.detail, str)
                     else "That request could not be completed.")
 

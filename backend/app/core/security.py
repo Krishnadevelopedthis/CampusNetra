@@ -47,19 +47,22 @@ def _create_token(subject: str, token_type: str, expires: timedelta, **claims: A
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_access_token(user_id: str, role: str, org_id: str | None = None) -> str:
+def create_access_token(
+    user_id: str, role: str, org_id: str | None = None, sid: str | None = None,
+) -> str:
     return _create_token(
         user_id,
         ACCESS_TOKEN,
         timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
         role=role,
         org=str(org_id) if org_id else None,
+        sid=sid,
     )
 
 
-def create_refresh_token(user_id: str) -> str:
+def create_refresh_token(user_id: str, sid: str | None = None) -> str:
     return _create_token(
-        user_id, REFRESH_TOKEN, timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+        user_id, REFRESH_TOKEN, timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS), sid=sid
     )
 
 

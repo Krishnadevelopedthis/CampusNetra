@@ -194,7 +194,7 @@ export function friendlyMessage(status, detail) {
 }
 
 export class ApiError extends Error {
-  constructor(status, detail, fields, reference) {
+  constructor(status, detail, fields, reference, code) {
     super(friendlyMessage(status, detail))
 
     this.name = 'ApiError'
@@ -207,10 +207,25 @@ export class ApiError extends Error {
 
     /** Correlates with the server log line, for support requests. */
     this.reference = reference || null
+
+    /** Machine-readable reason, e.g. 'session_replaced'. */
+    this.code = code || null
   }
 }
 
 let refreshInFlight = null
+
+/** Clear the stored session and go to /login, saying why when we know. */
+export function endSessionAndRedirect(code) {
+  writeAuth(null)
+
+  const reason =
+    code === 'session_replaced' ? 'other_device' : code === 'session_ended' ? 'ended' : null
+
+  if (!location.pathname.startsWith('/login')) {
+    location.assign(`/login?expired=1${reason ? `&reason=${reason}` : ''}`)
+  }
+}
 
 /**
  * Exchange the refresh token, tolerating another tab having just done the same.
@@ -287,6 +302,19 @@ async function refreshTokens() {
         return tokens.access_token
       }
 
+      // The account's session was ended on purpose (signed in on another
+      // device, signed out, password changed): not a refresh race, so do not
+      // wait around to see whether another tab rescued it.
+      let failure = null
+      try {
+        failure = await res.clone().json()
+      } catch {
+        /* no JSON body */
+      }
+      if (failure?.code === 'session_replaced' || failure?.code === 'session_ended') {
+        throw new ApiError(401, failure.detail, null, null, failure.code)
+      }
+
       // The winner's rejection reaches us before it has written its new token
       // to storage as often as not — both responses land within a few
       // milliseconds of each other. Look once, then look again after a moment
@@ -338,6 +366,7 @@ async function parseError(res) {
     detail,
     body?.fields,
     body?.reference,
+    body?.code,
   )
 }
 
@@ -448,11 +477,7 @@ export async function upload(
       // because the network was down leaves the user signed in to retry.
       if (err?.status === 0) throw err
 
-      writeAuth(null)
-
-      if (!location.pathname.startsWith('/login')) {
-        location.assign('/login?expired=1')
-      }
+      endSessionAndRedirect(err?.code)
 
       throw new ApiError(
         401,
@@ -585,11 +610,7 @@ export async function request(
       // because the network was down leaves the user signed in to retry.
       if (err?.status === 0) throw err
 
-      writeAuth(null)
-
-      if (!location.pathname.startsWith('/login')) {
-        location.assign('/login?expired=1')
-      }
+      endSessionAndRedirect(err?.code)
 
       throw new ApiError(
         401,

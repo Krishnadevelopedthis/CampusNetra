@@ -268,6 +268,8 @@ class AuthResponse(BaseModel):
     # going into this request) — lets the frontend say "Welcome" instead of
     # "Welcome back" without guessing from anything client-side.
     first_login: bool = False
+    # True when this sign-in ended the account's session on another device.
+    signed_out_other_device: bool = False
 
 
 class UpdateProfileRequest(BaseModel):

@@ -94,6 +94,16 @@ class UserHub:
     def is_online(self, user_id: str) -> bool:
         return bool(self._users.get(str(user_id)))
 
+    async def close_all(self, user_id: str, code: int = 4001) -> None:
+        """Drop every socket a user has open (their session ended elsewhere)."""
+        async with self._lock:
+            targets = list(self._users.pop(str(user_id), ()))
+        for ws in targets:
+            try:
+                await ws.close(code=code)
+            except Exception:
+                pass
+
     async def send(self, user_id: str, event: dict) -> None:
         async with self._lock:
             targets = list(self._users.get(str(user_id), ()))

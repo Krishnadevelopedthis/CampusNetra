@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import DB, Paging, RequireManager, RequireStaff, require_permission
+from app.api.deps import DB, Paging, RequireAdmin, RequireManager, RequireStaff, require_permission
 from app.core.routing import CommitRoute
 from app.core.enums import WORK_ORDER_TRANSITIONS, HealthEventStatus, Priority, UserRole, WorkOrderStatus
 from app.models.identity import Department, User
@@ -31,6 +31,7 @@ from app.schemas.work import (
     WorkOrderDetail, WorkOrderEventOut, WorkOrderListItem, WorkOrderTransition,
 )
 from app.services import work_orders as wo_service
+from app.services import removal
 
 router = APIRouter(route_class=CommitRoute, prefix="/work-orders", tags=["Work Orders"])
 
@@ -372,3 +373,13 @@ async def decide_part_request(
                  body=f"{pr.quantity} x {pr.item_name}",
                  link=f"/work-orders/{pr.work_order_id}", kind="part_request")
     return Message(detail=f"Request {pr.status}.")
+
+
+@router.delete("/{wo_id}", response_model=Message)
+async def delete_work_order(wo_id: uuid.UUID, user: RequireAdmin, db: DB):
+    """Permanently remove a work order with its comments, attachments, parts and timeline."""
+    wo = await _get_or_404(db, wo_id, user)
+    reference = wo.reference
+    counts = await removal.delete_work_order(db, wo, user)
+    extra = removal.describe(counts)
+    return Message(detail=f"Work order {reference} deleted" + (f" along with {extra}." if extra else "."))
