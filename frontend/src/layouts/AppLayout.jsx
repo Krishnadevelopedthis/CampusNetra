@@ -15,7 +15,7 @@ import { api, connectNotifications } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { searchProfileIndex } from '@/lib/profileSearchIndex'
-import { navFor } from './nav'
+import { navFor, navLeaves } from './nav'
 import { Sidebar } from './Sidebar'
 
 function useOutsideClick(ref, handler) {
@@ -355,7 +355,7 @@ export default function AppLayout() {
   // nothing highlighted. The rule that actually holds is longest match wins —
   // the most specific nav item containing the current path is the active one.
   const activePath = useMemo(() => {
-    const matches = items.filter(
+    const matches = navLeaves(items).filter(
       (i) => location.pathname === i.to || location.pathname.startsWith(`${i.to}/`),
     )
     return matches.sort((a, b) => b.to.length - a.to.length)[0]?.to ?? null
