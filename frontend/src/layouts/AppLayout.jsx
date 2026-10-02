@@ -15,6 +15,7 @@ import { api, connectNotifications } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { searchProfileIndex } from '@/lib/profileSearchIndex'
+import { usePermissions } from '@/lib/permissions'
 import { navFor, navLeaves } from './nav'
 import { Sidebar } from './Sidebar'
 
@@ -348,7 +349,8 @@ export default function AppLayout() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
   const location = useLocation()
-  const items = navFor(user?.role)
+  const { perms } = usePermissions()
+  const items = useMemo(() => navFor(user?.role, perms), [user?.role, perms])
 
   // NavLink's own matching cannot express this: prefix mode lights up both
   // /issues and /issues/new at once, while exact mode leaves /issues/:id with

@@ -569,3 +569,15 @@ button,
 @media (max-width: 639px) {
   .app-footer { align-items: flex-start; flex-direction: column; }
 }
+
+/* Table values are centred in every table; the first column (the row's
+   name or label) stays left-aligned so rows still scan easily. Overrides
+   per-cell text-left/text-right utilities. */
+.table thead th,
+.table tbody td {
+  text-align: center !important;
+}
+.table thead th:first-child,
+.table tbody td:first-child {
+  text-align: left !important;
+}

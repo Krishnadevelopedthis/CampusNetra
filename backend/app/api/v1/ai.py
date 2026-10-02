@@ -29,6 +29,11 @@ router = APIRouter(route_class=CommitRoute, prefix="/ai", tags=["AI & Intelligen
 
 OPEN_ISSUES = [IssueStatus.REPORTED, IssueStatus.TRIAGED, IssueStatus.ASSIGNED,
                IssueStatus.IN_PROGRESS, IssueStatus.ON_HOLD]
+# Issues whose category is final: resolved without being reclassified means
+# the AI's pick was right.
+SETTLED_ISSUES = [IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED]
+# Tasks with a right answer to score. The assistant's free-form replies have none.
+MEASURABLE_TASKS = {"classify_issue", "match_lost_found"}
 
 
 class AssistantRequest(BaseModel):
@@ -365,6 +370,32 @@ async def ai_performance(user: RequireManager, db: DB, days: int = Query(30, ge=
             select(func.count(), func.sum(func.cast(AIFeedback.was_correct, func.count().type)))
             .where(AIFeedback.task == task, AIFeedback.created_at >= since))).first()
         reviewed, correct = (feedback[0] or 0), (feedback[1] or 0)
+        measurable = task in MEASURABLE_TASKS
+
+        if task == "classify_issue":
+            # Outcomes are a review too: staff changing the AI's category marks
+            # it wrong; an issue that reached resolution with the AI's category
+            # untouched marks it right. Counted on top of explicit feedback.
+            outcome = (await db.execute(
+                select(
+                    func.count().filter(Issue.was_reclassified.is_(True)),
+                    func.count().filter(
+                        Issue.was_reclassified.is_(False),
+                        Issue.status.in_(SETTLED_ISSUES),
+                    ),
+                    func.avg(Issue.ai_confidence),
+                )
+                .where(
+                    Issue.organization_id == user.organization_id,
+                    Issue.ai_classified_at.isnot(None),
+                    Issue.ai_classified_at >= since,
+                )
+            )).one()
+            wrong, right, issue_conf = outcome
+            reviewed += (wrong or 0) + (right or 0)
+            correct += right or 0
+            avg_conf = avg_conf or issue_conf
+
         tasks.append({
             "task": task,
             "invocations": count,
@@ -373,6 +404,10 @@ async def ai_performance(user: RequireManager, db: DB, days: int = Query(30, ge=
             "fallback_rate": round((fallbacks or 0) / count, 3) if count else 0,
             "human_reviewed": reviewed,
             "accuracy": round(correct / reviewed, 3) if reviewed else None,
+            # False for free-form tasks like the assistant: there is no single
+            # right answer to score, so the UI shows "n/a" rather than
+            # "unreviewed" forever.
+            "accuracy_measurable": measurable,
         })
 
     return {

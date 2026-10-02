@@ -5,6 +5,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
 import { ConfirmDialogHost, RingLoader, Toaster } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
+import { usePermissions } from '@/lib/permissions'
 import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
 
 // Auth screens load eagerly — they are the entry point.
@@ -132,11 +133,12 @@ const Solutions = lazy(() => import('@/pages/marketing/Solutions'))
  * Actual authorization/security must still be enforced by
  * the FastAPI backend.
  */
-function RequireAuth({ children, roles }) {
+function RequireAuth({ children, roles, perm }) {
   const { user, initialised } = useAuth()
   const location = useLocation()
+  const { perms, loading: permsLoading } = usePermissions()
 
-  if (!initialised) {
+  if (!initialised || (perm && user && permsLoading)) {
     return (
       <RingLoader
         label="Restoring your session…"
@@ -153,6 +155,13 @@ function RequireAuth({ children, roles }) {
         replace
       />
     )
+  }
+
+  // A page tied to a permission follows Admin → Roles: granted means allowed,
+  // whatever the role. If permissions couldn't be loaded, fall back to roles.
+  if (perm && perms) {
+    if (!perms.includes(perm)) return <Navigate to="/403" replace />
+    return children
   }
 
   if (roles && !roles.includes(user.role)) {
@@ -410,7 +419,7 @@ export default function App() {
               <Route
                 path="/issues"
                 element={
-                  <RequireAuth
+                  <RequireAuth perm="issues:view"
                     roles={[
                       'student',
                       'teacher',
@@ -428,7 +437,7 @@ export default function App() {
               <Route
                 path="/issues/new"
                 element={
-                  <RequireAuth
+                  <RequireAuth perm="issues:create"
                     roles={[
                       'student',
                       'teacher',
@@ -459,7 +468,7 @@ export default function App() {
               <Route
                 path="/issues/map"
                 element={
-                  <RequireAuth
+                  <RequireAuth perm="issues:view"
                     roles={[
                       'facility_manager',
                       'admin',
@@ -475,7 +484,7 @@ export default function App() {
               <Route
                 path="/issues/:id"
                 element={
-                  <RequireAuth
+                  <RequireAuth perm="issues:view"
                     roles={[
                       'student',
                       'teacher',
@@ -563,7 +572,7 @@ export default function App() {
               <Route
                 path="/assets"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="assets:view" roles={STAFF}>
                     <AssetList />
                   </RequireAuth>
                 }
@@ -572,7 +581,7 @@ export default function App() {
               <Route
                 path="/assets/:id"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="assets:view" roles={STAFF}>
                     <AssetDetail />
                   </RequireAuth>
                 }
@@ -585,7 +594,7 @@ export default function App() {
               <Route
                 path="/work-orders"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="work_orders:view" roles={STAFF}>
                     <WorkOrderList />
                   </RequireAuth>
                 }
@@ -594,7 +603,7 @@ export default function App() {
               <Route
                 path="/work-orders/board"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="work_orders:view" roles={STAFF}>
                     <WorkOrderBoard />
                   </RequireAuth>
                 }
@@ -603,7 +612,7 @@ export default function App() {
               <Route
                 path="/work-orders/:id"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="work_orders:view" roles={STAFF}>
                     <WorkOrderDetail />
                   </RequireAuth>
                 }
@@ -616,7 +625,7 @@ export default function App() {
               <Route
                 path="/inspections"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="inspections:view" roles={STAFF}>
                     <Inspections />
                   </RequireAuth>
                 }
@@ -625,7 +634,7 @@ export default function App() {
               <Route
                 path="/inspections/:id"
                 element={
-                  <RequireAuth roles={STAFF}>
+                  <RequireAuth perm="inspections:view" roles={STAFF}>
                     <InspectionDetail />
                   </RequireAuth>
                 }
@@ -657,7 +666,7 @@ export default function App() {
               <Route
                 path="/analytics"
                 element={
-                  <RequireAuth roles={MANAGER}>
+                  <RequireAuth perm="analytics:view" roles={MANAGER}>
                     <Analytics />
                   </RequireAuth>
                 }
@@ -671,7 +680,7 @@ export default function App() {
               <Route
                 path="/simulation"
                 element={
-                  <RequireAuth roles={MANAGER}>
+                  <RequireAuth perm="analytics:simulate" roles={MANAGER}>
                     <Analytics defaultTab="simulation" />
                   </RequireAuth>
                 }

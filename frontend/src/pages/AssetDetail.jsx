@@ -243,6 +243,23 @@ export default function AssetDetail() {
             </dl>
           </Widget>
 
+          <Widget title={<span className="flex items-center gap-2"><MapPin size={17} /> Installed at</span>}>
+            {data.room ? (
+              <dl className="space-y-3">
+                <Row label="Campus" value={data.room.campus_name} />
+                <Row label="Building" value={data.room.building} />
+                <Row label="Floor" value={data.room.floor} />
+                <Row label="Room" value={
+                  <span>{data.room.name} <span className="font-mono text-mono-data text-ink-faint">({data.room.code})</span></span>
+                } />
+              </dl>
+            ) : (
+              <p className="text-body-sm text-warning-text">
+                Not assigned to a room — edit the asset and pick its room so it appears on the twin and map.
+              </p>
+            )}
+          </Widget>
+
           <Widget title={<span className="flex items-center gap-2"><ShieldCheck size={17} /> Lifecycle</span>}>
             <dl className="space-y-3">
               <Row label="Warranty" value={
