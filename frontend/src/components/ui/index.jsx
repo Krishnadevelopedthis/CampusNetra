@@ -1,9 +1,11 @@
 import clsx from 'clsx'
-import { AlertCircle, Check, ChevronDown, Eye, EyeOff, Loader2, Lock, RefreshCw, X } from 'lucide-react'
+import {
+  AlertCircle, AlertTriangle, Check, CheckCircle2, ChevronDown, Eye, EyeOff, Info, Loader2, Lock,
+  RefreshCw, X, XCircle,
+} from 'lucide-react'
 import { Children, cloneElement, forwardRef, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { GooeyToaster, gooeyToast } from 'goey-toast'
-import 'goey-toast/styles.css'
+import { Toaster as SonnerToaster, toast as sonnerToast } from 'sonner'
 
 import { PRIORITY_STYLE, STATUS_STYLE, initials, titleCase } from '@/lib/format'
 import { SkeletonRows } from '@/components/Skeletons'
@@ -115,27 +117,50 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
 }
 
 /* ---------------- Toast ----------------
- * goey-toast (gooey/morphing pill, built on Sonner + Framer Motion) in
- * place of the old plain DOM-node toast -- same call shape everywhere it's
- * used (toast.success(title, description) etc), so no call site changed.
- * Colors are pinned to the app's own success/danger/warning/secondary
- * tokens rather than the library's defaults, so a toast reads as part of
- * CampusNetra's own UI instead of a generic drop-in widget. */
-const TOAST_ACCENT = {
-  default: 'rgb(var(--c-secondary))',
-  success: 'rgb(var(--c-success))',
-  danger: 'rgb(var(--c-danger))',
-  warning: 'rgb(var(--c-warning))',
+ * Sonner for queueing, stacking and swipe-to-dismiss, with our own card as
+ * the toast itself: a rounded rectangle on the theme's surface colour, the
+ * status colour (green/red/amber/accent) used only for the border and icon,
+ * and theme text colours for the content. Same call shape everywhere:
+ * toast.success(title, description) etc. */
+const TOAST_STYLE = {
+  default: { color: 'rgb(var(--c-secondary))', Icon: Info, duration: 4000 },
+  success: { color: 'rgb(var(--c-success))', Icon: CheckCircle2, duration: 4000 },
+  danger: { color: 'rgb(var(--c-danger))', Icon: XCircle, duration: 6000 },
+  warning: { color: 'rgb(var(--c-warning))', Icon: AlertTriangle, duration: 5000 },
+}
+
+function ToastCard({ id, title, description, variant, time }) {
+  const { color, Icon } = TOAST_STYLE[variant] || TOAST_STYLE.default
+  return (
+    <div
+      role={variant === 'danger' ? 'alert' : 'status'}
+      className="flex w-[min(360px,calc(100vw-2rem))] items-start gap-3 rounded-xl border-2 bg-surface px-4 py-3 text-left shadow-level3"
+      style={{ borderColor: color }}
+    >
+      <Icon size={18} className="mt-0.5 shrink-0" style={{ color }} />
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-body-md font-semibold text-ink">{title}</p>
+        {description && <div className="mt-0.5 break-words text-body-sm text-ink-muted">{description}</div>}
+      </div>
+      <span className="mt-0.5 shrink-0 text-[11px] tabular-nums text-ink-faint">{time}</span>
+      <button
+        type="button"
+        onClick={() => sonnerToast.dismiss(id)}
+        aria-label="Dismiss notification"
+        className="-mr-1 -mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md text-ink-faint transition-colors hover:bg-surface-sunken hover:text-ink"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  )
 }
 
 function createToast(title, description, variant = 'default') {
-  const fn = { success: gooeyToast.success, danger: gooeyToast.error, warning: gooeyToast.warning }[variant]
-    || gooeyToast.info
-  fn(title, {
-    description,
-    fillColor: 'rgb(var(--c-surface))',
-    borderColor: TOAST_ACCENT[variant] || TOAST_ACCENT.default,
-  })
+  const time = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
+  sonnerToast.custom(
+    (id) => <ToastCard id={id} title={title} description={description} variant={variant} time={time} />,
+    { duration: (TOAST_STYLE[variant] || TOAST_STYLE.default).duration },
+  )
 }
 
 export const toast = {
@@ -150,19 +175,13 @@ export const toast = {
 export function Toaster() {
   const theme = useTheme((s) => s.resolved)
   return (
-    <GooeyToaster
+    <SonnerToaster
       position="top-right"
       theme={theme === 'dark' ? 'dark' : 'light'}
-      preset="smooth"
-      // A bare `true` here left the close button's left/right side picked
-      // by a comparison against a string it never was, "top-right" in this
-      // case, putting it on the same side as the toast's own type icon --
-      // two X-shaped icons squashed together on the left of an error toast,
-      // reading as one broken duplicate rather than two distinct controls.
-      // Naming the side explicitly, matching the toaster's own position,
-      // fixes both that and the button moving around between toasts.
-      closeButton="top-right"
-      richColors={false}
+      gap={10}
+      offset={16}
+      visibleToasts={4}
+      toastOptions={{ unstyled: true }}
     />
   )
 }
