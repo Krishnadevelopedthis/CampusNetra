@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_MINUTES: int = 15
 
+    # Who may approve institution registrations: a comma-separated list of admin
+    # email addresses. Blank means any administrator may.
+    PLATFORM_ADMIN_EMAILS: str = ""
+
+    @property
+    def platform_admin_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.PLATFORM_ADMIN_EMAILS.split(",") if e.strip()}
+
     # Captcha (login + forgot-password). Stateless JWT-backed image challenge —
     # no DB table, no third-party service, reuses SECRET_KEY.
     CAPTCHA_EXPIRE_MINUTES: int = 5

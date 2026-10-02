@@ -1,6 +1,7 @@
 """Registration, login, token rotation and OTP verification."""
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -17,12 +18,12 @@ from app.core.security import (
     generate_otp, hash_password, sha256, verify_password, REFRESH_TOKEN,
 )
 from app.models.identity import (
-    AcademicProgramme, Department, Organization, RefreshToken, User, VerificationCode,
+    AcademicProgramme, Department, InstitutionRequest, Organization, RefreshToken, User, VerificationCode,
 )
 from app.models.issues import IssueCategory
 from app.schemas.auth import RegisterRequest, TokenPair
 from app.services.audit import record_login
-from app.services.email import send_otp
+from app.services.email import SendResult, send_otp
 
 # Roles a person may pick for themselves. Elevated roles are provisioned by an admin.
 SELF_SERVICE_ROLES = {UserRole.STUDENT, UserRole.TEACHER, UserRole.TECHNICIAN}
@@ -262,16 +263,9 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
             raise HTTPException(status.HTTP_403_FORBIDDEN, rejection)
 
     if payload.organization_name:
-        # Enterprise/college registration: the signer-up becomes that tenant's admin.
-        org = Organization(
-            name=payload.organization_name,
-            contact_email=payload.email,
-            slug=payload.organization_name.lower().replace(" ", "-")[:60],
-        )
-        db.add(org)
-        await db.flush()
-        org_id = org.id
-        role = UserRole.ADMIN
+        # An institution is never created from here: it is requested, then
+        # approved by a platform administrator (submit_institution_request).
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Institution registration must be requested.")
     elif role not in SELF_SERVICE_ROLES:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
@@ -534,3 +528,96 @@ async def revoke_all_tokens(db: AsyncSession, user_id: uuid.UUID) -> None:
         update(User).where(User.id == user_id)
         .values(session_id=uuid.uuid4(), session_end_reason="revoked")
     )
+
+
+# ---------------- Institution registration (needs approval) ----------------
+
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return (slug or "institution")[:60]
+
+
+async def is_platform_admin(db: AsyncSession, user: User) -> bool:
+    """May this person decide institution requests? Any administrator, unless
+    PLATFORM_ADMIN_EMAILS names specific people — then only those."""
+    if user.role not in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+        return False
+    allowed = settings.platform_admin_emails
+    return not allowed or user.email.lower() in allowed
+
+
+async def submit_institution_request(db: AsyncSession, payload: RegisterRequest) -> InstitutionRequest:
+    """File a request to register an institution. Creates no organization and no
+    account — that happens only if a platform administrator approves."""
+    name = " ".join((payload.organization_name or "").split())
+    if len(name) < 3:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Enter the full name of the institution.")
+
+    if await db.scalar(select(User.id).where(User.email == payload.email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists")
+    if await db.scalar(select(InstitutionRequest.id).where(
+            func.lower(InstitutionRequest.email) == payload.email.lower(),
+            InstitutionRequest.status == "pending")):
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "A request from this email is already waiting for approval.")
+    if await db.scalar(select(Organization.id).where(func.lower(Organization.name) == name.lower())):
+        raise HTTPException(status.HTTP_409_CONFLICT, "An institution with this name is already registered.")
+
+    req = InstitutionRequest(
+        institution_name=name, full_name=payload.full_name, email=payload.email,
+        phone=payload.phone, designation=payload.designation,
+        password_hash=hash_password(payload.password),
+    )
+    db.add(req)
+    await db.flush()
+    return req
+
+
+async def approve_institution_request(
+    db: AsyncSession, req: InstitutionRequest, decider: User, note: Optional[str],
+) -> tuple[Organization, User, str, SendResult]:
+    """Create the organization and its first administrator. The account still has
+    to verify its email, so the applicant proves they own the address before
+    they can sign in."""
+    if req.status != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, f"This request was already {req.status}.")
+    if await db.scalar(select(User.id).where(User.email == req.email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "An account with this email already exists.")
+
+    slug, n = _slugify(req.institution_name), 1
+    while await db.scalar(select(Organization.id).where(Organization.slug == slug)):
+        n += 1
+        slug = f"{_slugify(req.institution_name)[:55]}-{n}"
+
+    org = Organization(name=req.institution_name, contact_email=req.email, slug=slug)
+    db.add(org)
+    await db.flush()
+
+    user = User(
+        email=req.email, password_hash=req.password_hash, full_name=req.full_name,
+        role=UserRole.ADMIN, phone=req.phone, designation=req.designation,
+        organization_id=org.id, status=UserStatus.PENDING_VERIFICATION,
+    )
+    db.add(user)
+    await db.flush()
+
+    req.status = "approved"
+    req.decided_by = decider.id
+    req.decided_at = _now()
+    req.decision_note = note
+    req.organization_id = org.id
+
+    code = await create_verification_code(db, user, "email_verify")
+    sent = await send_otp(user.email, user.full_name, code, "email_verify")
+    return org, user, code, sent
+
+
+async def reject_institution_request(
+    db: AsyncSession, req: InstitutionRequest, decider: User, note: Optional[str],
+) -> None:
+    if req.status != "pending":
+        raise HTTPException(status.HTTP_409_CONFLICT, f"This request was already {req.status}.")
+    req.status = "rejected"
+    req.decided_by = decider.id
+    req.decided_at = _now()
+    req.decision_note = note
