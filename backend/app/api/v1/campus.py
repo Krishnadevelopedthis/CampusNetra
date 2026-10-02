@@ -1089,6 +1089,13 @@ async def update_asset(
     asset = await _get_asset_or_404(db, asset_id, user)
 
     data = payload.model_dump(exclude_unset=True)
+    # Every asset lives in a room: an asset without one has no place on the
+    # twin or map. Moving is fine, unassigning is not.
+    if "room_id" in data:
+        if data["room_id"] is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                "An asset must stay assigned to a room.")
+        await _get_room_or_404(db, data["room_id"], user)
     if "tag" in data and data["tag"] != asset.tag:
         clash = await db.scalar(
             select(Asset.id).where(Asset.tag == data["tag"], Asset.id != asset_id))

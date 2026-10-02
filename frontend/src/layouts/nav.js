@@ -154,7 +154,58 @@ export function navLeaves(items) {
   return items.flatMap((i) => i.children || [i])
 }
 
-export function navFor(role) {
+/** Permission each module page needs (matches the backend's route guards). */
+export const ROUTE_PERMISSIONS = {
+  '/issues': 'issues:view',
+  '/issues/new': 'issues:create',
+  '/issues/map': 'issues:view',
+  '/work-orders': 'work_orders:view',
+  '/work-orders/board': 'work_orders:view',
+  '/inspections': 'inspections:view',
+  '/assets': 'assets:view',
+  '/analytics': 'analytics:view',
+  '/simulation': 'analytics:simulate',
+  '/lost-found': 'lost_found:view',
+}
+
+/** Modules added to any role's sidebar once that role is granted them. */
+const GRANTABLE = [
+  { to: '/issues', label: 'Issues', icon: Activity },
+  { to: '/assets', label: 'Assets', icon: Package },
+  { to: '/work-orders', label: 'Work Orders', icon: Wrench },
+  { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
+  { to: '/lost-found', label: 'Lost & Found', icon: Search },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/simulation', label: 'Simulation', icon: Cpu },
+]
+
+/**
+ * Sidebar for a role, driven by the permissions granted in Admin → Roles:
+ * the role's usual menu minus modules whose permission was revoked, plus any
+ * permitted module the menu doesn't already have. Without `perms` (still
+ * loading) the role's usual menu is returned unchanged.
+ */
+export function navFor(role, perms) {
+  const base = baseNavFor(role)
+  if (!perms) return base
+  const allowed = (to) => !ROUTE_PERMISSIONS[to] || perms.includes(ROUTE_PERMISSIONS[to])
+
+  const filtered = base
+    .map((item) => {
+      if (!item.children) return item
+      const children = item.children.filter((c) => allowed(c.to))
+      return { ...item, children, to: allowed(item.to) ? item.to : children[0]?.to }
+    })
+    .filter((item) => (item.children ? item.children.length > 0 : allowed(item.to)))
+
+  const present = new Set(navLeaves(filtered).map((l) => l.to))
+  const extras = GRANTABLE.filter((g) => allowed(g.to) && !present.has(g.to))
+
+  const history = filtered[filtered.length - 1]?.to === '/history' ? filtered.pop() : null
+  return [...filtered, ...extras, ...(history ? [history] : [])]
+}
+
+function baseNavFor(role) {
   switch (role) {
     case 'technician':
       return [...COMMON, ...TECHNICIAN, HISTORY_LINK]

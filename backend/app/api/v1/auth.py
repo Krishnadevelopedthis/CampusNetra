@@ -19,7 +19,9 @@ from app.core.security import (
     create_captcha_token, generate_captcha_text, hash_password, verify_captcha_token,
     verify_password,
 )
-from app.models.identity import AcademicProgramme, Department, NameChangeRequest, User
+from app.models.identity import (
+    AcademicProgramme, Department, NameChangeRequest, Permission, RolePermission, User,
+)
 from app.models.issues import IssueCategory
 from app.schemas.auth import (
     AuthResponse, CaptchaOut, ChangeEmailRequest, ChangePasswordRequest, ChangePhoneRequest,
@@ -304,6 +306,20 @@ async def change_password(payload: ChangePasswordRequest, user: CurrentUser, db:
 @router.get("/me", response_model=UserOut)
 async def me(user: CurrentUser):
     return UserOut.model_validate(user)
+
+
+@router.get("/me/permissions", response_model=dict)
+async def my_permissions(user: CurrentUser, db: DB):
+    """Permission codes granted to the caller's role (Admin → Roles → Manage).
+    The frontend builds the sidebar and page access from this, so what an
+    admin grants or revokes there is what the user actually gets."""
+    codes = (await db.scalars(
+        select(Permission.code)
+        .join(RolePermission, RolePermission.permission_id == Permission.id)
+        .where(RolePermission.role == user.role)
+        .order_by(Permission.code)
+    )).all()
+    return {"role": user.role.value, "permissions": list(codes)}
 
 
 @router.patch("/me", response_model=UserOut)

@@ -119,7 +119,9 @@ export default function AdminAI() {
                         <span className={t.accuracy >= 0.8 ? 'text-success-text' : 'text-warning-text'}>
                           {Math.round(t.accuracy * 100)}%
                         </span>
-                      ) : <span className="text-ink-faint">unreviewed</span>}
+                      ) : t.accuracy_measurable === false ? (
+                        <span className="text-ink-faint" title="Free-form replies have no single right answer to score">n/a</span>
+                      ) : <span className="text-ink-faint" title="Scored once results are reviewed or issues are resolved">not yet scored</span>}
                     </td>
                   </tr>
                 ))}
