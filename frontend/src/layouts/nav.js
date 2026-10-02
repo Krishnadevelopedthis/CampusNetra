@@ -49,35 +49,6 @@ const MANAGER = [
   { to: '/simulation', label: 'Simulation', icon: Cpu },
 ]
 
-const ADMIN = [
-  { to: '/map', label: 'Campus Map', icon: MapPinned },
-  { to: '/twin', label: 'Digital Twin', icon: Boxes },
-  { to: '/replay', label: 'Event Replay', icon: History },
-  { to: '/assets', label: 'Assets', icon: Package },
-  { to: '/issues', label: 'Issues', icon: Activity },
-  { to: '/issues/map', label: 'Issue Map', icon: MapPinned },
-  { to: '/work-orders', label: 'Work Orders', icon: Wrench },
-  { to: '/lost-found', label: 'Lost & Found', icon: Search },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
-  { to: '/admin', label: 'Administration', icon: Settings },
-  { to: '/admin/health', label: 'Health', icon: HeartPulse },
-]
-
-export function navFor(role) {
-  switch (role) {
-    case 'technician':
-      return [...COMMON, ...TECHNICIAN, HISTORY_LINK]
-    case 'facility_manager':
-      return [...COMMON, ...MANAGER, HISTORY_LINK]
-    case 'admin':
-    case 'super_admin':
-      return [...COMMON, ...ADMIN, HISTORY_LINK]
-    default:
-      return [...COMMON, ...REPORTER, HISTORY_LINK]
-  }
-}
-
 /** Sub-navigation inside the Administration section. */
 export const ADMIN_NAV = [
   { to: '/admin', label: 'Overview', icon: Gauge, end: true },
@@ -98,3 +69,101 @@ export const ADMIN_NAV = [
   { to: '/admin/sla', label: 'SLA Policies', icon: Shield },
   { to: '/admin/audit', label: 'Audit & Security', icon: ShieldAlert },
 ]
+
+const adminTab = (to) => ADMIN_NAV.find((t) => t.to === to)
+
+/**
+ * Admin sidebar. Items with `children` are collapsible groups: the
+ * Administration tabs live under the module they configure (Assets ->
+ * Asset Registry, Create Asset QR, ...), and the module's own page is the
+ * group's first entry.
+ */
+const ADMIN = [
+  {
+    to: '/map', label: 'Campus Map', icon: MapPinned,
+    children: [
+      { to: '/map', label: 'Campus Map', icon: MapPinned },
+      adminTab('/admin/campus'),
+      adminTab('/admin/floor-plans'),
+    ],
+  },
+  {
+    to: '/twin', label: 'Digital Twin', icon: Boxes,
+    children: [
+      { to: '/twin', label: 'Digital Twin', icon: Boxes },
+      adminTab('/admin/twin-config'),
+    ],
+  },
+  { to: '/replay', label: 'Event Replay', icon: History },
+  {
+    to: '/assets', label: 'Assets', icon: Package,
+    children: [
+      { to: '/assets', label: 'All Assets', icon: Package },
+      adminTab('/admin/assets'),
+      adminTab('/admin/assets/qr'),
+      adminTab('/admin/predictive'),
+      adminTab('/admin/costs'),
+    ],
+  },
+  {
+    to: '/issues', label: 'Issues', icon: Activity,
+    children: [
+      { to: '/issues', label: 'All Issues', icon: Activity },
+      adminTab('/admin/issue-config'),
+      adminTab('/admin/sla'),
+    ],
+  },
+  { to: '/issues/map', label: 'Issue Map', icon: MapPinned },
+  {
+    to: '/work-orders', label: 'Work Orders', icon: Wrench,
+    children: [
+      { to: '/work-orders', label: 'All Work Orders', icon: Wrench },
+      adminTab('/admin/workorder-config'),
+    ],
+  },
+  {
+    to: '/lost-found', label: 'Lost & Found', icon: Search,
+    children: [
+      { to: '/lost-found', label: 'Lost & Found', icon: Search },
+      adminTab('/admin/lost-found'),
+    ],
+  },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  {
+    to: '/inspections', label: 'Inspections', icon: ClipboardCheck,
+    children: [
+      { to: '/inspections', label: 'All Inspections', icon: ClipboardCheck },
+      adminTab('/admin/inspection-config'),
+    ],
+  },
+  {
+    to: '/admin', label: 'Administration', icon: Settings,
+    children: [
+      adminTab('/admin'),
+      adminTab('/admin/users'),
+      adminTab('/admin/ai'),
+      adminTab('/admin/notifications'),
+      adminTab('/admin/audit'),
+    ],
+  },
+  { to: '/admin/health', label: 'Health', icon: HeartPulse },
+]
+
+/** Every navigable route in a nav list, with groups flattened. */
+export function navLeaves(items) {
+  return items.flatMap((i) => i.children || [i])
+}
+
+export function navFor(role) {
+  switch (role) {
+    case 'technician':
+      return [...COMMON, ...TECHNICIAN, HISTORY_LINK]
+    case 'facility_manager':
+      return [...COMMON, ...MANAGER, HISTORY_LINK]
+    case 'admin':
+    case 'super_admin':
+      return [...COMMON, ...ADMIN, HISTORY_LINK]
+    default:
+      return [...COMMON, ...REPORTER, HISTORY_LINK]
+  }
+}

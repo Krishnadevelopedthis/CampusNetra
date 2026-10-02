@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import {
-  Clock, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, X,
+  ChevronRight, Clock, HelpCircle, Moon, PanelLeftClose, PanelLeftOpen, Settings, Sun, X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, NavLink } from 'react-router-dom'
 
@@ -59,6 +59,88 @@ function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
         document.body,
       )}
     </>
+  )
+}
+
+/**
+ * A collapsible group (e.g. Assets → All Assets, Asset Registry, Create
+ * Asset QR). Clicking the row toggles it; it opens on its own when the
+ * current page is one of its entries. When the rail is collapsed it shows
+ * as a single icon linking to the group's main page.
+ */
+function NavGroup({ item, activePath, collapsed, onNavigate }) {
+  const childActive = item.children.some((c) => c.to === activePath)
+  const [open, setOpen] = useState(childActive)
+  useEffect(() => { if (childActive) setOpen(true) }, [childActive])
+
+  if (collapsed) {
+    return (
+      <NavItem
+        to={item.to} icon={item.icon} label={item.label}
+        active={childActive} collapsed onNavigate={onNavigate}
+      />
+    )
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className={clsx(
+          'flex h-10 w-full items-center gap-3 overflow-hidden rounded-xl px-[15px] text-body-md font-medium transition-colors',
+          childActive && !open
+            ? 'bg-surface-sunken text-ink'
+            : childActive ? 'text-ink' : 'text-ink-muted hover:bg-surface-sunken/60 hover:text-ink',
+        )}
+      >
+        <item.icon size={17} className={clsx('shrink-0', childActive && 'text-secondary')} />
+        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left">{item.label}</span>
+        <ChevronRight
+          size={15}
+          className={clsx(
+            'shrink-0 text-ink-faint transition-transform duration-200 motion-reduce:transition-none',
+            open && 'rotate-90',
+          )}
+        />
+      </button>
+      {/* grid-rows 0fr → 1fr animates to the content's real height */}
+      <div
+        className={clsx(
+          'grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="overflow-hidden" aria-hidden={!open}>
+          <div className="ml-[23px] space-y-0.5 border-l border-border-subtle py-1 pl-3">
+            {item.children.map((c) => {
+              const active = c.to === activePath
+              return (
+                <NavLink
+                  key={c.to}
+                  to={c.to}
+                  end
+                  tabIndex={open ? undefined : -1}
+                  onClick={onNavigate}
+                  className={clsx(
+                    'relative flex h-8 items-center rounded-lg px-2.5 text-body-sm transition-colors',
+                    active
+                      ? 'bg-surface-sunken font-medium text-ink'
+                      : 'text-ink-muted hover:bg-surface-sunken/60 hover:text-ink',
+                  )}
+                >
+                  {active && (
+                    <span className="absolute -left-[13px] top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-secondary" />
+                  )}
+                  <span className="truncate">{c.label}</span>
+                </NavLink>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -184,12 +266,17 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
       <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-2">
         <SectionLabel collapsed={isCollapsed}>Navigation</SectionLabel>
         <div className="space-y-0.5">
-          {navigation.map((item) => (
+          {navigation.map((item) => (item.children ? (
+            <NavGroup
+              key={item.to} item={item} activePath={activePath}
+              collapsed={isCollapsed} onNavigate={onNavigate}
+            />
+          ) : (
             <NavItem
               key={item.to} {...item} collapsed={isCollapsed}
               active={item.to === activePath} onNavigate={onNavigate}
             />
-          ))}
+          )))}
         </div>
         <SectionLabel collapsed={isCollapsed}>Account</SectionLabel>
         <div className="space-y-0.5">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { ADMIN_NAV } from '@/layouts/nav'
+import { useAuth } from '@/lib/auth'
 
 // How far one click of the arrow moves the strip — enough to reveal a
 // couple more tabs without jumping so far it's disorienting.
@@ -14,6 +15,10 @@ export default function AdminLayout() {
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
   const location = useLocation()
+  const role = useAuth((st) => st.user?.role)
+  // Admins reach every one of these tabs from the sidebar's sub-menus, so the
+  // strip is only shown to other roles that can open this section.
+  const showTabs = !['admin', 'super_admin'].includes(role)
 
   const updateScrollState = () => {
     const el = scrollerRef.current
@@ -71,6 +76,7 @@ export default function AdminLayout() {
           fold — strip-scroll hides its own scrollbar by design, so without
           these arrows the only way to reach the last tab was an
           undiscoverable trackpad/shift-wheel swipe. */}
+      {showTabs && (
       <div className="relative border-b border-border-subtle no-print">
         {canScrollLeft && (
           <>
@@ -119,6 +125,7 @@ export default function AdminLayout() {
           </>
         )}
       </div>
+      )}
 
       <Outlet />
     </div>
