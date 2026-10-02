@@ -20,6 +20,7 @@ from app.core.enums import AssetState, IssueStatus, RoomKind
 from app.core.security import decode_token
 from app.models.identity import Organization, User
 from app.models.issues import Issue, IssueCategory
+from app.models.iot import AssetSensorMapping, IoTDevice
 from app.models.spatial import (
     Asset, AssetCategory, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent,
 )
@@ -1106,6 +1107,24 @@ async def update_asset(
     for field, value in data.items():
         setattr(asset, field, value)
     await db.flush()
+
+    # Keep IoT sensor links in step with where the asset now is and what it
+    # is: drop links to an ESP32 in a different room, then let the new
+    # room's ESP32 (if any) pick it up as its fan/light.
+    if data.keys() & {"room_id", "category_id", "name"}:
+        links = (await db.execute(
+            select(AssetSensorMapping, IoTDevice.room_id)
+            .join(IoTDevice, IoTDevice.id == AssetSensorMapping.device_id)
+            .where(AssetSensorMapping.asset_id == asset.id)
+        )).all()
+        for link, device_room in links:
+            if device_room != asset.room_id:
+                await db.delete(link)
+        await db.flush()
+        category = await db.get(AssetCategory, asset.category_id)
+        await auto_map_room_sensors(db, asset.room_id, user.organization_id, category, [asset])
+        await db.flush()
+
     await db.refresh(asset)
     return AssetOut.model_validate(asset)
 

@@ -76,13 +76,37 @@ def _category_match(category, keyword: str) -> bool:
     return re.search(r"\b" + re.escape(keyword) + r"\b", category.name.lower()) is not None
 
 
+# Words in an asset's own name that identify it as the room's fan or light,
+# so a "Ceiling Fan" registered under e.g. "Air Conditioning / Fans" or
+# "Electrical" is still recognised.
+_NAME_WORDS = {
+    "fan": ("fan", "fans"),
+    "light": ("light", "lights", "tubelight", "bulb"),
+}
+
+
+def _name_match(name: Optional[str], keyword: str) -> bool:
+    text = (name or "").lower()
+    return any(re.search(r"\b" + w + r"\b", text) for w in _NAME_WORDS.get(keyword, (keyword,)))
+
+
+def is_kind(category, name: Optional[str], keyword: str) -> bool:
+    """Whether an asset (its category + its own name) is the room's fan/light."""
+    return _category_match(category, keyword) or _name_match(name, keyword)
+
+
 def pick_category_asset(assets, keyword: str):
-    """The room asset whose category is `keyword`, preferring an exact
-    category-code match over a name match."""
-    with_code = [a for a in assets if a.category and a.category.code.lower() == keyword]
-    if with_code:
-        return with_code[0]
-    return next((a for a in assets if _category_match(a.category, keyword)), None)
+    """The room asset that is the fan/light: exact category code first, then
+    the word in the category name, then the word in the asset's own name."""
+    for test in (
+        lambda a: a.category is not None and a.category.code.lower() == keyword,
+        lambda a: _category_match(a.category, keyword),
+        lambda a: _name_match(a.name, keyword),
+    ):
+        match = next((a for a in assets if test(a)), None)
+        if match is not None:
+            return match
+    return None
 
 
 async def auto_map_room_sensors(
@@ -102,10 +126,11 @@ async def auto_map_room_sensors(
     Light asset added later intentionally does NOT get its own mapping,
     the same one-per-sensor-type rule assign_device_room already enforces.
     """
-    if category is None or not assets:
+    if not assets:
         return
-    is_fan = _category_match(category, "fan")
-    is_light = _category_match(category, "light")
+    name = assets[0].name
+    is_fan = is_kind(category, name, "fan")
+    is_light = not is_fan and is_kind(category, name, "light")
     if not (is_fan or is_light):
         return
 
