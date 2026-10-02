@@ -167,7 +167,7 @@ export default function ReportIssue() {
 
   return (
     <>
-    <form onSubmit={onSubmit} className="space-y-5 max-w-6xl">
+    <form onSubmit={onSubmit} className="space-y-5 max-w-6xl min-w-0">
       <header>
         <h1 className="text-headline-lg text-ink">Report an Issue</h1>
         <p className="text-body-md text-ink-muted mt-1">
@@ -177,8 +177,8 @@ export default function ReportIssue() {
         </p>
       </header>
 
-      <div className="grid lg:grid-cols-3 gap-5 items-start">
-        <div className="lg:col-span-2 space-y-5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <div className="lg:col-span-2 space-y-5 min-w-0">
           {/* 1. Location */}
           <Widget title={<span className="flex items-center gap-2"><MapPin size={18} className="text-secondary" /> 1. Identify Location</span>}>
             <p className="text-body-sm text-ink-faint -mt-1 mb-3">
@@ -186,7 +186,7 @@ export default function ReportIssue() {
                 ? 'Auto-filled from the scanned QR code.'
                 : "Don't know the exact building, floor or room? Leave those blank and describe where it is in the note below instead — only the campus is required."}
             </p>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field label="Campus" error={errors.campus_id} required>
                 <Select value={campusId} disabled={!!qrAssetId} onChange={(e) => setCampusId(e.target.value)}>
                   {(campuses.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -260,7 +260,7 @@ export default function ReportIssue() {
         </div>
 
         {/* 2. Asset picker + AI preview */}
-        <div className="space-y-5">
+        <div className="space-y-5 min-w-0">
           <Widget
             title="2. Select Asset"
             subtitle={selectedRoom ? `Assets in ${selectedRoom.code}` : 'Choose a room first'}
@@ -294,8 +294,8 @@ export default function ReportIssue() {
                         </span>
                       )}
                       <Icon size={22} className={selected ? 'text-secondary' : 'text-ink-muted'} />
-                      <span className="text-body-sm text-center text-ink leading-tight">{a.name}</span>
-                      <span className="font-mono text-[11px] text-ink-faint">{a.tag}</span>
+                      <span className="text-body-sm text-center text-ink leading-tight break-words max-w-full">{a.name}</span>
+                      <span className="font-mono text-[11px] text-ink-faint text-center break-words max-w-full">{a.tag}</span>
                       <span className="w-2 h-2 rounded-full" style={{ background: a.colour }} />
                     </button>
                   )
