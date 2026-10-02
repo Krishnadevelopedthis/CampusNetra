@@ -44,6 +44,7 @@ class AssistantRequest(BaseModel):
 class ClassifyPreview(BaseModel):
     title: str = Field(min_length=3)
     description: str = Field(min_length=3)
+    asset_id: uuid.UUID | None = None
 
 
 @router.post("/classify-preview", response_model=dict)
@@ -51,15 +52,30 @@ async def classify_preview(payload: ClassifyPreview, user: CurrentUser, db: DB):
     """Live classification shown while the reporter is still typing."""
     categories = await load_categories(db, user.organization_id)
     result = await classify(payload.title, payload.description, categories)
+    category_id, category_code = result.category_id, result.category_code
+    category_name = next((c["name"] for c in categories if c["id"] == category_id), None)
+    confidence, reasoning, source = result.confidence, result.reasoning, "text"
+
+    # A chosen asset outranks the wording (same rule as when the issue is filed).
+    if payload.asset_id is not None:
+        from app.services.issues import issue_category_for_asset
+        by_asset = await issue_category_for_asset(db, user.organization_id, payload.asset_id)
+        if by_asset is not None and by_asset.id != category_id:
+            category_id, category_code, category_name = by_asset.id, by_asset.code, by_asset.name
+            confidence, source = None, "asset"
+            reasoning = f"Based on the item you selected, which is filed under {by_asset.name}."
+        elif by_asset is not None:
+            source = "text+asset"
+
     return {
-        "category_id": result.category_id,
-        "category_code": result.category_code,
-        "category_name": next(
-            (c["name"] for c in categories if c["id"] == result.category_id), None),
+        "category_id": category_id,
+        "category_code": category_code,
+        "category_name": category_name,
         "department_id": result.department_id,
         "priority": result.priority.value,
-        "confidence": result.confidence,
-        "reasoning": result.reasoning,
+        "confidence": confidence,
+        "source": source,
+        "reasoning": reasoning,
         "model": result.model,
         "used_fallback": result.used_fallback,
         "alternatives": result.alternatives,

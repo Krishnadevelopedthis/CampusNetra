@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { AssetFilterBar, useAssetFilter } from '@/features/twin/RoomAssetList'
 import {
   Armchair, CheckCircle2, Droplet, Fan, HelpCircle, Lightbulb, MapPin, Monitor, Send, Sparkles, Video, Wifi, Wrench,
 } from 'lucide-react'
@@ -87,6 +88,8 @@ export default function ReportIssue() {
     [rooms.data, roomId],
   )
 
+  const assetFilter = useAssetFilter(selectedRoom?.assets || [])
+
   // Live AI classification preview, debounced while the reporter types.
   useEffect(() => {
     if (title.trim().length < 4 || description.trim().length < 10) {
@@ -95,13 +98,13 @@ export default function ReportIssue() {
     }
     const t = setTimeout(async () => {
       try {
-        setAiPreview(await api.post('/ai/classify-preview', { title, description }))
+        setAiPreview(await api.post('/ai/classify-preview', { title, description, asset_id: assetId || null }))
       } catch {
         setAiPreview(null)
       }
     }, 700)
     return () => clearTimeout(t)
-  }, [title, description])
+  }, [title, description, assetId])
 
   const submit = useMutation({
     mutationFn: (payload) => api.post('/issues', payload),
@@ -269,8 +272,10 @@ export default function ReportIssue() {
                 the Issue Details on the left.
               </p>
             ) : (
+              <>
+              <AssetFilterBar filter={assetFilter} />
               <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
-                {selectedRoom.assets.map((a) => {
+                {assetFilter.shown.map((a) => {
                   const Icon = ICONS[a.category_icon] || Wrench
                   const selected = assetId === a.id
                   return (
@@ -319,6 +324,10 @@ export default function ReportIssue() {
                   </span>
                 </button>
               </div>
+              {assetFilter.shown.length === 0 && (
+                <p className="text-body-sm text-ink-faint pt-2">No assets match.</p>
+              )}
+              </>
             )}
 
             {selectedRoom && selectedRoom.assets.length === 0 && otherAsset === null && (
@@ -362,20 +371,33 @@ export default function ReportIssue() {
               <dl className="space-y-2 text-body-md">
                 <div className="flex justify-between gap-2">
                   <dt className="text-ink-muted">Category</dt>
-                  <dd className="font-medium text-ink">{aiPreview.category_name || 'Manual triage'}</dd>
+                  <dd className="font-medium text-ink text-right">{aiPreview.category_name || 'Not sure yet'}</dd>
                 </div>
                 <div className="flex justify-between gap-2">
                   <dt className="text-ink-muted">Priority</dt>
                   <dd><PriorityPill priority={aiPreview.priority} /></dd>
                 </div>
-                <div className="flex justify-between gap-2">
-                  <dt className="text-ink-muted">Confidence</dt>
-                  <dd className="pill bg-info-bg text-info-text">
-                    {Math.round((aiPreview.confidence || 0) * 100)}%
-                  </dd>
-                </div>
+                {aiPreview.category_name && aiPreview.confidence != null && (
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-ink-muted">Confidence</dt>
+                    <dd className="pill bg-info-bg text-info-text">
+                      {Math.round(aiPreview.confidence * 100)}%
+                    </dd>
+                  </div>
+                )}
+                {aiPreview.source === 'asset' && (
+                  <div className="flex justify-between gap-2">
+                    <dt className="text-ink-muted">Based on</dt>
+                    <dd className="text-ink">The item you selected</dd>
+                  </div>
+                )}
               </dl>
-              {aiPreview.reasoning && (
+              {!aiPreview.category_name ? (
+                <p className="text-body-sm text-ink-muted mt-3 pt-3 border-t border-ai-border">
+                  We could not tell the category from your words yet. Pick the item above or add a
+                  few more details; if you submit as is, the facility team will sort it.
+                </p>
+              ) : aiPreview.reasoning && (
                 <p className="text-body-sm text-ink-muted mt-3 pt-3 border-t border-ai-border">
                   {aiPreview.reasoning}
                 </p>

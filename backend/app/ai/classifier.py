@@ -125,6 +125,31 @@ def detect_priority(text: str, base: Priority = Priority.MEDIUM) -> tuple[Priori
     return prio, f"escalated by keyword '{marker}'"
 
 
+
+# Everyday single words people actually type ("the fan is not working"). The
+# per-category keyword lists an administrator maintains are mostly multi-word
+# technical phrases ("split ac", "fan motor"), so a plain report like "fan not
+# working" matched nothing and was sent to manual triage. These are merged into
+# each category's own list when the keyword fallback scores a report.
+_BASE_HINTS: dict[str, list[str]] = {
+    "hvac": ["fan", "fans", "ac", "aircon", "cooling", "cooler", "heater", "ventilation", "exhaust", "hot", "warm"],
+    "furniture": ["bench", "benches", "desk", "chair", "table", "cupboard", "shelf", "bookshelf", "rack",
+                  "sofa", "whiteboard", "blackboard", "stool", "cabinet", "podium", "wobbling"],
+    "av_equipment": ["projector", "screen", "speaker", "speakers", "microphone", "mic", "display", "smartboard",
+                     "tv", "audio", "sound", "digital board"],
+    "it_equipment": ["computer", "pc", "laptop", "printer", "keyboard", "mouse", "monitor", "server", "ups", "cpu"],
+    "networking": ["wifi", "wi-fi", "internet", "router", "network", "lan", "cctv", "camera", "broadband"],
+    "electrical": ["light", "lights", "tubelight", "bulb", "lamp", "switchboard", "socket", "wiring", "wire",
+                   "power", "mcb", "sparking", "shock", "electricity", "flickering"],
+    "plumbing": ["tap", "leak", "leaking", "toilet", "flush", "basin", "urinal", "pipe", "water", "drain",
+                 "geyser", "sink", "clogged", "choked"],
+    "fire_safety": ["fire", "extinguisher", "smoke", "alarm", "sprinkler", "exit"],
+    "housekeeping": ["dustbin", "garbage", "dirty", "clean", "cleaning", "mop", "soap", "smell", "dust", "stinking"],
+    "civil": ["wall", "ceiling", "roof", "door", "window", "crack", "paint", "floor", "tile", "seepage", "damp"],
+    "LAB_EQUIPMENT": ["microscope", "lab", "fume", "balance", "burner", "experiment"],
+    "CAFETERIA": ["kitchen", "stove", "fridge", "refrigerator", "canteen", "food", "gas"],
+}
+
 def classify_heuristic(
     title: str, description: str, categories: Sequence[dict]
 ) -> Classification:
@@ -134,7 +159,8 @@ def classify_heuristic(
 
     scored: list[tuple[float, dict]] = []
     for cat in categories:
-        score = _keyword_score(title, description, cat.get("keywords") or [])
+        keywords = list(cat.get("keywords") or []) + _BASE_HINTS.get(cat.get("code"), [])
+        score = _keyword_score(title, description, keywords)
         # The category's own name is an implicit keyword, and naming it in the
         # title is about as explicit as a reporter can be.
         name = cat.get("name", "").lower()
