@@ -179,7 +179,10 @@ export function Toaster() {
       position="top-right"
       theme={theme === 'dark' ? 'dark' : 'light'}
       gap={10}
-      offset={16}
+      // Start below the floating navbar (12px gap + 64px bar) so popups never
+      // cover the profile box or notification bell.
+      offset={{ top: 88, right: 16 }}
+      mobileOffset={{ top: 88, right: 12, left: 12 }}
       visibleToasts={4}
       toastOptions={{ unstyled: true }}
     />
