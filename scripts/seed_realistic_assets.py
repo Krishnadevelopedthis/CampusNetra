@@ -139,11 +139,11 @@ def plan_classroom(cap: int):
         I("SPK", "Wall Speaker", "av", 2, "wall_front", (0.80, 0.08, 0.92)),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 15), 3, 6), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 8), 6, 10), "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 1, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 1, "wall_back", (0.85, 0.50, 0.50)),
+        I("WIFI", "Wi-Fi Router", "net", 1, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 1, "wall_back", (0.85, 0.50, 0.50)),
         I("SMK", "Smoke Detector", "fire", 1, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 1, "wall_back", (0.35, 0.88, 0.88)),
-        I("SWB", "Switch Board", "elec", 2, "wall_left", (0.45, 0.15, 0.30)),
+        I("SWB", "Electrical Switch Board", "elec", 2, "wall_left", (0.45, 0.15, 0.30)),
         I("SKT", "Power Socket", "elec", 2, "wall_right", (0.30, 0.20, 0.70)),
         I("CLK", "Wall Clock", "elec", 1, "wall_back", (0.80, 0.20, 0.20)),
         I("NTB", "Notice Board", "furn", 1, "wall_right", (0.55, 0.50, 0.50)),
@@ -169,16 +169,16 @@ def plan_office(cap: int, name: str = ""):
         I("SOFA", "Visitor Sofa", "furn", 1 if cap >= 8 else 0, "floor", "right"),
         I("PC", "Desktop Computer", "it", clamp(round(seats * 0.8), 1, 12), "floor", "main"),
         I("PRN", "Printer", "it", clamp(round(cap / 20) + 1, 1, 3), "floor", "right"),
-        I("AC", "Split AC", "hvac", clamp(round(cap / 15) + 1, 1, 4), "wall_back", (0.82, 0.15, 0.85)),
+        I("AC", "Air Conditioner", "hvac", clamp(round(cap / 15) + 1, 1, 4), "wall_back", (0.82, 0.15, 0.85)),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 8) + 1, 2, 5), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 5) + 2, 4, 10), "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 1, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 1, "wall_back", (0.90, 0.94, 0.94)),
+        I("WIFI", "Wi-Fi Router", "net", 1, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 1, "wall_back", (0.90, 0.94, 0.94)),
         I("SMK", "Smoke Detector", "fire", 1, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 1, "wall_back", (0.35, 0.94, 0.94)),
         I("SKT", "Power Socket", "elec", clamp(seats, 2, 8), "wall_left", (0.30, 0.10, 0.90)),
-        I("SWB", "Switch Board", "elec", 2, "wall_right", (0.45, 0.20, 0.35)),
-        I("UPS", "UPS", "elec", 1, "floor", "corner"),
+        I("SWB", "Electrical Switch Board", "elec", 2, "wall_right", (0.45, 0.20, 0.35)),
+        I("UPS Power Backup", "UPS Power Backup", "elec", 1, "floor", "corner"),
         I("CLK", "Wall Clock", "elec", 1, "wall_front", (0.80, 0.50, 0.50)),
         I("WB", "Notice Board", "furn", 1, "wall_front", (0.55, 0.25, 0.25)),
         I("BIN", "Dustbin", "house", 2, "floor", "corner"),
@@ -200,27 +200,27 @@ def plan_lab(cap: int, name: str = ""):
         I("PRJ", "Projector", "av", 1, "ceiling", "ceil_p"),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 10), 4, 8), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 4), 8, 14), "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 1, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
+        I("WIFI", "Wi-Fi Router", "net", 1, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
         I("SMK", "Smoke Detector", "fire", 2, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 2, "wall_back", (0.35, 0.05, 0.95)),
-        I("SWB", "Switch Board", "elec", 3, "wall_left", (0.45, 0.15, 0.85)),
+        I("SWB", "Electrical Switch Board", "elec", 3, "wall_left", (0.45, 0.15, 0.85)),
         I("SKT", "Power Socket", "elec", clamp(round(n / 2), 6, 14), "wall_right", (0.30, 0.08, 0.92)),
         I("CLK", "Wall Clock", "elec", 1, "wall_back", (0.80, 0.50, 0.50)),
-        I("UPS", "UPS", "elec", 1, "floor", "corner"),
+        I("UPS Power Backup", "UPS Power Backup", "elec", 1, "floor", "corner"),
         I("BIN", "Dustbin", "house", 2, "floor", "corner"),
     ]
     if computer:
         return base + [
             I("PC", "Desktop Computer", "it", n, "floor", "main"),
-            I("SW", "Network Switch", "net", 2, "wall_back", (0.55, 0.30, 0.70)),
-            I("AC", "Split AC", "hvac", 2, "wall_back", (0.82, 0.10, 0.90)),
+            I("SW", "Internet Network Switch", "net", 2, "wall_back", (0.55, 0.30, 0.70)),
+            I("AC", "Air Conditioner", "hvac", 2, "wall_back", (0.82, 0.10, 0.90)),
         ]
     return base + [
         I("SINK", "Lab Sink", "plumb", 2, "floor", "left"),
         I("FUME", "Fume Hood", "lab", 1 if cap >= 40 else 0, "floor", "right"),
         I("MIC", "Microscope", "lab", clamp(round(n / 2), 4, 12), "floor", "main"),
-        I("BAL", "Weighing Balance", "lab", 3, "floor", "back"),
+        I("BAL", "Weighing Scale (Lab)", "lab", 3, "floor", "back"),
         I("EYE", "Eye Wash Station", "fire", 1, "wall_left", (0.45, 0.50, 0.50)),
         I("FAID", "First Aid Box", "fire", 1, "wall_right", (0.50, 0.50, 0.50)),
     ]
@@ -237,14 +237,14 @@ def plan_hall(cap: int, name: str = ""):
         I("PRJ", "Projector", "av", 2, "ceiling", "ceil_p"),
         I("SPK", "Wall Speaker", "av", 4, "wall_front", (0.80, 0.05, 0.95)),
         I("MIC", "Wireless Microphone", "av", 2, "floor", "front"),
-        I("AC", "Split AC", "hvac", clamp(round(cap / 40), 2, 4), "wall_back", (0.82, 0.15, 0.85)),
+        I("AC", "Air Conditioner", "hvac", clamp(round(cap / 40), 2, 4), "wall_back", (0.82, 0.15, 0.85)),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 15), 4, 8), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 8), 8, 14), "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 2, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
+        I("WIFI", "Wi-Fi Router", "net", 2, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
         I("SMK", "Smoke Detector", "fire", 2, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 2, "wall_back", (0.35, 0.05, 0.95)),
-        I("SWB", "Switch Board", "elec", 2, "wall_left", (0.45, 0.15, 0.30)),
+        I("SWB", "Electrical Switch Board", "elec", 2, "wall_left", (0.45, 0.15, 0.30)),
         I("CLK", "Wall Clock", "elec", 1, "wall_back", (0.80, 0.50, 0.50)),
         I("BIN", "Dustbin", "house", 2, "floor", "corner"),
     ]
@@ -259,20 +259,20 @@ def plan_auditorium(cap: int, name: str = ""):
         I("PODM", "Podium", "furn", 1, "floor", "tbl"),
         I("DBD", "Projection Screen", "av", 1, "wall_front", (0.55, 0.50, 0.50)),
         I("PRJ", "Projector", "av", 1 if mini else 2, "ceiling", "ceil_p"),
-        I("SPK", "PA Speaker", "av", 4 if mini else 6, "wall_front", (0.80, 0.05, 0.95)),
+        I("SPK", "Public Address Speaker", "av", 4 if mini else 6, "wall_front", (0.80, 0.05, 0.95)),
         I("MIC", "Wireless Microphone", "av", 2 if mini else 4, "floor", "front"),
-        I("MIX", "Audio Mixer", "av", 1, "floor", "back"),
+        I("MIX", "Audio Mixer (Sound Console)", "av", 1, "floor", "back"),
         I("SPOT", "Stage Spot Light", "light", 4 if mini else 8, "ceiling", "ceil_f"),
-        I("AC", "Split AC", "hvac", 4 if mini else 6, "wall_back", (0.82, 0.08, 0.92)),
+        I("AC", "Air Conditioner", "hvac", 4 if mini else 6, "wall_back", (0.82, 0.08, 0.92)),
         I("FAN", "Ceiling Fan", "fan", 6 if mini else 8, "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", 8 if mini else 12, "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 2, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 2 if mini else 3, "wall_back", (0.85, 0.10, 0.90)),
+        I("WIFI", "Wi-Fi Router", "net", 2, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 2 if mini else 3, "wall_back", (0.85, 0.10, 0.90)),
         I("SMK", "Smoke Detector", "fire", 3, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 3, "wall_back", (0.35, 0.05, 0.95)),
-        I("EXIT", "Exit Sign", "elec", 2, "wall_back", (0.85, 0.05, 0.95)),
-        I("SWB", "Switch Board", "elec", 3, "wall_left", (0.45, 0.15, 0.85)),
-        I("UPS", "UPS", "elec", 1, "floor", "corner"),
+        I("EXIT", "Emergency Exit Sign", "elec", 2, "wall_back", (0.85, 0.05, 0.95)),
+        I("SWB", "Electrical Switch Board", "elec", 3, "wall_left", (0.45, 0.15, 0.85)),
+        I("UPS Power Backup", "UPS Power Backup", "elec", 1, "floor", "corner"),
         I("BIN", "Dustbin", "house", 3, "floor", "corner"),
     ]
 
@@ -286,14 +286,14 @@ def plan_library(cap: int, name: str = ""):
         I("DESK", "Librarian Desk", "furn", 1, "floor", "tbl"),
         I("PC", "Catalogue Computer", "it", 3, "floor", "front"),
         I("PRN", "Printer", "it", 1, "floor", "right"),
-        I("AC", "Split AC", "hvac", 2, "wall_back", (0.82, 0.25, 0.75)),
+        I("AC", "Air Conditioner", "hvac", 2, "wall_back", (0.82, 0.25, 0.75)),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 12), 4, 8), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 6), 8, 14), "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 2, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
+        I("WIFI", "Wi-Fi Router", "net", 2, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
         I("SMK", "Smoke Detector", "fire", 2, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 2, "wall_back", (0.35, 0.05, 0.95)),
-        I("SWB", "Switch Board", "elec", 2, "wall_right", (0.45, 0.20, 0.40)),
+        I("SWB", "Electrical Switch Board", "elec", 2, "wall_right", (0.45, 0.20, 0.40)),
         I("SKT", "Power Socket", "elec", 6, "wall_left", (0.30, 0.10, 0.90)),
         I("CLK", "Wall Clock", "elec", 1, "wall_front", (0.80, 0.50, 0.50)),
         I("WC", "Water Dispenser", "plumb", 1, "floor", "corner"),
@@ -337,10 +337,10 @@ def plan_cafeteria(cap: int, name: str = ""):
         I("EXH", "Exhaust Fan", "fan", 2, "wall_front", (0.85, 0.20, 0.80)),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 12), 4, 8), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 8), 8, 12), "ceiling", "ceil_l"),
-        I("CCTV", "CCTV Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
+        I("CCTV", "CCTV Security Camera", "net", 2, "wall_back", (0.85, 0.20, 0.80)),
         I("SMK", "Smoke Detector", "fire", 2, "ceiling", "ceil_c"),
         I("FEX", "Fire Extinguisher", "fire", 2, "wall_back", (0.35, 0.05, 0.95)),
-        I("SWB", "Switch Board", "elec", 2, "wall_left", (0.45, 0.10, 0.30)),
+        I("SWB", "Electrical Switch Board", "elec", 2, "wall_left", (0.45, 0.10, 0.30)),
         I("CLK", "Wall Clock", "elec", 1, "wall_back", (0.80, 0.50, 0.50)),
         I("BIN", "Dustbin", "house", 4, "floor", "corner"),
     ]
@@ -353,22 +353,22 @@ def plan_store(cap: int, name: str = ""):
         I("LIGHT", "Tube Light", "light", 1, "ceiling", "ceil_c"),
         I("FAN", "Ceiling Fan", "fan", 1, "ceiling", "ceil_f"),
         I("FEX", "Fire Extinguisher", "fire", 1, "wall_back", (0.35, 0.50, 0.50)),
-        I("SWB", "Switch Board", "elec", 1, "wall_left", (0.45, 0.50, 0.50)),
+        I("SWB", "Electrical Switch Board", "elec", 1, "wall_left", (0.45, 0.50, 0.50)),
     ]
 
 
 def plan_utility(cap: int, name: str = ""):
     cap = cap or 30
     return [
-        I("SOFA", "Bench / Sofa", "furn", clamp(round(cap / 6), 3, 6), "floor", "main"),
+        I("SOFA", "Seating Bench", "furn", clamp(round(cap / 6), 3, 6), "floor", "main"),
         I("TBL", "Common Table", "furn", clamp(round(cap / 10), 2, 4), "floor", "center"),
-        I("TV", "Wall TV", "av", 1, "wall_front", (0.55, 0.50, 0.50)),
+        I("TV", "Wall Mounted TV", "av", 1, "wall_front", (0.55, 0.50, 0.50)),
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 10), 2, 4), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 6), 3, 6), "ceiling", "ceil_l"),
-        I("WIFI", "Wi-Fi Access Point", "net", 1, "ceiling", "ceil_w"),
-        I("CCTV", "CCTV Camera", "net", 1, "wall_back", (0.85, 0.50, 0.50)),
+        I("WIFI", "Wi-Fi Router", "net", 1, "ceiling", "ceil_w"),
+        I("CCTV", "CCTV Security Camera", "net", 1, "wall_back", (0.85, 0.50, 0.50)),
         I("FEX", "Fire Extinguisher", "fire", 1, "wall_back", (0.35, 0.90, 0.90)),
-        I("SWB", "Switch Board", "elec", 1, "wall_left", (0.45, 0.50, 0.50)),
+        I("SWB", "Electrical Switch Board", "elec", 1, "wall_left", (0.45, 0.50, 0.50)),
         I("BIN", "Dustbin", "house", 1, "floor", "corner"),
     ]
 
@@ -382,7 +382,7 @@ def plan_other(cap: int, name: str = ""):
         I("FAN", "Ceiling Fan", "fan", clamp(round(cap / 8), 2, 4), "ceiling", "ceil_f"),
         I("TUBE", "Tube Light", "light", clamp(round(cap / 5), 3, 6), "ceiling", "ceil_l"),
         I("FEX", "Fire Extinguisher", "fire", 1, "wall_back", (0.35, 0.90, 0.90)),
-        I("SWB", "Switch Board", "elec", 1, "wall_left", (0.45, 0.50, 0.50)),
+        I("SWB", "Electrical Switch Board", "elec", 1, "wall_left", (0.45, 0.50, 0.50)),
         I("CLK", "Wall Clock", "elec", 1, "wall_front", (0.80, 0.50, 0.50)),
         I("BIN", "Dustbin", "house", 1, "floor", "corner"),
     ]
@@ -425,6 +425,12 @@ def slug(code: str) -> str:
     return re.sub(r"[^A-Z0-9]+", "-", code.upper()).strip("-")
 
 
+def legacy_tag(code: str, key: str, i: int, qty: int) -> str:
+    """The cryptic tag the first version of this script gave (kept only so those
+    rows can be renamed in place with --rename-existing)."""
+    return f"{slug(code)}-{key}-{i:02d}" if qty > 1 else f"{slug(code)}-{key}"
+
+
 def build_rows(room, plan, cat_ids, today):
     rows = []
     for key, name, cat, qty, surface, at in plan:
@@ -437,8 +443,10 @@ def build_rows(room, plan, cat_ids, today):
             positions = grid(qty, ZONES[at])
         (cost_lo, cost_hi), life, svc, warranty, makers = CAT_DEFAULTS[cat]
         for i, (px, py) in enumerate(positions, start=1):
-            tag = f"{slug(room['code'])}-{key}-{i:02d}" if qty > 1 else f"{slug(room['code'])}-{key}"
-            rnd = random.Random(tag)
+            label = f"{name} {i}" if qty > 1 else name
+            tag = f"{room['code']} {label}"          # e.g. "Class-201 Student Bench 7"
+            old_tag = legacy_tag(room["code"], key, i, qty)
+            rnd = random.Random(old_tag)               # same dates/costs as the first run
             purchased = today - timedelta(days=rnd.randint(120, 2100))
             cost = round(rnd.uniform(cost_lo, cost_hi) / 50) * 50
             last_service = None
@@ -446,8 +454,8 @@ def build_rows(room, plan, cat_ids, today):
                 last_service = datetime.now(timezone.utc) - timedelta(days=rnd.randint(15, int(svc * 1.5)))
             maker = rnd.choice(makers)
             rows.append({
-                "rid": room["id"], "cat": cat_ids[CAT[cat]], "tag": tag,
-                "name": f"{name} {i}" if qty > 1 else name,
+                "rid": room["id"], "cat": cat_ids[CAT[cat]], "tag": tag, "old_tag": old_tag,
+                "name": label,
                 "px": px, "py": py, "surface": surface,
                 "maker": maker, "purchased": purchased,
                 "model": f"{(maker or 'GEN')[:3].upper()}-{key}{rnd.randint(100, 999)}",
@@ -470,12 +478,17 @@ INSERT = text(
 )
 
 
+RENAME = text("UPDATE assets SET tag = :tag, name = :name WHERE tag = :old AND room_id = :rid")
+
+
 async def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--buildings", nargs="*", help="Exact building names (default: every building)")
     ap.add_argument("--minimal-room", default="Class-206",
                     help="Room code that gets only fans and lights (default Class-206; '' for none)")
     ap.add_argument("--apply", action="store_true", help="Write changes (default is a dry run)")
+    ap.add_argument("--rename-existing", action="store_true",
+                    help="Give assets created by the first run readable names/tags instead of adding any")
     args = ap.parse_args()
     today = date.today()
     print(f"{DIM}Mode: {'APPLYING' if args.apply else 'dry run (pass --apply to write)'}{RESET}\n")
@@ -512,6 +525,23 @@ async def main() -> int:
             print(f"=== {b['name']} ===")
             subtotal = 0
             for room in rooms:
+                if args.rename_existing:
+                    minimal = bool(args.minimal_room) and room["code"] == args.minimal_room
+                    plan = pick_plan(room["kind"], room["name"], room["capacity"], minimal)
+                    rows = build_rows(room, plan, cat_cache[org], today)
+                    tags = [r["tag"] for r in rows]
+                    if len(set(tags)) != len(tags):
+                        print(f"{RED}  {room['code']}: duplicate new tags, skipped{RESET}")
+                        continue
+                    n = 0
+                    if args.apply:
+                        for r in rows:
+                            res = await conn.execute(RENAME, {"old": r["old_tag"], "tag": r["tag"], "name": r["name"], "rid": r["rid"]})
+                            n += res.rowcount
+                    else:
+                        n = len(rows)
+                    subtotal += n
+                    continue
                 have = (await conn.execute(text("SELECT count(*) FROM assets WHERE room_id = :r"),
                                            {"r": room["id"]})).scalar()
                 if have:
