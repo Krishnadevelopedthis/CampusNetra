@@ -55,7 +55,21 @@ function upsertJsonLd(data) {
  * soon" page, say) -- accessible, just not something worth Google
  * ranking over the real content elsewhere on the site.
  */
+/**
+ * Filled during the build-time prerender (see scripts/prerender.mjs), where
+ * effects never run: the page's SEO tags are recorded here so they can be
+ * written into that page's static HTML. Unused in the browser.
+ */
+export const ssrSeo = { current: null }
+
 export function usePageSEO({ title, description, path, jsonLd, noindex = false }) {
+  if (import.meta.env.SSR) {
+    ssrSeo.current = {
+      title: title ? `${SITE_NAME} | ${title}` : `${SITE_NAME} | Smart Campus Facility Management System`,
+      description, path, jsonLd, noindex,
+    }
+  }
+
   useEffect(() => {
     // Brand-first, matching index.html's own default -- so the title a
     // crawler sees before this hook's first run (the static tag already in
