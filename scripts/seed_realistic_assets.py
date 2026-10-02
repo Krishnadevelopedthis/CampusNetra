@@ -178,7 +178,7 @@ def plan_office(cap: int, name: str = ""):
         I("FEX", "Fire Extinguisher", "fire", 1, "wall_back", (0.35, 0.94, 0.94)),
         I("SKT", "Power Socket", "elec", clamp(seats, 2, 8), "wall_left", (0.30, 0.10, 0.90)),
         I("SWB", "Electrical Switch Board", "elec", 2, "wall_right", (0.45, 0.20, 0.35)),
-        I("UPS Power Backup", "UPS Power Backup", "elec", 1, "floor", "corner"),
+        I("UPS", "UPS Power Backup", "elec", 1, "floor", "corner"),
         I("CLK", "Wall Clock", "elec", 1, "wall_front", (0.80, 0.50, 0.50)),
         I("WB", "Notice Board", "furn", 1, "wall_front", (0.55, 0.25, 0.25)),
         I("BIN", "Dustbin", "house", 2, "floor", "corner"),
@@ -207,7 +207,7 @@ def plan_lab(cap: int, name: str = ""):
         I("SWB", "Electrical Switch Board", "elec", 3, "wall_left", (0.45, 0.15, 0.85)),
         I("SKT", "Power Socket", "elec", clamp(round(n / 2), 6, 14), "wall_right", (0.30, 0.08, 0.92)),
         I("CLK", "Wall Clock", "elec", 1, "wall_back", (0.80, 0.50, 0.50)),
-        I("UPS Power Backup", "UPS Power Backup", "elec", 1, "floor", "corner"),
+        I("UPS", "UPS Power Backup", "elec", 1, "floor", "corner"),
         I("BIN", "Dustbin", "house", 2, "floor", "corner"),
     ]
     if computer:
@@ -272,7 +272,7 @@ def plan_auditorium(cap: int, name: str = ""):
         I("FEX", "Fire Extinguisher", "fire", 3, "wall_back", (0.35, 0.05, 0.95)),
         I("EXIT", "Emergency Exit Sign", "elec", 2, "wall_back", (0.85, 0.05, 0.95)),
         I("SWB", "Electrical Switch Board", "elec", 3, "wall_left", (0.45, 0.15, 0.85)),
-        I("UPS Power Backup", "UPS Power Backup", "elec", 1, "floor", "corner"),
+        I("UPS", "UPS Power Backup", "elec", 1, "floor", "corner"),
         I("BIN", "Dustbin", "house", 3, "floor", "corner"),
     ]
 
