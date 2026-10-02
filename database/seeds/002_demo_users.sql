@@ -23,32 +23,32 @@ VALUES
  ('cccc0000-0000-0000-0000-000000000011','11111111-1111-1111-1111-111111111111',
   'rahul.elec@campus.edu','$2b$12$RuyOSQ5NU9A9SlytVt7dN.H42jekkxEtcwfVyeZknPWNceBT5EfnG',
   'Rahul Verma','technician','active','22222222-0000-0000-0000-000000000001','TECH-101',NULL,
-  'Senior Electrician', ARRAY['electrical','hvac'], now()),
+  'Senior Electrician', ARRAY['ELEC','HVAC'], now()),
 
  ('cccc0000-0000-0000-0000-000000000012','11111111-1111-1111-1111-111111111111',
   'sana.elec@campus.edu','$2b$12$RuyOSQ5NU9A9SlytVt7dN.H42jekkxEtcwfVyeZknPWNceBT5EfnG',
   'Sana Qureshi','technician','active','22222222-0000-0000-0000-000000000001','TECH-102',NULL,
-  'Electrician', ARRAY['electrical'], now()),
+  'Electrician', ARRAY['ELEC'], now()),
 
  ('cccc0000-0000-0000-0000-000000000013','11111111-1111-1111-1111-111111111111',
   'mohan.plumb@campus.edu','$2b$12$RuyOSQ5NU9A9SlytVt7dN.H42jekkxEtcwfVyeZknPWNceBT5EfnG',
   'Mohan Das','technician','active','22222222-0000-0000-0000-000000000002','TECH-201',NULL,
-  'Plumber', ARRAY['plumbing'], now()),
+  'Plumber', ARRAY['PLUMB'], now()),
 
  ('cccc0000-0000-0000-0000-000000000014','11111111-1111-1111-1111-111111111111',
   'kavya.it@campus.edu','$2b$12$RuyOSQ5NU9A9SlytVt7dN.H42jekkxEtcwfVyeZknPWNceBT5EfnG',
   'Kavya Iyer','technician','active','22222222-0000-0000-0000-000000000003','TECH-301',NULL,
-  'Network Engineer', ARRAY['network','it'], now()),
+  'Network Engineer', ARRAY['IT'], now()),
 
  ('cccc0000-0000-0000-0000-000000000015','11111111-1111-1111-1111-111111111111',
   'deepak.av@campus.edu','$2b$12$RuyOSQ5NU9A9SlytVt7dN.H42jekkxEtcwfVyeZknPWNceBT5EfnG',
   'Deepak Shah','technician','active','22222222-0000-0000-0000-000000000004','TECH-401',NULL,
-  'AV Technician', ARRAY['av','projector'], now()),
+  'AV Technician', ARRAY['AV'], now()),
 
  ('cccc0000-0000-0000-0000-000000000016','11111111-1111-1111-1111-111111111111',
   'imran.civil@campus.edu','$2b$12$RuyOSQ5NU9A9SlytVt7dN.H42jekkxEtcwfVyeZknPWNceBT5EfnG',
   'Imran Sheikh','technician','active','22222222-0000-0000-0000-000000000005','TECH-501',NULL,
-  'Carpenter', ARRAY['furniture','civil'], now()),
+  'Carpenter', ARRAY['FRN','CIVIL'], now()),
 
  -- Teaching staff
  ('cccc0000-0000-0000-0000-000000000021','11111111-1111-1111-1111-111111111111',

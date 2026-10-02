@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { Mail, Phone, User } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -36,11 +37,19 @@ export default function Register() {
   // academic courses (a student's/teacher's degree/subject). Mixing them —
   // the bug this replaced — let a course like "Computer Science" show up
   // as a candidate team for a broken tap, and vice versa.
-  const [options, setOptions] = useState({ departments: [], programmes: [], teacher_departments: [] })
+  const [options, setOptions] = useState({ departments: [], programmes: [], teacher_departments: [], categories: [] })
   const { register } = useAuth()
   const navigate = useNavigate()
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  // A technician can service more than one category.
+  const toggleCategory = (code) => setForm((f) => {
+    const current = f.specialization || []
+    return {
+      ...f,
+      specialization: current.includes(code) ? current.filter((c) => c !== code) : [...current, code],
+    }
+  })
   const extras = EXTRA_FIELDS[role] || []
   const isEnterprise = role === 'enterprise'
   const isAcademic = role === 'student' || role === 'teacher'
@@ -87,6 +96,9 @@ export default function Register() {
     if (form.employee_id?.trim() && !/^\d{7}$/.test(form.employee_id.trim())) {
       next.employee_id = 'Seven digits, e.g. 2143210'
     }
+    if (isTechnician && (options.categories || []).length > 0 && !form.specialization?.length) {
+      next.specialization = 'Pick at least one category you service'
+    }
     if (form.phone?.trim()) {
       // Spaces, dashes and +91 are all ways of writing the same number.
       const digits = form.phone.replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').replace(/^0(?=\d{10}$)/, '')
@@ -106,7 +118,8 @@ export default function Register() {
         enrollment_no: form.enrollment_no || null,
         employee_id: form.employee_id || null,
         designation: form.designation || null,
-        department_code: isTechnician ? (form.department_code || null) : null,
+        // Department is derived server-side from the first category picked.
+        specialization: isTechnician && form.specialization?.length ? form.specialization : null,
         programme_code: isAcademic ? (form.programme_code || null) : null,
         academic_year: (role === 'student' && form.academic_year) ? Number(form.academic_year) : null,
         organization_name: isEnterprise ? form.organization_name : null,
@@ -210,20 +223,39 @@ export default function Register() {
           </Field>
         )}
 
-        {/* Operational department — technicians only. The team a
-            technician's work orders route through (Electrical & Maintenance,
-            AV & Media, ...), never an academic course. */}
+        {/* Categories serviced — technicians only. Read live from Admin →
+            Issue Configuration, so a category added there shows up here
+            without a code change. Issues in these categories are routed to
+            this technician. Multi-select. */}
         {isTechnician && (
-          <Field label="Department" hint="Work orders and issues will route to this department">
-            <Select value={form.department_code || ''} onChange={set('department_code')}>
-              <option value="">Select a department</option>
-              {options.departments.map((d) => (
-                <option key={d.code} value={d.code}>{d.name}</option>
-              ))}
-            </Select>
-            {options.departments.length === 0 && (
+          <Field label="Categories you service" error={errors.specialization} required
+                 hint="Issues in these categories will be assigned to you. Pick all that apply.">
+            <div className="flex flex-wrap gap-2">
+              {(options.categories || []).map((c) => {
+                const active = (form.specialization || []).includes(c.code)
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => toggleCategory(c.code)}
+                    aria-pressed={active}
+                    className={clsx(
+                      'rounded-full border px-3 py-1.5 text-body-sm transition-colors',
+                      active
+                        ? 'border-secondary bg-secondary text-on-secondary'
+                        : 'border-border-subtle bg-surface text-ink-muted hover:border-secondary',
+                    )}
+                  >
+                    {c.name}
+                  </button>
+                )
+              })}
+            </div>
+            {(options.categories || []).length === 0 && (
               <p className="hint mt-1">
-                No departments are configured yet — an administrator can assign one later.
+                {form.email?.trim()
+                  ? 'No issue categories are configured for this campus yet.'
+                  : 'Enter your email above to load the categories.'}
               </p>
             )}
           </Field>

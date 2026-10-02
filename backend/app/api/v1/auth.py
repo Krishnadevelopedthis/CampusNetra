@@ -20,6 +20,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.identity import AcademicProgramme, Department, NameChangeRequest, User
+from app.models.issues import IssueCategory
 from app.schemas.auth import (
     AuthResponse, CaptchaOut, ChangeEmailRequest, ChangePasswordRequest, ChangePhoneRequest,
     ForgotPasswordRequest, LoginRequest, NameChangeRequestOut, RefreshRequest, RegisterRequest,
@@ -77,7 +78,7 @@ async def register_options(db: DB, email: Optional[str] = None):
     """
     org_id, _rejection = await auth_service.resolve_organization(db, email or "")
     if org_id is None:
-        return {"departments": [], "programmes": [], "teacher_departments": []}
+        return {"departments": [], "programmes": [], "teacher_departments": [], "categories": []}
 
     departments = (await db.scalars(
         select(Department).where(
@@ -89,6 +90,15 @@ async def register_options(db: DB, email: Optional[str] = None):
         select(AcademicProgramme).where(
             AcademicProgramme.organization_id == org_id, AcademicProgramme.is_active.is_(True),
         ).order_by(AcademicProgramme.name)
+    )).all()
+
+    # The categories a technician registers as servicing — read live from
+    # Admin → Issue Configuration, so a category added there appears here
+    # with no code change.
+    categories = (await db.scalars(
+        select(IssueCategory).where(
+            IssueCategory.organization_id == org_id, IssueCategory.is_active.is_(True),
+        ).order_by(IssueCategory.name)
     )).all()
 
     # Academic programmes with level "department" are a college's teaching
@@ -103,6 +113,7 @@ async def register_options(db: DB, email: Optional[str] = None):
         "teacher_departments": [
             {"code": p.code, "name": p.name} for p in programmes if p.level == "department"
         ],
+        "categories": [{"code": c.code, "name": c.name, "icon": c.icon} for c in categories],
     }
 
 
