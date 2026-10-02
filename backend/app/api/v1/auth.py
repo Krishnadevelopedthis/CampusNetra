@@ -121,7 +121,22 @@ async def register_options(db: DB, email: Optional[str] = None):
 
 @router.post("/register", response_model=Message, status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest, db: DB, request: Request):
-    """Creates the account and emails a 6-digit verification code."""
+    """Creates the account and emails a 6-digit verification code.
+
+    An institution sign-up creates nothing yet: it files a request that a
+    platform administrator must approve first.
+    """
+    if payload.organization_name:
+        req = await auth_service.submit_institution_request(db, payload)
+        await record_audit(
+            db, action="institution.request", entity_type="institution_request", entity_id=req.id,
+            ip_address=client_ip(request),
+            after={"institution": req.institution_name, "email": req.email},
+        )
+        return Message(detail=(
+            "Request received. Your institution will be registered once an administrator approves it. "
+            "We will email you at " + req.email + " when it has been decided."))
+
     user, code, sent = await auth_service.register_user(db, payload)
     await record_audit(
         db, action="user.register", actor_id=user.id, organization_id=user.organization_id,
@@ -333,7 +348,8 @@ async def my_permissions(user: CurrentUser, db: DB):
         .where(RolePermission.role == user.role)
         .order_by(Permission.code)
     )).all()
-    return {"role": user.role.value, "permissions": list(codes)}
+    return {"role": user.role.value, "permissions": list(codes),
+            "platform_admin": await auth_service.is_platform_admin(db, user)}
 
 
 @router.patch("/me", response_model=UserOut)

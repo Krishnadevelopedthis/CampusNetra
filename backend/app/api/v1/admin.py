@@ -1644,3 +1644,87 @@ async def delete_user(
         before={"email": email, "full_name": name},
     )
     return {"outcome": "deleted", "detail": f"{name} deleted."}
+
+
+# ---------------- Institution registration requests ----------------
+
+async def _require_platform_admin(admin: RequireAdmin, db: DB) -> User:
+    from app.services import auth as auth_service
+    if not await auth_service.is_platform_admin(db, admin):
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "Only the platform administrator can review institution requests.")
+    return admin
+
+
+PlatformAdmin = Annotated[User, Depends(_require_platform_admin)]
+
+
+@router.get("/institution-requests", response_model=list[dict])
+async def list_institution_requests(
+    admin: PlatformAdmin, db: DB, status_filter: str = Query("pending", alias="status"),
+):
+    """Institutions asking to be registered. Nothing exists for them until approved."""
+    from app.models.identity import InstitutionRequest
+
+    query = select(InstitutionRequest).order_by(InstitutionRequest.created_at.desc()).limit(200)
+    if status_filter != "all":
+        query = query.where(InstitutionRequest.status == status_filter)
+    rows = (await db.scalars(query)).all()
+    return [{
+        "id": str(r.id), "status": r.status, "institution_name": r.institution_name,
+        "full_name": r.full_name, "email": r.email, "phone": r.phone, "designation": r.designation,
+        "requested_at": r.created_at.isoformat(),
+        "decided_at": r.decided_at.isoformat() if r.decided_at else None,
+        "decision_note": r.decision_note,
+    } for r in rows]
+
+
+@router.post("/institution-requests/{request_id}/approve", response_model=Message)
+async def approve_institution(
+    request_id: uuid.UUID, payload: DeletionDecision, admin: PlatformAdmin, db: DB, request: Request,
+):
+    """Create the organization and its first administrator, who then verifies
+    their email (a code is sent now) before signing in."""
+    from app.models.identity import InstitutionRequest
+    from app.services import auth as auth_service
+
+    req = await db.get(InstitutionRequest, request_id)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found")
+    org, user, code, sent = await auth_service.approve_institution_request(db, req, admin, payload.note)
+    await record_audit(
+        db, action="institution.approve", actor_id=admin.id, organization_id=admin.organization_id,
+        entity_type="organization", entity_id=org.id, ip_address=client_ip(request),
+        after={"institution": org.name, "admin_email": user.email},
+    )
+    detail = f"{org.name} registered. A verification code was emailed to {user.email}."
+    if not sent.delivered:
+        detail = (f"{org.name} registered, but the verification email could not be sent to {user.email}. "
+                  "Ask them to use 'Resend code' on the verify page.")
+    return Message(detail=detail)
+
+
+@router.post("/institution-requests/{request_id}/reject", response_model=Message)
+async def reject_institution(
+    request_id: uuid.UUID, payload: DeletionDecision, admin: PlatformAdmin, db: DB, request: Request,
+):
+    from app.models.identity import InstitutionRequest
+    from app.services import auth as auth_service
+    from app.services.email import send_email
+
+    req = await db.get(InstitutionRequest, request_id)
+    if req is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Request not found")
+    await auth_service.reject_institution_request(db, req, admin, payload.note)
+    await record_audit(
+        db, action="institution.reject", actor_id=admin.id, organization_id=admin.organization_id,
+        entity_type="institution_request", entity_id=req.id, ip_address=client_ip(request),
+        after={"institution": req.institution_name, "note": payload.note},
+    )
+    reason = f"\n\nNote from the administrator: {payload.note}" if payload.note else ""
+    await send_email(
+        req.email, "Your Campus Netra institution request",
+        f"Hello {req.full_name},\n\nYour request to register {req.institution_name} on Campus Netra "
+        f"was not approved.{reason}\n\nCampus Netra",
+    )
+    return Message(detail=f"Request from {req.institution_name} rejected.")

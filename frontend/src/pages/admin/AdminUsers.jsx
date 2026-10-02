@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  AlertTriangle, CalendarClock, ClipboardList, IdCard, LogIn, PackageSearch,
+  AlertTriangle, Building2, CalendarClock, ClipboardList, IdCard, LogIn, PackageSearch,
   Search, Trash2, UserMinus, UserPlus, UserX, Wrench,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -123,6 +123,7 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-5">
+      {isAdmin() && <InstitutionRequests />}
       {isAdmin() && <NameChangeRequests onDecided={invalidate} />}
       {isAdmin() && <DeletionRequests onDecided={invalidate} />}
 
@@ -727,6 +728,99 @@ function DetailList({ title, icon: Icon, rows, render, empty }) {
   )
 }
 
+
+/* ================== Institution registration requests ================== */
+
+/**
+ * Someone asked to register an institution. Nothing exists for them until an
+ * administrator approves — approving creates the organization and its first
+ * admin, who then verifies their email. Hidden for administrators who are not
+ * allowed to decide these (the API says so via `platform_admin`).
+ */
+function InstitutionRequests() {
+  const qc = useQueryClient()
+  const user = useAuth((st) => st.user)
+  const access = useQuery({
+    queryKey: ['my-permissions', user?.id, user?.role],
+    queryFn: () => api.get('/auth/me/permissions'),
+    staleTime: 60_000,
+  })
+  const canReview = !!access.data?.platform_admin
+
+  const requests = useQuery({
+    queryKey: ['institution-requests'],
+    queryFn: () => api.get('/admin/institution-requests'),
+    enabled: canReview,
+    retry: false,
+  })
+
+  const decide = useMutation({
+    mutationFn: ({ id, action, note }) =>
+      api.post(`/admin/institution-requests/${id}/${action}`, { note }),
+    onSuccess: (d) => {
+      toast.success(d.detail || 'Decision recorded.')
+      qc.invalidateQueries({ queryKey: ['institution-requests'] })
+    },
+    onError: (err) => toast.error(err.detail || 'Could not record that decision.'),
+  })
+
+  const pending = requests.data || []
+  if (!canReview || !pending.length) return null
+
+  return (
+    <Widget
+      title={
+        <span className="flex items-center gap-2">
+          <Building2 size={17} className="text-warning" />
+          Institution registration requests
+        </span>
+      }
+      subtitle={`${pending.length} awaiting approval`}
+      bodyClass="p-0"
+    >
+      <div className="divide-y divide-border-subtle">
+        {pending.map((r) => {
+          const busy = decide.isPending && decide.variables?.id === r.id
+          return (
+            <div key={r.id} className="p-widget flex flex-wrap items-start gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-body-lg font-medium text-ink">{r.institution_name}</p>
+                <p className="text-body-sm text-ink-faint mt-0.5">
+                  {r.full_name}{r.designation ? `, ${r.designation}` : ''} · {r.email}
+                  {r.phone ? ` · ${r.phone}` : ''} · requested {ago(r.requested_at)}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm" variant="ghost" loading={busy}
+                  onClick={() => {
+                    const note = prompt(`Why is ${r.institution_name} being declined? (sent to the applicant)`)
+                    if (note === null) return
+                    decide.mutate({ id: r.id, action: 'reject', note })
+                  }}
+                >
+                  Decline
+                </Button>
+                <Button
+                  size="sm" loading={busy}
+                  onClick={async () => {
+                    const ok = await confirmDialog(
+                      `Register ${r.institution_name}? ${r.full_name} (${r.email}) becomes its administrator.`,
+                      { confirmLabel: 'Approve' },
+                    )
+                    if (ok) decide.mutate({ id: r.id, action: 'approve', note: null })
+                  }}
+                >
+                  Approve
+                </Button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Widget>
+  )
+}
 
 /* ================== Name change requests ================== */
 

@@ -124,6 +124,13 @@ export default function Register() {
         academic_year: (role === 'student' && form.academic_year) ? Number(form.academic_year) : null,
         organization_name: isEnterprise ? form.organization_name : null,
       })
+      if (isEnterprise) {
+        // Nothing exists yet: an administrator has to approve the institution,
+        // so there is no code to verify. Send them somewhere that says so.
+        toast.success(res?.detail || 'Request received. We will email you once it is approved.')
+        navigate('/login', { replace: true })
+        return
+      }
       toast.success(res?.detail || 'Account created. Check your email for the verification code.')
       // When the server has no mail configured it returns the code directly;
       // pass it along so the user is not stranded at a step they cannot complete.
@@ -163,7 +170,7 @@ export default function Register() {
         )}
         {isEnterprise && (
           <div className="ai-surface px-3 py-2.5 text-body-md text-info-text">
-            Registering an institution creates the campus workspace and makes you its administrator.
+            An administrator reviews every institution request. Once it is approved you become the administrator of the new campus workspace, and we email you to verify your address.
           </div>
         )}
 
@@ -281,7 +288,7 @@ export default function Register() {
         </p>
 
         <Button type="submit" size="lg" loading={submitting} className="w-full">
-          Create account
+          {isEnterprise ? 'Request registration' : 'Create account'}
         </Button>
         <p className="text-body-sm text-ink-faint text-center">
           By continuing you agree to the Terms of Service and Privacy Policy.

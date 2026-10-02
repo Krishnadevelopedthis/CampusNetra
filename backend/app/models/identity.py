@@ -106,6 +106,34 @@ class NameChangeRequest(UpdatedMixin, Base):
     decision_note: Mapped[Optional[str]] = mapped_column(Text)
 
 
+class InstitutionRequest(UpdatedMixin, Base):
+    """Someone asking to register their institution on the platform.
+
+    Nothing is created for them until a platform administrator approves: the
+    organization and its first admin account come into being on approval (see
+    services.auth.approve_institution_request). The password is kept hashed so
+    they can sign in with it afterwards.
+    """
+    __tablename__ = "institution_requests"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    institution_name: Mapped[str] = mapped_column(Text, nullable=False)
+    full_name: Mapped[str] = mapped_column(Text, nullable=False)
+    email: Mapped[str] = mapped_column(Text, nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(Text)
+    designation: Mapped[Optional[str]] = mapped_column(Text)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, default="pending", nullable=False)
+    decided_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    decided_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    decision_note: Mapped[Optional[str]] = mapped_column(Text)
+    organization_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("organizations.id", ondelete="SET NULL")
+    )
+
+
 class AcademicProgramme(TimestampMixin, Base):
     """A course a student is enrolled on — BSc IT, AI & DS, BCom.
 
