@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Boxes, ChevronLeft, ChevronRight, CircleDot, DoorOpen, Download, Flame,
-  Landmark, Layers, Maximize, PanelTop, Plus, RotateCcw, RotateCw, X, ZoomIn, ZoomOut,
+  Landmark, Layers, Maximize, Megaphone, PanelTop, Plus, RotateCcw, RotateCw, X, ZoomIn, ZoomOut,
 } from 'lucide-react'
 import { lazy, Suspense, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import {
   Button,
@@ -18,6 +19,7 @@ import {
   Widget,
 } from '@/components/ui'
 import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
+import RoomAssetList from '@/features/twin/RoomAssetList'
 // Lazy: maplibre-gl is a large dependency that only matters once a campus
 // actually has real-world coordinates set (hasOutdoorMap below) — most
 // visits to this page shouldn't pay for it just to render the three.js
@@ -489,6 +491,7 @@ export default function CampusMap() {
       {(selectedAsset || (view === 'room' && planRoom)) && (
         <Inspector
           asset={selectedAsset} room={view === 'room' ? planRoom : null}
+          onSelectAsset={setSelectedAsset}
           onClose={() => setSelectedAsset(null)}
         />
       )}
@@ -623,7 +626,7 @@ function Crumb({ active, onClick, children }) {
 }
 
 /** Detail card for whichever room is currently open, or an asset clicked inside it. */
-function Inspector({ asset, room, onClose }) {
+function Inspector({ asset, room, onClose, onSelectAsset }) {
   const detail = useQuery({
     queryKey: ['asset', asset?.id],
     queryFn: () => api.get(`/campus/assets/${asset.id}`),
@@ -638,6 +641,12 @@ function Inspector({ asset, room, onClose }) {
         subtitle={`${asset.tag} · ${room?.name || ''}`}
         action={<button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close"><X size={16} /></button>}
       >
+        <Link to={`/scan/asset/${asset.id}`} className="btn-primary w-full sm:w-auto mb-4 inline-flex items-center justify-center gap-2">
+          <Megaphone size={16} /> Report a complaint
+        </Link>
+        <p className="text-body-sm text-ink-faint -mt-2 mb-4">
+          Building, floor and room are filled in for you — just describe the problem and add a photo.
+        </p>
         {detail.isLoading ? <Spinner label="Loading asset…" /> : (
           <div className="grid md:grid-cols-2 gap-5">
             <div className="space-y-3">
@@ -704,17 +713,7 @@ function Inspector({ asset, room, onClose }) {
         <Row label="Open issues">{room.open_issue_count}</Row>
       </div>
       {room.assets?.length > 0 && (
-        <div className="mt-5">
-          <p className="text-label-caps uppercase text-ink-muted mb-2">Assets in this room — click one in the scene for details</p>
-          <div className="flex flex-wrap gap-2">
-            {room.assets.map((a) => (
-              <span key={a.id} className="pill border border-border-subtle bg-surface">
-                <span className="w-2 h-2 rounded-full" style={{ background: a.colour }} />
-                <span className="font-mono text-mono-data">{a.tag}</span>
-              </span>
-            ))}
-          </div>
-        </div>
+        <RoomAssetList key={room.id} assets={room.assets} onSelect={onSelectAsset} />
       )}
     </Widget>
   )

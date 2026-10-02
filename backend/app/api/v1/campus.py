@@ -401,6 +401,7 @@ async def floor_plan(floor_id: uuid.UUID, user: CurrentUser, db: DB):
                     pos_y=float(a.pos_y) if a.pos_y is not None else None,
                     surface=a.surface,
                     category_icon=categories[a.category_id].icon if a.category_id in categories else None,
+                    category=categories[a.category_id].name if a.category_id in categories else None,
                     open_issue_count=asset_issue_count.get(a.id, 0),
                     active_issue_reference=asset_issue_ref.get(a.id),
                     active_work_order_reference=asset_wo_ref.get(a.id),
