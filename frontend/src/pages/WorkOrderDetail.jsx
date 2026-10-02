@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Camera, Loader2, MessageSquare, Package, Plus, Send } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, Loader2, MessageSquare, Package, Play, Plus, Send } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
@@ -8,11 +8,23 @@ import {
   StatusPill, Textarea, Widget, toast,
 } from '@/components/ui'
 import { api, upload } from '@/lib/api'
+import { useAuth } from '@/lib/auth'
 import { ago, dt, money, slaLabel, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 import AdminDeleteButton from '@/components/AdminDeleteButton'
 
+// The one obvious next move for each status, so nobody has to find it in the
+// "Update status" dropdown. [target status, button label, icon]
+const NEXT_STEP = {
+  assigned: ['accepted', 'Accept work order', CheckCircle2],
+  accepted: ['in_progress', 'Start work', Play],
+  in_progress: ['completed', 'Mark complete', CheckCircle2],
+  completed: ['verified', 'Verify work', CheckCircle2],
+  verified: ['closed', 'Close work order', CheckCircle2],
+}
+
 export default function WorkOrderDetail() {
+  const role = useAuth((st) => st.user?.role)
   const { id } = useParams()
   const qc = useQueryClient()
   const [transitionTo, setTransitionTo] = useState(null)
@@ -45,6 +57,13 @@ export default function WorkOrderDetail() {
     mutationFn: () => api.post(`/work-orders/${id}/comments`, { body: comment.trim() }),
     onSuccess: () => { setComment(''); invalidate() },
     onError: (err) => toast.error(err.detail),
+  })
+
+  const canDecideParts = ['facility_manager', 'admin', 'super_admin'].includes(role)
+  const decidePart = useMutation({
+    mutationFn: ({ partId, approve }) => api.post(`/work-orders/parts/${partId}/decision?approve=${approve}`),
+    onSuccess: (d) => { toast.success(d.detail || 'Done.'); invalidate() },
+    onError: (err) => toast.error(err.detail || 'Could not record the decision'),
   })
 
   const requestParts = useMutation({
@@ -81,6 +100,14 @@ export default function WorkOrderDetail() {
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {(() => {
+            const step = NEXT_STEP[wo.status]
+            // Checking and closing the work is for managers, not the person who did it.
+            const checking = step && ['verified', 'closed'].includes(step[0])
+            if (!step || !wo.allowed_transitions?.includes(step[0]) || (checking && role === 'technician')) return null
+            const [target, label, Icon] = step
+            return <Button icon={Icon} onClick={() => setTransitionTo(target)}>{label}</Button>
+          })()}
           <Button variant="secondary" icon={Package} onClick={() => setPartsOpen(true)}>Request parts</Button>
           {wo.allowed_transitions?.length > 0 && (
             <Select value="" className="w-auto min-w-[180px]"
@@ -218,7 +245,22 @@ export default function WorkOrderDetail() {
                       <p className="text-body-md text-ink truncate">{p.quantity} × {p.item_name}</p>
                       <p className="text-body-sm text-ink-faint">{ago(p.created_at)}</p>
                     </div>
-                    <StatusPill status={p.status} />
+                    {canDecideParts && p.status === 'pending' ? (
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" variant="ghost"
+                                loading={decidePart.isPending && decidePart.variables?.partId === p.id}
+                                onClick={() => decidePart.mutate({ partId: p.id, approve: false })}>
+                          Reject
+                        </Button>
+                        <Button size="sm"
+                                loading={decidePart.isPending && decidePart.variables?.partId === p.id}
+                                onClick={() => decidePart.mutate({ partId: p.id, approve: true })}>
+                          Approve
+                        </Button>
+                      </div>
+                    ) : (
+                      <StatusPill status={p.status} />
+                    )}
                   </div>
                 ))}
               </div>
