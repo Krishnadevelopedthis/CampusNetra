@@ -14,7 +14,7 @@ from app.core.enums import (
     UserRole, WorkOrderStatus, can_transition,
 )
 from app.models.identity import User
-from app.models.issues import Issue
+from app.models.issues import Issue, IssueCategory
 from app.models.spatial import Asset
 from app.models.work import SLAPolicy, WorkOrder, WorkOrderEvent
 from app.services import notifications as notify_svc
@@ -53,11 +53,33 @@ async def resolve_sla(
     return policy, _now() + timedelta(minutes=policy.resolve_mins)
 
 
+async def category_code_for_issue(
+    db: AsyncSession, issue_id: Optional[uuid.UUID],
+) -> Optional[str]:
+    """The Issue Configuration category code (ELEC, PLUMB, ...) behind a work
+    order's originating issue — what technicians register as servicing."""
+    if not issue_id:
+        return None
+    return await db.scalar(
+        select(IssueCategory.code)
+        .join(Issue, Issue.category_id == IssueCategory.id)
+        .where(Issue.id == issue_id)
+    )
+
+
 async def suggest_technician(
     db: AsyncSession, org_id: uuid.UUID, department_id: Optional[uuid.UUID],
     exclude: Optional[uuid.UUID] = None,
+    category_code: Optional[str] = None,
 ) -> Optional[User]:
-    """Least-loaded active technician in the department.
+    """Least-loaded active technician who can take the work.
+
+    Technicians register against Issue Configuration categories (stored as
+    category codes in User.specialization), so a technician who services the
+    issue's category is preferred, whatever department they sit in. Only
+    when nobody services that category does it fall back to the department,
+    which keeps accounts created before category registration (and work
+    orders with no originating issue) routable.
 
     Load is counted as currently-open work orders, so assignment naturally
     balances rather than always picking the same person.
@@ -80,10 +102,18 @@ async def suggest_technician(
         .group_by(User.id)
         .order_by(func.count(WorkOrder.id).asc())
     )
-    if department_id:
-        query = query.where(User.department_id == department_id)
     if exclude:
         query = query.where(User.id != exclude)
+
+    if category_code:
+        row = (await db.execute(
+            query.where(User.specialization.any(category_code)).limit(1)
+        )).first()
+        if row:
+            return row[0]
+
+    if department_id:
+        query = query.where(User.department_id == department_id)
 
     row = (await db.execute(query.limit(1))).first()
     return row[0] if row else None
@@ -123,6 +153,7 @@ async def handover_open_work(
             db, leaving.organization_id,
             wo.department_id or leaving.department_id,
             exclude=leaving.id,
+            category_code=await category_code_for_issue(db, wo.issue_id),
         )
         if successor is None:
             wo.assigned_to = None
@@ -173,6 +204,7 @@ async def create_work_order(
     reference = await next_public_id(db, WorkOrder, "WO")
 
     # Inherit spatial context and routing from the originating issue.
+    category_code = None
     if issue_id:
         issue = await db.scalar(select(Issue).where(Issue.id == issue_id))
         if issue is None:
@@ -181,9 +213,10 @@ async def create_work_order(
         asset_id = asset_id or issue.asset_id
         department_id = department_id or issue.department_id
         priority = priority or issue.priority
+        category_code = await category_code_for_issue(db, issue_id)
 
     if assigned_to is None and auto_assign:
-        tech = await suggest_technician(db, org_id, department_id)
+        tech = await suggest_technician(db, org_id, department_id, category_code=category_code)
         assigned_to = tech.id if tech else None
 
     policy, due = await resolve_sla(db, org_id, priority, department_id)
@@ -245,6 +278,18 @@ async def assign_work_order(
     if tech.role != UserRole.TECHNICIAN:
         raise HTTPException(status.HTTP_400_BAD_REQUEST,
                             f"{tech.full_name} is not a technician")
+    # Same eligibility suggest_technician() uses: a technician who services
+    # the issue's category (registered against Issue Configuration), or —
+    # for accounts without category registration — one in the work order's
+    # department. A work order with neither stays open to any technician.
+    category_code = await category_code_for_issue(db, wo.issue_id)
+    serves_category = bool(category_code) and category_code in (tech.specialization or [])
+    in_department = not wo.department_id or tech.department_id == wo.department_id
+    if not (serves_category or in_department):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"{tech.full_name} does not service this issue's category",
+        )
 
     previous = wo.status
     wo.assigned_to = tech.id

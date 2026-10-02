@@ -255,11 +255,15 @@ async def assign(wo_id: uuid.UUID, payload: WorkOrderAssign, user: RequireWOAssi
 
 @router.get("/{wo_id}/suggest-technician", response_model=dict)
 async def suggest(wo_id: uuid.UUID, user: RequireManager, db: DB):
-    """Least-loaded technician in the owning department."""
+    """Least-loaded technician servicing the issue's category (falling back
+    to the owning department)."""
     wo = await _get_or_404(db, wo_id, user)
-    tech = await wo_service.suggest_technician(db, user.organization_id, wo.department_id)
+    tech = await wo_service.suggest_technician(
+        db, user.organization_id, wo.department_id,
+        category_code=await wo_service.category_code_for_issue(db, wo.issue_id),
+    )
     if tech is None:
-        return {"suggestion": None, "reason": "No active technician in this department"}
+        return {"suggestion": None, "reason": "No active technician services this category"}
 
     load = await db.scalar(
         select(func.count()).select_from(WorkOrder).where(

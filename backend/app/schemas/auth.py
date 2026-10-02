@@ -93,6 +93,10 @@ class RegisterRequest(BaseModel):
     # who a technician's/facility staff's work orders route through. NOT
     # what a student/teacher picks; see programme_code for that.
     department_code: Optional[str] = None
+    # Issue Configuration category codes the technician services —
+    # technicians only. Validated against the organization's active
+    # categories in register_user(); unknown codes are dropped.
+    specialization: Optional[list[str]] = None
     # Academic programme (BSc IT, AI & DS, BCom, ...) — a student's or
     # teacher's course/department, deliberately a separate concept from
     # department_code above (see AcademicProgramme's own docstring: sharing

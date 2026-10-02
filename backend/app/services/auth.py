@@ -19,6 +19,7 @@ from app.core.security import (
 from app.models.identity import (
     AcademicProgramme, Department, Organization, RefreshToken, User, VerificationCode,
 )
+from app.models.issues import IssueCategory
 from app.schemas.auth import RegisterRequest, TokenPair
 from app.services.audit import record_login
 from app.services.email import send_otp
@@ -304,6 +305,26 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
             )
         )
 
+    # Categories serviced — technicians only, checked against this
+    # organization's active Issue Configuration categories, so a category an
+    # admin adds later is selectable straight away and a removed one can't be
+    # registered for. Work orders route on these (see suggest_technician).
+    specialization = None
+    if role == UserRole.TECHNICIAN and payload.specialization and org_id:
+        categories = (await db.execute(
+            select(IssueCategory.code, IssueCategory.department_id).where(
+                IssueCategory.organization_id == org_id,
+                IssueCategory.is_active.is_(True),
+                IssueCategory.code.in_(payload.specialization),
+            )
+        )).all()
+        by_code = {code: dept for code, dept in categories}
+        specialization = [c for c in dict.fromkeys(payload.specialization) if c in by_code] or None
+        # Registration no longer asks technicians for a department; take it
+        # from the first category so department-level views still place them.
+        if specialization and department_id is None:
+            department_id = by_code[specialization[0]]
+
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
@@ -317,6 +338,7 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
         enrollment_no=payload.enrollment_no,
         employee_id=payload.employee_id,
         designation=payload.designation,
+        specialization=specialization,
         status=UserStatus.PENDING_VERIFICATION,
     )
     db.add(user)
