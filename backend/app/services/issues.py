@@ -105,6 +105,33 @@ async def find_duplicate_candidates(
     return dup.find_duplicates(new_dict, [to_dict(i) for i in open_issues])
 
 
+# Asset categories that have no issue category of their own file under one that does.
+_ASSET_TO_ISSUE_CODE = {"FAN": "hvac", "LIGHT": "electrical"}
+
+
+async def issue_category_for_asset(db, org_id, asset_id):
+    """The issue category an asset naturally belongs to: the same code, else the
+    mapped one (fans -> HVAC, lights -> Electrical), else the first category of
+    the asset category's default department. None when nothing fits."""
+    row = (await db.execute(
+        select(AssetCategory.code, AssetCategory.default_department_id)
+        .join(Asset, Asset.category_id == AssetCategory.id)
+        .where(Asset.id == asset_id)
+    )).first()
+    if row is None:
+        return None
+    code, dept = row
+    wanted = _ASSET_TO_ISSUE_CODE.get(code, code)
+    cat = await db.scalar(select(IssueCategory).where(
+        IssueCategory.organization_id == org_id, IssueCategory.is_active.is_(True),
+        IssueCategory.code == wanted))
+    if cat is None and dept is not None:
+        cat = await db.scalar(select(IssueCategory).where(
+            IssueCategory.organization_id == org_id, IssueCategory.is_active.is_(True),
+            IssueCategory.department_id == dept).limit(1))
+    return cat
+
+
 async def create_issue(
     db: AsyncSession,
     reporter: User,
@@ -193,6 +220,18 @@ async def create_issue(
     # at AV, so keyword weight alone routes it wrongly. The reporter already told
     # us what the thing is by choosing it from the asset list, and that is
     # physical evidence rather than an inference from prose.
+    if asset_id and issue.category_id is None:
+        # The text gave the classifier nothing to go on; the item the reporter
+        # picked does, so file it under that item's category rather than leaving
+        # it for manual triage.
+        by_asset = await issue_category_for_asset(db, org_id, asset_id)
+        if by_asset is not None:
+            issue.category_id = by_asset.id
+            issue.department_id = by_asset.department_id
+            issue.sla_due_at = _now() + timedelta(minutes=by_asset.sla_resolve_mins)
+            issue.ai_reasoning = (f"{issue.ai_reasoning or ''} Filed under '{by_asset.name}' "
+                                  f"because of the selected asset.").strip()
+
     if asset_id:
         asset_dept = await db.scalar(
             select(AssetCategory.default_department_id)
