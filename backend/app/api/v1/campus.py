@@ -14,7 +14,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import delete as sa_delete, func, or_, select
 
 from app.api.deps import (
-    DB, CurrentUser, Paging, RequireAdmin, RequireStaff, require_permission, socket_session_valid,
+    DB, CurrentUser, Paging, RequireAdmin, RequireStaff, require_any_permission, require_permission,
+    socket_session_valid,
 )
 from app.core.routing import CommitRoute
 from app.core.database import SessionLocal
@@ -42,6 +43,10 @@ from app.services.twin import STATE_COLOURS, STATE_LABELS, set_asset_state
 router = APIRouter(route_class=CommitRoute, prefix="/campus", tags=["Campus & Digital Twin"])
 
 RequireAssetsView = Annotated[User, Depends(require_permission("assets:view"))]
+# Where things are (buildings, floors, rooms): needed to report an issue or a lost item,
+# so it is not tied to the wider "view assets" permission.
+RequireLocationsView = Annotated[User, Depends(require_any_permission(
+    "assets:view", "issues:create", "lost_found:report"))]
 RequireAssetsManage = Annotated[User, Depends(require_permission("assets:manage"))]
 RequireCampusConfig = Annotated[User, Depends(require_permission("admin:campus_config"))]
 
@@ -303,7 +308,7 @@ async def campus_overview(campus_id: uuid.UUID, user: CurrentUser, db: DB):
 
 
 @router.get("/campuses/{campus_id}/buildings", response_model=list[BuildingOut])
-async def list_buildings(campus_id: uuid.UUID, user: RequireAssetsView, db: DB):
+async def list_buildings(campus_id: uuid.UUID, user: RequireLocationsView, db: DB):
     rows = (await db.scalars(
         select(Building).join(Campus, Campus.id == Building.campus_id)
         .where(Building.campus_id == campus_id,
@@ -314,7 +319,7 @@ async def list_buildings(campus_id: uuid.UUID, user: RequireAssetsView, db: DB):
 
 
 @router.get("/buildings/{building_id}/floors", response_model=list[FloorOut])
-async def list_floors(building_id: uuid.UUID, user: RequireAssetsView, db: DB):
+async def list_floors(building_id: uuid.UUID, user: RequireLocationsView, db: DB):
     await _get_building_or_404(db, building_id, user)
     rows = (await db.scalars(
         select(Floor).where(Floor.building_id == building_id).order_by(Floor.level)
@@ -1147,13 +1152,13 @@ async def delete_asset(asset_id: uuid.UUID, user: RequireAdmin, db: DB):
 
 
 @router.get("/rooms/{room_id}", response_model=RoomOut)
-async def get_room(room_id: uuid.UUID, user: RequireAssetsView, db: DB):
+async def get_room(room_id: uuid.UUID, user: RequireLocationsView, db: DB):
     room = await _get_room_or_404(db, room_id, user)
     return RoomOut.model_validate(room)
 
 
 @router.get("/rooms/{room_id}/assets", response_model=list[AssetOut])
-async def room_assets(room_id: uuid.UUID, user: RequireAssetsView, db: DB):
+async def room_assets(room_id: uuid.UUID, user: RequireLocationsView, db: DB):
     await _get_room_or_404(db, room_id, user)
     rows = (await db.scalars(
         select(Asset).where(Asset.room_id == room_id).order_by(Asset.tag))).all()

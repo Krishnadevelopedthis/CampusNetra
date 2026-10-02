@@ -51,7 +51,7 @@ function disposeObject(obj) {
 }
 
 /** Canvas-drawn text sprite — cheaper than loading a font for a handful of labels. */
-function makeLabel(text, { fontSize = 42, color = '#0f172a', bg = 'rgba(255,255,255,0.88)' } = {}) {
+function makeLabel(text, { fontSize = 42, color = '#0f172a', bg = 'rgba(255,255,255,0.88)', scale = 0.017 } = {}) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
   ctx.font = `600 ${fontSize}px system-ui, sans-serif`
@@ -75,7 +75,6 @@ function makeLabel(text, { fontSize = 42, color = '#0f172a', bg = 'rgba(255,255,
   texture.colorSpace = THREE.SRGBColorSpace
   const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true })
   const sprite = new THREE.Sprite(material)
-  const scale = 0.017
   sprite.scale.set(canvas.width * scale, canvas.height * scale, 1)
   return sprite
 }
@@ -448,7 +447,7 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
       }
     }
 
-    const addClickable = (mesh, { onClick, cursor = 'pointer', hoverColor, baseScale = 1 } = {}) => {
+    const addClickable = (mesh, { onClick, cursor = 'pointer', hoverColor, baseScale = 1, onHoverChange } = {}) => {
       mesh.userData.kind = 'clickable'
       mesh.userData.cursor = cursor
       mesh.userData.onClick = onClick
@@ -458,6 +457,7 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
           mesh.material.emissiveIntensity = on ? 0.35 : 0
         }
         mesh.scale.setScalar(on ? baseScale * 1.04 : baseScale)
+        onHoverChange?.(on)
       }
       return mesh
     }
@@ -720,6 +720,17 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
         addRoomCeiling(content, half, roomHeight, addClickable, onSurfaceClick)
       }
 
+      // A room can hold well over a hundred assets; a permanent label on each
+      // one is an unreadable pile. Labels (the asset's plain-English name, not
+      // its tag) show for the asset under the pointer and for the last one
+      // tapped, and always for small rooms. Size follows the screen width.
+      const placedAssets = (roomAssets || []).filter((a) => a.pos_x != null && a.pos_y != null)
+      const showAllLabels = placedAssets.length <= 8
+      const screenW = mountRef.current?.clientWidth || 900
+      const labelFont = screenW < 520 ? 16 : screenW < 900 ? 19 : 22
+      const labelScale = screenW < 520 ? 0.012 : screenW < 900 ? 0.0145 : 0.017
+      let stickyLabel = null
+
       ;(roomAssets || []).forEach((a) => {
         if (a.pos_x == null || a.pos_y == null) return
         const surface = a.surface || 'floor'
@@ -738,11 +749,23 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
               new THREE.MeshStandardMaterial({ color: a.colour || '#10b981', roughness: 0.4 }),
             )
         marker.position.set(wx, wy, wz)
+        const labelText = (a.name || a.tag || '').length > 30
+          ? `${(a.name || a.tag).slice(0, 29)}…` : (a.name || a.tag)
+        const label = makeLabel(labelText, { fontSize: labelFont, scale: labelScale })
+        label.position.set(wx, wy + 0.59, wz)
+        label.visible = showAllLabels
         addClickable(marker, {
-          onClick: () => onSelectAsset?.(a),
+          onClick: () => {
+            if (!showAllLabels && stickyLabel && stickyLabel !== label) stickyLabel.visible = false
+            stickyLabel = label
+            label.visible = true
+            onSelectAsset?.(a)
+          },
+          onHoverChange: (on) => { label.visible = showAllLabels || on || stickyLabel === label },
           hoverColor: '#3b82f6',
         })
         content.add(marker)
+        content.add(label)
 
         if (a.open_issue_count > 0) {
           const dot = new THREE.Mesh(
@@ -753,9 +776,6 @@ export const CampusScene3D = forwardRef(function CampusScene3D({
           content.add(dot)
         }
 
-        const label = makeLabel(a.tag, { fontSize: 22 })
-        label.position.set(wx, wy + 0.59, wz)
-        content.add(label)
       })
 
       if (pendingPlacement) {

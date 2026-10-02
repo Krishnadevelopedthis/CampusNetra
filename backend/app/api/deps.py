@@ -120,6 +120,26 @@ def require_permission(code: str):
     return guard
 
 
+def require_any_permission(*codes: str):
+    """Like require_permission, but satisfied by holding ANY of the codes.
+
+    For read-only data that several different jobs need: the building/floor
+    pickers on the Report Issue and Report Item forms must work for someone who
+    may report but has not been granted the wider "view assets" permission."""
+    async def guard(user: CurrentUser, db: DB) -> User:
+        granted = await db.scalar(
+            select(RolePermission.role)
+            .join(Permission, Permission.id == RolePermission.permission_id)
+            .where(RolePermission.role == user.role, Permission.code.in_(codes))
+            .limit(1)
+        )
+        if granted is None:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, f"Requires one of: {', '.join(codes)}")
+        return user
+
+    return guard
+
+
 class Pagination:
     def __init__(
         self,
