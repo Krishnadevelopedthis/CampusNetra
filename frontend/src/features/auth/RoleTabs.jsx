@@ -1,15 +1,11 @@
 import clsx from 'clsx'
 import { Building2, GraduationCap, UserCog, Wrench } from 'lucide-react'
 
-// No "Admin" tab: which tabs exist here used to also gate login (the
-// selected tab was sent as an expected_role the server would 403 against a
-// mismatch), which meant an admin account could only sign in from an
-// "Admin" tab that presented admin as just another persona alongside
-// student/teacher/technician -- backwards, since the admin panel isn't
-// part of the regular user-facing app to begin with. Login no longer sends
-// a role constraint at all (see Login.jsx) -- these tabs are cosmetic, and
-// whichever account's credentials are correct signs in and lands wherever
-// its real role takes it.
+// The sign-in tab is enforced: a student, teacher or technician account
+// signs in only from its own tab ("This account is not registered as a
+// Teacher. Select Student to sign in."). There is deliberately no Admin tab
+// -- admin and facility manager accounts sign in from any tab and land on
+// their own home (see services/auth.py authenticate).
 export const ROLE_TABS = [
   { value: 'student', label: 'Student', icon: GraduationCap },
   { value: 'teacher', label: 'Teacher', icon: UserCog },

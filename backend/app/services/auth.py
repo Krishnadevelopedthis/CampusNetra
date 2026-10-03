@@ -351,6 +351,14 @@ async def register_user(db: AsyncSession, payload: RegisterRequest):
     return user, code, result
 
 
+# Roles that have their own tab on the sign-in screen.
+_TAB_ROLES = {UserRole.STUDENT, UserRole.TEACHER, UserRole.TECHNICIAN}
+
+
+def _role_label(role: UserRole) -> str:
+    return role.value.replace("_", " ").title()
+
+
 async def authenticate(
     db: AsyncSession, email: str, password: str,
     expected_role: Optional[UserRole] = None,
@@ -394,10 +402,15 @@ async def authenticate(
                        f"Too many failed attempts. Account locked for {settings.LOCKOUT_MINUTES} minutes.")
         await fail("bad_password")
 
-    # The login screen's role tab must agree with the stored role.
-    if expected_role and user.role != expected_role:
+    # The login screen's tab (Student / Teacher / Technician) must match the
+    # account: a student signs in only as a student, and so on. Accounts that
+    # have no tab of their own -- admin, super admin, facility manager -- sign
+    # in from whichever tab is selected. Checked only after the password, so
+    # it never reveals anything about an account to someone without it.
+    if expected_role and user.role in _TAB_ROLES and user.role != expected_role:
         await fail("role_mismatch", status.HTTP_403_FORBIDDEN,
-                   f"This account is not registered as a {expected_role.value.replace('_', ' ')}")
+                   f"This account is not registered as a {_role_label(expected_role)}. "
+                   f"Select {_role_label(user.role)} to sign in.")
 
     if user.status == UserStatus.PENDING_VERIFICATION:
         await fail("unverified", status.HTTP_403_FORBIDDEN,
