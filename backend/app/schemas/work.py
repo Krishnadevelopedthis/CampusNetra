@@ -183,6 +183,10 @@ class InspectionSchedule(BaseModel):
     template_id: uuid.UUID
     room_id: Optional[uuid.UUID] = None
     asset_id: Optional[uuid.UUID] = None
+    # What kind of equipment is being checked (an Issue Configuration category).
+    # Leave assigned_to empty and the technician who services this category,
+    # least busy first, is assigned automatically.
+    category_id: Optional[uuid.UUID] = None
     assigned_to: Optional[uuid.UUID] = None
     scheduled_for: datetime
 

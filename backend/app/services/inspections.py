@@ -41,6 +41,7 @@ async def schedule_inspection(
     room_id: Optional[uuid.UUID] = None,
     asset_id: Optional[uuid.UUID] = None,
     assigned_to: Optional[uuid.UUID] = None,
+    category_id: Optional[uuid.UUID] = None,
 ) -> Inspection:
     template = await db.scalar(
         select(InspectionTemplate).where(
@@ -55,6 +56,9 @@ async def schedule_inspection(
             status.HTTP_400_BAD_REQUEST,
             "An inspection must target either a room or an asset",
         )
+
+    if assigned_to is None:
+        assigned_to = await _technician_for(db, actor.organization_id, category_id, asset_id, template)
 
     inspection = Inspection(
         reference=await next_public_id(db, Inspection, "INS"),
@@ -87,6 +91,29 @@ async def schedule_inspection(
             },
         )
     return inspection
+
+
+async def _technician_for(db, org_id, category_id, asset_id, template) -> Optional[uuid.UUID]:
+    """Who should carry out an inspection: the least busy technician who
+    services its category. The category is the one chosen, else the inspected
+    asset's, else the template's. None when nobody services it."""
+    from app.services.issues import issue_category_for_asset
+    from app.services.work_orders import suggest_technician
+
+    code = None
+    if category_id:
+        code = await db.scalar(select(IssueCategory.code).where(
+            IssueCategory.id == category_id, IssueCategory.organization_id == org_id))
+    if code is None and asset_id:
+        cat = await issue_category_for_asset(db, org_id, asset_id)
+        code = cat.code if cat else None
+    if code is None and template.category_id:
+        from app.models.spatial import AssetCategory
+        code = await db.scalar(select(AssetCategory.code).where(AssetCategory.id == template.category_id))
+    if code is None:
+        return None
+    tech = await suggest_technician(db, org_id, None, category_code=code)
+    return tech.id if tech else None
 
 
 async def _raise_issue_from_failure(

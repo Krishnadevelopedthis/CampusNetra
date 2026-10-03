@@ -1,3 +1,4 @@
+import { usePermissions } from '@/lib/permissions'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Boxes, ChevronLeft, ChevronRight, CircleDot, DoorOpen, Download, Flame,
@@ -111,7 +112,10 @@ export default function CampusMap() {
   const [assetModal, setAssetModal] = useState(false)
 
   const { user } = useAuth()
-  const canEdit = ['technician', 'facility_manager', 'admin', 'super_admin'].includes(user?.role)
+  // Follows Admin -> Roles: whoever holds "assets:manage" may build out the
+  // campus (buildings, floors, rooms, assets). Same check the API makes.
+  const { perms } = usePermissions()
+  const canEdit = !!perms?.includes('assets:manage')
   const qc = useQueryClient()
 
   const campuses = useQuery({ queryKey: ['campuses'], queryFn: () => api.get('/campus/campuses') })

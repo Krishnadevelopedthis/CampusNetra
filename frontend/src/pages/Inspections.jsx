@@ -180,6 +180,19 @@ function ScheduleModal({ open, onClose, onDone }) {
     queryFn: () => api.get(`/campus/floors/${form.floor_id}/plan`).then((d) => d.rooms),
     enabled: !!form.floor_id,
   })
+  const categories = useQuery({
+    queryKey: ['issue-categories'], queryFn: () => api.get('/issues/categories'), enabled: open,
+  })
+  const technicians = useQuery({
+    queryKey: ['technicians'],
+    queryFn: () => api.get('/admin/users', { params: { role: 'technician', status: 'active', page_size: 100 } })
+      .then((d) => d.items),
+    enabled: open,
+    retry: false,
+  })
+  const category = categories.data?.find((c) => c.id === form.category_id)
+  // Only technicians who service the chosen category are offered.
+  const eligible = (technicians.data || []).filter((t) => !category || (t.specialization || []).includes(category.code))
 
   const create = useMutation({
     mutationFn: () => api.post('/inspections', {
@@ -187,10 +200,13 @@ function ScheduleModal({ open, onClose, onDone }) {
       room_id: form.room_id || null,
       asset_id: form.asset_id || null,
       assigned_to: form.assigned_to || null,
+      category_id: form.category_id || null,
       scheduled_for: new Date(form.scheduled_for).toISOString(),
     }),
     onSuccess: (i) => {
-      toast.success(`${i.reference} scheduled.`)
+      toast.success(i.assignee?.full_name
+        ? `${i.reference} scheduled and assigned to ${i.assignee?.full_name}.`
+        : `${i.reference} scheduled. No technician handles that category — anyone can pick it up.`)
       setForm({}); onClose(); onDone()
     },
     onError: (err) => toast.error(err.detail || 'Could not schedule'),
@@ -257,6 +273,22 @@ function ScheduleModal({ open, onClose, onDone }) {
               {(selectedRoom?.assets || []).map((a) => (
                 <option key={a.id} value={a.id}>{a.tag} — {a.name}</option>
               ))}
+            </Select>
+          </Field>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          <Field label="What is being checked?" hint="Picks the technician who handles it">
+            <Select value={form.category_id || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value, assigned_to: '' }))}>
+              <option value="">{form.asset_id ? "Same as the asset's category" : 'Choose a category'}</option>
+              {(categories.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Technician" hint={category && !eligible.length ? 'Nobody services this category yet' : undefined}>
+            <Select value={form.assigned_to || ''} onChange={set('assigned_to')}>
+              <option value="">Automatic — least busy who handles it</option>
+              {eligible.map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
             </Select>
           </Field>
         </div>

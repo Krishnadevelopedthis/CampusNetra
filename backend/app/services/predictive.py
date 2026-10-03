@@ -32,7 +32,12 @@ W_SERVICE = 0.20
 W_MTBF = 0.15
 W_WARRANTY = 0.10
 
-RISK_THRESHOLD = 0.55   # below this an asset is not worth surfacing
+# Below this an asset is not worth surfacing. 0.4 because an asset with no
+# complaints can score at most 0.5 (faults carry 35% of the weight): one past
+# its service life, overdue for service and out of warranty lands near 0.45 and
+# is exactly what preventive maintenance is for. At the old 0.55 such assets
+# could never appear, so the list stayed empty until things had already broken.
+RISK_THRESHOLD = 0.40
 
 
 def _now() -> datetime:
@@ -43,19 +48,30 @@ def _clamp(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
-async def score_asset(db: AsyncSession, asset: Asset) -> tuple[float, dict, list[str]]:
-    """Return (risk, signals, human-readable reasons) for one asset."""
+async def score_asset(
+    db: AsyncSession, asset: Asset, fault_times: Optional[list[datetime]] = None,
+) -> tuple[float, dict, list[str]]:
+    """Return (risk, signals, human-readable reasons) for one asset.
+
+    `fault_times` is every complaint time for this asset, oldest first. The
+    forecast passes it in (one query for all assets); a single-asset call may
+    leave it out and it is read here.
+    """
     now = _now()
     signals: dict = {}
     reasons: list[str] = []
 
+    if fault_times is None:
+        fault_times = list((await db.scalars(
+            select(Issue.created_at).where(Issue.asset_id == asset.id).order_by(Issue.created_at)
+        )).all())
+    # Faults of a unit that has since been replaced belong to that old unit.
+    if asset.installed_at:
+        fault_times = [t for t in fault_times if t >= asset.installed_at]
+
     # --- Fault history over the last year ---
     year_ago = now - timedelta(days=365)
-    fault_count = await db.scalar(
-        select(func.count()).select_from(Issue)
-        .where(Issue.asset_id == asset.id,
-               Issue.created_at >= max(year_ago, asset.installed_at or year_ago))
-    ) or 0
+    fault_count = sum(1 for t in fault_times if t >= year_ago)
     # Three or more faults in a year saturates this signal.
     fault_score = _clamp(fault_count / 3.0)
     signals["fault_count_12m"] = fault_count
@@ -96,12 +112,7 @@ async def score_asset(db: AsyncSession, asset: Asset) -> tuple[float, dict, list
 
     # --- Mean time between failures ---
     mtbf_score = 0.0
-    fault_dates = (await db.scalars(
-        select(Issue.created_at).where(
-            Issue.asset_id == asset.id,
-            *([Issue.created_at >= asset.installed_at] if asset.installed_at else []))
-        .order_by(Issue.created_at)
-    )).all()
+    fault_dates = fault_times
     if len(fault_dates) >= 2:
         gaps = [(b - a).days for a, b in zip(fault_dates, fault_dates[1:])]
         mtbf = sum(gaps) / len(gaps)
@@ -155,23 +166,43 @@ async def forecast(
                Asset.state != AssetState.DECOMMISSIONED)
     )).all()
 
-    out = []
+    # Every complaint time for every asset, in one query. Scoring used to run
+    # two queries per asset, which on a few thousand assets (against a remote
+    # database) left the page "Scoring assets…" for many minutes.
+    fault_times: dict = {}
+    for asset_id, created in (await db.execute(
+        select(Issue.asset_id, Issue.created_at)
+        .where(Issue.organization_id == organization_id, Issue.asset_id.is_not(None))
+        .order_by(Issue.created_at)
+    )).all():
+        fault_times.setdefault(asset_id, []).append(created)
+
+    scored = []
     for asset in assets:
-        risk, signals, reasons = await score_asset(db, asset)
-        if risk < min_risk:
-            continue
+        risk, signals, reasons = await score_asset(db, asset, fault_times.get(asset.id, []))
+        if risk >= min_risk:
+            scored.append((asset, risk, signals, reasons))
 
-        room = await db.scalar(select(Room).where(Room.id == asset.room_id))
-        category = await db.scalar(
-            select(AssetCategory).where(AssetCategory.id == asset.category_id))
-
-        # Has a preventive work order already been raised for this asset?
-        existing = await db.scalar(
-            select(WorkOrder.reference).where(
-                WorkOrder.asset_id == asset.id, WorkOrder.is_predictive.is_(True),
+    rooms = {r.id: r for r in (await db.scalars(
+        select(Room).where(Room.id.in_({a.room_id for a, *_ in scored})))).all()} if scored else {}
+    categories = {c.id: c for c in (await db.scalars(
+        select(AssetCategory).where(AssetCategory.id.in_({a.category_id for a, *_ in scored})))).all()} if scored else {}
+    # Has a preventive work order already been raised for each asset?
+    existing_wo: dict = {}
+    if scored:
+        for asset_id, ref in (await db.execute(
+            select(WorkOrder.asset_id, WorkOrder.reference).where(
+                WorkOrder.asset_id.in_([a.id for a, *_ in scored]), WorkOrder.is_predictive.is_(True),
                 WorkOrder.status.notin_(["closed", "cancelled"]),
-            ).limit(1)
-        )
+            )
+        )).all():
+            existing_wo.setdefault(asset_id, ref)
+
+    out = []
+    for asset, risk, signals, reasons in scored:
+        room = rooms.get(asset.room_id)
+        category = categories.get(asset.category_id)
+        existing = existing_wo.get(asset.id)
 
         out.append({
             "asset_id": str(asset.id),
@@ -182,11 +213,11 @@ async def forecast(
             "room_id": str(room.id) if room else None,
             "state": asset.state.value,
             "risk_score": risk,
-            "risk_band": "high" if risk >= 0.75 else "medium" if risk >= 0.6 else "low",
+            "risk_band": "high" if risk >= 0.65 else "medium" if risk >= 0.5 else "low",
             "reasons": reasons or ["No individual signal is strong; combined score only"],
             "signals": signals,
             "existing_work_order": existing,
-            # Sooner for higher risk: 14 days at 0.55, 3 days at 1.0.
+            # Sooner for higher risk: ~18 days at 0.4, 3 days at 1.0.
             "recommended_by": (date.today() + timedelta(days=max(3, int(30 * (1 - risk))))).isoformat(),
         })
 
@@ -200,14 +231,14 @@ async def persist_predictions(
     """Store today's forecast so accuracy can be reviewed later."""
     today = date.today()
     stored = 0
+    ids = [uuid.UUID(p["asset_id"]) for p in predictions]
+    todays = {m.asset_id: m for m in (await db.scalars(
+        select(MaintenancePrediction).where(
+            MaintenancePrediction.asset_id.in_(ids), MaintenancePrediction.predicted_for == today)
+    )).all()} if ids else {}
     for p in predictions:
         asset_id = uuid.UUID(p["asset_id"])
-        existing = await db.scalar(
-            select(MaintenancePrediction).where(
-                MaintenancePrediction.asset_id == asset_id,
-                MaintenancePrediction.predicted_for == today,
-            )
-        )
+        existing = todays.get(asset_id)
         if existing is not None:
             existing.risk_score = p["risk_score"]
             existing.signals = p["signals"]
