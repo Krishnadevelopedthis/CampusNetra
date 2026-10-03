@@ -330,20 +330,20 @@ export default function CampusMap() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 min-w-0 w-full lg:w-auto lg:justify-end">
             {view === 'campus' && (
-              <div className="flex p-1 bg-surface-sunken rounded-lg">
+              <div className="flex p-1 bg-surface-sunken rounded-lg shrink-0 max-w-full overflow-x-auto">
                 {[['condition', 'Live condition'],
                   ...(canSeeHeat ? [['heat', 'Complaint heatmap']] : [])].map(([k, label]) => (
                   <button key={k} onClick={() => setMode(k)}
-                          className={`h-8 px-3 rounded text-body-md font-medium transition-colors ${
+                          className={`h-8 px-2.5 sm:px-3 rounded text-body-sm sm:text-body-md font-medium whitespace-nowrap transition-colors ${
                             mode === k ? 'bg-surface text-ink shadow-level2' : 'text-ink-muted hover:text-ink'
                           }`}>{label}</button>
                 ))}
               </div>
             )}
             {view === 'campus' && mode === 'condition' && (
-              <TwinLegend breakdown={overview.data?.state_breakdown} />
+              <TwinLegend breakdown={overview.data?.state_breakdown} className="order-last lg:order-none w-full lg:w-auto" />
             )}
             {view === 'campus' && mode === 'heat' && (
               <div className="flex items-center gap-2 text-body-sm text-ink-muted">

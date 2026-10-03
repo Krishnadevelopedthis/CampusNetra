@@ -236,15 +236,17 @@ export function FloorPlan({
 
 export function TwinLegend({ breakdown, className }) {
   return (
-    <div className={clsx('flex flex-wrap gap-x-4 gap-y-2', className)}>
+    // Wraps onto as many lines as the screen needs; on a phone each state takes
+    // half the width so the labels line up instead of running together.
+    <div className={clsx('grid grid-cols-2 gap-x-3 gap-y-1.5 sm:flex sm:flex-wrap sm:gap-x-4 sm:gap-y-2 min-w-0', className)}>
       {Object.entries(TWIN_STATE)
         .filter(([k]) => k !== 'decommissioned' || breakdown?.[k])
         .map(([key, { colour, label }]) => (
-          <div key={key} className="flex items-center gap-1.5">
+          <div key={key} className="flex items-center gap-1.5 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full ring-2 ring-white shrink-0" style={{ background: colour }} />
-            <span className="text-body-sm text-ink-muted">{label}</span>
+            <span className="text-body-xs sm:text-body-sm text-ink-muted truncate">{label}</span>
             {breakdown?.[key] != null && (
-              <span className="text-body-sm font-medium text-ink tabular">{breakdown[key]}</span>
+              <span className="text-body-xs sm:text-body-sm font-medium text-ink tabular shrink-0">{breakdown[key]}</span>
             )}
           </div>
         ))}

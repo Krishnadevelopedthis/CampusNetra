@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, ArrowRight, ClipboardList, MapPinned, PlusCircle, Search } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Bar,
@@ -278,9 +278,19 @@ function AssetHealthTooltip({ active, payload }) {
  * alone ("3 Warning") doesn't say which room to actually go check. */
 function AssetHealthChart({ enabled }) {
   const { rows, isLoading } = useAssetHealthBreakdown(enabled)
+  const [building, setBuilding] = useState('all')
+
+  // One chip per building that actually has electronic assets, with its count.
+  const buildings = useMemo(() => {
+    const counts = new Map()
+    for (const r of rows) counts.set(r.building, (counts.get(r.building) || 0) + 1)
+    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  }, [rows])
+  const shown = building === 'all' ? rows : rows.filter((r) => r.building === building)
+
   const byState = useMemo(() => {
     const groups = {}
-    for (const r of rows) {
+    for (const r of shown) {
       (groups[r.state] ??= []).push(r)
     }
     return Object.entries(groups)
@@ -290,7 +300,7 @@ function AssetHealthChart({ enabled }) {
         label: TWIN_STATE[state]?.label || state,
       }))
       .sort((a, b) => b.count - a.count)
-  }, [rows])
+  }, [shown])
 
   if (!enabled) return null
   if (isLoading) return <SkeletonChart />
@@ -301,7 +311,27 @@ function AssetHealthChart({ enabled }) {
     )
   }
 
+  const chip = (active) =>
+    `shrink-0 whitespace-nowrap rounded-full border px-3 h-9 text-body-sm transition-colors ${
+      active ? 'border-secondary text-secondary bg-surface-sunken font-medium'
+        : 'border-border-subtle text-ink-muted bg-surface hover:text-ink'}`
+
   return (
+    <>
+    {buildings.length > 1 && (
+      <div className="flex gap-2 overflow-x-auto pb-3 mb-2 max-w-full min-w-0" role="tablist" aria-label="Show one building">
+        <button type="button" role="tab" aria-selected={building === 'all'} className={chip(building === 'all')}
+                onClick={() => setBuilding('all')}>
+          All buildings ({rows.length})
+        </button>
+        {buildings.map(([name, n]) => (
+          <button key={name} type="button" role="tab" aria-selected={building === name} className={chip(building === name)}
+                  onClick={() => setBuilding(name)}>
+            {name} ({n})
+          </button>
+        ))}
+      </div>
+    )}
     <div className="grid items-center gap-5 sm:grid-cols-[minmax(190px,240px)_1fr]">
       <div className="h-[210px] w-full sm:h-[240px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -323,9 +353,12 @@ function AssetHealthChart({ enabled }) {
             <span className="tabular font-medium text-ink">{d.count}</span>
           </div>
         ))}
-        <p className="text-body-xs text-ink-faint pt-1">Hover a slice to see which assets and rooms it covers.</p>
+        <p className="text-body-xs text-ink-faint pt-1">
+          {building === 'all' ? 'All buildings' : building} · hover or tap a slice to see which assets and rooms it covers.
+        </p>
       </div>
     </div>
+    </>
   )
 }
 
@@ -383,7 +416,7 @@ function StaffBody({ data, user }) {
       {isAdmin ? (
         <Widget
           title="Asset Health by Location"
-          subtitle="Every electronic asset's current state, room by room."
+          subtitle="Current state of every electronic asset (fans, lights, AC, AV, computers…) — pick a building or see them all."
         >
           <AssetHealthChart enabled={isAdmin} />
         </Widget>
