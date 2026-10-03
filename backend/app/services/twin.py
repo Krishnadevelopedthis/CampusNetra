@@ -167,6 +167,8 @@ async def set_asset_state(
                 "to": new_state.value,
                 "colour": STATE_COLOURS[new_state.value],
                 "reason": reason,
+                "issue_id": str(issue_id) if issue_id else None,
+                "work_order_id": str(work_order_id) if work_order_id else None,
             },
         )
     return True

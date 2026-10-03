@@ -370,7 +370,8 @@ async def transition_issue(
     await record_event(
         db, campus_id=issue.campus_id, kind=TwinEventKind.ISSUE_STATUS_CHANGED,
         entity_type="issue", entity_id=issue.id, room_id=issue.room_id, actor_id=actor.id,
-        payload={"reference": issue.reference, "from": previous.value, "to": target.value},
+        payload={"reference": issue.reference, "from": previous.value, "to": target.value,
+                 "asset_id": str(issue.asset_id) if issue.asset_id else None},
     )
 
     # Keep the reporter informed unless they made the change themselves.

@@ -1394,10 +1394,18 @@ async def twin_events(
 
     rows = (await db.scalars(
         query.order_by(TwinEvent.occurred_at.desc()).limit(limit))).all()
+    room_ids = {e.room_id for e in rows if e.room_id}
+    where = {
+        r: (f, b) for r, f, b in (await db.execute(
+            select(Room.id, Floor.id, Floor.building_id).join(Floor, Floor.id == Room.floor_id)
+            .where(Room.id.in_(room_ids)))).all()
+    } if room_ids else {}
     return [
         TwinEventOut(
             id=e.id, kind=e.kind.value, entity_type=e.entity_type, entity_id=e.entity_id,
-            room_id=e.room_id, payload=e.payload, occurred_at=e.occurred_at,
+            room_id=e.room_id, floor_id=where.get(e.room_id, (None, None))[0],
+            building_id=where.get(e.room_id, (None, None))[1],
+            payload=e.payload, occurred_at=e.occurred_at,
         ) for e in rows
     ]
 

@@ -342,7 +342,9 @@ async def create_work_order(
             db, campus_id=campus_id, kind=TwinEventKind.WORK_ORDER_CREATED,
             entity_type="work_order", entity_id=wo.id, room_id=room_id, actor_id=creator.id,
             payload={"reference": wo.reference, "title": title,
-                     "priority": priority.value, "assigned": bool(assigned_to)},
+                     "priority": priority.value, "assigned": bool(assigned_to),
+                     "issue_id": str(issue_id) if issue_id else None,
+                     "asset_id": str(asset_id) if asset_id else None},
         )
 
     if assigned_to:
@@ -617,7 +619,9 @@ async def transition_work_order(
             await record_event(
                 db, campus_id=campus_id, kind=TwinEventKind.WORK_ORDER_STATUS_CHANGED,
                 entity_type="work_order", entity_id=wo.id, room_id=wo.room_id, actor_id=actor.id,
-                payload={"reference": wo.reference, "from": previous.value, "to": target.value},
+                payload={"reference": wo.reference, "from": previous.value, "to": target.value,
+                         "issue_id": str(wo.issue_id) if wo.issue_id else None,
+                         "asset_id": str(wo.asset_id) if wo.asset_id else None},
             )
 
     # Tell the original reporter when the fix lands.

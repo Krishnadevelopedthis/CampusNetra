@@ -267,5 +267,7 @@ class TwinEventOut(BaseModel):
     entity_type: str
     entity_id: uuid.UUID
     room_id: Optional[uuid.UUID] = None
+    floor_id: Optional[uuid.UUID] = None
+    building_id: Optional[uuid.UUID] = None
     payload: dict
     occurred_at: datetime
