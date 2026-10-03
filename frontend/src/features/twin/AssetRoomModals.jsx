@@ -31,7 +31,7 @@ const SURFACE_LABEL = {
 
 // Warranties are sold in whole years far more often than they are quoted as an
 // end date, so the period is what gets asked for and the date is derived.
-const WARRANTY_PERIODS = [
+export const WARRANTY_PERIODS = [
   ['', 'No warranty'],
   ['12', '1 year'],
   ['24', '2 years'],
@@ -42,7 +42,7 @@ const WARRANTY_PERIODS = [
 ]
 
 /** Purchase date + months, as YYYY-MM-DD. */
-function addMonths(dateStr, months) {
+export function addMonths(dateStr, months) {
   if (!dateStr || !months) return ''
   const d = new Date(`${dateStr}T00:00:00`)
   if (Number.isNaN(d.getTime())) return ''

@@ -274,6 +274,9 @@ export default function AssetDetail() {
                 ? `${dt(a.last_service_at, 'd MMM yyyy')} · ${ago(a.last_service_at)}`
                 : 'No record'} />
               <Row label="Maintenance jobs" value={data.maintenance_history.length} />
+              {data.replacements?.length > 0 && (
+                <Row label="Current unit installed" value={dt(data.replacements[0].replaced_at, 'd MMM yyyy')} />
+              )}
               <Row label="Total spend" value={totalSpend > 0
                 ? <span className="tabular">{money(totalSpend)}</span> : null} />
             </dl>
@@ -281,6 +284,35 @@ export default function AssetDetail() {
         </div>
 
         <div className="lg:col-span-2 space-y-5">
+          {data.replacements?.length > 0 && (
+            <Widget title="Replacements" subtitle="Units swapped out during repairs, newest first">
+              <ul className="space-y-3">
+                {data.replacements.map((r) => {
+                  const label = (d) => [d.manufacturer, d.model].filter(Boolean).join(' ') || 'Unknown unit'
+                  return (
+                    <li key={r.replaced_at} className="rounded border border-border-subtle p-3">
+                      <p className="text-body-md text-ink">
+                        <span className="font-medium">{label(r.new)}</span>
+                        {r.new.serial_no && <span className="text-ink-faint"> · {r.new.serial_no}</span>}
+                        <span className="text-ink-faint"> installed {dt(r.replaced_at, 'd MMM yyyy')}</span>
+                        {r.work_order_id && (
+                          <Link to={`/work-orders/${r.work_order_id}`} className="text-secondary hover:underline"> · work order</Link>
+                        )}
+                      </p>
+                      <p className="text-body-sm text-ink-muted mt-1">
+                        Replaced {label(r.old)}{r.old.serial_no ? ` (${r.old.serial_no})` : ''}
+                        {r.old.purchase_date ? `, bought ${dt(r.old.purchase_date, 'd MMM yyyy')}` : ''}
+                        {r.old.warranty_expiry ? `, warranty ${new Date(r.old.warranty_expiry) < new Date(r.replaced_at) ? 'had expired' : 'until'} ${dt(r.old.warranty_expiry, 'd MMM yyyy')}` : ', no warranty'}
+                      </p>
+                      {r.new.warranty_expiry && (
+                        <p className="text-body-sm text-success-text mt-0.5">New warranty until {dt(r.new.warranty_expiry, 'd MMM yyyy')}</p>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </Widget>
+          )}
           {data.open_issues.length > 0 && (
             <Widget title="Open Issues" bodyClass="p-0">
               <div className="divide-y divide-border-subtle">

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -30,6 +30,21 @@ class WorkOrderAssign(BaseModel):
     scheduled_for: Optional[datetime] = None
 
 
+class AssetReplacementIn(BaseModel):
+    """The new unit fitted in place of the failed one (all optional except that
+    something must identify it)."""
+    manufacturer: Optional[str] = Field(None, max_length=120)
+    model: Optional[str] = Field(None, max_length=120)
+    serial_no: Optional[str] = Field(None, max_length=120)
+    purchase_date: Optional[date] = None
+    cost: Optional[float] = Field(None, ge=0)
+    warranty_months: Optional[int] = Field(None, ge=0, le=600)
+    warranty_expiry: Optional[date] = None
+    expected_life_months: Optional[int] = Field(None, ge=1, le=1200)
+    service_interval_days: Optional[int] = Field(None, ge=1, le=3650)
+    annual_maintenance_cost: Optional[float] = Field(None, ge=0)
+
+
 class WorkOrderTransition(BaseModel):
     status: WorkOrderStatus
     note: Optional[str] = Field(None, max_length=2000)
@@ -39,6 +54,8 @@ class WorkOrderTransition(BaseModel):
     labour_cost: Optional[float] = Field(None, ge=0)
     parts_cost: Optional[float] = Field(None, ge=0)
     blocked_reason: Optional[str] = None
+    # Completing only: a new unit was installed in place of the old one.
+    replacement: Optional[AssetReplacementIn] = None
 
 
 class WorkOrderCommentIn(BaseModel):
@@ -98,6 +115,8 @@ class WorkOrderListItem(BaseModel):
     assignee: Optional[UserBrief] = None
     location_summary: Optional[str] = None
     asset_tag: Optional[str] = None
+    asset_id: Optional[uuid.UUID] = None
+    asset_name: Optional[str] = None
     scheduled_for: Optional[datetime] = None
     sla_due_at: Optional[datetime] = None
     sla_breached: bool = False

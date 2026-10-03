@@ -100,6 +100,7 @@ def _to_item(wo: WorkOrder, m: dict) -> WorkOrderListItem:
         department_name=dept.name if dept else None,
         assignee=UserBrief.model_validate(tech) if tech else None,
         location_summary=loc or None, asset_tag=asset.tag if asset else None,
+        asset_id=asset.id if asset else None, asset_name=asset.name if asset else None,
         scheduled_for=wo.scheduled_for, sla_due_at=wo.sla_due_at,
         sla_breached=wo.sla_breached,
         sla_minutes_remaining=_minutes_remaining(wo.sla_due_at, wo.completed_at),
@@ -296,6 +297,7 @@ async def transition(wo_id: uuid.UUID, payload: WorkOrderTransition, user: Requi
         note=payload.note, resolution_note=payload.resolution_note,
         actual_mins=payload.actual_mins, labour_cost=payload.labour_cost,
         parts_cost=payload.parts_cost, blocked_reason=payload.blocked_reason,
+        replacement=payload.replacement.model_dump() if payload.replacement else None,
     )
 
     # Spec #23: sensor readings going back to normal don't resolve a Health

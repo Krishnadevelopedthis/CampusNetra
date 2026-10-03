@@ -25,7 +25,7 @@ from app.models.identity import Organization, User
 from app.models.issues import Issue, IssueCategory
 from app.models.iot import AssetSensorMapping, IoTDevice
 from app.models.spatial import (
-    Asset, AssetCategory, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent,
+    Asset, AssetCategory, AssetReplacement, AssetStateHistory, Building, Campus, Floor, Room, TwinEvent,
 )
 from app.models.work import WorkOrder
 from app.schemas.campus import (
@@ -1344,6 +1344,13 @@ async def asset_detail(asset_id: uuid.UUID, user: CurrentUser, db: DB):
             {"id": str(i.id), "reference": i.reference, "title": i.title,
              "status": i.status.value, "priority": i.priority.value}
             for i in open_issues
+        ],
+        "replacements": [
+            {"replaced_at": r.replaced_at.isoformat(), "work_order_id": str(r.work_order_id) if r.work_order_id else None,
+             "old": r.old_details, "new": r.new_details}
+            for r in (await db.scalars(
+                select(AssetReplacement).where(AssetReplacement.asset_id == asset_id)
+                .order_by(AssetReplacement.replaced_at.desc()))).all()
         ],
         "maintenance_history": [
             {"id": str(w.id), "reference": w.reference, "title": w.title,
