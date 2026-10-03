@@ -1,19 +1,11 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Cpu, Download, Flame, Play, TrendingUp } from 'lucide-react'
 import { useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from 'recharts'
+
 import {
-  Bar,
-  BarChart,
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Legend,
-} from 'recharts'
+  CHART_COLORS, ChartContainer, ChartTooltip, ChartTooltipContent, DonutChart, TruncatedTick,
+} from '@/components/charts'
 
 import {
   Button,
@@ -111,11 +103,12 @@ export default function Analytics({ defaultTab = 'overview' }) {
 }
 
 function Overview({ data }) {
-  const chart = useChartTheme()
   const categoryData = data.issues.by_category.slice(0, 8)
+    .map((c, i) => ({ ...c, fill: CHART_COLORS[i % CHART_COLORS.length] }))
+  const categoryTotal = categoryData.reduce((n, c) => n + c.count, 0)
   const statusData = Object.entries(data.issues.by_status)
-    .map(([name, value]) => ({ name: titleCase(name), value }))
-    .filter((d) => d.value > 0)
+    .filter(([, value]) => value > 0)
+    .map(([name, value], i) => ({ key: name, label: titleCase(name), value, color: CHART_COLORS[i % CHART_COLORS.length] }))
 
   return (
     <>
@@ -133,20 +126,29 @@ function Overview({ data }) {
           {categoryData.length === 0 ? (
             <p className="text-body-md text-ink-faint text-center py-10">No data in this window.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={categoryData} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={110}
-                       tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} />
-                <Tooltip {...chart.tooltip} />
-                <Bar dataKey="count" radius={[0, 3, 3, 0]} maxBarSize={22}>
-                  {categoryData.map((_, i) => (
-                    <Cell key={i} fill={chart.categories[i % chart.categories.length]} />
-                  ))}
+            <ChartContainer config={{ count: { label: 'Issues' } }}
+                            style={{ height: Math.max(200, categoryData.length * 40 + 24) }}>
+              <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 4 }}>
+                <CartesianGrid horizontal={false} />
+                <XAxis type="number" axisLine={false} tickLine={false} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" width={104} axisLine={false} tickLine={false}
+                       tick={<TruncatedTick max={14} />} />
+                <ChartTooltip
+                  cursor={{ radius: 6 }}
+                  wrapperStyle={{ zIndex: 30, outline: 'none' }}
+                  content={(
+                    <ChartTooltipContent
+                      labelFormatter={(label) => label}
+                      valueFormatter={(v) => `${v} · ${categoryTotal ? Math.round((v / categoryTotal) * 100) : 0}%`}
+                    />
+                  )}
+                />
+                <Bar dataKey="count" name="Issues" radius={[0, 6, 6, 0]} maxBarSize={24}
+                     activeBar={{ fillOpacity: 0.85 }} animationDuration={600}>
+                  {categoryData.map((c) => <Cell key={c.name} fill={c.fill} />)}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           )}
         </Widget>
 
@@ -154,18 +156,7 @@ function Overview({ data }) {
           {statusData.length === 0 ? (
             <p className="text-body-md text-ink-faint text-center py-10">No data in this window.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie data={statusData} dataKey="value" nameKey="name"
-                     innerRadius={62} outerRadius={100} paddingAngle={2}>
-                  {statusData.map((_, i) => (
-                    <Cell key={i} fill={chart.categories[i % chart.categories.length]} />
-                  ))}
-                </Pie>
-                <Tooltip {...chart.tooltip} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: chart.axis }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <DonutChart data={statusData} centerLabel="issues" />
           )}
         </Widget>
       </div>

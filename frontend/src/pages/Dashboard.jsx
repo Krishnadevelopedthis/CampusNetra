@@ -2,19 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, AlertTriangle, ArrowRight, ClipboardList, MapPinned, PlusCircle, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+  ChartContainer, ChartLegendContent, ChartTooltip, ChartTooltipContent, DonutChart, RadialScore,
+  useSeriesToggle,
+} from '@/components/charts'
 
 import {
   EmptyState,
@@ -28,7 +21,6 @@ import {
 import { SkeletonChart, SkeletonList, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
 import CalendarWidget from '@/features/dashboard/CalendarWidget'
 import CampusHealthWidget from '@/features/dashboard/CampusHealthWidget'
-import { useChartTheme } from '@/hooks/useChartTheme'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
@@ -332,38 +324,73 @@ function AssetHealthChart({ enabled }) {
         ))}
       </div>
     )}
-    <div className="grid items-center gap-5 sm:grid-cols-[minmax(190px,240px)_1fr]">
-      <div className="h-[210px] w-full sm:h-[240px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie data={byState} dataKey="count" nameKey="label" innerRadius="42%" outerRadius="72%" paddingAngle={2}>
-            {byState.map((d) => <Cell key={d.state} fill={d.colour} />)}
-          </Pie>
-          <Tooltip content={<AssetHealthTooltip />} />
-        </PieChart>
-      </ResponsiveContainer>
-      </div>
-      <div className="space-y-2">
-        {byState.map((d) => (
-          <div key={d.state} className="flex items-center justify-between text-body-sm">
-            <span className="flex items-center gap-2 text-ink-muted">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.colour }} />
-              {d.label}
-            </span>
-            <span className="tabular font-medium text-ink">{d.count}</span>
-          </div>
-        ))}
-        <p className="text-body-xs text-ink-faint pt-1">
-          {building === 'all' ? 'All buildings' : building} · hover or tap a slice to see which assets and rooms it covers.
-        </p>
-      </div>
-    </div>
+    <DonutChart
+      data={byState.map((d) => ({ ...d, key: d.state, value: d.count, color: d.colour }))}
+      centerLabel="assets"
+      tooltip={<AssetHealthTooltip />}
+      footnote={`${building === 'all' ? 'All buildings' : building} · hover or tap a slice to see which assets and rooms it covers.`}
+    />
+    </>
+  )
+}
+
+const TREND_CONFIG = {
+  created: { label: 'Created', color: 'rgb(var(--c-secondary))' },
+  resolved: { label: 'Resolved', color: '#10b981' },
+}
+
+/** Created vs Resolved, last 7 days -- legend chips carry the week's totals
+ * and toggle their series; hovering a day shows both counts and the net. */
+function TrendChart({ trend }) {
+  const series = useSeriesToggle(['created', 'resolved'])
+  const totals = useMemo(() => ({
+    created: trend.reduce((n, d) => n + (d.created || 0), 0),
+    resolved: trend.reduce((n, d) => n + (d.resolved || 0), 0),
+  }), [trend])
+
+  return (
+    <>
+      <ChartContainer config={TREND_CONFIG} className="dashboard-chart h-[220px] sm:h-[260px]">
+        <BarChart data={trend} margin={{ top: 8, right: 4, left: -20, bottom: 0 }} barGap={4}>
+          <CartesianGrid vertical={false} />
+          <XAxis dataKey="day" axisLine={false} tickLine={false} tickMargin={8} minTickGap={8} />
+          <YAxis axisLine={false} tickLine={false} allowDecimals={false} width={44} />
+          <ChartTooltip
+            cursor={{ radius: 6 }}
+            wrapperStyle={{ zIndex: 30, outline: 'none' }}
+            content={(
+              <ChartTooltipContent
+                footer={(payload) => {
+                  const c = payload.find((p) => p.dataKey === 'created')?.value ?? 0
+                  const r = payload.find((p) => p.dataKey === 'resolved')?.value ?? 0
+                  const net = c - r
+                  return (
+                    <div className="flex items-center justify-between text-body-xs">
+                      <span className="text-ink-faint">Net backlog</span>
+                      <span className={`tabular font-mono font-medium ${net > 0 ? 'text-warning-text' : 'text-success-text'}`}>
+                        {net > 0 ? `+${net}` : net}
+                      </span>
+                    </div>
+                  )
+                }}
+              />
+            )}
+          />
+          {series.keys.map((key) => (
+            <Bar key={key} dataKey={key} name={TREND_CONFIG[key].label} fill={`var(--color-${key})`}
+                 hide={series.hidden.has(key)} radius={[6, 6, 0, 0]} maxBarSize={28}
+                 activeBar={{ fillOpacity: 0.85, stroke: `var(--color-${key})`, strokeWidth: 2 }}
+                 animationDuration={600} />
+          ))}
+        </BarChart>
+      </ChartContainer>
+      <ChartLegendContent config={TREND_CONFIG} keys={series.keys} hidden={series.hidden}
+                          onToggle={series.toggle} totals={totals} />
     </>
   )
 }
 
 function StaffBody({ data, user }) {
-  const chart = useChartTheme()
   const states = Object.entries(data.asset_states || {}).filter(([, v]) => v > 0)
   const isAdmin = ['admin', 'super_admin'].includes(user?.role)
 
@@ -372,7 +399,7 @@ function StaffBody({ data, user }) {
       <div className="dashboard-section-grid grid gap-5 items-start xl:grid-cols-[minmax(280px,0.72fr)_minmax(0,1.55fr)]">
         <Widget title="Operational Health">
           <div className="flex flex-col items-center py-2">
-            <HealthRing score={data.health_score} />
+            <RadialScore score={data.health_score} />
             <p className="text-body-md text-ink-muted mt-4 text-center">
               {data.health_score >= 90
                 ? 'System performing optimally.'
@@ -397,19 +424,7 @@ function StaffBody({ data, user }) {
         </Widget>
 
         <Widget className="min-w-0" title="Created vs Resolved" subtitle="Last 7 days">
-          <div className="dashboard-chart h-[220px] sm:h-[270px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.trend || []} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 12, fill: chart.axis }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip {...chart.tooltip} />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 13, paddingTop: 8, color: chart.axis }} />
-              <Bar dataKey="created" name="Created" fill={chart.seriesMuted} radius={[4, 4, 0, 0]} maxBarSize={26} />
-              <Bar dataKey="resolved" name="Resolved" fill={chart.seriesStrong} radius={[4, 4, 0, 0]} maxBarSize={26} />
-            </BarChart>
-          </ResponsiveContainer>
-          </div>
+          <TrendChart trend={data.trend || []} />
         </Widget>
       </div>
 
@@ -498,30 +513,5 @@ function StaffBody({ data, user }) {
 
       <CalendarWidget />
     </>
-  )
-}
-
-function HealthRing({ score = 0 }) {
-  const { surfaceSunken: track } = useChartTheme()
-  const R = 54
-  const C = 2 * Math.PI * R
-  const colour = score >= 90 ? '#10b981' : score >= 70 ? '#f59e0b' : '#ef4444'
-  return (
-    <div className="relative w-[140px] h-[140px]">
-      <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-        <circle cx="70" cy="70" r={R} fill="none" stroke={track} strokeWidth="12" />
-        <circle
-          cx="70" cy="70" r={R} fill="none" stroke={colour} strokeWidth="12" strokeLinecap="round"
-          strokeDasharray={C} strokeDashoffset={C - (score / 100) * C}
-          style={{ transition: 'stroke-dashoffset 600ms ease' }}
-        />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">
-        <div className="text-center">
-          <p className="text-display-metrics tabular leading-none">{score}</p>
-          <p className="text-body-sm mt-1" style={{ color: colour }}>/100</p>
-        </div>
-      </div>
-    </div>
   )
 }

@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Activity } from 'lucide-react'
 import { useMemo } from 'react'
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
+import { DonutChart } from '@/components/charts'
 import { EmptyState, Widget } from '@/components/ui'
 import { SkeletonChart } from '@/components/Skeletons'
 import { api } from '@/lib/api'
@@ -91,29 +91,12 @@ export default function CampusHealthWidget() {
         <EmptyState icon={Activity} title="No electronic assets yet"
                     description="Assets with IoT sensors will appear here once added." />
       ) : (
-        <div className="grid items-center gap-5 sm:grid-cols-[minmax(160px,210px)_1fr]">
-          <div className="h-[180px] w-full sm:h-[210px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={byState} dataKey="count" nameKey="label" innerRadius="42%" outerRadius="72%" paddingAngle={2}>
-                {byState.map((d) => <Cell key={d.state} fill={d.colour} />)}
-              </Pie>
-              <Tooltip content={<CampusHealthTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          </div>
-          <div className="space-y-1.5 min-w-0">
-            {byState.map((d) => (
-              <div key={d.state} className="flex items-center justify-between gap-2 text-body-sm">
-                <span className="flex items-center gap-2 text-ink-muted min-w-0">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.colour }} />
-                  <span className="truncate">{d.label}</span>
-                </span>
-                <span className="tabular font-medium text-ink shrink-0">{d.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <DonutChart
+          data={byState.map((d) => ({ ...d, key: d.state, value: d.count, color: d.colour }))}
+          centerLabel="assets"
+          tooltip={<CampusHealthTooltip />}
+          chartClassName="h-[200px] sm:h-[220px]"
+        />
       )}
     </Widget>
   )

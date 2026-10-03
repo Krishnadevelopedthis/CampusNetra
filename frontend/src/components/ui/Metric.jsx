@@ -16,7 +16,8 @@ function resolveAccent(hex) {
 }
 
 function MiniTrend({ data, color, hero = false }) {
-  if (!data || data.length < 2) return <span className="h-10 w-24 shrink-0" aria-hidden="true" />
+  // No trend to draw: take no room, so the value can use the full width.
+  if (!data || data.length < 2) return null
 
   const values = data.map((value) => Number(value) || 0)
   const max = Math.max(...values, 1)
@@ -57,6 +58,16 @@ function MiniTrend({ data, color, hero = false }) {
   )
 }
 
+/** The value's font size: the design size, shrunk only when a long value
+ * (₹3,66,46,350) would not fit the card's width -- never cut off. */
+function fitSize(value, hero, hasTrend) {
+  const base = hero ? 'clamp(1.9rem, 4.5vw, 2.8rem)' : 'clamp(1.55rem, 3vw, 2.15rem)'
+  const len = Math.max(String(value ?? '').length, 1)
+  // The trend line beside the value is clamp(5.5rem, 28vw, 8.25rem) wide plus the gap.
+  const room = hasTrend ? '(100cqi - clamp(5.5rem, 28vw, 8.25rem) - 0.5rem)' : '100cqi'
+  return `max(1rem, min(${base}, calc(${room} / ${(len * 0.62).toFixed(2)})))`
+}
+
 export function Metric({
   label, value, delta, deltaTone = 'neutral', accent, icon: Icon, size = 'default', className,
   sparkline,
@@ -79,6 +90,8 @@ export function Metric({
         // A quiet top glow replaces the old heavy left rail while preserving
         // the metric's semantic accent.
         background: `linear-gradient(135deg, color-mix(in srgb, ${resolvedAccent} ${isHero ? 9 : 6}%, transparent), transparent 58%)`,
+        // Lets the value size itself to this card rather than to the window.
+        containerType: 'inline-size',
       }}
     >
       <div className="flex min-w-0 items-center justify-between gap-2">
@@ -92,7 +105,7 @@ export function Metric({
         <div className="min-w-0">
           <span
             className={clsx('tabular block leading-none tracking-[-0.06em]', isHero ? 'text-[clamp(1.9rem,4.5vw,2.8rem)]' : 'text-[clamp(1.55rem,3vw,2.15rem)]')}
-            style={{ color: resolvedAccent }}
+            style={{ color: resolvedAccent, fontSize: fitSize(value, isHero, sparkline?.length >= 2) }}
           >
             {value}
           </span>
