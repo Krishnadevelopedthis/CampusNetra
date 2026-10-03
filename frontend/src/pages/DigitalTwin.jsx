@@ -213,7 +213,7 @@ export default function DigitalTwin() {
         </MetricRow>
       )}
 
-      <div className="grid lg:grid-cols-[280px_1fr] gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-5 items-start">
         {/* Left rail: the hierarchy, and the controls that extend it */}
         <div className="space-y-4">
         <Widget
@@ -530,7 +530,7 @@ function Inspector({ asset, room, onClose, onSelectAsset }) {
       subtitle={room.zone_id || room.code}
       action={<button onClick={onClose} className="btn-ghost h-8 w-8 p-0 rounded" aria-label="Close"><X size={16} /></button>}
     >
-      <div className="grid sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Row label="Type">{titleCase(room.kind)}</Row>
         <Row label="Capacity">{room.capacity ?? '—'}</Row>
         <Row label="Area">{room.area_sqft ? `${room.area_sqft} sq ft` : '—'}</Row>

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button, Input } from '@/components/ui'
 import { useDebounce } from '@/hooks/useDebounce'
 import { api } from '@/lib/api'
-import '@/lib/maplibreSetup'
+import { withQuietBasemap } from '@/lib/maplibreSetup'
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty'
 // A reasonable starting view before any search — better than opening on
@@ -68,11 +68,11 @@ export function CampusLocationPicker({ initial, onSave, onCancel, saving }) {
 
       map = new MapLibreMap({
         container: mountRef.current,
-        style: STYLE_URL,
         center: center ? [center.lng, center.lat] : FALLBACK_CENTER,
         zoom: center ? 16.5 : 10,
       })
       mapRef.current = map
+      withQuietBasemap(map, STYLE_URL)
 
       // Still watched after construction -- the modal itself can still be
       // resized (window resize, responsive breakpoint) while open, and

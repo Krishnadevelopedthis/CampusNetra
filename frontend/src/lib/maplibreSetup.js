@@ -23,3 +23,32 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
  * '@/lib/maplibreSetup'`) before constructing any maplibre-gl Map.
  */
 setWorkerUrl(workerUrl)
+
+/**
+ * The free "liberty" basemap (OpenFreeMap) is a third-party style, and two
+ * of its quirks flood the console on every page with a map:
+ *  - its POI layers ask for icons (office, gate, atm…) its sprite sheet does
+ *    not always carry. MapLibre v6 logs a warning for each one unless a
+ *    resolver supplies something, so a blank 1×1 image is supplied: the POI
+ *    label still shows, just without an icon.
+ *  - its US highway-shield layers use a filter that evaluates to null on
+ *    these tiles ("Expected value to be of type number"). There are no US
+ *    highway shields to draw on an Indian campus, so those layers are dropped.
+ *
+ * Pass the style through `withQuietBasemap(map, style)` instead of the Map's
+ * `style` option.
+ */
+const BLANK = { width: 1, height: 1, data: new Uint8Array(4) }
+
+export function withQuietBasemap(map, style) {
+  map.setMissingStyleImageResolver((id) => {
+    if (!map.hasImage(id)) map.addImage(id, BLANK, { pixelRatio: 1 })
+  })
+  map.setStyle(style, {
+    transformStyle: (_previous, next) => ({
+      ...next,
+      layers: (next.layers || []).filter((layer) => !/shield/i.test(layer.id)),
+    }),
+  })
+  return map
+}
