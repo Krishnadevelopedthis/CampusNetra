@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
     OTP_EXPIRE_MINUTES: int = 10
     MAX_LOGIN_ATTEMPTS: int = 5
+    # How far back a Lost & Found report may date the loss/find. Older than
+    # this the item is realistically unrecoverable, and a back-dated report
+    # (a typo'd year) would also skew matching, which compares the two dates.
+    LF_MAX_AGE_DAYS: int = 90
     LOCKOUT_MINUTES: int = 15
 
     # Who may approve institution registrations: a comma-separated list of admin

@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator
+
+from app.core.config import settings
 
 from app.core.enums import ClaimStatus, LFKind, LFStatus, MatchStatus
 from app.schemas.common import ORMModel, UserBrief
@@ -53,12 +55,19 @@ class LFItemCreate(BaseModel):
     holding_location: Optional[str] = None
     attachments: list[LFAttachmentIn] = Field(default_factory=list)
 
-    @model_validator(mode="after")
-    def _not_in_the_future(self):
+    @field_validator("occurred_at")
+    @classmethod
+    def _recent_and_not_future(cls, value: datetime) -> datetime:
+        when = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
         # A small skew tolerance covers clock differences between client and server.
-        if self.occurred_at.timestamp() > datetime.now(self.occurred_at.tzinfo).timestamp() + 300:
-            raise ValueError("occurred_at cannot be in the future")
-        return self
+        if when > now + timedelta(minutes=5):
+            raise ValueError("The date can't be in the future.")
+        days = settings.LF_MAX_AGE_DAYS
+        if when < now - timedelta(days=days):
+            raise ValueError(
+                f"Reports can only be made for items lost or found in the last {days} days.")
+        return value
 
 
 class MatchFactorsOut(BaseModel):
