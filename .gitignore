@@ -43,3 +43,7 @@ backend/_*.py
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Local hand-off artefacts (patches / git bundles) -- never part of the repo
+*.patch
+*.bundle
