@@ -20,6 +20,10 @@ from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Ro
 from app.models.work import WorkOrder
 from app.services.references import next_reference
 
+# Work whose cost is final. Closed is the last step after Verified; leaving it
+# out made every closed job's spend vanish from the reports.
+_FINISHED = [WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED, WorkOrderStatus.CLOSED]
+
 router = APIRouter(route_class=CommitRoute, prefix="/analytics", tags=["Analytics & Simulation"])
 
 RequireAnalyticsView = Annotated[User, Depends(require_permission("analytics:view"))]
@@ -114,7 +118,7 @@ async def overview(user: RequireAnalyticsView, db: DB, days: int = Query(30, ge=
     settled = await db.scalar(
         select(func.coalesce(func.sum(WorkOrder.labour_cost + WorkOrder.parts_cost), 0))
         .where(WorkOrder.organization_id == org, WorkOrder.created_at >= since,
-               WorkOrder.status.in_([WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED]))
+               WorkOrder.status.in_(_FINISHED))
     ) or 0
 
     return {
@@ -495,7 +499,7 @@ async def maintenance_spend(
         )
 
     completed = [
-        WorkOrder.status.in_([WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED]),
+        WorkOrder.status.in_(_FINISHED),
         WorkOrder.completed_at.is_not(None),
         WorkOrder.completed_at >= since,
     ]
