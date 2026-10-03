@@ -74,8 +74,8 @@ function QuickCreateInspection({ dayIso, onDone }) {
       template_id: templateId,
       scheduled_for: new Date(`${dayIso}T09:00:00`).toISOString(),
     }),
-    onSuccess: (insp) => {
-      toast.success(`${insp.reference} scheduled.`)
+    onSuccess: ({ inspections }) => {
+      toast.success(`${inspections.map((i) => i.reference).join(', ')} scheduled.`)
       qc.invalidateQueries({ queryKey: ['dashboard-calendar'] })
       setTemplateId('')
       onDone()

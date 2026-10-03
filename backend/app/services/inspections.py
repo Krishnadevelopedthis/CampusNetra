@@ -42,6 +42,7 @@ async def schedule_inspection(
     asset_id: Optional[uuid.UUID] = None,
     assigned_to: Optional[uuid.UUID] = None,
     category_id: Optional[uuid.UUID] = None,
+    slice_category_id: Optional[uuid.UUID] = None,
 ) -> Inspection:
     template = await db.scalar(
         select(InspectionTemplate).where(
@@ -69,6 +70,7 @@ async def schedule_inspection(
         assigned_to=assigned_to,
         scheduled_for=scheduled_for,
         status=InspectionStatus.SCHEDULED,
+        issue_category_id=slice_category_id,
     )
     db.add(inspection)
     await db.flush()
@@ -93,6 +95,50 @@ async def schedule_inspection(
     return inspection
 
 
+async def schedule_inspections(
+    db: AsyncSession, actor: User, *, template_id: uuid.UUID, scheduled_for: datetime,
+    room_id: Optional[uuid.UUID] = None, asset_id: Optional[uuid.UUID] = None,
+    assigned_to: Optional[uuid.UUID] = None, category_id: Optional[uuid.UUID] = None,
+) -> list[Inspection]:
+    """Schedule a checklist, split by category.
+
+    Each check belongs to a category (its own, else the checklist's). A
+    checklist covering several categories becomes one inspection per category,
+    each holding only that category's checks and assigned to a technician who
+    services it. Choosing a technician by hand keeps it as one inspection with
+    every check; choosing one category schedules just that slice.
+    """
+    template = await db.scalar(select(InspectionTemplate).where(
+        InspectionTemplate.id == template_id, InspectionTemplate.organization_id == actor.organization_id))
+    if template is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection template not found")
+    items = (await db.scalars(select(InspectionTemplateItem).where(
+        InspectionTemplateItem.template_id == template.id))).all()
+    slices = sorted({i.issue_category_id or template.issue_category_id for i in items},
+                    key=lambda c: (c is None, str(c)))
+
+    common = dict(template_id=template_id, scheduled_for=scheduled_for, room_id=room_id, asset_id=asset_id)
+    if assigned_to or len(slices) <= 1:
+        only = category_id or (slices[0] if slices else None)
+        return [await schedule_inspection(db, actor, **common, assigned_to=assigned_to,
+                                          category_id=only, slice_category_id=None)]
+    if category_id:
+        targets = [category_id] if category_id in slices else slices
+    else:
+        targets = slices
+    return [
+        await schedule_inspection(db, actor, **common, category_id=cat, slice_category_id=cat)
+        for cat in targets
+    ]
+
+
+def item_in_slice(item, template, slice_category_id) -> bool:
+    """Does a checklist item belong to this inspection's category slice?"""
+    if slice_category_id is None:
+        return True
+    return (item.issue_category_id or template.issue_category_id) == slice_category_id
+
+
 async def _technician_for(db, org_id, category_id, asset_id, template) -> Optional[uuid.UUID]:
     """Who should carry out an inspection: the least busy technician who
     services its category. The category is the one chosen, else the inspected
@@ -101,6 +147,9 @@ async def _technician_for(db, org_id, category_id, asset_id, template) -> Option
     from app.services.work_orders import suggest_technician
 
     code = None
+    # A category chosen when scheduling wins; then the checklist's own.
+    if category_id is None and template.issue_category_id:
+        category_id = template.issue_category_id
     if category_id:
         code = await db.scalar(select(IssueCategory.code).where(
             IssueCategory.id == category_id, IssueCategory.organization_id == org_id))
@@ -139,7 +188,9 @@ async def _raise_issue_from_failure(
     from app.services.issues import issue_category_for_asset, load_categories
 
     category = None
-    if inspection.asset_id:
+    if inspection.issue_category_id:
+        category = await db.scalar(select(IssueCategory).where(IssueCategory.id == inspection.issue_category_id))
+    if category is None and inspection.asset_id:
         category = await issue_category_for_asset(db, inspection.organization_id, inspection.asset_id)
     if category is None:
         guess = classify_heuristic(prompt, f"{prompt} {note or ''}",

@@ -154,6 +154,8 @@ async def score_asset(
 async def forecast(
     db: AsyncSession, organization_id: uuid.UUID, *, limit: int = 20,
     min_risk: float = RISK_THRESHOLD,
+    category_id: Optional[uuid.UUID] = None,
+    counts_out: Optional[dict] = None,
 ) -> list[dict]:
     """Rank every asset in the organization by predicted failure risk."""
     assets = (await db.scalars(
@@ -183,6 +185,14 @@ async def forecast(
         if risk >= min_risk:
             scored.append((asset, risk, signals, reasons))
 
+    if counts_out is not None:
+        # How many at-risk assets each category has, before any filter or limit,
+        # so the filter chips show the whole picture.
+        for a, *_ in scored:
+            counts_out[a.category_id] = counts_out.get(a.category_id, 0) + 1
+    if category_id:
+        scored = [x for x in scored if x[0].category_id == category_id]
+
     rooms = {r.id: r for r in (await db.scalars(
         select(Room).where(Room.id.in_({a.room_id for a, *_ in scored})))).all()} if scored else {}
     categories = {c.id: c for c in (await db.scalars(
@@ -198,9 +208,16 @@ async def forecast(
         )).all():
             existing_wo.setdefault(asset_id, ref)
 
+    floors = {f.id: f for f in (await db.scalars(
+        select(Floor).where(Floor.id.in_({r.floor_id for r in rooms.values()})))).all()} if rooms else {}
+    buildings = {b.id: b for b in (await db.scalars(
+        select(Building).where(Building.id.in_({f.building_id for f in floors.values()})))).all()} if floors else {}
+
     out = []
     for asset, risk, signals, reasons in scored:
         room = rooms.get(asset.room_id)
+        floor = floors.get(room.floor_id) if room else None
+        building = buildings.get(floor.building_id) if floor else None
         category = categories.get(asset.category_id)
         existing = existing_wo.get(asset.id)
 
@@ -210,6 +227,10 @@ async def forecast(
             "name": asset.name,
             "category": category.name if category else None,
             "room": room.name if room else None,
+            "room_code": room.code if room else None,
+            "floor": floor.name if floor else None,
+            "building": building.name if building else None,
+            "category_id": str(asset.category_id),
             "room_id": str(room.id) if room else None,
             "state": asset.state.value,
             "risk_score": risk,

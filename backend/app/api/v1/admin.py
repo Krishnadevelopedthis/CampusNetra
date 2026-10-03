@@ -579,13 +579,27 @@ class ChecklistItemIn(BaseModel):
     requires_photo: bool = False
     # A failing critical item auto-raises a routed, high-priority issue.
     is_critical: bool = False
+    # Which category this check is for (empty = the checklist's category).
+    issue_category_id: Optional[uuid.UUID] = None
 
 
 class TemplateUpsert(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     description: Optional[str] = None
     frequency_days: Optional[int] = Field(None, ge=1, le=3650)
+    # Which Issue Configuration category this checklist is for.
+    issue_category_id: Optional[uuid.UUID] = None
     items: list[ChecklistItemIn] = Field(min_length=1)
+
+
+async def _check_category(db, org_id, category_id):
+    if category_id is None:
+        return None
+    ok = await db.scalar(select(IssueCategory.id).where(
+        IssueCategory.id == category_id, IssueCategory.organization_id == org_id))
+    if ok is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown category")
+    return category_id
 
 
 @router.post("/inspection-templates", response_model=dict, status_code=201)
@@ -596,13 +610,15 @@ async def create_template(payload: TemplateUpsert, user: RequireManager, db: DB)
         organization_id=user.organization_id,
         name=payload.name, description=payload.description,
         frequency_days=payload.frequency_days,
+        issue_category_id=await _check_category(db, user.organization_id, payload.issue_category_id),
     )
     db.add(template)
     await db.flush()
 
     for position, item in enumerate(payload.items, start=1):
         db.add(InspectionTemplateItem(
-            template_id=template.id, position=position, **item.model_dump()))
+            template_id=template.id, position=position, **{
+                **item.model_dump(), "issue_category_id": await _check_category(db, user.organization_id, item.issue_category_id)}))
 
     await db.flush()
     return {"id": str(template.id), "name": template.name,
@@ -631,13 +647,15 @@ async def update_template(
     template.name = payload.name
     template.description = payload.description
     template.frequency_days = payload.frequency_days
+    template.issue_category_id = await _check_category(db, user.organization_id, payload.issue_category_id)
 
     await db.execute(
         InspectionTemplateItem.__table__.delete()
         .where(InspectionTemplateItem.template_id == template_id))
     for position, item in enumerate(payload.items, start=1):
         db.add(InspectionTemplateItem(
-            template_id=template_id, position=position, **item.model_dump()))
+            template_id=template_id, position=position, **{
+                **item.model_dump(), "issue_category_id": await _check_category(db, user.organization_id, item.issue_category_id)}))
 
     await db.flush()
     return {"id": str(template.id), "name": template.name, "items": len(payload.items)}
@@ -979,10 +997,15 @@ async def predictive_forecast(
     user: RequireManager, db: DB,
     limit: int = Query(20, ge=1, le=100),
     min_risk: float = Query(predictive.RISK_THRESHOLD, ge=0, le=1),
+    category_id: Optional[uuid.UUID] = None,
 ):
     """Rank assets by predicted failure risk, with the reasons behind each score."""
+    counts: dict = {}
     predictions = await predictive.forecast(
-        db, user.organization_id, limit=limit, min_risk=min_risk)
+        db, user.organization_id, limit=limit, min_risk=min_risk,
+        category_id=category_id, counts_out=counts)
+    names = dict((await db.execute(
+        select(AssetCategory.id, AssetCategory.name).where(AssetCategory.id.in_(list(counts))))).all()) if counts else {}
     await predictive.persist_predictions(db, user.organization_id, predictions)
 
     return {
@@ -995,6 +1018,10 @@ async def predictive_forecast(
             "warranty": predictive.W_WARRANTY,
         },
         "predictions": predictions,
+        "categories": sorted(
+            [{"id": str(k), "name": names.get(k, "Other"), "count": v} for k, v in counts.items()],
+            key=lambda c: (-c["count"], c["name"])),
+        "at_risk_total": sum(counts.values()),
         "summary": {
             "high_risk": sum(1 for p in predictions if p["risk_band"] == "high"),
             "medium_risk": sum(1 for p in predictions if p["risk_band"] == "medium"),

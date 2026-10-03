@@ -203,10 +203,16 @@ function ScheduleModal({ open, onClose, onDone }) {
       category_id: form.category_id || null,
       scheduled_for: new Date(form.scheduled_for).toISOString(),
     }),
-    onSuccess: (i) => {
-      toast.success(i.assignee?.full_name
-        ? `${i.reference} scheduled and assigned to ${i.assignee?.full_name}.`
-        : `${i.reference} scheduled. No technician handles that category — anyone can pick it up.`)
+    onSuccess: ({ inspections }) => {
+      if (inspections.length > 1) {
+        toast.success(`${inspections.length} inspections scheduled, one per category: `
+          + inspections.map((i) => `${i.category_name || 'General'} → ${i.assignee?.full_name || 'anyone'}`).join(', '))
+      } else {
+        const i = inspections[0]
+        toast.success(i.assignee?.full_name
+          ? `${i.reference} scheduled and assigned to ${i.assignee.full_name}.`
+          : `${i.reference} scheduled. No technician handles that category — anyone can pick it up.`)
+      }
       setForm({}); onClose(); onDone()
     },
     onError: (err) => toast.error(err.detail || 'Could not schedule'),
@@ -229,7 +235,12 @@ function ScheduleModal({ open, onClose, onDone }) {
     >
       <div className="space-y-4">
         <Field label="Template" required>
-          <Select value={form.template_id || ''} onChange={set('template_id')}>
+          <Select value={form.template_id || ''}
+                  onChange={(e) => {
+                    const t = templates.data?.find((x) => x.id === e.target.value)
+                    setForm((f) => ({ ...f, template_id: e.target.value,
+                      category_id: t?.issue_category_id || f.category_id || '', assigned_to: '' }))
+                  }}>
             <option value="">Select a checklist template</option>
             {(templates.data || []).map((t) => (
               <option key={t.id} value={t.id}>
@@ -281,7 +292,7 @@ function ScheduleModal({ open, onClose, onDone }) {
           <Field label="What is being checked?" hint="Picks the technician who handles it">
             <Select value={form.category_id || ''}
                     onChange={(e) => setForm((f) => ({ ...f, category_id: e.target.value, assigned_to: '' }))}>
-              <option value="">{form.asset_id ? "Same as the asset's category" : 'Choose a category'}</option>
+              <option value="">{form.asset_id ? "Same as the asset's category" : 'As set in the checklist (one inspection per category)'}</option>
               {(categories.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
           </Field>
