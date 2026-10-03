@@ -275,6 +275,32 @@ async def get_issue(issue_id: uuid.UUID, user: RequireIssuesView, db: DB):
 @router.post("/{issue_id}/transition", response_model=IssueDetail)
 async def transition(issue_id: uuid.UUID, payload: IssueTransition, user: RequireIssuesResolve, db: DB):
     issue = await _get_issue_or_404(db, issue_id, user)
+
+    # "Assigned" means someone is doing the work. Choosing it with no work order
+    # behind it used to change the label only, so nobody was actually told to
+    # fix anything. It now creates the work order and picks the technician who
+    # services this category; the complaint then follows that work order.
+    if payload.status == IssueStatus.ASSIGNED:
+        from app.models.work import WorkOrder
+        from app.services import work_orders as wo_service
+        from app.services.issues import WO_NOT_DONE
+        has_open_wo = await db.scalar(
+            select(func.count()).select_from(WorkOrder)
+            .where(WorkOrder.issue_id == issue.id, WorkOrder.status.in_(WO_NOT_DONE)))
+        if not has_open_wo:
+            wo = await wo_service.create_work_order(
+                db, user, title=issue.title, description=issue.description, issue_id=issue.id,
+                room_id=issue.room_id, asset_id=issue.asset_id, priority=issue.priority)
+            await db.flush()
+            # With a technician found the complaint is already Assigned (it follows
+            # the work order). Without one it stays where it is until the work
+            # order is given to someone, so it never claims work that nobody has.
+            detail = await issue_views.to_detail(db, await issue_views.reload_issue(db, issue.id))
+            # to_detail reads related rows on separate connections, which cannot
+            # see this still-uncommitted work order; fill those two fields here.
+            tech_name = await db.scalar(select(User.full_name).where(User.id == wo.assigned_to))                 if wo.assigned_to else None
+            return detail.model_copy(update={"work_order_reference": wo.reference, "assignee_name": tech_name})
+
     await issue_service.transition_issue(db, issue, payload.status, user, payload.note)
     await db.flush()
     return await issue_views.to_detail(db, await issue_views.reload_issue(db, issue.id))
