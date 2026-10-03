@@ -9,6 +9,11 @@ import { DateTimePicker } from '@/components/DateTimePicker'
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 
+
+// Mirrors LF_MAX_AGE_DAYS on the server, which enforces it.
+const LF_MAX_AGE_DAYS = 90
+const localInput = (ms) => new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)
+
 export default function ReportItem() {
   const navigate = useNavigate()
   const [kind, setKind] = useState('lost')
@@ -49,6 +54,13 @@ export default function ReportItem() {
     const next = {}
     if (!form.title?.trim()) next.title = 'What is the item?'
     if (!form.occurred_at) next.occurred_at = `When was it ${kind}?`
+    else {
+      const when = new Date(form.occurred_at).getTime()
+      if (when > Date.now() + 5 * 60_000) next.occurred_at = "The date can't be in the future."
+      else if (when < Date.now() - LF_MAX_AGE_DAYS * 86_400_000) {
+        next.occurred_at = `Reports can only be made for items lost or found in the last ${LF_MAX_AGE_DAYS} days.`
+      }
+    }
     if (Object.keys(next).length) return setErrors(next)
 
     setErrors({})
@@ -205,7 +217,8 @@ export default function ReportItem() {
               value={form.occurred_at || ''}
               onChange={(v) => setForm((f) => ({ ...f, occurred_at: v }))}
               error={errors.occurred_at}
-              max={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+              max={localInput(Date.now())}
+              min={localInput(Date.now() - LF_MAX_AGE_DAYS * 86_400_000)}
             />
           </Field>
           <Field label="Specific location" className="sm:col-span-2">

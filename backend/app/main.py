@@ -113,7 +113,7 @@ async def validation_handler(request: Request, exc: RequestValidationError):
     fields: dict[str, str] = {}
     for err in exc.errors():
         loc = [str(p) for p in err["loc"] if p not in ("body", "query", "path")]
-        fields[".".join(loc) or "_"] = err["msg"]
+        fields[".".join(loc) or "_"] = err["msg"].removeprefix("Value error, ")
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": "Please correct the highlighted fields.", "fields": fields},
