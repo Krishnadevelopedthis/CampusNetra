@@ -24,8 +24,15 @@ def _clean_health():
 
 
 def _candidates(*pairs):
-    """pairs like [("openrouter", "model-a"), ("groq", "model-b")]."""
-    return AsyncMock(return_value=[ModelCandidate(provider=p, model=m, supports_tools=True) for p, m in pairs])
+    """pairs like [("openrouter", "model-a"), ("groq", "model-b")].
+
+    OpenRouter models are given the ":free" suffix a genuinely free model has,
+    since the router refuses to send to an OpenRouter model without it.
+    """
+    def name(p, m):
+        return f"{m}:free" if p == "openrouter" and not m.endswith(":free") else m
+    return AsyncMock(return_value=[
+        ModelCandidate(provider=p, model=name(p, m), supports_tools=True) for p, m in pairs])
 
 
 # --------------------------------------------------------------- complete_text
@@ -39,7 +46,7 @@ async def test_1_first_route_succeeds(monkeypatch):
 
     assert result.ok
     assert result.text == "hello"
-    assert result.provider == "openrouter" and result.model == "model-a"
+    assert result.provider == "openrouter" and result.model == "model-a:free"
     assert result.attempts == []
 
 
@@ -58,7 +65,7 @@ async def test_2_rate_limit_then_success_on_next_route(monkeypatch):
     assert result.provider == "groq" and result.model == "model-b"
     assert len(result.attempts) == 1 and "rate_limit" in result.attempts[0]
     # the failed route is now in cooldown
-    assert health.is_in_cooldown("openrouter", "model-a")
+    assert health.is_in_cooldown("openrouter", "model-a:free")
 
 
 @pytest.mark.asyncio
@@ -205,7 +212,7 @@ async def test_cooldown_route_is_skipped_on_the_next_call(monkeypatch):
     monkeypatch.setattr("app.ai.providers.free_candidates", _candidates(("openrouter", "a"), ("groq", "b")))
     monkeypatch.setattr(router, "_dispatch_text", AsyncMock(return_value=("ok", 1, 1)))
 
-    health.mark_failure("openrouter", "a", ErrorKind.RATE_LIMIT, retry_after=999)
+    health.mark_failure("openrouter", "a:free", ErrorKind.RATE_LIMIT, retry_after=999)
 
     result = await router.complete_text("sys", "prompt")
 
@@ -216,15 +223,27 @@ async def test_cooldown_route_is_skipped_on_the_next_call(monkeypatch):
 async def test_cost_guard_rejects_a_non_free_candidate_before_dispatch(monkeypatch):
     from dataclasses import replace
 
-    bad = replace(ModelCandidate(provider="openrouter", model="paid-model", supports_tools=True), is_free=False)
-    monkeypatch.setattr("app.ai.providers.free_candidates", AsyncMock(return_value=[bad]))
+    # A candidate flagged non-free, and an OpenRouter model without the ":free"
+    # suffix (priced at zero but billed against the key's credit) -- neither
+    # may ever be sent a request.
+    flagged = replace(ModelCandidate(provider="groq", model="x", supports_tools=True), is_free=False)
+    unsuffixed = ModelCandidate(provider="openrouter", model="vendor/promo-model", supports_tools=True)
+    monkeypatch.setattr("app.ai.providers.free_candidates", AsyncMock(return_value=[flagged, unsuffixed]))
     dispatch = AsyncMock(return_value=("should not run", 1, 1))
     monkeypatch.setattr(router, "_dispatch_text", dispatch)
 
-    with pytest.raises(AssertionError):
-        await router.complete_text("sys", "prompt")
+    result = await router.complete_text("sys", "prompt")
 
-    dispatch.assert_not_called()  # the guard trips before any network call is made
+    dispatch.assert_not_called()  # the guard skips them before any network call is made
+    assert not result.ok
+
+
+@pytest.mark.asyncio
+async def test_a_free_openrouter_model_is_allowed_and_the_free_router_too(monkeypatch):
+    monkeypatch.setattr("app.ai.providers.free_candidates", AsyncMock(return_value=[
+        ModelCandidate(provider="openrouter", model="openrouter/free", supports_tools=True)]))
+    monkeypatch.setattr(router, "_dispatch_text", AsyncMock(return_value=("ok", 1, 1)))
+    assert (await router.complete_text("sys", "prompt")).ok
 
 
 # -------------------------------------------------------------- complete_agent

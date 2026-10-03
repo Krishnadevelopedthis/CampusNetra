@@ -30,7 +30,7 @@ def _response(*, tool_calls=None, content=None):
     return SimpleNamespace(
         choices=[SimpleNamespace(message=message)],
         usage=SimpleNamespace(prompt_tokens=42, completion_tokens=7),
-        model="test-model",
+        model="test-model:free",
     )
 
 
@@ -46,7 +46,7 @@ def fake_client(monkeypatch):
     health.reset_all()
     monkeypatch.setattr(
         "app.ai.providers.free_candidates",
-        AsyncMock(return_value=[ModelCandidate(provider="openrouter", model="test-model", supports_tools=True)]),
+        AsyncMock(return_value=[ModelCandidate(provider="openrouter", model="test-model:free", supports_tools=True)]),
     )
     monkeypatch.setattr("app.ai.providers.get_openai_client", lambda provider: client)
     monkeypatch.setattr("app.core.config.settings.AI_FREE_ONLY", True)
