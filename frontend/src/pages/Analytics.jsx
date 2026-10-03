@@ -303,6 +303,13 @@ function Technicians({ query }) {
 }
 
 /* ---------------- Scenario simulation ---------------- */
+// The server's limits (SimulationConfig in api/v1/analytics.py): [min, max, label].
+const SIM_LIMITS = {
+  complaint_count: [1, 500, 'Complaints'],
+  hours_available: [1, 24, 'Shift length'],
+  avg_minutes_per_job: [5, 480, 'Minutes per job'],
+}
+
 function SimulationPanel() {
   const chart = useChartTheme()
   const [config, setConfig] = useState({
@@ -310,6 +317,7 @@ function SimulationPanel() {
     hours_available: 8, avg_minutes_per_job: 45,
   })
   const [result, setResult] = useState(null)
+  const [errors, setErrors] = useState({})
 
   const run = useMutation({
     mutationFn: () => api.post('/analytics/simulate', config),
@@ -318,30 +326,54 @@ function SimulationPanel() {
       setResult(d)
       toast.success('Simulation complete.')
     },
-    onError: (err) => toast.error(err.detail || 'Simulation failed'),
+    onError: (err) => {
+      // Show the server's per-field reasons under the fields themselves.
+      if (err.fields) setErrors(err.fields)
+      toast.error(err.fields ? 'Check the highlighted fields.' : (err.detail || 'Simulation failed'))
+    },
   })
+
+  const start = () => {
+    const next = {}
+    for (const [key, [lo, hi, what]] of Object.entries(SIM_LIMITS)) {
+      const v = config[key]
+      if (!Number.isInteger(v) || v < lo || v > hi) next[key] = `${what} must be between ${lo} and ${hi}.`
+    }
+    if (!next.avg_minutes_per_job && !next.hours_available
+        && config.avg_minutes_per_job > config.hours_available * 60) {
+      next.avg_minutes_per_job = `A job can't take longer than the ${config.hours_available}-hour shift.`
+    }
+    if (!config.name?.trim()) next.name = 'Give the scenario a name.'
+    setErrors(next)
+    if (Object.keys(next).length === 0) run.mutate()
+  }
+  const setNum = (key) => (e) => {
+    setConfig((c) => ({ ...c, [key]: e.target.value === '' ? '' : Number(e.target.value) }))
+    setErrors((er) => ({ ...er, [key]: undefined }))
+  }
 
   return (
     <div className="grid lg:grid-cols-[320px_1fr] gap-5 items-start">
       <Widget title={<span className="flex items-center gap-2"><Cpu size={17} /> Configuration</span>}>
         <div className="space-y-4">
-          <Field label="Scenario name">
-            <Input value={config.name} onChange={(e) => setConfig((c) => ({ ...c, name: e.target.value }))} />
+          <Field label="Scenario name" error={errors.name}>
+            <Input value={config.name} error={errors.name}
+                   onChange={(e) => { setConfig((c) => ({ ...c, name: e.target.value })); setErrors((er) => ({ ...er, name: undefined })) }} />
           </Field>
-          <Field label="Simultaneous complaints" hint="How many arrive at once">
-            <Input type="number" min="1" max="500" value={config.complaint_count}
-                   onChange={(e) => setConfig((c) => ({ ...c, complaint_count: Number(e.target.value) }))} />
+          <Field label="Simultaneous complaints" hint="How many arrive at once (1–500)" error={errors.complaint_count}>
+            <Input type="number" min="1" max="500" value={config.complaint_count} error={errors.complaint_count}
+                   onChange={setNum('complaint_count')} />
           </Field>
-          <Field label="Shift length (hours)">
-            <Input type="number" min="1" max="24" value={config.hours_available}
-                   onChange={(e) => setConfig((c) => ({ ...c, hours_available: Number(e.target.value) }))} />
+          <Field label="Shift length (hours)" hint="1–24 hours" error={errors.hours_available}>
+            <Input type="number" min="1" max="24" value={config.hours_available} error={errors.hours_available}
+                   onChange={setNum('hours_available')} />
           </Field>
-          <Field label="Average minutes per job">
-            <Input type="number" min="5" max="480" value={config.avg_minutes_per_job}
-                   onChange={(e) => setConfig((c) => ({ ...c, avg_minutes_per_job: Number(e.target.value) }))} />
+          <Field label="Average minutes per job" hint="5–480 minutes (up to 8 hours)" error={errors.avg_minutes_per_job}>
+            <Input type="number" min="5" max="480" value={config.avg_minutes_per_job} error={errors.avg_minutes_per_job}
+                   onChange={setNum('avg_minutes_per_job')} />
           </Field>
           <Button icon={Play} loading={run.isPending} className="w-full"
-                  onClick={() => run.mutate()}>Run simulation</Button>
+                  onClick={start}>Run simulation</Button>
         </div>
       </Widget>
 
