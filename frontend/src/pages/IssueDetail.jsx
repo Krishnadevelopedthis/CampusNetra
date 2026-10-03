@@ -138,8 +138,15 @@ export default function IssueDetail() {
     mutationFn: ({ status, note }) =>
       api.post(`/issues/${id}/transition`, { status, note }),
 
-    onSuccess: (d) => {
-      toast.success(`Moved to ${titleCase(d.status)}.`)
+    onSuccess: (d, vars) => {
+      if (vars.status === 'assigned' && d.status !== 'assigned') {
+        // A work order was created, but nobody services this category yet.
+        toast.info(`Work order ${d.work_order_reference || ''} created, but no technician handles this category. Assign one on the work order.`)
+      } else if (vars.status === 'assigned') {
+        toast.success(`Assigned to ${d.assignee_name || 'a technician'} — work order ${d.work_order_reference || ''} created.`)
+      } else {
+        toast.success(`Moved to ${titleCase(d.status)}.`)
+      }
       setTransitionTo(null)
       setNote('')
       invalidate()
