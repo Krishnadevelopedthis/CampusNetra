@@ -27,18 +27,19 @@ export default function InspectionDetail() {
   const [answers, setAnswers] = useState({})
   const [notes, setNotes] = useState('')
   const [rescheduling, setRescheduling] = useState(false)
-  // Assets in the inspected room, to say which one a Fail / Attention is about.
-  const roomAssets = useQuery({
-    queryKey: ['room-assets', insp?.room_id],
-    queryFn: () => api.get(`/campus/rooms/${insp.room_id}/assets`),
-    enabled: !!insp?.room_id && !insp?.asset_id,
-  })
   const { perms } = usePermissions()
   const canSchedule = !!perms?.includes('inspections:schedule')
 
   const { data: insp, isLoading, error, refetch } = useQuery({
     queryKey: ['inspection', id],
     queryFn: () => api.get(`/inspections/${id}`),
+  })
+
+  // Assets in the inspected room, to say which one a Fail / Attention is about.
+  const roomAssets = useQuery({
+    queryKey: ['room-assets', insp?.room_id],
+    queryFn: () => api.get(`/campus/rooms/${insp.room_id}/assets`),
+    enabled: !!insp?.room_id && !insp?.asset_id,
   })
 
   // Prefill from an already-submitted inspection so the record is readable.
