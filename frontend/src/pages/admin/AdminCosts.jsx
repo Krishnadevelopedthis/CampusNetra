@@ -4,9 +4,9 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
-} from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
+
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/charts'
 
 import { SkeletonChart, SkeletonMetrics, SkeletonWidget } from '@/components/Skeletons'
 import { EmptyState, ErrorState, Metric, MetricRow, Select, Widget } from '@/components/ui'
@@ -29,6 +29,65 @@ const WINDOWS = [
   [24, 'Last 2 years'],
   [60, 'Last 5 years'],
 ]
+
+const SPEND_CONFIG = { total: { label: 'Spend', color: 'rgb(var(--c-secondary))' } }
+
+/** Spend per period. A trend line needs a few points to mean anything, so a
+ * short series (one or two periods) is drawn as bars and a longer one as a
+ * filled area. Hovering either shows the spend and the jobs behind it. */
+function SpendChart({ series }) {
+  const tooltip = (
+    <ChartTooltip
+      cursor={series.length < 3 ? { radius: 6 } : true}
+      wrapperStyle={{ zIndex: 30, outline: 'none' }}
+      content={(
+        <ChartTooltipContent
+          indicator={series.length < 3 ? 'dot' : 'line'}
+          valueFormatter={(v) => money(v)}
+          footer={(payload) => (
+            <div className="flex items-center justify-between text-body-xs">
+              <span className="text-ink-faint">Jobs completed</span>
+              <span className="tabular font-mono font-medium text-ink">{payload[0]?.payload?.jobs ?? 0}</span>
+            </div>
+          )}
+        />
+      )}
+    />
+  )
+  const axes = (
+    <>
+      <CartesianGrid vertical={false} />
+      <XAxis dataKey="period" axisLine={false} tickLine={false} tickMargin={8} minTickGap={24} />
+      <YAxis axisLine={false} tickLine={false} width={64} tickFormatter={moneyCompact} />
+    </>
+  )
+  const gradient = (
+    <defs>
+      <linearGradient id="spend-fill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="5%" stopColor="var(--color-total)" stopOpacity={series.length < 3 ? 0.95 : 0.45} />
+        <stop offset="95%" stopColor="var(--color-total)" stopOpacity={series.length < 3 ? 0.55 : 0.03} />
+      </linearGradient>
+    </defs>
+  )
+
+  return (
+    <ChartContainer config={SPEND_CONFIG} className="h-[240px] sm:h-[300px]">
+      {series.length < 3 ? (
+        <BarChart data={series} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+          {gradient}{axes}{tooltip}
+          <Bar dataKey="total" name="Spend" fill="url(#spend-fill)" radius={[8, 8, 0, 0]} maxBarSize={64}
+               activeBar={{ stroke: 'var(--color-total)', strokeWidth: 2 }} animationDuration={600} />
+        </BarChart>
+      ) : (
+        <AreaChart data={series} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+          {gradient}{axes}{tooltip}
+          <Area dataKey="total" name="Spend" type="monotone" stroke="var(--color-total)" strokeWidth={2}
+                fill="url(#spend-fill)" activeDot={{ r: 5, strokeWidth: 2 }} animationDuration={700} />
+        </AreaChart>
+      )}
+    </ChartContainer>
+  )
+}
 
 export default function AdminCosts() {
   const [granularity, setGranularity] = useState('month')
@@ -190,28 +249,7 @@ export default function AdminCosts() {
                 description="Costs appear here once a work order is completed and signed off."
               />
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={series} margin={{ top: 8, right: 8, left: 4, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} vertical={false} />
-                  <XAxis dataKey="period" tick={{ fontSize: 12, fill: chart.axis }}
-                         axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: chart.axis }} axisLine={false}
-                         tickLine={false} width={72}
-                         tickFormatter={moneyCompact} />
-                  <Tooltip
-                    {...chart.tooltip}
-                    formatter={(value, name) => [
-                      name === 'total' ? money(value) : value,
-                      name === 'total' ? 'Spend' : 'Jobs',
-                    ]}
-                  />
-                  <Legend iconType="circle"
-                          wrapperStyle={{ fontSize: 13, paddingTop: 8, color: chart.axis }}
-                          formatter={(v) => (v === 'total' ? 'Spend' : 'Jobs')} />
-                  <Bar dataKey="total" fill={chart.seriesStrong} radius={[4, 4, 0, 0]}
-                       maxBarSize={40} />
-                </BarChart>
-              </ResponsiveContainer>
+              <SpendChart series={series} />
             )}
           </Widget>
 
