@@ -2,7 +2,7 @@ import { Map as MapLibreMap, NavigationControl, Popup } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useRef, useState } from 'react'
 
-import '@/lib/maplibreSetup'
+import { withQuietBasemap } from '@/lib/maplibreSetup'
 
 // Cycled by CameraAngleControl below, in order, on every click. "isometric"
 // matches the map's own default construction values (pitch 55 / bearing
@@ -404,7 +404,6 @@ export function OutdoorCampusMap({
 
       const map = new MapLibreMap({
         container: mountRef.current,
-        style: styleUrl,
         center: [lng, lat],
         zoom: 16.5,
         // Previously 15 uncropped — pinned in tight enough that "zoom out a
@@ -421,20 +420,9 @@ export function OutdoorCampusMap({
         maxBounds,
       })
       mapRef.current = map
+      withQuietBasemap(map, styleUrl)
       map.addControl(new NavigationControl({ visualizePitch: true, showZoom: true, showCompass: true }), 'top-right')
       map.addControl(new CameraAngleControl(16.5), 'top-right')
-
-      // The "liberty" style's POI layers (gate, sports_centre, atm, etc.)
-      // reference icon sprites that don't always resolve from the sprite
-      // sheet this host serves -- a third-party style/CDN mismatch, not
-      // anything CampusNetra's own layers ask for. Left unhandled, MapLibre
-      // logs one console error per missing icon per tile. A blank 1x1
-      // image satisfies the request silently; those POI labels simply
-      // render without an icon, same as if the sprite had loaded emptied.
-      map.on('styleimagemissing', (e) => {
-        if (map.hasImage(e.id)) return
-        map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) }, { pixelRatio: 1 })
-      })
 
       // A cropped box can be any shape or size, unlike the fixed 550m
       // radius — fitBounds frames it properly on first load instead of

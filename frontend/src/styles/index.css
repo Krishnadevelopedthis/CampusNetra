@@ -19,6 +19,15 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* A grid item defaults to min-width:auto, so one long unbreakable line
+     (a tag, a chip row, a table) inside it widens the whole track -- and on a
+     phone that pushes the entire page sideways. Let grid items shrink; the
+     wide content then wraps, truncates or scrolls inside its own box.
+     :where() keeps this at zero specificity so an explicit min-w-* still wins. */
+  :where(.grid) > * {
+    min-width: 0;
+  }
+
   *:focus-visible {
     @apply outline-none ring-2 ring-secondary ring-offset-2 ring-offset-surface;
   }
@@ -580,4 +589,57 @@ button,
 .table thead th:first-child,
 .table tbody td:first-child {
   text-align: left !important;
+}
+
+/* ── Charts (src/components/charts) ───────────────────────────────────────
+   Recharts draws with SVG presentation attributes; these rules give every
+   chart one theme-aware look -- dashed hairline grid, quiet axis labels, a
+   soft hover band -- and follow light/dark mode with no re-render. */
+@layer components {
+  .chart .recharts-cartesian-grid line {
+    stroke: rgb(var(--c-border-subtle));
+    stroke-dasharray: 3 3;
+  }
+  .chart .recharts-cartesian-axis-tick text,
+  .chart .chart-tick {
+    fill: rgb(var(--c-ink-faint));
+    font-size: 12px;
+  }
+  .chart .recharts-rectangle.recharts-tooltip-cursor {
+    fill: rgb(var(--c-surface-sunken));
+    opacity: 0.8;
+  }
+  .chart .recharts-curve.recharts-tooltip-cursor {
+    stroke: rgb(var(--c-border-strong));
+    stroke-dasharray: 4 4;
+  }
+  .chart .recharts-dot,
+  .chart .recharts-active-dot circle {
+    stroke: rgb(var(--c-surface));
+  }
+  .chart .recharts-sector,
+  .chart .recharts-rectangle,
+  .chart .recharts-surface,
+  .chart .recharts-layer {
+    outline: none;
+  }
+  .chart .recharts-bar-rectangle {
+    transition: opacity 150ms ease;
+  }
+  .chart .chart-radial-track {
+    fill: rgb(var(--c-surface-sunken));
+  }
+  .chart .chart-center-value {
+    fill: rgb(var(--c-ink));
+    font-size: 26px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart .chart-center-value-lg {
+    font-size: 36px;
+  }
+  .chart .chart-center-label {
+    fill: rgb(var(--c-ink-faint));
+    font-size: 12px;
+  }
 }
