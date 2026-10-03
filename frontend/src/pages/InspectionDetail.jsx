@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ArrowLeft, Check, MinusCircle, Play, Send, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarClock, Check, MinusCircle, Play, Send, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { Button, ErrorState, Spinner, StatusPill, Textarea, Widget, toast } from '@/components/ui'
+import { Button, ErrorState, Field, Input, Modal, Select, Spinner, StatusPill, Textarea, Widget, toast } from '@/components/ui'
+import { usePermissions } from '@/lib/permissions'
 import AdminDeleteButton from '@/components/AdminDeleteButton'
 import { api } from '@/lib/api'
 import { dt } from '@/lib/format'
@@ -25,6 +26,9 @@ export default function InspectionDetail() {
   const qc = useQueryClient()
   const [answers, setAnswers] = useState({})
   const [notes, setNotes] = useState('')
+  const [rescheduling, setRescheduling] = useState(false)
+  const { perms } = usePermissions()
+  const canSchedule = !!perms?.includes('inspections:schedule')
 
   const { data: insp, isLoading, error, refetch } = useQuery({
     queryKey: ['inspection', id],
@@ -59,7 +63,7 @@ export default function InspectionDetail() {
       results: insp.items.map((item) => ({
         item_id: item.id,
         prompt: item.prompt,
-        result: answers[item.prompt]?.result || 'na',
+        result: answers[item.prompt]?.result,
         note: answers[item.prompt]?.note || null,
       })),
       notes: notes.trim() || null,
@@ -77,7 +81,9 @@ export default function InspectionDetail() {
   if (isLoading) return <Spinner label="Loading inspection…" />
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
-  const editable = ['scheduled', 'in_progress', 'overdue'].includes(insp.status)
+  // Answers can be given only once the inspection has been started.
+  const editable = insp.status === 'in_progress'
+  const notStarted = ['scheduled', 'overdue'].includes(insp.status)
   const answered = insp.items.filter((i) => answers[i.prompt]?.result).length
   const complete = answered === insp.items.length && insp.items.length > 0
   const failedCritical = insp.items.filter(
@@ -106,7 +112,12 @@ export default function InspectionDetail() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {canSchedule && notStarted && (
+            <Button variant="secondary" icon={CalendarClock} onClick={() => setRescheduling(true)}>
+              Reschedule
+            </Button>
+          )}
           {insp.status === 'scheduled' || insp.status === 'overdue' ? (
             <Button icon={Play} loading={start.isPending} onClick={() => start.mutate()}>
               Start inspection
@@ -114,6 +125,10 @@ export default function InspectionDetail() {
           ) : null}
         </div>
       </div>
+
+      {rescheduling && (
+        <RescheduleModal insp={insp} onClose={() => setRescheduling(false)} onDone={invalidate} />
+      )}
 
       {/* Escalation warning before they commit */}
       {editable && failedCritical.length > 0 && (
@@ -228,22 +243,79 @@ export default function InspectionDetail() {
 
       {editable && (
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-body-md text-ink-muted">
-            {complete ? 'All checks answered.'
-              : `${insp.items.length - answered} check${insp.items.length - answered === 1 ? '' : 's'} still unanswered — these will be recorded as N/A.`}
+          <p className={`text-body-md ${complete ? 'text-success-text' : 'text-warning-text'}`}>
+            {complete ? 'All checks answered — ready to submit.'
+              : `${insp.items.length - answered} check${insp.items.length - answered === 1 ? '' : 's'} still unanswered. Answer every check to submit.`}
           </p>
-          <Button icon={Send} loading={submit.isPending}
-                  disabled={answered === 0 || insp.status === 'scheduled'}
+          <Button icon={Send} loading={submit.isPending} disabled={!complete}
                   onClick={() => submit.mutate()}>
             Submit inspection
           </Button>
         </div>
       )}
-      {editable && insp.status === 'scheduled' && (
-        <p className="text-body-sm text-ink-faint text-right -mt-3">
-          Start the inspection before submitting.
+      {notStarted && (
+        <p className="text-body-md text-ink-muted text-right">
+          Press <strong>Start inspection</strong> at the top to begin answering the checks.
         </p>
       )}
     </div>
+  )
+}
+
+/** New time (and optionally a different technician) for a missed or upcoming inspection. */
+function RescheduleModal({ insp, onClose, onDone }) {
+  const pad = (n) => String(n).padStart(2, '0')
+  const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const tomorrow = new Date(Date.now() + 86_400_000)
+  tomorrow.setMinutes(0, 0, 0)
+  const [when, setWhen] = useState(local(new Date(insp.scheduled_for) > new Date() ? new Date(insp.scheduled_for) : tomorrow))
+  const [tech, setTech] = useState('')
+
+  const categories = useQuery({ queryKey: ['issue-categories'], queryFn: () => api.get('/issues/categories') })
+  const technicians = useQuery({
+    queryKey: ['technicians'],
+    queryFn: () => api.get('/admin/users', { params: { role: 'technician', status: 'active', page_size: 100 } })
+      .then((d) => d.items),
+    retry: false,
+  })
+  const code = categories.data?.find((c) => c.id === insp.category_id)?.code
+  const eligible = (technicians.data || []).filter((t) => !code || (t.specialization || []).includes(code))
+
+  const save = useMutation({
+    mutationFn: () => api.patch(`/inspections/${insp.id}`, {
+      scheduled_for: new Date(when).toISOString(), assigned_to: tech || null,
+    }),
+    onSuccess: (d) => {
+      toast.success(`${d.reference} rescheduled to ${dt(d.scheduled_for)}${d.assignee ? ` for ${d.assignee.full_name}` : ''}.`)
+      onDone(); onClose()
+    },
+    onError: (err) => toast.error(err.detail || 'Could not reschedule'),
+  })
+
+  return (
+    <Modal open onClose={onClose} title={`Reschedule ${insp.reference}`}
+           footer={
+             <>
+               <Button variant="secondary" onClick={onClose}>Cancel</Button>
+               <Button loading={save.isPending} disabled={!when || new Date(when) <= new Date()} onClick={() => save.mutate()}>
+                 Reschedule
+               </Button>
+             </>
+           }>
+      <div className="space-y-4">
+        {insp.status === 'overdue' && (
+          <p className="text-body-md text-warning-text">This inspection was missed. Pick a new time and it goes back to Scheduled.</p>
+        )}
+        <Field label="New date and time" required>
+          <Input type="datetime-local" value={when} min={local(new Date())} onChange={(e) => setWhen(e.target.value)} />
+        </Field>
+        <Field label="Technician" hint={insp.category_name ? `People who handle ${insp.category_name}` : undefined}>
+          <Select value={tech} onChange={(e) => setTech(e.target.value)}>
+            <option value="">Keep {insp.assignee?.full_name || 'it unassigned'}</option>
+            {eligible.filter((t) => t.id !== insp.assignee?.id).map((t) => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+          </Select>
+        </Field>
+      </div>
+    </Modal>
   )
 }
