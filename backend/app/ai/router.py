@@ -27,6 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 
 from app.ai import health, providers
+from app.core.config import settings
 from app.ai.errors import ErrorKind, FATAL_FOR_THIS_CALL, ProviderCallError, classify_exception
 
 log = logging.getLogger(__name__)
@@ -52,8 +53,11 @@ class RouterResult:
 
 
 def _sorted_by_health(candidates: list[providers.ModelCandidate]) -> list[providers.ModelCandidate]:
+    """Healthiest first; among equals, the model named in AI_MODEL leads, so
+    the configured choice is what normally answers and the rest are failover."""
     available = [c for c in candidates if not health.is_in_cooldown(c.provider, c.model)]
-    return sorted(available, key=lambda c: health.failure_count(c.provider, c.model))
+    preferred = settings.AI_MODEL
+    return sorted(available, key=lambda c: (health.failure_count(c.provider, c.model), c.model != preferred))
 
 
 def _no_route_result(started: float, attempts: list[str]) -> RouterResult:
@@ -121,7 +125,10 @@ async def complete_text(
             # of spending real API calls (and, at scale, real per-request
             # latency) re-discovering that fact one model at a time.
             continue
-        assert candidate.is_free, "cost guard: router must never dispatch a non-free candidate"
+        if not providers.definitely_free(candidate):
+            # Cost guard: never send a request to anything that might bill.
+            log.error("AI_PAID_MODEL_BLOCKED provider=%s model=%s", candidate.provider, candidate.model)
+            continue
         log.info("AI_REQUEST_STARTED provider=%s model=%s", candidate.provider, candidate.model)
 
         last_kind: Optional[ErrorKind] = None
@@ -174,7 +181,10 @@ async def complete_agent(
     for candidate in candidates:
         if health.provider_disabled(candidate.provider):
             continue
-        assert candidate.is_free, "cost guard: router must never dispatch a non-free candidate"
+        if not providers.definitely_free(candidate):
+            # Cost guard: never send a request to anything that might bill.
+            log.error("AI_PAID_MODEL_BLOCKED provider=%s model=%s", candidate.provider, candidate.model)
+            continue
         client = providers.get_openai_client(candidate.provider)
         convo: list[dict[str, Any]] = [{"role": "system", "content": system}, *messages]
         total_input = total_output = 0

@@ -62,6 +62,15 @@ _OPENROUTER_FALLBACK_MODELS = [
 ]
 
 
+def definitely_free(candidate: "ModelCandidate") -> bool:
+    """Last check before any request leaves: an OpenRouter model must be a
+    `:free` variant (or the free router). Groq and Gemini candidates come only
+    from the free-tier lists in config."""
+    if candidate.provider == "openrouter":
+        return candidate.model.endswith(":free") or candidate.model == "openrouter/free"
+    return candidate.is_free
+
+
 async def openrouter_models(require_tools: bool) -> list[ModelCandidate]:
     global _or_cache
     if not settings.OPENROUTER_API_KEY:
@@ -86,6 +95,16 @@ async def openrouter_models(require_tools: bool) -> list[ModelCandidate]:
                     continue  # ambiguous pricing -- never assume free
                 if prompt_price != 0 or completion_price != 0:
                     continue
+                # A zero price alone is not "free": promo, stealth and preview
+                # models list 0 but still draw on the key's credit limit, and a
+                # key with no credit gets 403 "Key limit exceeded" from them.
+                # Only the `:free` variants (and the free router) run on the
+                # free pool.
+                if not (row["id"].endswith(":free") or row["id"] == "openrouter/free"):
+                    continue
+                outputs = (row.get("architecture") or {}).get("output_modalities") or ["text"]
+                if "text" not in outputs:
+                    continue  # music / image generators cannot answer a prompt
                 params = row.get("supported_parameters") or []
                 candidates.append(ModelCandidate(
                     provider="openrouter", model=row["id"], supports_tools="tools" in params,
