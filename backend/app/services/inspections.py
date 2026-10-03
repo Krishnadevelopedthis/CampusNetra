@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import (
-    AssetState, ChecklistResult, InspectionStatus, Priority, TwinEventKind,
+    AssetState, ChecklistResult, InspectionStatus, Priority, TwinEventKind, UserRole,
 )
 from app.models.identity import User
 from app.models.issues import Issue, IssueCategory, IssueEvent
@@ -278,6 +278,25 @@ async def submit_inspection(
             status.HTTP_409_CONFLICT,
             f"{inspection.reference} has already been submitted",
         )
+    if inspection.status != InspectionStatus.IN_PROGRESS:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "Start the inspection before submitting it.")
+    if submitter.role == UserRole.TECHNICIAN and inspection.assigned_to not in (None, submitter.id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This inspection is assigned to someone else.")
+
+    # Every check in this inspection must have an answer; nothing is assumed.
+    if inspection.template_id:
+        template = await db.scalar(select(InspectionTemplate).where(InspectionTemplate.id == inspection.template_id))
+        items = (await db.scalars(select(InspectionTemplateItem).where(
+            InspectionTemplateItem.template_id == inspection.template_id))).all()
+        expected = {i.id for i in items if item_in_slice(i, template, inspection.issue_category_id)}
+        answered = {uuid.UUID(str(r["item_id"])) for r in results if r.get("item_id") and r.get("result")}
+        missing = len(expected - answered)
+        if missing:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"{missing} check{'s are' if missing > 1 else ' is'} still unanswered. "
+                "Answer every check (Pass, Fail, Attention or N/A) before submitting.")
     if not results:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Submit at least one checklist result")
 

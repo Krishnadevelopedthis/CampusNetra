@@ -24,6 +24,7 @@ from app.models.work import (
 )
 from app.schemas.common import Message, Page, UserBrief
 from app.schemas.work import (
+    InspectionReschedule,
     InspectionOut, InspectionSchedule, InspectionSubmit, InspectionTemplateItemOut,
     InspectionTemplateOut,
 )
@@ -76,6 +77,7 @@ async def _to_out(db, i: Inspection, *, with_items: bool = False) -> InspectionO
         id=i.id, reference=i.reference,
         template_name=template.name if template else None,
         category_name=category_name,
+        category_id=i.issue_category_id,
         status=i.status,
         room_name=room.name if room else None,
         asset_tag=asset.tag if asset else None,
@@ -193,6 +195,48 @@ async def get_inspection(inspection_id: uuid.UUID, user: RequireInspectionsView,
     return await _to_out(db, i, with_items=True)
 
 
+@router.patch("/{inspection_id}", response_model=InspectionOut)
+async def reschedule(
+    inspection_id: uuid.UUID, payload: InspectionReschedule, user: RequireInspectionsSchedule, db: DB,
+):
+    """Give a missed (overdue) or upcoming inspection a new time and, if wanted,
+    a different technician. It goes back to Scheduled and the technician is told."""
+    i = await db.scalar(select(Inspection).where(Inspection.id == inspection_id))
+    if i is None or i.organization_id != user.organization_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection not found")
+    if i.status not in (InspectionStatus.SCHEDULED, InspectionStatus.OVERDUE):
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"Only a scheduled or overdue inspection can be rescheduled (this one is {i.status.value}).")
+    when = payload.scheduled_for
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    if when <= datetime.now(timezone.utc):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Pick a time in the future.")
+    if payload.assigned_to:
+        tech = await db.scalar(select(User).where(
+            User.id == payload.assigned_to, User.organization_id == user.organization_id,
+            User.role == UserRole.TECHNICIAN))
+        if tech is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Technician not found")
+        i.assigned_to = tech.id
+
+    i.scheduled_for = when
+    i.status = InspectionStatus.SCHEDULED
+    await db.flush()
+
+    if i.assigned_to:
+        from app.services import notifications as notify_svc
+        template = await db.scalar(select(InspectionTemplate).where(InspectionTemplate.id == i.template_id))
+        await notify_svc.notify(
+            db, [i.assigned_to],
+            title=f"Inspection rescheduled: {template.name if template else i.reference}",
+            body=f"{i.reference} is now due {when.strftime('%d %b %Y, %H:%M')} UTC",
+            link=f"/inspections/{i.id}", kind="inspection",
+            entity_type="inspection", entity_id=i.id,
+        )
+    return await _to_out(db, i, with_items=True)
+
+
 @router.post("/{inspection_id}/start", response_model=InspectionOut)
 async def start(inspection_id: uuid.UUID, user: RequireInspectionsConduct, db: DB):
     i = await db.scalar(select(Inspection).where(Inspection.id == inspection_id))
@@ -200,6 +244,8 @@ async def start(inspection_id: uuid.UUID, user: RequireInspectionsConduct, db: D
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Inspection not found")
     if i.status not in (InspectionStatus.SCHEDULED, InspectionStatus.OVERDUE):
         raise HTTPException(status.HTTP_409_CONFLICT, f"Already {i.status.value}")
+    if user.role == UserRole.TECHNICIAN and i.assigned_to not in (None, user.id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This inspection is assigned to someone else.")
 
     i.status = InspectionStatus.IN_PROGRESS
     if i.assigned_to is None:

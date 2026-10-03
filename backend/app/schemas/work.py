@@ -193,6 +193,13 @@ class InspectionSchedule(BaseModel):
     scheduled_for: datetime
 
 
+class InspectionReschedule(BaseModel):
+    """Move a missed or upcoming inspection to a new time, optionally to a
+    different technician (null assigned_to = keep the current one)."""
+    scheduled_for: datetime
+    assigned_to: Optional[uuid.UUID] = None
+
+
 class InspectionResultIn(BaseModel):
     item_id: Optional[uuid.UUID] = None
     prompt: str
@@ -211,6 +218,7 @@ class InspectionOut(BaseModel):
     reference: str
     template_name: Optional[str] = None
     category_name: Optional[str] = None
+    category_id: Optional[uuid.UUID] = None
     status: InspectionStatus
     room_name: Optional[str] = None
     asset_tag: Optional[str] = None
