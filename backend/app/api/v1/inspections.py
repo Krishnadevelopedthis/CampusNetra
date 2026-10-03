@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.api.deps import DB, CurrentUser, Paging, RequireAdmin, require_permission
@@ -138,7 +138,7 @@ async def schedule(payload: InspectionSchedule, user: RequireInspectionsSchedule
         db, user,
         template_id=payload.template_id, scheduled_for=payload.scheduled_for,
         room_id=payload.room_id, asset_id=payload.asset_id,
-        assigned_to=payload.assigned_to,
+        assigned_to=payload.assigned_to, category_id=payload.category_id,
     )
     await db.flush()
     await db.refresh(inspection)
@@ -155,8 +155,10 @@ async def list_inspections(
 
     query = select(Inspection).where(Inspection.organization_id == user.organization_id)
     # Technicians default to their own assignments.
-    if mine or user.role == UserRole.TECHNICIAN:
+    if mine:
         query = query.where(Inspection.assigned_to == user.id)
+    elif user.role == UserRole.TECHNICIAN:
+        query = query.where(or_(Inspection.assigned_to == user.id, Inspection.assigned_to.is_(None)))
     if status_in:
         query = query.where(Inspection.status.in_(status_in))
 

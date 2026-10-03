@@ -1,3 +1,4 @@
+import { usePermissions } from '@/lib/permissions'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Boxes, Building2, ChevronRight, CircleDot, DoorOpen, Landmark, Layers, Megaphone, Pencil,
@@ -14,14 +15,14 @@ import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
 import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import RoomAssetList from '@/features/twin/RoomAssetList'
 import { useRefresh } from '@/hooks/useRefresh'
-import { useAuth } from '@/lib/auth'
 import { api, connectTwin } from '@/lib/api'
 import { ago, titleCase } from '@/lib/format'
 
 export default function DigitalTwin() {
-  const { user } = useAuth()
-  const canEdit = ['technician', 'facility_manager', 'admin', 'super_admin']
-    .includes(user?.role)
+  // Follows Admin -> Roles: whoever holds "assets:manage" may build out the
+  // campus (buildings, floors, rooms, assets). Same check the API makes.
+  const { perms } = usePermissions()
+  const canEdit = !!perms?.includes('assets:manage')
   const { floorId } = useParams()
   const [searchParams] = useSearchParams()
   const wantedRoom = searchParams.get('room')

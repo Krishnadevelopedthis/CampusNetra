@@ -572,7 +572,7 @@ async def delete_campus(campus_id: uuid.UUID, user: RequireAdmin, db: DB):
 
 @router.patch("/floors/{floor_id}", response_model=FloorOut)
 async def update_floor(
-    floor_id: uuid.UUID, payload: FloorUpdate, user: RequireStaff, db: DB
+    floor_id: uuid.UUID, payload: FloorUpdate, user: RequireAssetsManage, db: DB
 ):
     floor = await _get_floor_or_404(db, floor_id, user)
 
@@ -729,7 +729,7 @@ def _describe(counts: dict) -> str:
 
 @router.post("/buildings/{building_id}/floors", response_model=FloorOut, status_code=201)
 async def create_floor(
-    building_id: uuid.UUID, payload: FloorUpsert, user: RequireStaff, db: DB
+    building_id: uuid.UUID, payload: FloorUpsert, user: RequireAssetsManage, db: DB
 ):
     building = await _get_building_or_404(db, building_id, user)
 
@@ -837,7 +837,7 @@ def _validate_boundary(boundary: Optional[list]) -> Optional[list]:
 
 @router.patch("/floors/{floor_id}/plan-image", response_model=FloorOut)
 async def set_floor_plan_image(
-    floor_id: uuid.UUID, payload: FloorPlanImage, user: RequireStaff, db: DB
+    floor_id: uuid.UUID, payload: FloorPlanImage, user: RequireAssetsManage, db: DB
 ):
     """Attach an uploaded plan image to a floor. Upload via /uploads/image first."""
     floor = await _get_floor_or_404(db, floor_id, user)
@@ -908,7 +908,7 @@ async def create_room(
 
 @router.patch("/rooms/{room_id}", response_model=RoomOut)
 async def update_room(
-    room_id: uuid.UUID, payload: RoomUpsert, user: RequireStaff, db: DB
+    room_id: uuid.UUID, payload: RoomUpsert, user: RequireAssetsManage, db: DB
 ):
     room = await _get_room_or_404(db, room_id, user)
 
@@ -959,7 +959,7 @@ async def delete_room(
 
 @router.patch("/assets/{asset_id}/position", response_model=Message)
 async def place_asset(
-    asset_id: uuid.UUID, payload: AssetPlacement, user: RequireStaff, db: DB
+    asset_id: uuid.UUID, payload: AssetPlacement, user: RequireAssetsManage, db: DB
 ):
     """Position an asset on the floor plan, normalised within its room."""
     asset = await _get_asset_or_404(db, asset_id, user)
@@ -1047,7 +1047,7 @@ def _bulk_positions(
 
 @router.post("/rooms/{room_id}/assets/bulk", response_model=list[AssetOut], status_code=201)
 async def create_assets_bulk(
-    room_id: uuid.UUID, payload: AssetBulkCreate, user: RequireStaff, db: DB
+    room_id: uuid.UUID, payload: AssetBulkCreate, user: RequireAssetsManage, db: DB
 ):
     """Register a run of identical units in one go.
 

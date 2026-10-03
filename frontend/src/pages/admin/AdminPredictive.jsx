@@ -19,11 +19,13 @@ const SIGNAL_LABEL = {
 
 export default function AdminPredictive() {
   const qc = useQueryClient()
-  const [threshold, setThreshold] = useState(0.55)
+  const [threshold, setThreshold] = useState(0.4)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['predictive', threshold],
     queryFn: () => api.get('/admin/predictive', { params: { min_risk: threshold, limit: 30 } }),
+    // Keep the list on screen while a new threshold is scored, instead of blanking the page.
+    keepPreviousData: true,
   })
 
   const raise = useMutation({

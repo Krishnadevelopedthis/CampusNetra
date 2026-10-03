@@ -978,7 +978,7 @@ async def twin_config(user: RequireManager, db: DB):
 async def predictive_forecast(
     user: RequireManager, db: DB,
     limit: int = Query(20, ge=1, le=100),
-    min_risk: float = Query(0.55, ge=0, le=1),
+    min_risk: float = Query(predictive.RISK_THRESHOLD, ge=0, le=1),
 ):
     """Rank assets by predicted failure risk, with the reasons behind each score."""
     predictions = await predictive.forecast(
