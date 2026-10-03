@@ -74,7 +74,7 @@ function AiFace({ size, rounded = 'rounded-lg', className }) {
       style={size ? { width: size, height: size } : undefined}
     >
       <img
-        src="/assets/ai-agent.gif"
+        src="/img/ai-agent.gif"
         alt="" aria-hidden="true"
         className="w-full h-full object-cover"
         style={{ transform: 'scale(3)' }}
