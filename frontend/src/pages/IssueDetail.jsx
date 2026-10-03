@@ -637,12 +637,13 @@ export default function IssueDetail() {
 
           <Widget title="Assignment">
             <dl className="space-y-3">
-              <Row
-                label="Department"
-                value={
-                  issue.department_name
-                }
-              />
+              {/* Departments are optional; most campuses route by category. */}
+              {issue.department_name && (
+                <Row
+                  label="Department"
+                  value={issue.department_name}
+                />
+              )}
 
               <Row
                 label="Technician"

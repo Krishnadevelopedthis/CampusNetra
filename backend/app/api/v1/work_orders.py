@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -35,10 +35,17 @@ from app.services import removal
 
 router = APIRouter(route_class=CommitRoute, prefix="/work-orders", tags=["Work Orders"])
 
+# Every status a work order can sit in, in pipeline order. Accepted and On Hold
+# used to be missing, so a work order in either state vanished from the board.
+# Closed shows recent history only (see BOARD_CLOSED_DAYS), so the column does
+# not grow for ever.
 BOARD_COLUMNS = [
-    WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS,
-    WorkOrderStatus.AWAITING_PARTS, WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED,
+    WorkOrderStatus.OPEN, WorkOrderStatus.ASSIGNED, WorkOrderStatus.ACCEPTED,
+    WorkOrderStatus.IN_PROGRESS, WorkOrderStatus.AWAITING_PARTS, WorkOrderStatus.ON_HOLD,
+    WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED, WorkOrderStatus.CLOSED,
 ]
+BOARD_FINISHED = {WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED, WorkOrderStatus.CLOSED}
+BOARD_CLOSED_DAYS = 30
 
 
 def _minutes_remaining(due: Optional[datetime], as_of: Optional[datetime] = None) -> Optional[int]:
@@ -209,9 +216,11 @@ async def board(user: RequireWOView, db: DB,
                 department_id: Optional[uuid.UUID] = None,
                 mine: bool = Query(False)):
     """Kanban board — work orders bucketed by status."""
+    closed_since = datetime.now(timezone.utc) - timedelta(days=BOARD_CLOSED_DAYS)
     query = select(WorkOrder).where(
         WorkOrder.organization_id == user.organization_id,
         WorkOrder.status.in_(BOARD_COLUMNS),
+        or_(WorkOrder.status != WorkOrderStatus.CLOSED, WorkOrder.updated_at >= closed_since),
     )
     if department_id:
         query = query.where(WorkOrder.department_id == department_id)
@@ -234,7 +243,8 @@ async def board(user: RequireWOView, db: DB,
              "items": buckets[c.value]}
             for c in BOARD_COLUMNS
         ],
-        total=len(rows),
+        # "Active" = still needs someone to do something.
+        total=sum(1 for w in rows if w.status not in BOARD_FINISHED),
     )
 
 

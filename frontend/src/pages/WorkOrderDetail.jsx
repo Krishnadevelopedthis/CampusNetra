@@ -225,7 +225,7 @@ export default function WorkOrderDetail() {
           <Widget title="Details">
             <dl className="space-y-3">
               <Row label="Location" value={wo.location_summary && <span className="font-mono text-mono-data">{wo.location_summary}</span>} />
-              <Row label="Department" value={wo.department_name} />
+              {wo.department_name && <Row label="Department" value={wo.department_name} />}
               <Row label="Technician" value={wo.assignee?.full_name} />
               <Row label="Source issue" value={wo.issue_reference && <span className="font-mono text-mono-data text-secondary">{wo.issue_reference}</span>} />
               <Row label="SLA" value={wo.sla_minutes_remaining != null && (

@@ -8,8 +8,9 @@ import { api } from '@/lib/api'
 import { slaLabel } from '@/lib/format'
 
 const COLUMN_ACCENT = {
-  open: '#94a3b8', assigned: '#3b82f6', in_progress: '#f59e0b',
-  awaiting_parts: '#f59e0b', completed: '#10b981', verified: '#10b981',
+  open: '#94a3b8', assigned: '#3b82f6', accepted: '#3b82f6', in_progress: '#f59e0b',
+  awaiting_parts: '#f59e0b', on_hold: '#f59e0b', completed: '#10b981', verified: '#10b981',
+  closed: '#64748b',
 }
 
 export default function WorkOrderBoard() {
@@ -63,6 +64,7 @@ export default function WorkOrderBoard() {
                   <span className="flex items-center gap-2 text-label-caps uppercase text-ink-muted">
                     <span className="w-2 h-2 rounded-full" style={{ background: COLUMN_ACCENT[col.status] }} />
                     {col.title}
+                    {col.status === 'closed' && <span className="normal-case text-ink-faint">· last 30 days</span>}
                   </span>
                   <span className="pill bg-surface text-ink-muted text-body-sm tabular">{col.count}</span>
                 </div>
