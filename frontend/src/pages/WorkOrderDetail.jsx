@@ -23,6 +23,19 @@ const NEXT_STEP = {
   verified: ['closed', 'Close work order', CheckCircle2],
 }
 
+// Plain-language names for the less common moves in the "Other actions" menu.
+const STATUS_ACTION = {
+  in_progress: 'Back to In Progress (resume / reopen)',
+  on_hold: 'Put on hold',
+  awaiting_parts: 'Waiting for parts',
+  open: 'Unassign (back to Open)',
+  cancelled: 'Cancel work order',
+  accepted: 'Accept',
+  completed: 'Mark complete',
+  verified: 'Verify work',
+  closed: 'Close',
+}
+
 export default function WorkOrderDetail() {
   const role = useAuth((st) => st.user?.role)
   const { id } = useParams()
@@ -119,11 +132,17 @@ export default function WorkOrderDetail() {
             )
           })()}
           <Button variant="secondary" icon={Package} onClick={() => setPartsOpen(true)}>Request parts</Button>
-          {wo.allowed_transitions?.length > 0 && (
+          {wo.allowed_transitions?.some((s) => s !== NEXT_STEP[wo.status]?.[0]
+            && !(role === 'technician' && ['verified', 'closed'].includes(s))) && (
             <Select value="" className="w-auto min-w-[180px]"
                     onChange={(e) => e.target.value && setTransitionTo(e.target.value)}>
-              <option value="">Update status…</option>
-              {wo.allowed_transitions.map((s) => <option key={s} value={s}>{titleCase(s)}</option>)}
+              <option value="">Other actions…</option>
+              {wo.allowed_transitions
+                // The main button already offers the next step; don't list it twice.
+                .filter((s) => s !== NEXT_STEP[wo.status]?.[0])
+                // Verifying and closing are for managers, not the person who did the work.
+                .filter((s) => !(role === 'technician' && ['verified', 'closed'].includes(s)))
+                .map((s) => <option key={s} value={s}>{STATUS_ACTION[s] || titleCase(s)}</option>)}
             </Select>
           )}
         </div>

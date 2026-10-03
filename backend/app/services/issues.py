@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai import duplicates as dup
 from app.ai.classifier import classify
 from app.core.enums import (
-    ISSUE_TRANSITIONS, AssetState, IssueStatus, Priority, TwinEventKind, can_transition,
+    ISSUE_TRANSITIONS, AssetState, IssueStatus, Priority, TwinEventKind, UserRole, can_transition,
 )
 from app.models.identity import User
 from app.models.issues import (
@@ -329,6 +329,10 @@ async def transition_issue(
             f"Cannot move from {issue.status.value} to {target.value}. "
             f"Allowed: {', '.join(allowed) if allowed else 'none (terminal state)'}",
         )
+
+    if actor.role == UserRole.TECHNICIAN and target in (IssueStatus.VERIFIED, IssueStatus.CLOSED):
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "A facility manager or admin verifies and closes a complaint.")
 
     if target == IssueStatus.CLOSED:
         open_wos = (await db.execute(
