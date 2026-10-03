@@ -27,6 +27,12 @@ export default function InspectionDetail() {
   const [answers, setAnswers] = useState({})
   const [notes, setNotes] = useState('')
   const [rescheduling, setRescheduling] = useState(false)
+  // Assets in the inspected room, to say which one a Fail / Attention is about.
+  const roomAssets = useQuery({
+    queryKey: ['room-assets', insp?.room_id],
+    queryFn: () => api.get(`/campus/rooms/${insp.room_id}/assets`),
+    enabled: !!insp?.room_id && !insp?.asset_id,
+  })
   const { perms } = usePermissions()
   const canSchedule = !!perms?.includes('inspections:schedule')
 
@@ -40,7 +46,7 @@ export default function InspectionDetail() {
     if (!insp?.results?.length) return
     const seeded = {}
     insp.results.forEach((r) => {
-      seeded[r.prompt] = { result: r.result, note: r.note || '' }
+      seeded[r.prompt] = { result: r.result, note: r.note || '', asset_id: r.asset_id || '' }
     })
     setAnswers(seeded)
     setNotes(insp.notes || '')
@@ -64,6 +70,7 @@ export default function InspectionDetail() {
         item_id: item.id,
         prompt: item.prompt,
         result: answers[item.prompt]?.result,
+        asset_id: answers[item.prompt]?.asset_id || null,
         note: answers[item.prompt]?.note || null,
       })),
       notes: notes.trim() || null,
@@ -217,6 +224,26 @@ export default function InspectionDetail() {
                       })}
                     </div>
 
+                    {(answer?.result === 'fail' || answer?.result === 'needs_attention') && !insp.asset_id
+                      && (roomAssets.data?.length || 0) > 0 && (
+                      <Select
+                        className="mt-2" disabled={!editable} aria-label="Which asset is this about?"
+                        value={answer?.asset_id || ''}
+                        onChange={(e) => setAnswers((a) => ({
+                          ...a, [item.prompt]: { ...a[item.prompt], asset_id: e.target.value },
+                        }))}
+                      >
+                        <option value="">Which asset is this about? (optional)</option>
+                        {roomAssets.data.map((as) => <option key={as.id} value={as.id}>{as.name}</option>)}
+                      </Select>
+                    )}
+                    {answer?.result === 'needs_attention' && (
+                      <p className="text-body-sm text-warning-text mt-1">
+                        {insp.asset_id || answer?.asset_id
+                          ? 'This asset will be marked Warning and managers will be told — no complaint is raised.'
+                          : 'Managers will be told. Pick the asset to also mark it Warning.'}
+                      </p>
+                    )}
                     {(answer?.result === 'fail' || answer?.result === 'needs_attention'
                       || answer?.note) && (
                       <Textarea

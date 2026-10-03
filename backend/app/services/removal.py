@@ -127,6 +127,9 @@ async def delete_work_order(db: AsyncSession, wo: WorkOrder, actor: User) -> dic
 
 async def delete_inspection(db: AsyncSession, inspection: Inspection, actor: User) -> dict:
     asset_id = inspection.asset_id
+    # Assets named on its answers (e.g. one marked Warning by an "Attention").
+    named = set((await db.scalars(select(InspectionResult.asset_id).where(
+        InspectionResult.inspection_id == inspection.id, InspectionResult.asset_id.is_not(None)))).all())
     counts = {"checklist_results": await _count(db, InspectionResult, InspectionResult.inspection_id == inspection.id)}
     before = {"reference": inspection.reference, "status": inspection.status.value, **counts}
 
@@ -148,7 +151,8 @@ async def delete_inspection(db: AsyncSession, inspection: Inspection, actor: Use
         db, action="inspection.delete", actor_id=actor.id, organization_id=actor.organization_id,
         entity_type="inspection", entity_id=inspection.id, before=before,
     )
-    await settle_asset_state(db, asset_id, actor, f"inspection {before['reference']} deleted")
+    for a in {asset_id, *named} - {None}:
+        await settle_asset_state(db, a, actor, f"inspection {before['reference']} deleted")
     return counts
 
 
