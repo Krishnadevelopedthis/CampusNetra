@@ -369,20 +369,25 @@ function SimulationPanel() {
                     accent={result.sla_projection.projected_compliance_pct >= 90 ? '#10b981' : '#f59e0b'} />
           </MetricRow>
 
-          <Widget title="AI Classification → Department Routing" bodyClass="p-0">
+          <Widget title="AI Classification → Technician Routing"
+                  subtitle={`Each category goes to the technicians who specialise in it · ${result.capacity.jobs_per_technician} jobs per technician per shift`}
+                  bodyClass="p-0">
             <div className="table-wrap">
               <table className="table table-compact">
                 <thead>
                   <tr>
-                    <th>Department</th><th className="text-right">Issues</th>
-                    <th className="text-right">Technicians</th><th className="text-right">Capacity</th>
+                    <th>Category</th><th className="text-right">Issues</th>
+                    <th className="text-right">Specialists</th><th className="text-right">Handled</th>
                     <th className="text-right">Utilisation</th><th className="text-right">Backlog</th>
                   </tr>
                 </thead>
                 <tbody>
                   {result.by_department.map((d) => (
                     <tr key={d.department} className={d.at_risk ? 'bg-danger-bg/40' : ''}>
-                      <td className="text-ink">{d.department}</td>
+                      <td className="text-ink">
+                        {d.department}
+                        {d.owning_department && <span className="block text-body-xs text-ink-faint">{d.owning_department}</span>}
+                      </td>
                       <td className="text-right tabular">{d.issues}</td>
                       <td className="text-right tabular">{d.technicians}</td>
                       <td className="text-right tabular">{d.capacity}</td>
@@ -392,7 +397,7 @@ function SimulationPanel() {
                             : d.utilisation_pct > 80 ? 'text-warning-text' : ''}>
                             {d.utilisation_pct}%
                           </span>
-                        ) : <span className="text-ink-faint">no capacity</span>}
+                        ) : <span className="text-danger-text">no specialist</span>}
                       </td>
                       <td className={`text-right tabular ${d.backlog > 0 ? 'text-danger-text font-medium' : ''}`}>
                         {d.backlog}
@@ -448,7 +453,7 @@ function SimulationPanel() {
                     <p className="text-label-caps uppercase text-ink-muted mb-2">Bottlenecks</p>
                     {result.bottlenecks.map((b) => (
                       <p key={b.department} className="text-body-md text-danger-text">
-                        {b.department}: +{b.backlog} over capacity
+                        {b.department}: {b.backlog} would wait{b.utilisation_pct == null ? ' (no technician covers it)' : ''}
                       </p>
                     ))}
                   </div>

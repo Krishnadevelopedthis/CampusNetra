@@ -328,9 +328,8 @@ async def simulate(payload: SimulationConfig, user: RequireAnalyticsSimulate, db
             weights[code] = (seen + SMOOTHING) / denominator
 
     weight_sum = sum(weights.values()) or 1
-    by_category, by_department = [], {}
+    by_category = []
     assigned_total = 0
-
     for idx, (cid, cname, code, did, dname, prio, sla, _seen) in enumerate(historical):
         share = weights[code] / weight_sum
         # Largest-remainder style: give the final category whatever is left, so
@@ -342,50 +341,101 @@ async def simulate(payload: SimulationConfig, user: RequireAnalyticsSimulate, db
         assigned_total += n
         if n == 0:
             continue
-
-        by_category.append({"code": code, "name": cname, "count": n,
+        by_category.append({"code": code, "name": cname, "count": n, "department": dname,
                             "priority": prio.value, "sla_resolve_mins": sla})
-        dept_key = dname or "Unassigned"
-        d = by_department.setdefault(dept_key, {
-            "department": dept_key, "department_id": str(did) if did else None,
-            "issues": 0, "categories": [],
-        })
-        d["issues"] += n
-        d["categories"].append(cname)
 
-    # Technician capacity per department.
-    tech_rows = (await db.execute(
-        select(Department.name, func.count(User.id))
-        .select_from(Department)
-        .join(User, (User.department_id == Department.id)
-              & (User.role == UserRole.TECHNICIAN) & (User.status == "active"), isouter=True)
-        .where(Department.organization_id == org)
-        .group_by(Department.name))).all()
-    tech_counts = {name: count for name, count in tech_rows}
-
+    # Routing follows the real assignment rule: a complaint goes to an active
+    # technician whose specialisation covers its category (as
+    # work_orders.suggest_technician does) -- not to a department, which
+    # technicians here usually have none of. Earlier this counted technicians
+    # by department, found none, and reported zero capacity for everything.
     jobs_per_tech = max(1, (payload.hours_available * 60) // payload.avg_minutes_per_job)
+    techs = (await db.execute(
+        select(User.id, User.specialization).where(
+            User.organization_id == org, User.role == UserRole.TECHNICIAN,
+            User.status == "active"))).all()
+    skills = {tid: {str(c).lower() for c in (spec or [])} for tid, spec in techs}
 
-    for dept in by_department.values():
-        available = (payload.available_technicians
-                     if payload.available_technicians is not None
-                     else tech_counts.get(dept["department"], 0))
-        capacity = available * jobs_per_tech
-        dept["technicians"] = available
-        dept["capacity"] = capacity
-        dept["backlog"] = max(0, dept["issues"] - capacity)
-        dept["utilisation_pct"] = round(100 * dept["issues"] / capacity, 1) if capacity else None
-        dept["at_risk"] = dept["backlog"] > 0
+    if payload.available_technicians is not None:
+        # "What if each category had N people?" -- a flat override per route.
+        eligible = {c["code"]: [f"{c['code']}#{i}" for i in range(payload.available_technicians)]
+                    for c in by_category}
+        remaining = {t: jobs_per_tech for ts in eligible.values() for t in ts}
+    else:
+        eligible = {c["code"]: [t for t, sk in skills.items() if c["code"].lower() in sk]
+                    for c in by_category}
+        remaining = {t: jobs_per_tech for t in skills}
 
-    total_capacity = sum(d["capacity"] for d in by_department.values())
-    total_backlog = sum(d["backlog"] for d in by_department.values())
+    # A technician's shift is shared across every category they cover. Each
+    # pass splits every technician's remaining time across their categories
+    # in proportion to what is still waiting there, so a shared specialist
+    # serves all their categories fairly instead of whichever is listed first;
+    # repeated passes hand time left over by satisfied categories to the rest.
+    demand = {c["code"]: c["count"] for c in by_category}
+    served = {code: 0.0 for code in demand}
+    covers = {t: [code for code, pool in eligible.items() if t in pool] for t in remaining}
+    left = {t: float(remaining[t]) for t in remaining}
+    for _ in range(6):
+        for t, codes in covers.items():
+            waiting = {code: demand[code] - served[code] for code in codes if demand[code] - served[code] > 1e-9}
+            total_wait = sum(waiting.values())
+            if left[t] <= 1e-9 or not total_wait:
+                continue
+            budget = left[t]
+            for code, w in waiting.items():
+                give = min(budget * w / total_wait, demand[code] - served[code])
+                served[code] += give
+                left[t] -= give
+    # Whole jobs: round the shares so they still add up to the total served
+    # (flooring each one would quietly drop work the team can actually do).
+    whole = {code: int(v + 1e-6) for code, v in served.items()}
+    spare = int(round(sum(served.values()))) - sum(whole.values())
+    for code in sorted(served, key=lambda c: served[c] - whole[c], reverse=True):
+        if spare <= 0:
+            break
+        if whole[code] < demand[code]:
+            whole[code] += 1
+            spare -= 1
+    served = whole
+
+    # How loaded each technician is: the share of every category they cover,
+    # split between the specialists available for it, against one shift.
+    load = {
+        t: sum(demand[code] / len(eligible[code]) for code in codes) / jobs_per_tech
+        for t, codes in covers.items()
+    }
+
+    by_department = []   # one row per routed category (name kept for the API)
+    for c in by_category:
+        people = len(eligible[c["code"]])
+        capacity = served[c["code"]]
+        backlog = c["count"] - capacity
+        by_department.append({
+            "department": c["name"],
+            "owning_department": c["department"],
+            "categories": [c["name"]],
+            "issues": c["count"],
+            "technicians": people,
+            "capacity": capacity,
+            "backlog": backlog,
+            # How busy this category's specialists are overall -- including the
+            # other categories they also cover -- averaged across them.
+            "utilisation_pct": round(100 * sum(load[t] for t in eligible[c["code"]]) / people, 1) if people else None,
+            "at_risk": backlog > 0,
+        })
+
+    # Everything the team could do in one shift (each person counted once).
+    total_capacity = len(remaining) * jobs_per_tech
+    total_backlog = sum(d["backlog"] for d in by_department)
     projected_met = payload.complaint_count - total_backlog
 
     results = {
         "complaint_count": payload.complaint_count,
         "by_category": sorted(by_category, key=lambda c: c["count"], reverse=True),
-        "by_department": sorted(by_department.values(), key=lambda d: d["issues"], reverse=True),
+        "by_department": sorted(by_department, key=lambda d: d["issues"], reverse=True),
         "capacity": {
             "jobs_per_technician": jobs_per_tech,
+            "technicians": len(skills) if payload.available_technicians is None else None,
             "total_capacity": total_capacity,
             "total_backlog": total_backlog,
         },
@@ -397,7 +447,7 @@ async def simulate(payload: SimulationConfig, user: RequireAnalyticsSimulate, db
         "bottlenecks": [
             {"department": d["department"], "backlog": d["backlog"],
              "utilisation_pct": d["utilisation_pct"]}
-            for d in sorted(by_department.values(), key=lambda x: x["backlog"], reverse=True)
+            for d in sorted(by_department, key=lambda x: x["backlog"], reverse=True)
             if d["backlog"] > 0
         ],
     }
