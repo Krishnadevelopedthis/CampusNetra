@@ -12,6 +12,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      // Not the default "assets": the app has its own /assets page (the asset
+      // register), and a build folder with the same name made Vercel answer
+      // /assets with a JavaScript file instead of the page.
+      assetsDir: 'static',
+    },
     resolve: {
       alias: { '@': path.resolve(process.cwd(), 'src') },
     },

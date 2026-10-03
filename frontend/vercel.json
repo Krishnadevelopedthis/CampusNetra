@@ -53,7 +53,7 @@
       "destination": "/solutions/managers/index.html"
     },
     {
-      "source": "/((?!api/|media/|assets/).*)",
+      "source": "/((?!api/|media/|static/|img/).*)",
       "destination": "/app.html"
     }
   ],
@@ -95,7 +95,7 @@
       ]
     },
     {
-      "source": "/assets/(.*)",
+      "source": "/static/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
