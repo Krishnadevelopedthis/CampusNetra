@@ -294,6 +294,14 @@ async def submit(
         else:
             health_event.status = HealthEventStatus.NO_ISSUE_FOUND
             health_event.resolved_at = datetime.now(timezone.utc)
+            # The submit above could not clear the asset's purple marker
+            # while this event still read as open; now that it is closed, let
+            # the asset return to Healthy if nothing else holds it.
+            if inspection.asset_id:
+                await db.flush()
+                from app.services.removal import settle_asset_state
+                await settle_asset_state(db, inspection.asset_id, user,
+                                         f"{health_event.reference}: inspection found no fault")
 
     await db.refresh(inspection)
 
