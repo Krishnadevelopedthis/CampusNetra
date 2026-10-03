@@ -418,6 +418,13 @@ async def assign_work_order(
     return wo
 
 
+# Steps a technician may not take on a work order, with the verb used in the refusal.
+MANAGER_ONLY_STEPS: dict[WorkOrderStatus, str] = {
+    WorkOrderStatus.VERIFIED: "verify",
+    WorkOrderStatus.CLOSED: "close",
+    WorkOrderStatus.CANCELLED: "cancel",
+}
+
 # A work order's status implies what the asset is doing right now.
 WO_STATUS_TO_ASSET_STATE: dict[WorkOrderStatus, Optional[AssetState]] = {
     WorkOrderStatus.IN_PROGRESS:    AssetState.UNDER_MAINTENANCE,
@@ -456,11 +463,11 @@ async def transition_work_order(
     if actor.role == UserRole.TECHNICIAN and wo.assigned_to != actor.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN,
                             "This work order is assigned to someone else")
-    # Checking the work is someone else's job: the person who did it does not
-    # verify or close it.
-    if actor.role == UserRole.TECHNICIAN and target in (WorkOrderStatus.VERIFIED, WorkOrderStatus.CLOSED):
+    # Checking the work, and calling it off, are someone else's job: the person
+    # doing it does not verify, close or cancel it.
+    if actor.role == UserRole.TECHNICIAN and target in MANAGER_ONLY_STEPS:
         raise HTTPException(status.HTTP_403_FORBIDDEN,
-                            "A facility manager or admin verifies and closes the work.")
+                            f"A facility manager or admin has to {MANAGER_ONLY_STEPS[target]} the work order.")
 
     if target == WorkOrderStatus.COMPLETED:
         after_photos = await db.scalar(

@@ -133,7 +133,7 @@ export default function WorkOrderDetail() {
           })()}
           <Button variant="secondary" icon={Package} onClick={() => setPartsOpen(true)}>Request parts</Button>
           {wo.allowed_transitions?.some((s) => s !== NEXT_STEP[wo.status]?.[0]
-            && !(role === 'technician' && ['verified', 'closed'].includes(s))) && (
+            && !(role === 'technician' && ['verified', 'closed', 'cancelled'].includes(s))) && (
             <Select value="" className="w-auto min-w-[180px]"
                     onChange={(e) => e.target.value && setTransitionTo(e.target.value)}>
               <option value="">Other actions…</option>
@@ -141,7 +141,7 @@ export default function WorkOrderDetail() {
                 // The main button already offers the next step; don't list it twice.
                 .filter((s) => s !== NEXT_STEP[wo.status]?.[0])
                 // Verifying and closing are for managers, not the person who did the work.
-                .filter((s) => !(role === 'technician' && ['verified', 'closed'].includes(s)))
+                .filter((s) => !(role === 'technician' && ['verified', 'closed', 'cancelled'].includes(s)))
                 .map((s) => <option key={s} value={s}>{STATUS_ACTION[s] || titleCase(s)}</option>)}
             </Select>
           )}

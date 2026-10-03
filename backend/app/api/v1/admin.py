@@ -799,58 +799,97 @@ async def login_activity(
 # ---------------- Work order configuration ----------------
 @router.get("/workorder-config", response_model=dict)
 async def workorder_config(user: RequireManager, db: DB):
-    """How work orders actually flow, measured rather than declared.
+    """How work orders flow here, described from the code that enforces it:
+    the steps in order, who may take each one, what the reporter sees at each
+    stage, the rules that gate a step, and live counts and load."""
+    from app.core.enums import WORK_ORDER_TRANSITIONS, WorkOrderStatus as WS
+    from app.services.work_orders import _ISSUE_FOLLOWS_WO, MANAGER_ONLY_STEPS
 
-    The status machine is fixed in code; what varies is where work piles up and
-    who it lands on. Showing live counts against each state makes the
-    configuration screen useful rather than a static diagram.
-    """
-    from app.core.enums import WORK_ORDER_TRANSITIONS, WorkOrderStatus
-    from app.models.work import WorkOrder
-
+    org = user.organization_id
     counts = dict((await db.execute(
         select(WorkOrder.status, func.count())
-        .where(WorkOrder.organization_id == user.organization_id)
+        .where(WorkOrder.organization_id == org)
         .group_by(WorkOrder.status))).all())
 
-    by_department = (await db.execute(
-        select(Department.name, func.count(WorkOrder.id),
+    # Pipeline order. Draft is never produced by this app, so it is shown only
+    # if some old row is still sitting in it.
+    order = [WS.OPEN, WS.ASSIGNED, WS.ACCEPTED, WS.IN_PROGRESS, WS.AWAITING_PARTS,
+             WS.ON_HOLD, WS.COMPLETED, WS.VERIFIED, WS.CLOSED, WS.CANCELLED]
+    if counts.get(WS.DRAFT):
+        order.insert(0, WS.DRAFT)
+    main_next = {WS.ASSIGNED: WS.ACCEPTED, WS.ACCEPTED: WS.IN_PROGRESS, WS.IN_PROGRESS: WS.COMPLETED,
+                 WS.COMPLETED: WS.VERIFIED, WS.VERIFIED: WS.CLOSED}
+    notes = {
+        WS.COMPLETED: "Needs an After photo",
+        WS.ASSIGNED: "Technician picked by category, least busy first",
+    }
+
+    def step(src, dst):
+        return {
+            "status": dst.value,
+            "who": "manager" if dst in MANAGER_ONLY_STEPS or dst == WS.ASSIGNED else "technician_or_manager",
+            "primary": main_next.get(src) == dst,
+            "note": notes.get(dst),
+        }
+
+    statuses = []
+    for st in order:
+        follows = _ISSUE_FOLLOWS_WO.get(st)
+        nxt = sorted(WORK_ORDER_TRANSITIONS.get(st, set()), key=lambda d: (main_next.get(st) != d, order.index(d) if d in order else 99))
+        statuses.append({
+            "status": st.value,
+            "count": counts.get(st, 0),
+            "complaint_shows": follows.value if follows else ("reported" if st == WS.OPEN else None),
+            "next": [step(st, d) for d in nxt],
+            "terminal": not WORK_ORDER_TRANSITIONS.get(st),
+        })
+
+    # Load by complaint category (this campus routes by category, not department).
+    since = datetime.now(timezone.utc) - timedelta(days=30)
+    by_category = (await db.execute(
+        select(func.coalesce(IssueCategory.name, "Direct work orders (no complaint)"),
+               func.count(WorkOrder.id),
+               func.count(WorkOrder.id).filter(WorkOrder.status.notin_(["completed", "verified", "closed", "cancelled"])),
                func.count(WorkOrder.id).filter(WorkOrder.sla_breached.is_(True)),
                func.avg(WorkOrder.actual_mins))
-        .select_from(Department)
-        .join(WorkOrder, WorkOrder.department_id == Department.id, isouter=True)
-        .where(Department.organization_id == user.organization_id)
-        .group_by(Department.name))).all()
-
-    technicians = (await db.execute(
-        select(User.full_name, Department.name, func.count(WorkOrder.id))
-        .select_from(User)
-        .join(Department, Department.id == User.department_id, isouter=True)
-        .join(WorkOrder, (WorkOrder.assigned_to == User.id)
-              & (WorkOrder.status.notin_(["closed", "cancelled", "verified"])), isouter=True)
-        .where(User.organization_id == user.organization_id,
-               User.role == UserRole.TECHNICIAN, User.status == "active")
-        .group_by(User.full_name, Department.name)
+        .select_from(WorkOrder)
+        .join(Issue, Issue.id == WorkOrder.issue_id, isouter=True)
+        .join(IssueCategory, IssueCategory.id == Issue.category_id, isouter=True)
+        .where(WorkOrder.organization_id == org)
+        .group_by(IssueCategory.name)
         .order_by(func.count(WorkOrder.id).desc()))).all()
 
+    cat_names = dict((await db.execute(
+        select(IssueCategory.code, IssueCategory.name).where(IssueCategory.organization_id == org))).all())
+    techs = (await db.execute(
+        select(User.full_name, User.specialization,
+               func.count(WorkOrder.id).filter(WorkOrder.status.notin_(["completed", "verified", "closed", "cancelled"])),
+               func.count(WorkOrder.id).filter(WorkOrder.completed_at >= since))
+        .select_from(User)
+        .join(WorkOrder, WorkOrder.assigned_to == User.id, isouter=True)
+        .where(User.organization_id == org, User.role == UserRole.TECHNICIAN, User.status == "active")
+        .group_by(User.id, User.full_name, User.specialization)
+        .order_by(func.count(WorkOrder.id).desc(), User.full_name))).all()
+
     return {
-        "statuses": [
-            {
-                "status": st.value,
-                "count": counts.get(st, 0),
-                "allowed_next": sorted(s.value for s in WORK_ORDER_TRANSITIONS.get(st, set())),
-                "terminal": not WORK_ORDER_TRANSITIONS.get(st),
-            }
-            for st in WorkOrderStatus
+        "statuses": statuses,
+        "rules": [
+            "A complaint follows its work order: the reporter sees each step without anyone updating it by hand.",
+            "Choosing Assigned on a complaint creates its work order and picks the technician.",
+            "A work order cannot be marked complete without an After photo.",
+            "Only a facility manager or admin can verify, close or cancel a work order.",
+            "A technician can only act on work orders assigned to them.",
+            "Every work order has an SLA deadline; finished work shows Met or Missed.",
         ],
-        "by_department": [
-            {"department": name, "total": total, "breached": breached,
+        "by_category": [
+            {"category": name, "total": total, "open": open_, "breached": breached,
              "avg_minutes": round(float(avg)) if avg else None}
-            for name, total, breached, avg in by_department
+            for name, total, open_, breached, avg in by_category
         ],
         "technician_load": [
-            {"name": name, "department": dept, "open_work_orders": count}
-            for name, dept, count in technicians
+            {"name": name, "categories": [cat_names.get(c, c) for c in (spec or [])],
+             "open_work_orders": open_, "completed_30d": done}
+            for name, spec, open_, done in techs
         ],
     }
 

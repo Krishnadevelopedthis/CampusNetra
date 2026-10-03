@@ -7,6 +7,11 @@ import { api } from '@/lib/api'
 import { titleCase } from '@/lib/format'
 
 /* ========================= Work order configuration ========================= */
+const WHO = {
+  manager: { text: 'Manager / admin', cls: 'bg-warning-bg text-warning-text' },
+  technician_or_manager: { text: 'Technician', cls: 'bg-info-bg text-info-text' },
+}
+
 export function AdminWorkOrderConfig() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['workorder-config'], queryFn: () => api.get('/admin/workorder-config'),
@@ -22,32 +27,47 @@ export function AdminWorkOrderConfig() {
     <div className="space-y-5">
       <Widget
         title={<span className="flex items-center gap-2"><Workflow size={17} /> Work Order Lifecycle</span>}
-        subtitle="Which transitions are permitted, and where work currently sits"
+        subtitle="Each stage, the moves allowed from it, who may make them, and what the reporter sees"
       >
         <div className="space-y-2">
           {active.map((s) => (
-            <div key={s.status}
-                 className="flex flex-wrap items-center gap-3 rounded border border-border-subtle p-3">
-              <div className="flex items-center gap-2 w-52 shrink-0">
-                <span className="text-body-md text-ink">{titleCase(s.status)}</span>
-                {s.count > 0 && (
-                  <span className="pill bg-info-bg text-info-text tabular">{s.count}</span>
-                )}
-              </div>
-              <ArrowRight size={15} className="text-ink-faint shrink-0" />
-              <div className="flex flex-wrap gap-1.5">
-                {s.allowed_next.map((n) => (
-                  <span key={n} className="pill bg-surface-sunken text-ink-muted text-body-sm">
-                    {titleCase(n)}
-                  </span>
-                ))}
+            <div key={s.status} className="rounded border border-border-subtle p-3">
+              <div className="flex flex-wrap items-start gap-3">
+                <div className="w-full sm:w-52 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-body-md font-medium text-ink">{titleCase(s.status)}</span>
+                    {s.count > 0 && <span className="pill bg-info-bg text-info-text tabular">{s.count}</span>}
+                  </div>
+                  {s.complaint_shows && (
+                    <p className="text-body-sm text-ink-faint mt-0.5">
+                      Reporter sees: <span className="text-ink-muted">{titleCase(s.complaint_shows)}</span>
+                    </p>
+                  )}
+                </div>
+                <ArrowRight size={15} className="text-ink-faint shrink-0 mt-1 hidden sm:block" />
+                <div className="flex flex-wrap gap-2 min-w-0">
+                  {s.next.map((n) => (
+                    <span key={n.status}
+                          className={`inline-flex flex-wrap items-center gap-1.5 rounded-full border px-2.5 py-1 text-body-sm ${
+                            n.primary ? 'border-secondary text-ink' : 'border-border-subtle text-ink-muted'
+                          }`}>
+                      {titleCase(n.status)}
+                      <span className={`pill text-[11px] ${WHO[n.who].cls}`}>{WHO[n.who].text}</span>
+                      {n.note && <span className="text-[11px] text-ink-faint">· {n.note}</span>}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           ))}
         </div>
 
+        <p className="text-body-sm text-ink-faint mt-3">
+          Outlined step = the main button on the work order page. "Technician" steps can also be taken by a manager or admin.
+        </p>
+
         <div className="mt-4 pt-4 border-t border-border-subtle">
-          <p className="text-label-caps uppercase text-ink-muted mb-2">Terminal states</p>
+          <p className="text-label-caps uppercase text-ink-muted mb-2">Final states</p>
           <div className="flex flex-wrap gap-2">
             {terminal.map((s) => (
               <span key={s.status} className="pill bg-surface-sunken text-ink-muted">
@@ -56,57 +76,67 @@ export function AdminWorkOrderConfig() {
               </span>
             ))}
           </div>
-          <p className="text-body-sm text-ink-faint mt-2">
-            Transitions are enforced by the API — an unlisted move is rejected rather
-            than silently applied, so the history stays trustworthy.
-          </p>
         </div>
       </Widget>
 
+      <Widget title="Rules the system enforces" subtitle="Checked by the API, not just hidden in the page">
+        <ul className="space-y-2">
+          {data.rules.map((r) => (
+            <li key={r} className="flex gap-2 text-body-md text-ink">
+              <CircleCheck size={16} className="text-success shrink-0 mt-0.5" /> {r}
+            </li>
+          ))}
+        </ul>
+      </Widget>
+
       <div className="grid lg:grid-cols-2 gap-5">
-        <Widget title="By department" bodyClass="p-0">
+        <Widget title="By category" subtitle="All work orders, grouped by the complaint's category" bodyClass="p-0">
           <div className="table-wrap">
             <table className="table table-compact">
-              <thead><tr><th>Department</th><th className="text-right">Work orders</th>
-                         <th className="text-right">Breached</th><th className="text-right">Avg time</th></tr></thead>
+              <thead><tr><th>Category</th><th className="text-right">Total</th><th className="text-right">Open</th>
+                         <th className="text-right">SLA missed</th><th className="text-right">Avg time</th></tr></thead>
               <tbody>
-                {data.by_department.map((d) => (
-                  <tr key={d.department}>
-                    <td className="text-ink">{d.department}</td>
+                {data.by_category.map((d) => (
+                  <tr key={d.category}>
+                    <td className="text-ink">{d.category}</td>
                     <td className="text-right tabular">{d.total}</td>
+                    <td className="text-right tabular">{d.open || '—'}</td>
                     <td className={`text-right tabular ${d.breached > 0 ? 'text-danger-text font-medium' : ''}`}>
                       {d.breached || '—'}
                     </td>
-                    <td className="text-right tabular">
-                      {d.avg_minutes ? `${d.avg_minutes}m` : '—'}
-                    </td>
+                    <td className="text-right tabular">{d.avg_minutes ? `${d.avg_minutes}m` : '—'}</td>
                   </tr>
                 ))}
+                {data.by_category.length === 0 && (
+                  <tr><td colSpan={5} className="text-center text-ink-faint py-8">No work orders yet.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
         </Widget>
 
-        <Widget title="Technician load" subtitle="Open work orders per person" bodyClass="p-0">
+        <Widget title="Technician load" subtitle="Who handles what, and how much is on their plate" bodyClass="p-0">
           <div className="table-wrap">
             <table className="table table-compact">
-              <thead><tr><th>Technician</th><th>Department</th><th className="text-right">Open</th></tr></thead>
+              <thead><tr><th>Technician</th><th>Handles</th><th className="text-right">Open</th>
+                         <th className="text-right">Done (30d)</th></tr></thead>
               <tbody>
                 {data.technician_load.map((t) => (
                   <tr key={t.name}>
                     <td className="text-ink">{t.name}</td>
-                    <td className="text-ink-muted">{t.department || '—'}</td>
+                    <td className="text-ink-muted text-body-sm">
+                      {t.categories.length ? t.categories.join(', ') : <span className="text-danger-text">No categories — never auto-assigned</span>}
+                    </td>
                     <td className="text-right tabular">
                       <span className={t.open_work_orders > 5 ? 'text-warning-text font-medium' : ''}>
                         {t.open_work_orders}
                       </span>
                     </td>
+                    <td className="text-right tabular">{t.completed_30d}</td>
                   </tr>
                 ))}
                 {data.technician_load.length === 0 && (
-                  <tr><td colSpan={3} className="text-center text-ink-faint py-8">
-                    No active technicians.
-                  </td></tr>
+                  <tr><td colSpan={4} className="text-center text-ink-faint py-8">No active technicians.</td></tr>
                 )}
               </tbody>
             </table>
