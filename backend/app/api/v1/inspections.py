@@ -80,6 +80,7 @@ async def _to_out(db, i: Inspection, *, with_items: bool = False) -> InspectionO
         category_id=i.issue_category_id,
         status=i.status,
         room_name=room.name if room else None,
+        room_id=i.room_id, asset_id=i.asset_id,
         asset_tag=asset.tag if asset else None,
         assignee=UserBrief.model_validate(assignee) if assignee else None,
         scheduled_for=i.scheduled_for, submitted_at=i.submitted_at,
@@ -90,6 +91,7 @@ async def _to_out(db, i: Inspection, *, with_items: bool = False) -> InspectionO
         results=[
             {"id": str(r.id), "prompt": r.prompt, "result": r.result.value,
              "note": r.note, "photo_url": r.photo_url,
+             "asset_id": str(r.asset_id) if r.asset_id else None,
              "raised_issue_id": str(r.raised_issue_id) if r.raised_issue_id else None}
             for r in results
         ],

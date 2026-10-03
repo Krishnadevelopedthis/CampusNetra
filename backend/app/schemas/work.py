@@ -202,6 +202,7 @@ class InspectionReschedule(BaseModel):
 
 class InspectionResultIn(BaseModel):
     item_id: Optional[uuid.UUID] = None
+    asset_id: Optional[uuid.UUID] = None
     prompt: str
     result: ChecklistResult
     note: Optional[str] = None
@@ -221,6 +222,8 @@ class InspectionOut(BaseModel):
     category_id: Optional[uuid.UUID] = None
     status: InspectionStatus
     room_name: Optional[str] = None
+    room_id: Optional[uuid.UUID] = None
+    asset_id: Optional[uuid.UUID] = None
     asset_tag: Optional[str] = None
     assignee: Optional[UserBrief] = None
     scheduled_for: datetime

@@ -139,6 +139,19 @@ def item_in_slice(item, template, slice_category_id) -> bool:
     return (item.issue_category_id or template.issue_category_id) == slice_category_id
 
 
+async def _asset_in_scope(db, inspection, asset_id) -> Optional[uuid.UUID]:
+    """An asset named on an answer must be the inspected asset or sit in the inspected room."""
+    if not asset_id:
+        return None
+    asset_id = uuid.UUID(str(asset_id))
+    if asset_id == inspection.asset_id:
+        return asset_id
+    room = await db.scalar(select(Asset.room_id).where(Asset.id == asset_id))
+    if room is None or room != inspection.room_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "That asset is not in the inspected room.")
+    return asset_id
+
+
 async def _technician_for(db, org_id, category_id, asset_id, template) -> Optional[uuid.UUID]:
     """Who should carry out an inspection: the least busy technician who
     services its category. The category is the one chosen, else the inspected
@@ -171,6 +184,7 @@ async def _raise_issue_from_failure(
     submitter: User,
     prompt: str,
     note: Optional[str],
+    asset_id: Optional[uuid.UUID] = None,
 ) -> Optional[Issue]:
     """Turn a failed critical check into a live, routed complaint."""
     room = await db.scalar(select(Room).where(Room.id == inspection.room_id)) if inspection.room_id else None
@@ -216,7 +230,7 @@ async def _raise_issue_from_failure(
             f"Inspector note: {note or '(none)'}"
         ),
         room_id=inspection.room_id,
-        asset_id=inspection.asset_id,
+        asset_id=asset_id or inspection.asset_id,
         location_note=room.name if room else None,
         category_id=category.id if category else None,
         department_id=category.department_id if category else None,
@@ -312,6 +326,7 @@ async def submit_inspection(
         critical_ids = set(rows)
 
     raised: list[Issue] = []
+    attention: list[tuple] = []   # (check, note, asset_id) answered "Attention"
     scored = 0      # items that count toward the score (pass/fail, not N/A)
     passed = 0
 
@@ -319,6 +334,8 @@ async def submit_inspection(
         result = ChecklistResult(entry["result"])
         item_id = entry.get("item_id")
 
+        # The asset the answer is about: the one named, else the inspected asset.
+        about = await _asset_in_scope(db, inspection, entry.get("asset_id")) or inspection.asset_id
         row = InspectionResult(
             inspection_id=inspection.id,
             item_id=item_id,
@@ -326,7 +343,10 @@ async def submit_inspection(
             result=result,
             note=entry.get("note"),
             photo_url=entry.get("photo_url"),
+            asset_id=about,
         )
+        if result == ChecklistResult.NEEDS_ATTENTION:
+            attention.append((entry["prompt"], entry.get("note"), about))
 
         if result != ChecklistResult.NA:
             scored += 1
@@ -335,7 +355,7 @@ async def submit_inspection(
 
         if result == ChecklistResult.FAIL and item_id and uuid.UUID(str(item_id)) in critical_ids:
             issue = await _raise_issue_from_failure(
-                db, inspection, submitter, entry["prompt"], entry.get("note")
+                db, inspection, submitter, entry["prompt"], entry.get("note"), asset_id=about
             )
             if issue:
                 row.raised_issue_id = issue.id
@@ -361,14 +381,41 @@ async def submit_inspection(
                          "issues_raised": len(raised)},
             )
 
-    # Clear the purple "inspection required" marker once the check is done and clean.
-    if inspection.asset_id and not raised:
-        asset = await db.scalar(select(Asset).where(Asset.id == inspection.asset_id))
-        if asset and asset.state == AssetState.INSPECTION_REQUIRED:
+    # "Attention": still working, but someone should look. The asset turns
+    # Warning (so it shows under "Needs attention" in the Asset Registry and on
+    # the map) and managers are told. No complaint is raised.
+    flagged: set = set()
+    for check, note, asset_id in attention:
+        asset = await db.scalar(select(Asset).where(Asset.id == asset_id)) if asset_id else None
+        if asset and asset.state == AssetState.HEALTHY and asset.id not in flagged:
             await set_asset_state(
-                db, asset, AssetState.HEALTHY,
-                reason=f"passed inspection {inspection.reference}", actor_id=submitter.id,
+                db, asset, AssetState.WARNING,
+                reason=f"needs attention in inspection {inspection.reference}: {check}",
+                actor_id=submitter.id,
             )
+            flagged.add(asset.id)
+    if attention:
+        where = (await db.scalar(select(Room.name).where(Room.id == inspection.room_id))) if inspection.room_id else ""
+        names = {a: n for a, n in (await db.execute(
+            select(Asset.id, Asset.name).where(Asset.id.in_([a for *_, a in attention if a])))).all()} if any(a for *_, a in attention) else {}
+        lines = [f"{names.get(a, 'Room')}: {c}" + (f" ({n})" if n else "") for c, n, a in attention]
+        await notify_svc.notify(
+            db, list(await notify_svc.managers_of(db, inspection.organization_id)),
+            title=f"{len(attention)} item{'s' if len(attention) > 1 else ''} need attention"
+                  + (f" in {where}" if where else ""),
+            body=f"{inspection.reference}: " + "; ".join(lines)[:400],
+            link=f"/inspections/{inspection.id}", kind="inspection",
+            entity_type="inspection", entity_id=inspection.id,
+        )
+
+    # A clean result clears a marker this asset was carrying for want of a check
+    # (purple "inspection required", or an earlier "Attention" warning), as long
+    # as nothing else - an open complaint, work order or IoT alert - holds it.
+    if inspection.asset_id and not raised and inspection.asset_id not in flagged:
+        asset = await db.scalar(select(Asset).where(Asset.id == inspection.asset_id))
+        if asset and asset.state in (AssetState.INSPECTION_REQUIRED, AssetState.WARNING):
+            from app.services.removal import settle_asset_state
+            await settle_asset_state(db, asset.id, submitter, f"passed inspection {inspection.reference}")
 
     return inspection, raised
 

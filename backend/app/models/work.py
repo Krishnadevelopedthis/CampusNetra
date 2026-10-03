@@ -258,6 +258,10 @@ class InspectionResult(Base):
     # Snapshot of the prompt — the template may be edited after submission.
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     result: Mapped[ChecklistResult] = mapped_column(checklist_result_enum, nullable=False)
+    # The asset the answer is about (named for Fail / Attention in a room inspection).
+    asset_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("assets.id", ondelete="SET NULL")
+    )
     note: Mapped[Optional[str]] = mapped_column(Text)
     photo_url: Mapped[Optional[str]] = mapped_column(Text)
     raised_issue_id: Mapped[Optional[uuid.UUID]] = mapped_column(
