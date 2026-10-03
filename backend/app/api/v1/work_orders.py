@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -333,6 +333,35 @@ async def add_attachment(wo_id: uuid.UUID, payload: WOAttachmentIn, user: Requir
     """Before / after evidence photos."""
     wo = await _get_or_404(db, wo_id, user)
     att = WorkOrderAttachment(work_order_id=wo.id, uploaded_by=user.id, **payload.model_dump())
+    db.add(att)
+    await db.flush()
+    await db.refresh(att)
+    return WOAttachmentOut.model_validate(att)
+
+
+@router.post("/{wo_id}/evidence", response_model=WOAttachmentOut, status_code=201)
+async def upload_evidence(
+    wo_id: uuid.UUID, user: RequireStaff, db: DB,
+    file: UploadFile = File(...),
+    purpose: str = Query("after", pattern="^(before|after)$"),
+):
+    """Store a Before/After photo and attach it in one request (the page used
+    to make two round trips: upload the file, then attach its URL)."""
+    import asyncio
+
+    from app.api.v1.uploads import _served_url
+    from app.services.storage import UploadError, store_image
+
+    wo = await _get_or_404(db, wo_id, user)
+    data = await file.read()
+    try:
+        stored = await asyncio.to_thread(store_image, data, file.filename, "issues", True)
+    except UploadError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
+    att = WorkOrderAttachment(
+        work_order_id=wo.id, uploaded_by=user.id, purpose=purpose,
+        url=_served_url(stored.url), thumb_url=_served_url(stored.thumb_url), filename=stored.filename,
+    )
     db.add(att)
     await db.flush()
     await db.refresh(att)

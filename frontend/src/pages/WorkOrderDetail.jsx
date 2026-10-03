@@ -38,10 +38,12 @@ export default function WorkOrderDetail() {
     queryFn: () => api.get(`/work-orders/${id}`),
   })
 
+  // Resolves once this page's own data has reloaded, so a caller can keep its
+  // placeholder up until the fresh data replaces it.
   const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ['work-order', id] })
     qc.invalidateQueries({ queryKey: ['work-orders'] })
     qc.invalidateQueries({ queryKey: ['wo-board'] })
+    return qc.invalidateQueries({ queryKey: ['work-order', id] })
   }
 
   const transition = useMutation({
@@ -411,6 +413,8 @@ const MAX_EVIDENCE_PHOTOS = 6
  */
 function EvidenceSection({ label, purpose, photos, workOrderId, onUploaded }) {
   const [busy, setBusy] = useState(false)
+  // The photo is shown the moment it is picked; the upload finishes behind it.
+  const [preview, setPreview] = useState(null)
   const inputRef = useRef(null)
   const atLimit = photos.length >= MAX_EVIDENCE_PHOTOS
 
@@ -426,21 +430,19 @@ function EvidenceSection({ label, purpose, photos, workOrderId, onUploaded }) {
       return
     }
     setBusy(true)
+    const local = URL.createObjectURL(file)
+    setPreview(local)
     try {
       const body = new FormData()
       body.append('file', file)
-      const uploaded = await upload('/uploads/image', body, { params: { purpose: 'work_order' } })
-      await api.post(`/work-orders/${workOrderId}/attachments`, {
-        url: uploaded.url,
-        thumb_url: uploaded.thumb_url,
-        filename: uploaded.filename,
-        purpose,
-      })
-      onUploaded()
+      await upload(`/work-orders/${workOrderId}/evidence`, body, { params: { purpose } })
+      await onUploaded()
     } catch (err) {
       toast.error(err.detail || err.message || 'Could not upload photo')
     } finally {
       setBusy(false)
+      setPreview(null)
+      URL.revokeObjectURL(local)
     }
   }
 
@@ -452,12 +454,21 @@ function EvidenceSection({ label, purpose, photos, workOrderId, onUploaded }) {
           <EvidenceThumb key={p.id} photo={p} label={label} />
         ))}
 
+        {preview && (
+          <div className="relative w-24 h-28 rounded overflow-hidden border border-border-subtle">
+            <img src={preview} alt={`${label} photo uploading`} className="w-full h-full object-cover opacity-70" />
+            <span className="absolute inset-0 grid place-items-center">
+              <Loader2 size={18} className="animate-spin text-white drop-shadow" />
+            </span>
+          </div>
+        )}
+
         <input
           ref={inputRef} type="file" accept="image/*" capture="environment" className="hidden"
           onChange={(e) => { pick(e.target.files); e.target.value = '' }}
         />
 
-        {!atLimit && (
+        {!atLimit && !busy && (
           <button
             type="button"
             disabled={busy}

@@ -15,6 +15,7 @@ unaware of which one is active.
 from __future__ import annotations
 
 import io
+from concurrent.futures import ThreadPoolExecutor
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -136,7 +137,10 @@ def store_image(
 
     def _encode(img: Image.Image, quality: int) -> bytes:
         buf = io.BytesIO()
-        img.save(buf, "JPEG", quality=quality, optimize=True)
+        # No optimize=True: it re-runs Huffman table optimisation over the whole
+        # image for ~2-5% smaller files and costs most of the encode time on a
+        # small server CPU. Upload speed matters more than those few KB.
+        img.save(buf, "JPEG", quality=quality)
         return buf.getvalue()
 
     full_bytes = _encode(full, JPEG_QUALITY)
@@ -147,8 +151,13 @@ def store_image(
     stem = f"{uuid.uuid4().hex}{secrets.token_hex(4)}"
     rel = f"{subdir}/{stamp}/{stem}"
 
-    _write_object(f"{rel}.jpg", full_bytes, private=private)
-    _write_object(f"{rel}_thumb.jpg", thumb_bytes, private=private)
+    # Both objects go up at the same time: with remote (S3) storage each write
+    # is a network round trip, and doing them one after the other doubled it.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writes = [pool.submit(_write_object, f"{rel}.jpg", full_bytes, private),
+                  pool.submit(_write_object, f"{rel}_thumb.jpg", thumb_bytes, private)]
+        for w in writes:
+            w.result()
 
     return StoredImage(
         url=f"{rel}.jpg" if private else _public_url(f"{rel}.jpg"),
