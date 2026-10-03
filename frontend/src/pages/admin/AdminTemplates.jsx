@@ -10,6 +10,7 @@ import {
   Field,
   Input,
   Modal,
+  Select,
   Spinner,
   Textarea,
   Widget,
@@ -25,6 +26,10 @@ export function AdminInspectionConfig() {
   const templates = useQuery({
     queryKey: ['inspection-templates'], queryFn: () => api.get('/inspections/templates'),
   })
+  // The live Issue Configuration list, so categories added or removed there
+  // show up here straight away.
+  const categories = useQuery({ queryKey: ['issue-categories'], queryFn: () => api.get('/issues/categories') })
+  const catName = (id) => categories.data?.find((c) => c.id === id)?.name
 
   const save = useMutation({
     mutationFn: (f) => f.id
@@ -82,6 +87,7 @@ export function AdminInspectionConfig() {
                       {t.items.filter((i) => i.is_critical).length > 0 &&
                         ` · ${t.items.filter((i) => i.is_critical).length} critical`}
                       {t.frequency_days && ` · every ${t.frequency_days} days`}
+                      {t.issue_category_id && ` · ${catName(t.issue_category_id) || 'category removed'}`}
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -139,6 +145,14 @@ export function AdminInspectionConfig() {
       >
         {form && (
           <div className="space-y-4">
+            <Field label="Checklist category"
+                   hint="Checks with no category of their own use this one. A checklist whose checks span several categories is split into one inspection per category, each sent to that category's technician.">
+              <Select value={form.issue_category_id || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, issue_category_id: e.target.value || null }))}>
+                <option value="">None — set it per check below, or assign by hand</option>
+                {(categories.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </Select>
+            </Field>
             <div className="grid sm:grid-cols-2 gap-4">
               <Field label="Checklist name" required>
                 <Input value={form.name} placeholder="Monthly Lab Safety Check"
@@ -185,7 +199,18 @@ export function AdminInspectionConfig() {
                               onClick={() => setForm((f) => ({
                                 ...f, items: f.items.filter((_, i) => i !== idx) }))} />
                     </div>
-                    <div className="flex gap-4 mt-2 ml-7">
+                    <div className="mt-2 ml-7 max-w-xs">
+                      <Select aria-label={`Category for check ${idx + 1}`} value={item.issue_category_id || ''}
+                              onChange={(e) => setForm((f) => {
+                                const items = [...f.items]
+                                items[idx] = { ...items[idx], issue_category_id: e.target.value || null }
+                                return { ...f, items }
+                              })}>
+                        <option value="">{form.issue_category_id ? `Checklist category (${catName(form.issue_category_id) || '—'})` : 'No category'}</option>
+                        {(categories.data || []).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </Select>
+                    </div>
+                    <div className="flex flex-wrap gap-4 mt-2 ml-7">
                       {[
                         ['is_critical', 'Critical — a failure raises an issue'],
                         ['requires_photo', 'Requires a photo'],
@@ -223,9 +248,11 @@ export function AdminInspectionConfig() {
 const payload = (f) => ({
   name: f.name, description: f.description || null,
   frequency_days: f.frequency_days || null,
+  issue_category_id: f.issue_category_id || null,
   items: f.items.filter((i) => i.prompt.trim()).map((i) => ({
     prompt: i.prompt.trim(), help_text: i.help_text || null,
     requires_photo: !!i.requires_photo, is_critical: !!i.is_critical,
+    issue_category_id: i.issue_category_id || null,
   })),
 })
 

@@ -20,10 +20,13 @@ const SIGNAL_LABEL = {
 export default function AdminPredictive() {
   const qc = useQueryClient()
   const [threshold, setThreshold] = useState(0.4)
+  const [categoryId, setCategoryId] = useState('')
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['predictive', threshold],
-    queryFn: () => api.get('/admin/predictive', { params: { min_risk: threshold, limit: 30 } }),
+    queryKey: ['predictive', threshold, categoryId],
+    queryFn: () => api.get('/admin/predictive', {
+      params: { min_risk: threshold, limit: 30, category_id: categoryId || undefined },
+    }),
     // Keep the list on screen while a new threshold is scored, instead of blanking the page.
     keepPreviousData: true,
   })
@@ -92,6 +95,22 @@ export default function AdminPredictive() {
         }
         bodyClass={data.predictions.length ? 'p-widget' : 'p-0'}
       >
+        <p className="text-body-sm text-ink-muted mb-3">
+          Only assets scoring at or above the threshold are listed. Lower it to see more borderline cases,
+          raise it to see only the most urgent ones.
+        </p>
+        {data.categories?.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-3 max-w-full min-w-0" role="tablist" aria-label="Filter by category">
+            {[{ id: '', name: 'All categories', count: data.at_risk_total }, ...data.categories].map((c) => (
+              <button key={c.id || 'all'} type="button" onClick={() => setCategoryId(c.id)}
+                      className={`shrink-0 whitespace-nowrap rounded-full border px-3 h-9 text-body-sm transition-colors ${
+                        categoryId === c.id ? 'border-secondary text-secondary bg-surface-sunken font-medium'
+                          : 'border-border-subtle text-ink-muted bg-surface hover:text-ink'}`}>
+                {c.name} ({c.count})
+              </button>
+            ))}
+          </div>
+        )}
         {data.predictions.length === 0 ? (
           <EmptyState
             icon={Wrench} title="Nothing above the threshold"
@@ -115,8 +134,9 @@ export default function AdminPredictive() {
                       )}
                     </div>
                     <p className="text-body-lg text-ink mt-1">{p.name}</p>
+                    <p className="text-body-sm text-ink-muted">{p.category}</p>
                     <p className="text-body-sm text-ink-faint">
-                      {[p.category, p.room].filter(Boolean).join(' · ')}
+                      {[p.building, p.floor, p.room_code ? `${p.room_code} (${p.room})` : p.room].filter(Boolean).join(' › ')}
                     </p>
                   </div>
 

@@ -169,6 +169,7 @@ class InspectionTemplateItemOut(ORMModel):
     help_text: Optional[str] = None
     requires_photo: bool
     is_critical: bool
+    issue_category_id: Optional[uuid.UUID] = None
 
 
 class InspectionTemplateOut(ORMModel):
@@ -176,6 +177,7 @@ class InspectionTemplateOut(ORMModel):
     name: str
     description: Optional[str] = None
     frequency_days: Optional[int] = None
+    issue_category_id: Optional[uuid.UUID] = None
     items: list[InspectionTemplateItemOut] = Field(default_factory=list)
 
 
@@ -208,6 +210,7 @@ class InspectionOut(BaseModel):
     id: uuid.UUID
     reference: str
     template_name: Optional[str] = None
+    category_name: Optional[str] = None
     status: InspectionStatus
     room_name: Optional[str] = None
     asset_tag: Optional[str] = None

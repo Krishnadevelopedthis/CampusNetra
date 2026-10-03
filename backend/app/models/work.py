@@ -183,6 +183,10 @@ class InspectionTemplate(TimestampMixin, Base):
         PGUUID(as_uuid=True), ForeignKey("asset_categories.id", ondelete="SET NULL")
     )
     frequency_days: Mapped[Optional[int]] = mapped_column(Integer)
+    # The Issue Configuration category this checklist is for; picks the technician.
+    issue_category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("issue_categories.id", ondelete="SET NULL")
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     items: Mapped[list["InspectionTemplateItem"]] = relationship(
@@ -203,6 +207,10 @@ class InspectionTemplateItem(Base):
     requires_photo: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Failing a critical item auto-raises an issue.
     is_critical: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Who this check is for; empty = the checklist's own category.
+    issue_category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("issue_categories.id", ondelete="SET NULL")
+    )
 
     template: Mapped["InspectionTemplate"] = relationship(back_populates="items")
 
@@ -227,6 +235,10 @@ class Inspection(TimestampMixin, Base):
     submitted_by: Mapped[Optional[uuid.UUID]] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
     score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2))
     notes: Mapped[Optional[str]] = mapped_column(Text)
+    # The category slice of the checklist this inspection covers (None = all checks).
+    issue_category_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("issue_categories.id", ondelete="SET NULL")
+    )
 
     results: Mapped[list["InspectionResult"]] = relationship(
         back_populates="inspection", cascade="all, delete-orphan"

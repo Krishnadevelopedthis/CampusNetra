@@ -17,6 +17,7 @@ from app.models.identity import User
 RequireInspectionsView = Annotated[User, Depends(require_permission("inspections:view"))]
 RequireInspectionsSchedule = Annotated[User, Depends(require_permission("inspections:schedule"))]
 RequireInspectionsConduct = Annotated[User, Depends(require_permission("inspections:conduct"))]
+from app.models.issues import IssueCategory
 from app.models.spatial import Asset, Room
 from app.models.work import (
     Inspection, InspectionResult, InspectionTemplate, InspectionTemplateItem,
@@ -52,7 +53,11 @@ async def _to_out(db, i: Inspection, *, with_items: bool = False) -> InspectionO
             .where(InspectionTemplateItem.template_id == i.template_id)
             .order_by(InspectionTemplateItem.position)
         )).all()
-        items = [InspectionTemplateItemOut.model_validate(r) for r in rows]
+        # Only this inspection's category slice of the checklist.
+        items = [InspectionTemplateItemOut.model_validate(r) for r in rows
+                 if svc.item_in_slice(r, template, i.issue_category_id)]
+    category_name = await db.scalar(
+        select(IssueCategory.name).where(IssueCategory.id == i.issue_category_id)) if i.issue_category_id else None
 
     results = (await db.scalars(
         select(InspectionResult).where(InspectionResult.inspection_id == i.id)
@@ -70,6 +75,7 @@ async def _to_out(db, i: Inspection, *, with_items: bool = False) -> InspectionO
     return InspectionOut(
         id=i.id, reference=i.reference,
         template_name=template.name if template else None,
+        category_name=category_name,
         status=i.status,
         room_name=room.name if room else None,
         asset_tag=asset.tag if asset else None,
@@ -132,17 +138,22 @@ async def dashboard(user: RequireInspectionsView, db: DB):
     }
 
 
-@router.post("", response_model=InspectionOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def schedule(payload: InspectionSchedule, user: RequireInspectionsSchedule, db: DB):
-    inspection = await svc.schedule_inspection(
+    """Schedule a checklist. A checklist covering several categories becomes one
+    inspection per category, each with its technician."""
+    made = await svc.schedule_inspections(
         db, user,
         template_id=payload.template_id, scheduled_for=payload.scheduled_for,
         room_id=payload.room_id, asset_id=payload.asset_id,
         assigned_to=payload.assigned_to, category_id=payload.category_id,
     )
     await db.flush()
-    await db.refresh(inspection)
-    return await _to_out(db, inspection, with_items=True)
+    out = []
+    for i in made:
+        await db.refresh(i)
+        out.append((await _to_out(db, i, with_items=True)).model_dump(mode="json"))
+    return {"inspections": out}
 
 
 @router.get("", response_model=Page[InspectionOut])
