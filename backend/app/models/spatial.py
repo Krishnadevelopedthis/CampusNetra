@@ -173,9 +173,35 @@ class Asset(UpdatedMixin, Base):
     # ceiling in the 3D scene). See migration 013 for the CHECK constraint
     # backing the allowed values — enforced at the DB level, not just here.
     surface: Mapped[str] = mapped_column(Text, default="floor", server_default="floor", nullable=False)
+    # When the current physical unit went in (set when a repair replaces it).
+    installed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
 
     room: Mapped[Optional["Room"]] = relationship(back_populates="assets")
     category: Mapped["AssetCategory"] = relationship(back_populates="assets")
+
+
+class AssetReplacement(Base):
+    """One swap of a failed unit for a new one, done as part of a work order.
+
+    The asset keeps its place, tag and QR code; its make, serial, purchase and
+    warranty details become the new unit's. The old unit's details are kept
+    here (old_details) so the history is not lost.
+    """
+    __tablename__ = "asset_replacements"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    asset_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("assets.id", ondelete="CASCADE"), nullable=False
+    )
+    work_order_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("work_orders.id", ondelete="SET NULL")
+    )
+    replaced_by: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
+    replaced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    old_details: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    new_details: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
 
 
 class AssetStateHistory(Base):

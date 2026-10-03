@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth'
 import { ago, dt, money, slaLabel, slaOutcome, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 import AdminDeleteButton from '@/components/AdminDeleteButton'
+import { WARRANTY_PERIODS, addMonths } from '@/features/twin/AssetRoomModals'
 
 // The one obvious next move for each status, so nobody has to find it in the
 // "Update status" dropdown. [target status, button label, icon]
@@ -336,13 +337,14 @@ export default function WorkOrderDetail() {
         footer={
           <>
             <Button variant="secondary" onClick={() => { setTransitionTo(null); setForm({}) }}>Cancel</Button>
-            <Button loading={transition.isPending} disabled={missingAfterPhoto} onClick={() => transition.mutate({
+            <Button loading={transition.isPending} disabled={missingAfterPhoto || (completing && form.replaced && !replacementReady(form))} onClick={() => transition.mutate({
               status: transitionTo,
               note: form.note?.trim() || null,
               resolution_note: form.resolution_note?.trim() || null,
               labour_cost: form.labour_cost ? Number(form.labour_cost) : null,
               parts_cost: form.parts_cost ? Number(form.parts_cost) : null,
               blocked_reason: form.blocked_reason?.trim() || null,
+              replacement: completing && form.replaced ? replacementPayload(form) : null,
             })}>Confirm</Button>
           </>
         }
@@ -375,6 +377,10 @@ export default function WorkOrderDetail() {
                 </Field>
               </div>
             </>
+          )}
+
+          {completing && wo.asset_id && (
+            <ReplacementFields form={form} setForm={setForm} assetName={wo.asset_name} />
           )}
 
           {['on_hold', 'awaiting_parts'].includes(transitionTo) && (
@@ -520,6 +526,109 @@ function EvidenceSection({ label, purpose, photos, workOrderId, onUploaded }) {
           </button>
         )}
       </div>
+    </div>
+  )
+}
+
+const today = () => new Date().toISOString().slice(0, 10)
+
+/** Enough to identify the new unit: a make, a model or a serial number. */
+function replacementReady(f) {
+  return !!(f.r_manufacturer?.trim() || f.r_model?.trim() || f.r_serial?.trim())
+}
+
+function replacementPayload(f) {
+  const num = (v) => (v === '' || v == null ? null : Number(v))
+  return {
+    manufacturer: f.r_manufacturer?.trim() || null,
+    model: f.r_model?.trim() || null,
+    serial_no: f.r_serial?.trim() || null,
+    purchase_date: f.r_purchase_date || today(),
+    cost: num(f.r_cost),
+    warranty_months: f.r_warranty_months && f.r_warranty_months !== 'custom' ? Number(f.r_warranty_months) : null,
+    warranty_expiry: f.r_warranty_expiry || null,
+    expected_life_months: num(f.r_life),
+    service_interval_days: num(f.r_service),
+  }
+}
+
+/**
+ * "Did you fit a new one?" on the completion form. When the technician swaps a
+ * dead unit for a new one, the asset keeps its place, tag and QR code but its
+ * make, serial, purchase date, cost and warranty become the new unit's.
+ */
+function ReplacementFields({ form, setForm, assetName }) {
+  const set = (k) => (e) => {
+    const value = e.target.value
+    setForm((f) => {
+      const next = { ...f, [k]: value }
+      const purchase = k === 'r_purchase_date' ? value : (f.r_purchase_date || today())
+      const months = k === 'r_warranty_months' ? value : f.r_warranty_months
+      if ((k === 'r_purchase_date' || k === 'r_warranty_months') && months && months !== 'custom') {
+        next.r_warranty_expiry = addMonths(purchase, months)
+      }
+      if (k === 'r_warranty_months' && !value) next.r_warranty_expiry = ''
+      return next
+    })
+  }
+  const name = assetName || 'unit'
+
+  return (
+    <div className="rounded border border-border-subtle p-3 space-y-3">
+      <label className="flex items-start gap-2.5 cursor-pointer">
+        <input type="checkbox" className="mt-1 h-4 w-4 accent-[rgb(var(--c-brand))]"
+               checked={!!form.replaced}
+               onChange={(e) => setForm((f) => ({ ...f, replaced: e.target.checked, r_purchase_date: f.r_purchase_date || today() }))} />
+        <span>
+          <span className="text-body-md font-medium text-ink">New {name} installed?</span>
+          <span className="block text-body-sm text-ink-faint">
+            Tick this if you replaced the old one with a new unit. Its details and warranty replace the old ones;
+            the old unit's details are kept in the asset's history.
+          </span>
+        </span>
+      </label>
+
+      {form.replaced && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field label="Make / manufacturer" required>
+              <Input value={form.r_manufacturer || ''} onChange={set('r_manufacturer')} placeholder="e.g. Philips" />
+            </Field>
+            <Field label="Model">
+              <Input value={form.r_model || ''} onChange={set('r_model')} />
+            </Field>
+            <Field label="Serial number">
+              <Input value={form.r_serial || ''} onChange={set('r_serial')} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Installed on">
+              <Input type="date" value={form.r_purchase_date || today()} onChange={set('r_purchase_date')} />
+            </Field>
+            <Field label="Price ₹" hint="Counted as the parts cost unless you enter one">
+              <Input type="number" min="0" value={form.r_cost || ''} onChange={set('r_cost')} />
+            </Field>
+            <Field label="Warranty period">
+              <Select value={form.r_warranty_months || ''} onChange={set('r_warranty_months')}>
+                {WARRANTY_PERIODS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+              </Select>
+            </Field>
+            <Field label="Warranty ends">
+              <Input type="date" value={form.r_warranty_expiry || ''} onChange={set('r_warranty_expiry')}
+                     disabled={!!form.r_warranty_months && form.r_warranty_months !== 'custom'} />
+            </Field>
+            <Field label="Expected life (months)">
+              <Input type="number" min="1" value={form.r_life || ''} onChange={set('r_life')} placeholder="Keep current" />
+            </Field>
+            <Field label="Service every (days)">
+              <Input type="number" min="1" value={form.r_service || ''} onChange={set('r_service')} placeholder="Keep current" />
+            </Field>
+          </div>
+          {!replacementReady(form) && (
+            <p className="text-body-sm text-warning-text">Enter at least the make, model or serial number of the new unit.</p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -53,7 +53,8 @@ async def score_asset(db: AsyncSession, asset: Asset) -> tuple[float, dict, list
     year_ago = now - timedelta(days=365)
     fault_count = await db.scalar(
         select(func.count()).select_from(Issue)
-        .where(Issue.asset_id == asset.id, Issue.created_at >= year_ago)
+        .where(Issue.asset_id == asset.id,
+               Issue.created_at >= max(year_ago, asset.installed_at or year_ago))
     ) or 0
     # Three or more faults in a year saturates this signal.
     fault_score = _clamp(fault_count / 3.0)
@@ -96,7 +97,9 @@ async def score_asset(db: AsyncSession, asset: Asset) -> tuple[float, dict, list
     # --- Mean time between failures ---
     mtbf_score = 0.0
     fault_dates = (await db.scalars(
-        select(Issue.created_at).where(Issue.asset_id == asset.id)
+        select(Issue.created_at).where(
+            Issue.asset_id == asset.id,
+            *([Issue.created_at >= asset.installed_at] if asset.installed_at else []))
         .order_by(Issue.created_at)
     )).all()
     if len(fault_dates) >= 2:

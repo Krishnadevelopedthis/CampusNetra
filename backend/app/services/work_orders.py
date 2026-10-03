@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 
@@ -418,6 +419,70 @@ async def assign_work_order(
     return wo
 
 
+_UNIT_FIELDS = ("manufacturer", "model", "serial_no", "purchase_date", "cost", "warranty_months",
+                "warranty_expiry", "expected_life_months", "service_interval_days",
+                "annual_maintenance_cost", "last_service_at", "installed_at")
+
+
+def _unit_snapshot(asset) -> dict:
+    out = {}
+    for f in _UNIT_FIELDS:
+        v = getattr(asset, f, None)
+        out[f] = v.isoformat() if hasattr(v, "isoformat") else (float(v) if isinstance(v, Decimal) else v)
+    return out
+
+
+async def replace_asset_unit(db: AsyncSession, wo: WorkOrder, actor: User, details: dict, now: datetime) -> None:
+    """Swap the asset's unit details for the new one fitted on this job. The
+    asset keeps its id, tag, place and QR code, so every link to it still
+    works; the old unit's details are kept in asset_replacements."""
+    from app.models.spatial import AssetReplacement
+
+    asset = await db.scalar(select(Asset).where(Asset.id == wo.asset_id))
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Asset not found")
+    if not any(details.get(k) for k in ("manufacturer", "model", "serial_no")):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                            "Give at least the make, model or serial number of the new unit.")
+
+    old = _unit_snapshot(asset)
+    purchase = details.get("purchase_date") or now.date()
+    months = details.get("warranty_months")
+    expiry = details.get("warranty_expiry")
+    if months and not expiry:
+        y, m = divmod(purchase.month - 1 + months, 12)
+        day = min(purchase.day, [31, 29 if (purchase.year + y) % 4 == 0 else 28, 31, 30, 31, 30,
+                                 31, 31, 30, 31, 30, 31][m])
+        expiry = purchase.replace(year=purchase.year + y, month=m + 1, day=day)
+
+    asset.manufacturer = details.get("manufacturer") or None
+    asset.model = details.get("model") or None
+    asset.serial_no = details.get("serial_no") or None
+    asset.purchase_date = purchase
+    asset.cost = details.get("cost")
+    asset.warranty_months = months or None
+    asset.warranty_expiry = expiry
+    if details.get("expected_life_months"):
+        asset.expected_life_months = details["expected_life_months"]
+    if details.get("service_interval_days"):
+        asset.service_interval_days = details["service_interval_days"]
+    if details.get("annual_maintenance_cost") is not None:
+        asset.annual_maintenance_cost = details["annual_maintenance_cost"]
+    # A brand-new unit starts its service clock and its fault history today.
+    asset.last_service_at = now
+    asset.installed_at = now
+
+    db.add(AssetReplacement(
+        asset_id=asset.id, work_order_id=wo.id, replaced_by=actor.id, replaced_at=now,
+        old_details=old, new_details=_unit_snapshot(asset),
+    ))
+    db.add(WorkOrderEvent(
+        work_order_id=wo.id, from_status=wo.status, to_status=wo.status, actor_id=actor.id, created_at=now,
+        note=f"New {asset.name} installed ({' '.join(x for x in [asset.manufacturer, asset.model] if x)}"
+             f"{', serial ' + asset.serial_no if asset.serial_no else ''}) replacing the old unit.",
+    ))
+
+
 # Steps a technician may not take on a work order, with the verb used in the refusal.
 MANAGER_ONLY_STEPS: dict[WorkOrderStatus, str] = {
     WorkOrderStatus.VERIFIED: "verify",
@@ -448,6 +513,7 @@ async def transition_work_order(
     labour_cost: Optional[float] = None,
     parts_cost: Optional[float] = None,
     blocked_reason: Optional[str] = None,
+    replacement: Optional[dict] = None,
 ) -> WorkOrder:
     if wo.status == target:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Work order is already {target.value}")
@@ -499,6 +565,14 @@ async def transition_work_order(
         began = accepted_at or wo.started_at
         if began:
             wo.actual_mins = max(0, int((now - began).total_seconds() // 60))
+        if replacement:
+            if not wo.asset_id:
+                raise HTTPException(status.HTTP_400_BAD_REQUEST,
+                                    "This work order has no asset to replace.")
+            await replace_asset_unit(db, wo, actor, replacement, now)
+            # The new unit's price is what the parts cost, unless stated otherwise.
+            if parts_cost is None and replacement.get("cost") is not None:
+                parts_cost = replacement["cost"]
         if labour_cost is not None:
             wo.labour_cost = labour_cost
         if parts_cost is not None:
