@@ -7,6 +7,8 @@
  * Requests also have a safety timeout so the UI cannot remain stuck forever
  * when a proxy, browser connection, or upstream server stops responding.
  */
+import { compressFormDataImages } from '@/lib/compressImage'
+
 
 // In development, use a relative path so Vite proxies to the backend on
 // localhost:8000. A hardcoded production URL here means every developer's local
@@ -406,6 +408,12 @@ export async function upload(
   formData,
   { params, signal } = {},
 ) {
+  // Photos are shrunk before they leave the browser: a 5 MB camera shot becomes
+  // ~200 KB and uploads in a second or two. Floor plans and ID cards keep more
+  // detail because they are read closely (drawing lines, OCR).
+  const detailed = params?.purpose === 'floorplan' || path.includes('change-name')
+  await compressFormDataImages(formData, detailed ? { maxSide: 2400, quality: 0.88 } : undefined)
+
   const url = withParams(`${BASE}${path}`, params)
 
   const send = (token, requestSignal) =>

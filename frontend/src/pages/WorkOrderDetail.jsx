@@ -9,7 +9,7 @@ import {
 } from '@/components/ui'
 import { api, upload } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { ago, dt, money, slaLabel, titleCase } from '@/lib/format'
+import { ago, dt, money, slaLabel, slaOutcome, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 import AdminDeleteButton from '@/components/AdminDeleteButton'
 
@@ -79,6 +79,7 @@ export default function WorkOrderDetail() {
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
   const completing = transitionTo === 'completed'
+  const missingAfterPhoto = completing && !(wo.after_photos?.length)
 
   return (
     <div className="space-y-5 max-w-6xl">
@@ -106,7 +107,14 @@ export default function WorkOrderDetail() {
             const checking = step && ['verified', 'closed'].includes(step[0])
             if (!step || !wo.allowed_transitions?.includes(step[0]) || (checking && role === 'technician')) return null
             const [target, label, Icon] = step
-            return <Button icon={Icon} onClick={() => setTransitionTo(target)}>{label}</Button>
+            const needsPhoto = target === 'completed' && !(wo.after_photos?.length)
+            return (
+              <Button icon={Icon} disabled={needsPhoto}
+                      title={needsPhoto ? 'Upload an After photo first' : undefined}
+                      onClick={() => setTransitionTo(target)}>
+                {label}
+              </Button>
+            )
           })()}
           <Button variant="secondary" icon={Package} onClick={() => setPartsOpen(true)}>Request parts</Button>
           {wo.allowed_transitions?.length > 0 && (
@@ -118,6 +126,12 @@ export default function WorkOrderDetail() {
           )}
         </div>
       </div>
+
+      {wo.status === 'in_progress' && !(wo.after_photos?.length) && (
+        <p className="text-body-sm text-warning-text bg-warning-bg border border-border-subtle rounded px-3 py-2">
+          Upload an <strong>After</strong> photo (in the Evidence section below) to enable "Mark complete".
+        </p>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-5 items-start">
         <div className="lg:col-span-2 space-y-5">
@@ -215,9 +229,14 @@ export default function WorkOrderDetail() {
               <Row label="Technician" value={wo.assignee?.full_name} />
               <Row label="Source issue" value={wo.issue_reference && <span className="font-mono text-mono-data text-secondary">{wo.issue_reference}</span>} />
               <Row label="SLA" value={wo.sla_minutes_remaining != null && (
-                <span className={wo.sla_minutes_remaining < 0 ? 'text-danger-text font-medium' : ''}>
-                  {slaLabel(wo.sla_minutes_remaining)}
-                </span>
+                ['completed', 'verified', 'closed'].includes(wo.status) ? (() => {
+                  const o = slaOutcome(wo.sla_minutes_remaining, wo.sla_breached)
+                  return <span className={`font-medium ${o.missed ? 'text-danger-text' : 'text-success-text'}`}>{o.text}</span>
+                })() : (
+                  <span className={wo.sla_minutes_remaining < 0 ? 'text-danger-text font-medium' : ''}>
+                    {slaLabel(wo.sla_minutes_remaining)}
+                  </span>
+                )
               )} />
               <Row label="Started" value={wo.started_at && dt(wo.started_at)} />
               <Row label="Completed" value={wo.completed_at && dt(wo.completed_at)} />
@@ -276,7 +295,7 @@ export default function WorkOrderDetail() {
         footer={
           <>
             <Button variant="secondary" onClick={() => { setTransitionTo(null); setForm({}) }}>Cancel</Button>
-            <Button loading={transition.isPending} onClick={() => transition.mutate({
+            <Button loading={transition.isPending} disabled={missingAfterPhoto} onClick={() => transition.mutate({
               status: transitionTo,
               note: form.note?.trim() || null,
               resolution_note: form.resolution_note?.trim() || null,
@@ -289,6 +308,11 @@ export default function WorkOrderDetail() {
         }
       >
         <div className="space-y-4">
+          {missingAfterPhoto && (
+            <p className="text-body-md text-danger-text">
+              An After photo is needed as proof of the repair. Close this, upload one, then try again.
+            </p>
+          )}
           {completing && (
             <>
               <Field label="What did you do?" required>
