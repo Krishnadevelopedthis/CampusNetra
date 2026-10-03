@@ -56,6 +56,9 @@ export default function FloorPlanEditor() {
   const [buildingId, setBuildingId] = useState('')
   const [floorId, setFloorId] = useState('')
   const [mode, setMode] = useState('select')
+  // Asset names show only for the marker under the pointer: a room with dozens
+  // of assets drawn with permanent labels is an unreadable pile of text.
+  const [hoverAsset, setHoverAsset] = useState(null)
   const [draft, setDraft] = useState([])          // polygon being drawn
   const [selectedRoom, setSelectedRoom] = useState(null)
   const [placingAsset, setPlacingAsset] = useState(null)
@@ -433,13 +436,33 @@ export default function FloorPlanEditor() {
                         const x = (Math.min(...xs) + a.pos_x * (Math.max(...xs) - Math.min(...xs))) * VB
                         const y = (Math.min(...ys) + a.pos_y * (Math.max(...ys) - Math.min(...ys))) * vbH
                         return (
-                          <g key={a.id} transform={`translate(${x},${y})`}>
+                          <g key={a.id} transform={`translate(${x},${y})`}
+                             onMouseEnter={() => setHoverAsset(a.id)} onMouseLeave={() => setHoverAsset(null)}>
+                            <title>{a.name}</title>
                             <circle r="11" fill={a.colour} className="stroke-surface" strokeWidth="2" />
-                            <text y="26" textAnchor="middle" fontSize="12"
-                                  className="fill-ink-muted font-mono pointer-events-none">{a.tag}</text>
                           </g>
                         )
                       }))}
+
+                      {/* The hovered asset's name, drawn last so nothing covers it */}
+                      {(() => {
+                        for (const room of rooms) {
+                          const a = (room.assets || []).find((x) => x.id === hoverAsset)
+                          if (!a || a.pos_x == null || !room.boundary?.length) continue
+                          const xs = room.boundary.map((p) => p[0])
+                          const ys = room.boundary.map((p) => p[1])
+                          const x = (Math.min(...xs) + a.pos_x * (Math.max(...xs) - Math.min(...xs))) * VB
+                          const y = (Math.min(...ys) + a.pos_y * (Math.max(...ys) - Math.min(...ys))) * vbH
+                          const w = Math.max(90, a.name.length * 12 + 24)
+                          return (
+                            <g transform={`translate(${x},${y - 40})`} className="pointer-events-none">
+                              <rect x={-w / 2} y="-22" width={w} height="34" rx="8" className="fill-surface stroke-border-subtle" />
+                              <text textAnchor="middle" fontSize="20" className="fill-ink">{a.name}</text>
+                            </g>
+                          )
+                        }
+                        return null
+                      })()}
 
                       {/* Polygon in progress */}
                       {draft.length > 0 && (

@@ -488,10 +488,17 @@ async def transition_work_order(
         wo.completed_at = now
         if resolution_note:
             wo.resolution_note = resolution_note
-        if actual_mins is not None:
-            wo.actual_mins = actual_mins
-        elif wo.started_at:
-            wo.actual_mins = int((now - wo.started_at).total_seconds() // 60)
+        # Time taken is measured from when the technician accepted the job to
+        # now, never typed in: a typed figure can simply be wrong. (A reopened
+        # job counts from the first acceptance, so rework is included.) Any
+        # actual_mins sent by a client is ignored.
+        accepted_at = await db.scalar(
+            select(func.min(WorkOrderEvent.created_at)).where(
+                WorkOrderEvent.work_order_id == wo.id,
+                WorkOrderEvent.to_status == WorkOrderStatus.ACCEPTED))
+        began = accepted_at or wo.started_at
+        if began:
+            wo.actual_mins = max(0, int((now - began).total_seconds() // 60))
         if labour_cost is not None:
             wo.labour_cost = labour_cost
         if parts_cost is not None:

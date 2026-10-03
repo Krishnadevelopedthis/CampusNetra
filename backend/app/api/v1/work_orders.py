@@ -372,6 +372,10 @@ async def upload_evidence(
 async def request_parts(wo_id: uuid.UUID, payload: PartRequestIn, user: RequireStaff, db: DB):
     """Technician 'Request Parts / Resources' flow."""
     wo = await _get_or_404(db, wo_id, user)
+    if wo.status in (WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED,
+                     WorkOrderStatus.CLOSED, WorkOrderStatus.CANCELLED):
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            f"This work order is already {wo.status.value}; parts can no longer be requested.")
     pr = PartRequest(work_order_id=wo.id, requested_by=user.id, **payload.model_dump())
     db.add(pr)
     await db.flush()

@@ -23,6 +23,20 @@ const NEXT_STEP = {
   verified: ['closed', 'Close work order', CheckCircle2],
 }
 
+/** 135 -> "2 hr 15 min", 40 -> "40 min", 1500 -> "1 day 1 hr". */
+function duration(totalMinutes) {
+  const m = Math.max(0, Math.round(totalMinutes))
+  const d = Math.floor(m / 1440)
+  const h = Math.floor((m % 1440) / 60)
+  const mm = m % 60
+  if (d) return `${d} day${d > 1 ? 's' : ''}${h ? ` ${h} hr` : ''}`
+  if (h) return `${h} hr${mm ? ` ${mm} min` : ''}`
+  return `${mm} min`
+}
+
+// Once the work is done (or called off) there is nothing left to order parts for.
+const FINISHED = ['completed', 'verified', 'closed', 'cancelled']
+
 // Plain-language names for the less common moves in the "Other actions" menu.
 const STATUS_ACTION = {
   in_progress: 'Back to In Progress (resume / reopen)',
@@ -94,6 +108,9 @@ export default function WorkOrderDetail() {
   if (error) return <ErrorState error={error} onRetry={refetch} />
 
   const completing = transitionTo === 'completed'
+  // First time it was accepted; the timeline is the record of that.
+  const acceptedAt = (wo.timeline || []).find((e) => e.to_status === 'accepted')?.created_at
+    || wo.started_at
   const missingAfterPhoto = completing && !(wo.after_photos?.length)
 
   return (
@@ -131,7 +148,9 @@ export default function WorkOrderDetail() {
               </Button>
             )
           })()}
-          <Button variant="secondary" icon={Package} onClick={() => setPartsOpen(true)}>Request parts</Button>
+          {!FINISHED.includes(wo.status) && (
+            <Button variant="secondary" icon={Package} onClick={() => setPartsOpen(true)}>Request parts</Button>
+          )}
           {wo.allowed_transitions?.some((s) => s !== NEXT_STEP[wo.status]?.[0]
             && !(role === 'technician' && ['verified', 'closed', 'cancelled'].includes(s))) && (
             <Select value="" className="w-auto min-w-[180px]"
@@ -261,7 +280,8 @@ export default function WorkOrderDetail() {
               )} />
               <Row label="Started" value={wo.started_at && dt(wo.started_at)} />
               <Row label="Completed" value={wo.completed_at && dt(wo.completed_at)} />
-              <Row label="Time taken" value={wo.actual_mins ? `${wo.actual_mins} min` : null} />
+              <Row label="Accepted" value={acceptedAt && dt(acceptedAt)} />
+              <Row label="Time taken" value={wo.actual_mins != null ? duration(wo.actual_mins) : null} />
             </dl>
           </Widget>
 
@@ -320,7 +340,6 @@ export default function WorkOrderDetail() {
               status: transitionTo,
               note: form.note?.trim() || null,
               resolution_note: form.resolution_note?.trim() || null,
-              actual_mins: form.actual_mins ? Number(form.actual_mins) : null,
               labour_cost: form.labour_cost ? Number(form.labour_cost) : null,
               parts_cost: form.parts_cost ? Number(form.parts_cost) : null,
               blocked_reason: form.blocked_reason?.trim() || null,
@@ -341,11 +360,11 @@ export default function WorkOrderDetail() {
                           onChange={(e) => setForm((f) => ({ ...f, resolution_note: e.target.value }))}
                           placeholder="Describe the repair, parts used, and anything to watch." />
               </Field>
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Minutes">
-                  <Input type="number" min="0" value={form.actual_mins || ''}
-                         onChange={(e) => setForm((f) => ({ ...f, actual_mins: e.target.value }))} />
-                </Field>
+              <p className="text-body-sm text-ink-muted">
+                Time taken is recorded automatically, from when the work order was accepted until now
+                {acceptedAt && <> — about <strong className="text-ink">{duration((Date.now() - new Date(acceptedAt)) / 60000)}</strong></>}.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Labour ₹">
                   <Input type="number" min="0" value={form.labour_cost || ''}
                          onChange={(e) => setForm((f) => ({ ...f, labour_cost: e.target.value }))} />
