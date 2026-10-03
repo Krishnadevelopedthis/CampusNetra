@@ -248,7 +248,11 @@ async def _confirm_anomaly(
     )
 
     if asset.room_id:
-        tech = await wo_svc.suggest_technician(db, organization_id, department_id)
+        # A fan fault goes to whoever services fans (hvac), a light fault to
+        # an electrician -- the same specialisation routing complaints use --
+        # falling back to the department / least-loaded technician.
+        code = "hvac" if mapping.sensor_type == SensorType.IR_PROXIMITY else "electrical"
+        tech = await wo_svc.suggest_technician(db, organization_id, department_id, category_code=code)
         actor = tech if tech else await _fallback_actor(db, organization_id)
 
         if actor:
@@ -440,6 +444,15 @@ async def _auto_resolve_if_recently_inspecting(
     if actor is None:
         return
 
+    # The event is closed first: a clean submit returns the asset to Healthy
+    # only when nothing else still holds it, and this event would otherwise
+    # still read as open (the session does not autoflush) and keep it purple.
+    event.status = HealthEventStatus.RESOLVED
+    event.resolved_at = _now()
+    # Submitting needs a started inspection (a person must press Start before
+    # answering); this automatic pass starts it on the assignee's behalf.
+    inspection.status = InspectionStatus.IN_PROGRESS
+    await db.flush()
     await inspections_svc.submit_inspection(
         db, inspection, actor,
         [
@@ -449,8 +462,6 @@ async def _auto_resolve_if_recently_inspecting(
         ],
         notes="Auto-submitted — sensor false positive (recovered within the grace window).",
     )
-    event.status = HealthEventStatus.RESOLVED
-    event.resolved_at = _now()
 
 
 async def process_telemetry(
