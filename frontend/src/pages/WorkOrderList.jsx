@@ -18,7 +18,7 @@ import {
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { money, slaLabel } from '@/lib/format'
+import { money, slaLabel, slaOutcome } from '@/lib/format'
 
 export default function WorkOrderList() {
   const { user } = useAuth()
@@ -119,9 +119,18 @@ export default function WorkOrderList() {
                         )}
                         <td className="whitespace-nowrap">
                           {w.sla_minutes_remaining == null ? <span className="text-ink-faint">—</span> : (
-                            <span className={`text-body-sm font-medium ${
-                              w.sla_breached || w.sla_minutes_remaining < 0 ? 'text-danger-text' : 'text-ink-muted'
-                            }`}>{slaLabel(w.sla_minutes_remaining)}</span>
+                            ['completed', 'verified', 'closed'].includes(w.status) ? (() => {
+                              const o = slaOutcome(w.sla_minutes_remaining, w.sla_breached)
+                              return (
+                                <span className={`text-body-sm font-medium ${o.missed ? 'text-danger-text' : 'text-success-text'}`}>
+                                  {o.text}
+                                </span>
+                              )
+                            })() : (
+                              <span className={`text-body-sm font-medium ${
+                                w.sla_breached || w.sla_minutes_remaining < 0 ? 'text-danger-text' : 'text-ink-muted'
+                              }`}>{slaLabel(w.sla_minutes_remaining)}</span>
+                            )
                           )}
                         </td>
                         <td className="tabular text-ink-muted whitespace-nowrap">

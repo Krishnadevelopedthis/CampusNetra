@@ -10,13 +10,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import (
-    WORK_ORDER_TRANSITIONS, AssetState, IssueStatus, Priority, TwinEventKind,
+    ISSUE_TRANSITIONS, WORK_ORDER_TRANSITIONS, AssetState, IssueStatus, Priority, TwinEventKind,
     UserRole, WorkOrderStatus, can_transition,
 )
 from app.models.identity import User
 from app.models.issues import Issue, IssueCategory
 from app.models.spatial import Asset
-from app.models.work import SLAPolicy, WorkOrder, WorkOrderEvent
+from app.models.work import SLAPolicy, WorkOrder, WorkOrderAttachment, WorkOrderEvent
 from app.services import notifications as notify_svc
 from app.services.references import next_public_id
 from app.services.twin import campus_id_for_room, record_event, set_asset_state
@@ -180,6 +180,92 @@ async def handover_open_work(
     return moved, orphaned
 
 
+# ---------------------------------------------------------------------------
+# The complaint follows its work order
+#
+# The person who reported a problem only ever sees the issue's status. Nobody
+# should have to update it by hand after the technician has already updated the
+# work order, so the issue is moved along automatically.
+# ---------------------------------------------------------------------------
+
+_ISSUE_FOLLOWS_WO: dict[WorkOrderStatus, IssueStatus] = {
+    WorkOrderStatus.ASSIGNED:       IssueStatus.ASSIGNED,
+    WorkOrderStatus.ACCEPTED:       IssueStatus.ASSIGNED,
+    WorkOrderStatus.IN_PROGRESS:    IssueStatus.IN_PROGRESS,
+    WorkOrderStatus.AWAITING_PARTS: IssueStatus.ON_HOLD,
+    WorkOrderStatus.ON_HOLD:        IssueStatus.ON_HOLD,
+    WorkOrderStatus.COMPLETED:      IssueStatus.RESOLVED,
+    WorkOrderStatus.VERIFIED:       IssueStatus.VERIFIED,
+    WorkOrderStatus.CLOSED:         IssueStatus.CLOSED,
+}
+_ISSUE_RANK = {
+    IssueStatus.REPORTED: 0, IssueStatus.TRIAGED: 0, IssueStatus.ASSIGNED: 1,
+    IssueStatus.IN_PROGRESS: 2, IssueStatus.ON_HOLD: 2,
+    IssueStatus.RESOLVED: 3, IssueStatus.VERIFIED: 4, IssueStatus.CLOSED: 5,
+}
+# Sideways moves that are legitimate: pausing, resuming, and reopening a fix that failed.
+_ISSUE_SIDEWAYS = {
+    (IssueStatus.IN_PROGRESS, IssueStatus.ON_HOLD),
+    (IssueStatus.ON_HOLD, IssueStatus.IN_PROGRESS),
+    (IssueStatus.RESOLVED, IssueStatus.IN_PROGRESS),
+}
+
+
+def _issue_may_follow(current: IssueStatus, target: IssueStatus) -> bool:
+    if current not in _ISSUE_RANK:      # rejected / duplicate: not part of this flow
+        return False
+    return _ISSUE_RANK[target] > _ISSUE_RANK[current] or (current, target) in _ISSUE_SIDEWAYS
+
+
+def _issue_path(current: IssueStatus, target: IssueStatus) -> Optional[list[IssueStatus]]:
+    """Shortest legal chain of issue states from `current` to `target`."""
+    from collections import deque
+    queue, seen = deque([(current, [])]), {current}
+    while queue:
+        node, path = queue.popleft()
+        for nxt in sorted(ISSUE_TRANSITIONS.get(node, ()), key=lambda st: st.value):
+            if nxt in seen:
+                continue
+            if nxt == target:
+                return path + [nxt]
+            seen.add(nxt)
+            queue.append((nxt, path + [nxt]))
+    return None
+
+
+async def sync_issue_with_work_order(db: AsyncSession, wo: WorkOrder, actor: User) -> None:
+    """Move the originating issue to the state its work order implies. The
+    reporter is told once, for the state the issue ends up in, even when
+    several steps were needed to get there."""
+    if wo.issue_id is None:
+        return
+    target = _ISSUE_FOLLOWS_WO.get(wo.status)
+    issue = await db.scalar(select(Issue).where(Issue.id == wo.issue_id))
+    if target is None or issue is None or issue.status == target:
+        return
+    if not _issue_may_follow(issue.status, target):
+        return
+    if target in (IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED):
+        # One finished work order is not the whole job if another is still open.
+        from app.services.issues import WO_NOT_DONE
+        other_open = await db.scalar(
+            select(func.count()).select_from(WorkOrder)
+            .where(WorkOrder.issue_id == issue.id, WorkOrder.id != wo.id, WorkOrder.status.in_(WO_NOT_DONE)))
+        if other_open:
+            return
+    path = _issue_path(issue.status, target)
+    if not path:
+        return
+    from app.services.issues import transition_issue
+    note = f"Work order {wo.reference} is {wo.status.value.replace('_', ' ')}"
+    for i, step in enumerate(path):
+        await transition_issue(db, issue, step, actor, note, notify_reporter=(i == len(path) - 1))
+
+
+# Fallback allowance, in hours, when no SLA policy exists for the priority.
+_DEFAULT_SLA_HOURS = {"critical": 4, "high": 8, "medium": 24, "low": 72}
+
+
 async def create_work_order(
     db: AsyncSession,
     creator: User,
@@ -220,6 +306,13 @@ async def create_work_order(
         assigned_to = tech.id if tech else None
 
     policy, due = await resolve_sla(db, org_id, priority, department_id)
+    if due is None:
+        # No SLA policy is configured for this priority/department. A work order
+        # still needs a deadline, or the SLA column is blank for ever and "met /
+        # missed" can never be told: use the complaint's own deadline, else a
+        # standard allowance for the priority.
+        due = (issue.sla_due_at if issue_id and issue.sla_due_at else None) \
+            or _now() + timedelta(hours=_DEFAULT_SLA_HOURS.get(priority.value, 24))
 
     wo = WorkOrder(
         reference=reference, organization_id=org_id, issue_id=issue_id,
@@ -252,6 +345,7 @@ async def create_work_order(
         )
 
     if assigned_to:
+        await sync_issue_with_work_order(db, wo, creator)
         await notify_svc.notify(
             db, [assigned_to],
             title=f"Work order assigned: {title}",
@@ -307,6 +401,7 @@ async def assign_work_order(
         meta={"technician_id": str(tech.id), "technician_name": tech.full_name},
     ))
 
+    await sync_issue_with_work_order(db, wo, actor)
     await notify_svc.notify(
         db, [tech.id],
         title=f"Work order assigned: {wo.title}",
@@ -361,6 +456,15 @@ async def transition_work_order(
     if actor.role == UserRole.TECHNICIAN and wo.assigned_to != actor.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN,
                             "This work order is assigned to someone else")
+
+    if target == WorkOrderStatus.COMPLETED:
+        after_photos = await db.scalar(
+            select(func.count()).select_from(WorkOrderAttachment)
+            .where(WorkOrderAttachment.work_order_id == wo.id, WorkOrderAttachment.purpose == "after"))
+        if not after_photos:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Upload an After photo as proof of the repair before marking the work complete.")
 
     previous = wo.status
     wo.status = target
@@ -434,4 +538,5 @@ async def transition_work_order(
                 link=f"/issues/{issue.id}", kind="work_order",
                 entity_type="work_order", entity_id=wo.id,
             )
+    await sync_issue_with_work_order(db, wo, actor)
     return wo

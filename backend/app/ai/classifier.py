@@ -145,7 +145,10 @@ _BASE_HINTS: dict[str, list[str]] = {
                  "geyser", "sink", "clogged", "choked"],
     "fire_safety": ["fire", "extinguisher", "smoke", "alarm", "sprinkler", "exit"],
     "housekeeping": ["dustbin", "garbage", "dirty", "clean", "cleaning", "mop", "soap", "smell", "dust", "stinking"],
-    "civil": ["wall", "ceiling", "roof", "door", "window", "crack", "paint", "floor", "tile", "seepage", "damp"],
+    # Not "ceiling", "floor", "window" or "door" alone: they mostly describe where
+    # something else is ("ceiling fan", "near the window").
+    "civil": ["wall", "roof", "crack", "cracked", "paint", "plaster", "tile", "seepage", "damp", "hinge", "broken door",
+              "broken window", "ceiling crack", "floor tile"],
     "LAB_EQUIPMENT": ["microscope", "lab", "fume", "balance", "burner", "experiment"],
     "CAFETERIA": ["kitchen", "stove", "fridge", "refrigerator", "canteen", "food", "gas"],
 }

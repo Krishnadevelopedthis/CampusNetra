@@ -53,7 +53,8 @@ def mock_notify(monkeypatch):
 def _db(tech, category_code=None):
     # assign_work_order() reads the technician first, then (only when the
     # work order has an originating issue) that issue's category code.
-    return SimpleNamespace(scalar=AsyncMock(side_effect=[tech, category_code]), add=MagicMock())
+    # ...and, last, the originating issue (None here: nothing for the sync to move).
+    return SimpleNamespace(scalar=AsyncMock(side_effect=[tech, category_code, None]), add=MagicMock())
 
 
 @pytest.mark.asyncio

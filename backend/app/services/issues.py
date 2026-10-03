@@ -220,12 +220,13 @@ async def create_issue(
     # at AV, so keyword weight alone routes it wrongly. The reporter already told
     # us what the thing is by choosing it from the asset list, and that is
     # physical evidence rather than an inference from prose.
-    if asset_id and issue.category_id is None:
-        # The text gave the classifier nothing to go on; the item the reporter
-        # picked does, so file it under that item's category rather than leaving
-        # it for manual triage.
+    if asset_id and category_id is None:
+        # The item the reporter picked is physical evidence of what is broken,
+        # so it decides the category over the wording ("ceiling fan near the
+        # window" is a fan, not the ceiling or the window). An explicit
+        # category chosen by the reporter still wins.
         by_asset = await issue_category_for_asset(db, org_id, asset_id)
-        if by_asset is not None:
+        if by_asset is not None and by_asset.id != issue.category_id:
             issue.category_id = by_asset.id
             issue.department_id = by_asset.department_id
             issue.sla_due_at = _now() + timedelta(minutes=by_asset.sla_resolve_mins)
@@ -316,6 +317,7 @@ async def transition_issue(
     target: IssueStatus,
     actor: User,
     note: Optional[str] = None,
+    notify_reporter: bool = True,
 ) -> Issue:
     """Apply a state change, enforcing the state machine and syncing the twin."""
     if issue.status == target:
@@ -368,7 +370,7 @@ async def transition_issue(
     )
 
     # Keep the reporter informed unless they made the change themselves.
-    if issue.reported_by != actor.id:
+    if notify_reporter and issue.reported_by != actor.id:
         resolved = target in (IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED)
         await notify_svc.notify(
             db, [issue.reported_by],

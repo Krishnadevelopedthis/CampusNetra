@@ -35,6 +35,19 @@ export function slaLabel(minutes) {
   return `${parts.join(' ')} ${overdue ? 'overdue' : 'left'}`
 }
 
+/** For finished work: "Met" or "Missed by 2h", from the figure frozen when it completed. */
+export function slaOutcome(minutes, breached) {
+  if (minutes === null || minutes === undefined) return null
+  const missed = breached || minutes < 0
+  if (!missed) return { text: 'Met', missed: false }
+  const m = Math.abs(minutes)
+  const d = Math.floor(m / 1440)
+  const h = Math.floor((m % 1440) / 60)
+  const mm = m % 60
+  const by = d ? `${d}d ${h}h` : h ? `${h}h ${mm}m` : `${mm}m`
+  return { text: minutes < 0 ? `Missed by ${by}` : 'Missed', missed: true }
+}
+
 export const money = (n) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 })
     .format(Number(n) || 0)

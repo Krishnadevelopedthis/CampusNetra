@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Sequence
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.enums import (
@@ -104,14 +104,28 @@ async def _raise_issue_from_failure(
         # the failure is still recorded on the inspection itself.
         return None
 
-    # Route safety failures to the same category the template's assets belong to,
-    # falling back to Civil/Structural which owns general building safety.
-    category = await db.scalar(
-        select(IssueCategory).where(
-            IssueCategory.organization_id == inspection.organization_id,
-            IssueCategory.code == "CIVIL",
+    # Route the failure like any other complaint: by the inspected asset if
+    # there is one, else by what the failed check is about ("exposed wiring"
+    # is Electrical), and only then to Civil/Structural, which owns general
+    # building safety. Category codes differ in case between installs.
+    from app.ai.classifier import classify_heuristic
+    from app.services.issues import issue_category_for_asset, load_categories
+
+    category = None
+    if inspection.asset_id:
+        category = await issue_category_for_asset(db, inspection.organization_id, inspection.asset_id)
+    if category is None:
+        guess = classify_heuristic(prompt, f"{prompt} {note or ''}",
+                                   await load_categories(db, inspection.organization_id))
+        if guess.category_id:
+            category = await db.scalar(select(IssueCategory).where(IssueCategory.id == guess.category_id))
+    if category is None:
+        category = await db.scalar(
+            select(IssueCategory).where(
+                IssueCategory.organization_id == inspection.organization_id,
+                func.lower(IssueCategory.code) == "civil",
+            )
         )
-    )
 
     issue = Issue(
         reference=await next_public_id(db, Issue, "CMP"),
