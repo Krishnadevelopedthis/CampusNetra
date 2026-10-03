@@ -76,7 +76,10 @@ def classify_http_status(status_code: int, body_text: str = "") -> ErrorKind:
         # Some providers (OpenRouter, Gemini) return 403 for both "your key
         # can't do this" and "you're out of free quota" -- the body usually
         # says which.
-        if "quota" in lower or "billing" in lower:
+        # OpenRouter: "Key limit exceeded" / "insufficient credits" is about the
+        # model being billed, not a bad key -- other (free) models still work,
+        # so this must not disable the whole provider.
+        if "quota" in lower or "billing" in lower or "limit" in lower or "credit" in lower:
             return ErrorKind.QUOTA_EXHAUSTED
         return ErrorKind.AUTHENTICATION_ERROR
     if status_code == 404:
