@@ -337,7 +337,9 @@ export default function IssueDetail() {
                   Change status…
                 </option>
 
-                {issue.allowed_transitions.map(
+                {issue.allowed_transitions
+                  .filter((s) => !(user?.role === 'technician' && ['verified', 'closed'].includes(s)))
+                  .map(
                   (s) => (
                     <option
                       key={s}

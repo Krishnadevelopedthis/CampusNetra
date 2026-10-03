@@ -456,6 +456,11 @@ async def transition_work_order(
     if actor.role == UserRole.TECHNICIAN and wo.assigned_to != actor.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN,
                             "This work order is assigned to someone else")
+    # Checking the work is someone else's job: the person who did it does not
+    # verify or close it.
+    if actor.role == UserRole.TECHNICIAN and target in (WorkOrderStatus.VERIFIED, WorkOrderStatus.CLOSED):
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "A facility manager or admin verifies and closes the work.")
 
     if target == WorkOrderStatus.COMPLETED:
         after_photos = await db.scalar(
