@@ -46,11 +46,10 @@ export default function Login() {
 
     setSubmitting(true)
     try {
-      // No role constraint sent, regardless of which tab is active -- the
-      // tabs are cosmetic now (see RoleTabs.jsx). Whoever's credentials are
-      // correct signs in and lands wherever ROLE_HOME sends their actual
-      // role, including an admin signing in from any tab.
-      const user = await login(email.trim(), password, null, captcha)
+      // The selected tab is sent and enforced: a student, teacher or
+      // technician signs in only from their own tab. Admin and facility
+      // manager accounts have no tab and sign in from any of them.
+      const user = await login(email.trim(), password, role, captcha)
       // A genuinely first-ever sign-in (an admin-provisioned account whose
       // owner never went through the register->verify-email auto-login
       // flow) shouldn't be told "welcome back" — there's no "back" yet.
