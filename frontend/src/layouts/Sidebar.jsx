@@ -14,8 +14,9 @@ import { useTheme } from '@/lib/theme'
 // fixed geometry in both states (icons sit at the same x, so they never
 // jump) and labels fade instead of mounting/unmounting.
 const fade = (collapsed) => clsx(
-  'whitespace-nowrap transition-opacity duration-200 motion-reduce:transition-none',
-  collapsed ? 'pointer-events-none opacity-0' : 'opacity-100 delay-100',
+  'whitespace-nowrap transition-opacity motion-reduce:transition-none',
+  // Closing: labels vanish at once. Opening: they wait for the rail to widen.
+  collapsed ? 'pointer-events-none opacity-0 duration-150' : 'opacity-100 duration-300 delay-[260ms]',
 )
 
 function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
@@ -158,8 +159,8 @@ function SectionLabel({ children, collapsed }) {
       <span
         aria-hidden
         className={clsx(
-          'absolute bottom-3 left-1/2 h-px w-6 -translate-x-1/2 bg-border-subtle transition-opacity duration-200',
-          collapsed ? 'opacity-100 delay-100' : 'opacity-0',
+          'absolute bottom-3 left-1/2 h-px w-6 -translate-x-1/2 bg-border-subtle transition-opacity duration-300',
+          collapsed ? 'opacity-100 delay-[260ms]' : 'opacity-0 duration-150',
         )}
       />
     </div>
@@ -173,12 +174,12 @@ function ThemeSwitch({ collapsed }) {
   const toggle = () => setMode(dark ? 'light' : 'dark')
   // The sun/moon hints shrink away when collapsed; the switch itself stays.
   const hint = clsx(
-    'shrink-0 overflow-hidden transition-all duration-300 motion-reduce:transition-none',
+    'shrink-0 overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none',
     collapsed ? 'w-0 opacity-0' : 'w-[15px] opacity-100',
   )
 
   return (
-    <div className={clsx('flex items-center justify-center py-1 transition-[gap] duration-300', collapsed ? 'gap-0' : 'gap-2.5')}>
+    <div className={clsx('flex items-center justify-center py-1 transition-[gap] duration-500', collapsed ? 'gap-0' : 'gap-2.5')}>
       <Sun size={15} className={clsx(hint, dark ? 'text-ink-faint' : 'text-secondary')} />
       <button
         role="switch"
@@ -193,10 +194,23 @@ function ThemeSwitch({ collapsed }) {
       >
         <span
           className={clsx(
-            'absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow-level2 transition-transform duration-200',
+            'absolute left-0 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-white shadow-level2 transition-transform duration-300',
             dark ? 'translate-x-[22px]' : 'translate-x-0.5',
           )}
-        />
+        >
+          {/* Collapsed: the Sun/Moon beside the switch are hidden, so the knob carries the icon. */}
+          <span
+            aria-hidden="true"
+            className={clsx(
+              'transition-opacity motion-reduce:transition-none',
+              collapsed ? 'opacity-100 duration-300 delay-[260ms]' : 'opacity-0 duration-100',
+            )}
+          >
+            {dark
+              ? <Moon size={12} className="text-primary-700" />
+              : <Sun size={12} className="text-secondary" />}
+          </span>
+        </span>
       </button>
       <Moon size={15} className={clsx(hint, dark ? 'text-secondary' : 'text-ink-faint')} />
     </div>

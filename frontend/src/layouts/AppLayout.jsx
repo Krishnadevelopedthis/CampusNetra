@@ -381,7 +381,7 @@ export default function AppLayout() {
         <aside
           className={clsx(
             'sticky top-3 h-[calc(100vh-1.5rem)] overflow-hidden rounded-2xl border border-border-subtle',
-            'bg-surface shadow-level2 transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+            'bg-surface shadow-level2 transition-[width] duration-500 ease-[cubic-bezier(0.65,0,0.35,1)] motion-reduce:transition-none',
             collapsed ? 'w-[72px]' : 'w-[264px]',
           )}
         >
