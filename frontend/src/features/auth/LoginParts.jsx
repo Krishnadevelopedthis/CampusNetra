@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 
 import { Button, Field, Input } from '@/components/ui'
 
+import { CaptchaBadge } from './CaptchaBadge'
+
 /**
  * Pieces every sign-in layout shares.
  *
@@ -126,7 +128,9 @@ export function CaptchaField({ captcha, error, inputRef }) {
   const { image, answer, setAnswer, loading, failed, refresh } = captcha
 
   return (
-    <Field label="Type the characters shown" error={error} required>
+    <>
+      <CaptchaBadge />
+      <Field label="Type the characters shown" error={error} required>
       <div className="flex items-center gap-2">
         {/* h-12 against a ~260x70 image (object-contain fits to width at
             this box's 140px, landing at ~38px tall) left visible empty
@@ -169,6 +173,7 @@ export function CaptchaField({ captcha, error, inputRef }) {
         </p>
       )}
     </Field>
+    </>
   )
 }
 
