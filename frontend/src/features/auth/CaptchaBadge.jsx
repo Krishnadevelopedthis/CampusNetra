@@ -62,10 +62,10 @@ export function CaptchaBadge() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold leading-4 text-ink">
-            Made by Campus Netra
+            Captcha by Campus Netra
           </span>
           <span className="block text-[11px] leading-4 text-ink-muted">
-            No Google or any other company
+            No third-party provider used
           </span>
         </span>
       </button>
