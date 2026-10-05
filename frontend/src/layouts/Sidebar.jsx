@@ -277,7 +277,8 @@ export function Sidebar({ items, activePath, pathname, role, collapsed, onToggle
         )}
       </div>
 
-      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-2">
+      {/* Scrollbar hidden (scrolling still works): its width would push every icon off-centre. */}
+      <nav className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <SectionLabel collapsed={isCollapsed}>Navigation</SectionLabel>
         <div className="space-y-0.5">
           {navigation.map((item) => (item.children ? (
