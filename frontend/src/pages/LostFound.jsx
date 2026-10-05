@@ -195,7 +195,7 @@ function Preview({ item, label }) {
     <div className="flex items-center gap-2 min-w-0">
       <div className="w-10 h-10 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
         {src
-          ? <img src={src} alt="" className="w-full h-full object-cover" />
+          ? <img loading="lazy" decoding="async" src={src} alt="" className="w-full h-full object-cover" />
           : <PackageSearch size={16} className="text-ink-faint" />}
       </div>
       <div className="min-w-0">
@@ -223,7 +223,7 @@ function ItemCard({ item: i }) {
     >
       <div className="h-36 bg-surface-sunken grid place-items-center overflow-hidden">
         {src ? (
-          <img src={src} alt={i.title}
+          <img loading="lazy" decoding="async" src={src} alt={i.title}
                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
         ) : (
           <PackageSearch size={28} className="text-ink-faint" />

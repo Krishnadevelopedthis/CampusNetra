@@ -436,7 +436,7 @@ function EvidenceThumb({ photo, label }) {
   return (
     <a href={fullSrc || undefined} target="_blank" rel="noreferrer"
        className="w-24 h-24 rounded overflow-hidden border border-border-subtle bg-surface-2">
-      {thumbSrc && <img src={thumbSrc} alt={label} className="w-full h-full object-cover" />}
+      {thumbSrc && <img loading="lazy" decoding="async" src={thumbSrc} alt={label} className="w-full h-full object-cover" />}
     </a>
   )
 }

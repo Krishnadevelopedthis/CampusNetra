@@ -773,7 +773,7 @@ function EvidenceThumb({ attachment: a }) {
       className="block w-28 h-28 rounded overflow-hidden border border-border-subtle bg-surface-2 hover:opacity-90"
     >
       {thumbSrc && (
-        <img src={thumbSrc} alt={a.filename || 'Evidence'} className="w-full h-full object-cover" />
+        <img loading="lazy" decoding="async" src={thumbSrc} alt={a.filename || 'Evidence'} className="w-full h-full object-cover" />
       )}
     </a>
   )

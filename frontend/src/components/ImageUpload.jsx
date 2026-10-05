@@ -193,6 +193,6 @@ export function ImageUpload({
 function UploadedThumb({ img }) {
   const src = useAuthedImage(img.thumb_url || img.url)
   return src ? (
-    <img src={src} alt={img.filename || 'Attachment'} className="w-full h-full object-cover" />
+    <img loading="lazy" decoding="async" src={src} alt={img.filename || 'Attachment'} className="w-full h-full object-cover" />
   ) : null
 }

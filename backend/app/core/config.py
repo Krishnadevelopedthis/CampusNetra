@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
     OTP_EXPIRE_MINUTES: int = 10
     MAX_LOGIN_ATTEMPTS: int = 5
+    # Serve the interactive API docs (/docs, /redoc, /openapi.json). Left on so the
+    # OpenAPI contract can be shown; set API_DOCS_ENABLED=false to hide the whole API map.
+    API_DOCS_ENABLED: bool = False
     # How far back a Lost & Found report may date the loss/find. Older than
     # this the item is realistically unrecoverable, and a back-dated report
     # (a typo'd year) would also skew matching, which compares the two dates.

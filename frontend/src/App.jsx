@@ -10,7 +10,6 @@ import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTime
 
 // Auth screens load eagerly — they are the entry point.
 import ForgotPassword from '@/pages/ForgotPassword'
-import LandingPage from '@/pages/LandingPage'
 import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import ResetPassword from '@/pages/ResetPassword'
@@ -24,6 +23,8 @@ import VerifyEmail from '@/pages/VerifyEmail'
 // with 4.76s of main-thread blocking time on the landing page alone --
 // an anonymous visitor who never logs in was downloading and parsing the
 // entire authenticated app shell just to see the marketing page.
+// Lazy: the landing page pulls in framer-motion, which the sign-in screens don't need.
+const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const AppLayout = lazy(() => import('@/layouts/AppLayout'))
 const Search = lazy(() => import('@/pages/Search'))
 

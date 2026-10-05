@@ -156,7 +156,16 @@ Paging = Annotated[Pagination, Depends(Pagination)]
 
 
 def client_ip(request: Request) -> Optional[str]:
-    """Honours X-Forwarded-For when running behind a proxy."""
+    """The caller's address, for logs and the audit trail.
+
+    Behind Cloudflare the trustworthy value is CF-Connecting-IP, which Cloudflare
+    sets itself and overwrites if a client sends one. X-Forwarded-For is only a
+    fallback (local development): its first entry is whatever the client wrote,
+    so on its own it lets anyone record a made-up address.
+    """
+    cf = request.headers.get("cf-connecting-ip")
+    if cf:
+        return cf.strip()
     fwd = request.headers.get("x-forwarded-for")
     if fwd:
         return fwd.split(",")[0].strip()

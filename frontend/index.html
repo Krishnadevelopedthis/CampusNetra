@@ -23,7 +23,11 @@
     <link rel="icon" href="/logo-dark.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <!-- Warm up the API connection (TLS handshake) while the JS bundle downloads. -->
+    <link rel="preconnect" href="https://campusnetra.onrender.com" crossorigin />
+    <!-- Font CSS loads without blocking first paint (display=swap shows text immediately). -->
+    <link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" /></noscript>
     <title>CampusNetra | Campus facility management software</title>
     <script>
       // Runs before the first paint to prevent theme flash on load.

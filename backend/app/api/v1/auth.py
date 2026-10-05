@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import DB, CurrentUser, client_ip
+from app.core import ratelimit
 from app.core.routing import CommitRoute
 from app.core.config import settings
 from app.core.enums import UserRole, UserStatus
@@ -208,6 +209,11 @@ async def resend_code(payload: ResendCodeRequest, db: DB):
         return generic
     if payload.purpose not in {"email_verify", "password_reset"}:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unsupported code purpose")
+    # This endpoint has no captcha, so without a limit anyone could make one
+    # inbox receive endless codes (and use up the mail provider's daily quota).
+    # Over the limit it answers exactly as before and simply sends nothing.
+    if not ratelimit.allow(f"code:{payload.purpose}:{payload.email.lower()}", 3, 600):
+        return generic
 
     code = await auth_service.create_verification_code(db, user, payload.purpose)
     sent = await send_otp(user.email, user.full_name, code, payload.purpose)
@@ -266,6 +272,9 @@ async def forgot_password(payload: ForgotPasswordRequest, db: DB):
         user = await db.scalar(select(User).where(User.email == payload.email))
         if user is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "This email is not registered with us.")
+        if not ratelimit.allow(f"code:password_reset:{user.email.lower()}", 3, 600):
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                                "A code was just sent. Please wait a few minutes before asking for another.")
         code = await auth_service.create_verification_code(db, user, "password_reset")
         sent = await send_otp(user.email, user.full_name, code, "password_reset")
         if not sent.delivered and settings.expose_dev_codes:
@@ -277,6 +286,10 @@ async def forgot_password(payload: ForgotPasswordRequest, db: DB):
     user = await db.scalar(select(User).where(User.phone == payload.phone))
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This phone number is not registered with us.")
+    # An SMS costs money, so a number gets the same ceiling as an inbox.
+    if not ratelimit.allow(f"sms:password_reset:{user.phone}", 3, 600):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS,
+                            "A code was just sent. Please wait a few minutes before asking for another.")
     code = await auth_service.create_verification_code(db, user, "password_reset")
     sent = await send_otp_sms(user.phone, code, "password_reset")
     if not sent.delivered and settings.expose_dev_phone_codes:

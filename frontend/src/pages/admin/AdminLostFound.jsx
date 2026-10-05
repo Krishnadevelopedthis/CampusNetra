@@ -408,7 +408,7 @@ function MatchPreviewLink({ label, preview: p, id }) {
     <Link to={`/lost-found/items/${id}`}
           className="flex gap-3 rounded border border-border-subtle p-3 hover:bg-surface-sunken transition-colors">
       <div className="w-14 h-14 rounded bg-surface-sunken overflow-hidden shrink-0 grid place-items-center">
-        {src ? <img src={src} alt="" className="w-full h-full object-cover" />
+        {src ? <img loading="lazy" decoding="async" src={src} alt="" className="w-full h-full object-cover" />
           : <PackageSearch size={18} className="text-ink-faint" />}
       </div>
       <div className="min-w-0">
