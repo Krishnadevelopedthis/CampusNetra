@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom'
  * Rendered into <body> so no animated ancestor can break `position: fixed`.
  */
 // Visible strip when collapsed: smaller on phones so it covers as little of the form as possible.
-const TAB = 'clamp(36px, 10vw, 52px)'
+const TAB = 'clamp(38px, 10vw, 46px)'
 const CLOSE_DELAY = 220 // ms to wait before sliding shut
 
 export function CaptchaBadge() {
@@ -44,31 +44,28 @@ export function CaptchaBadge() {
         onFocus={show} onBlur={hide}
         aria-expanded={open} aria-label="About the human check"
         style={{
-          width: 'min(264px, calc(100vw - 16px))',
+          width: 'min(250px, calc(100vw - 16px))',
           // Slide by the part that is hidden: the badge's own width minus the visible tab.
           transform: open ? 'translateX(0)' : `translateX(calc(100% - ${TAB}))`,
           transition: 'transform 520ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 300ms ease',
         }}
-        className="pointer-events-auto flex items-center gap-3 overflow-hidden rounded-l-2xl border
-                   border-r-0 border-border bg-surface py-2 pl-1.5 pr-4 text-left sm:py-2.5 sm:pl-2.5 shadow-level2
+        className="pointer-events-auto flex items-center gap-3 overflow-hidden rounded-l-xl border
+                   border-r-0 border-border bg-surface py-1.5 pl-1.5 pr-3 text-left sm:pl-2 shadow-level2
                    hover:shadow-level3 motion-reduce:!transition-none"
       >
         <span
-          className="grid h-7 w-7 shrink-0 sm:h-8 sm:w-8 place-items-center rounded-full border-2
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-full border-2
                      border-secondary text-secondary"
           aria-hidden="true"
         >
           <Check size={16} strokeWidth={3} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-body-md font-semibold leading-tight text-ink">
-            Safe sign-in check
+          <span className="block text-[13px] font-semibold leading-4 text-ink">
+            Made by Campus Netra
           </span>
-          <span className="mt-0.5 block text-body-sm leading-snug text-ink-muted">
-            This picture check is made by Campus Netra.
-          </span>
-          <span className="mt-1 block text-body-xs leading-snug text-ink-faint">
-            It does not use Google or any other company.
+          <span className="block text-[11px] leading-4 text-ink-muted">
+            No Google or any other company
           </span>
         </span>
       </button>
