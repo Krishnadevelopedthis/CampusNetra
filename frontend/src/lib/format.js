@@ -35,6 +35,20 @@ export function slaLabel(minutes) {
   return `${parts.join(' ')} ${overdue ? 'overdue' : 'left'}`
 }
 
+/** 90 -> "1 h 30 min", 1500 -> "1 d 1 h", 45 -> "45 min" (a duration given in minutes). */
+export function formatMinutes(minutes) {
+  const total = Math.round(Number(minutes))
+  if (!Number.isFinite(total) || total <= 0) return '—'
+  const d = Math.floor(total / 1440)
+  const h = Math.floor((total % 1440) / 60)
+  const m = total % 60
+  const parts = []
+  if (d) parts.push(`${d} d`)
+  if (h) parts.push(`${h} h`)
+  if (m && !d) parts.push(`${m} min`)
+  return parts.join(' ') || '—'
+}
+
 /** For finished work: "Met" or "Missed by 2h", from the figure frozen when it completed. */
 export function slaOutcome(minutes, breached) {
   if (minutes === null || minutes === undefined) return null

@@ -4,9 +4,29 @@ import { useState } from 'react'
 
 import { Button, ErrorState, Input, Modal, PriorityPill, Spinner, Widget, toast } from '@/components/ui'
 import { api } from '@/lib/api'
-import { dt } from '@/lib/format'
+import { dt, formatMinutes } from '@/lib/format'
 
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'critical']
+
+/**
+ * Minutes input with the same duration spelled out beside it ("1440" -> "= 1 d"),
+ * so the figure does not have to be converted in the head.
+ */
+function DurationInput({ value, onChange, className = '' }) {
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <Input
+        type="number" min="1" className="h-8 w-24 tabular"
+        value={value || ''}
+        onChange={(e) => onChange(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+        aria-label="Duration in minutes"
+      />
+      <span className="whitespace-nowrap text-body-sm text-ink-faint tabular">
+        min{value >= 60 ? ` = ${formatMinutes(value)}` : ''}
+      </span>
+    </div>
+  )
+}
 
 const CREATE_DEFAULTS = {
   name: '', code: '', department_id: '', default_priority: 'medium',
@@ -114,16 +134,16 @@ function CreateCategoryModal({ open, onClose }) {
         <div className="grid grid-cols-2 gap-3">
           <label className="space-y-1 block">
             <span className="text-body-sm text-ink-muted">SLA respond (minutes)</span>
-            <Input
-              type="number" min="1" value={form.sla_response_mins}
-              onChange={(e) => setForm((f) => ({ ...f, sla_response_mins: e.target.value }))}
+            <DurationInput
+              value={Number(form.sla_response_mins) || 0}
+              onChange={(m) => setForm((f) => ({ ...f, sla_response_mins: m }))}
             />
           </label>
           <label className="space-y-1 block">
             <span className="text-body-sm text-ink-muted">SLA resolve (minutes)</span>
-            <Input
-              type="number" min="1" value={form.sla_resolve_mins}
-              onChange={(e) => setForm((f) => ({ ...f, sla_resolve_mins: e.target.value }))}
+            <DurationInput
+              value={Number(form.sla_resolve_mins) || 0}
+              onChange={(m) => setForm((f) => ({ ...f, sla_resolve_mins: m }))}
             />
           </label>
         </div>
@@ -224,7 +244,7 @@ export function AdminIssueConfig() {
                     </select>
                   </td>
                   <td className="tabular text-ink-muted whitespace-nowrap">
-                    {c.sla_response_mins}m / {Math.round(c.sla_resolve_mins / 60)}h
+                    {formatMinutes(c.sla_response_mins)} / {formatMinutes(c.sla_resolve_mins)}
                   </td>
                   <td className="max-w-sm">
                     {isOpen ? (
@@ -333,20 +353,18 @@ export function AdminSLA() {
                   <td className="text-ink">{p.name}</td>
                   <td><PriorityPill priority={p.priority} /></td>
                   <td>
-                    <Input
-                      type="number" min="1" className="h-8 w-24 tabular"
+                    <DurationInput
                       value={edit.response_mins ?? p.response_mins}
-                      onChange={(e) => setEdits((s) => ({
-                        ...s, [p.id]: { ...s[p.id], response_mins: Number(e.target.value) },
+                      onChange={(m) => setEdits((s) => ({
+                        ...s, [p.id]: { ...s[p.id], response_mins: m },
                       }))}
                     />
                   </td>
                   <td>
-                    <Input
-                      type="number" min="1" className="h-8 w-24 tabular"
+                    <DurationInput
                       value={edit.resolve_mins ?? p.resolve_mins}
-                      onChange={(e) => setEdits((s) => ({
-                        ...s, [p.id]: { ...s[p.id], resolve_mins: Number(e.target.value) },
+                      onChange={(m) => setEdits((s) => ({
+                        ...s, [p.id]: { ...s[p.id], resolve_mins: m },
                       }))}
                     />
                   </td>
