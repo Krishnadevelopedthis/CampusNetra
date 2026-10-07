@@ -1,0 +1,63 @@
+@startuml maintenance_sequence
+!include ../../style.iuml
+autonumber "<b>0"
+actor "Facility Manager" as M
+actor "Technician" as T
+participant "Frontend" as FE
+participant "Issues API" as IA
+participant "Work Orders API" as WA
+participant "Work Order Service" as WS
+participant "Twin Service" as TW
+participant "Notification\nService" as NT
+database "Database" as DB
+
+== Assignment ==
+M -> FE : Open issue, choose status "Assigned"
+FE -> IA : POST /issues/{id}/transition (status = assigned)
+IA -> WS : create_work_order(issue)
+WS -> WS : Copy room, asset, priority, department from issue
+WS -> WS : suggest_technician(category)\n(specialisation match, least open work)
+WS -> WS : resolve_sla(priority, department)
+WS -> DB : Save Work Order (status = Assigned)\nand Work Order Event
+WS -> NT : Notify assigned technician
+NT -> DB : Save Notification
+WS -> WS : Sync issue status (Assigned)
+IA --> FE : Issue detail with work order reference
+
+== Execution ==
+T -> FE : Open assigned work order
+FE -> WA : POST /work-orders/{id}/transition (accepted)
+WA -> WS : transition_work_order(wo, target, technician)
+WS -> WS : Check allowed transition and role
+WS -> DB : Update status, save Work Order Event
+T -> FE : Start work
+FE -> WA : POST /work-orders/{id}/transition (in_progress)
+WS -> DB : Set started_at, save Work Order Event
+WS -> WS : Issue follows work order (In Progress)
+WS -> TW : Set asset Under Maintenance
+TW -> DB : Save Asset State History and Twin Event
+TW --> FE : Broadcast live update (WebSocket)
+T -> FE : Add resolution note, evidence, parts and cost
+T -> FE : Mark completed
+FE -> WA : POST /work-orders/{id}/transition (completed)
+WS -> DB : Set completed_at, save Work Order Event
+WS -> WS : Issue follows work order (Resolved)
+alt no other open issue on the asset
+  WS -> TW : Set asset Healthy
+  TW -> DB : Save Asset State History and Twin Event
+  TW --> FE : Broadcast live update (WebSocket)
+end
+WS -> NT : Notify reporter (once)
+
+== Verification and closure ==
+M -> FE : Verify completed work
+FE -> WA : POST /work-orders/{id}/transition (verified)
+WS -> DB : Save status and Work Order Event
+WS -> WS : Issue follows work order (Verified)
+M -> FE : Close work order
+FE -> WA : POST /work-orders/{id}/transition (closed)
+WS -> DB : Save status and Work Order Event
+WS -> WS : Issue follows work order (Closed)
+WA --> FE : Updated work order
+FE --> M : Show closed work order and SLA result
+@enduml

@@ -1,0 +1,58 @@
+' Shared academic UML style: white background, sharp corners, monochrome, no shadows.
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundCorner 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam dpi 200
+skinparam ArrowColor #222222
+skinparam ArrowFontSize 12
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #555555
+skinparam NoteFontSize 12
+skinparam sequence {
+  ParticipantBackgroundColor #FFFFFF
+  ParticipantBorderColor #222222
+  ParticipantFontSize 13
+  ActorBackgroundColor #FFFFFF
+  ActorBorderColor #222222
+  LifeLineBorderColor #777777
+  LifeLineBackgroundColor #FFFFFF
+  GroupBorderColor #555555
+  GroupBackgroundColor #FFFFFF
+  BoxBorderColor #999999
+  ArrowThickness 1.1
+  MessageAlignment left
+}
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  HeaderBackgroundColor #EDEDED
+  AttributeFontSize 12
+  FontSize 13
+  ArrowColor #222222
+  BorderThickness 1
+}
+skinparam state {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  StartColor #222222
+  EndColor #222222
+  FontSize 13
+}
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+  FontSize 12
+  ActorBackgroundColor #FFFFFF
+  ActorBorderColor #222222
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #555555
+  FontSize 13
+}
+skinparam rectangle {
+  BackgroundColor #FFFFFF
+  BorderColor #222222
+}

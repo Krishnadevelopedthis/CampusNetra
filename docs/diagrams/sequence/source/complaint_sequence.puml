@@ -1,0 +1,44 @@
+@startuml complaint_sequence
+!include ../../style.iuml
+autonumber "<b>0"
+actor "Student / Teacher" as U
+participant "Frontend\n(Report Issue page)" as FE
+participant "Uploads API\n(/uploads)" as UP
+participant "Issues API\n(/issues)" as API
+participant "Issue Service" as SVC
+participant "AI Classifier" as AI
+participant "Twin Service" as TW
+participant "Notification\nService" as NT
+database "Database" as DB
+
+U -> FE : Enter title, description, location,\nselect photo
+FE -> FE : Compress photo in the browser
+FE -> UP : POST /uploads (photo)
+UP -> UP : Validate content, type and size
+UP --> FE : Stored image URL + perceptual hash
+U -> FE : Submit issue
+FE -> API : POST /issues\n(title, description, building/floor/room, asset, attachments)
+API -> API : Check permission issues:create
+API -> SVC : create_issue(reporter, details)
+SVC -> AI : classify(title, description, categories)
+alt AI model available
+  AI --> SVC : category, priority, confidence
+else AI unavailable or unknown category
+  AI --> SVC : keyword-based fallback result
+end
+SVC -> DB : Save Issue (status = Reported),\nattachments and AI invocation record
+SVC -> SVC : Calculate SLA due time\n(from category resolve minutes)
+SVC -> DB : Save Issue Event (Reported)
+SVC -> SVC : Find duplicate candidates\n(text similarity, location, time, image hash)
+SVC -> DB : Save duplicate candidates
+SVC -> TW : Mark asset Fault (if an asset is selected)
+TW -> DB : Save Asset State History
+SVC -> TW : Record Twin Event (issue created)
+TW -> DB : Save Twin Event
+TW --> FE : Broadcast live update (WebSocket)
+SVC -> NT : Notify department members\n(or managers if none)
+NT -> DB : Save Notification (and email if a template is set)
+SVC --> API : Issue and duplicate candidates
+API --> FE : 201 Created (issue, duplicate warning if any)
+FE --> U : Show issue reference and status
+@enduml

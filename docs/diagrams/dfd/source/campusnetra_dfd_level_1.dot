@@ -1,0 +1,94 @@
+digraph DFD1 {
+  graph [layout=neato, splines=polyline, overlap=false, sep="+14", pad=0.3, bgcolor="white"];
+  node  [fontname="Arial", fontsize=12];
+  edge  [fontname="Arial", fontsize=10, color="#222222", fontcolor="#111111", penwidth=1.1, arrowsize=0.8];
+  U [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="User (any role)", fontsize=13, pos="-3.2,4.6!"];
+  ST [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="Student / Teacher", fontsize=13, pos="-4.2,0.9!"];
+  TE [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="Technician", fontsize=13, pos="5,-4.4!"];
+  FM [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="Facility Manager", fontsize=13, pos="15.6,2.4!"];
+  AD [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="Admin", fontsize=13, pos="3.4,8.4!"];
+  IOT [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="IoT Device (ESP32)", fontsize=13, pos="2.7,0!"];
+  AI [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="AI Model Service", fontsize=13, pos="-4,2.6!"];
+  EM [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="Email Service", fontsize=13, pos="-3.2,8!"];
+  P1 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="1.0\nAuthentication and\nUser Management", fontsize=12.5, pos="0,6!"];
+  P2 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="2.0\nCampus and Asset\nManagement", fontsize=12.5, pos="5,6!"];
+  P3 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="3.0\nIssue\nManagement", fontsize=12.5, pos="0,3!"];
+  P4 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="4.0\nWork Order and\nSLA Management", fontsize=12.5, pos="10,3!"];
+  P5 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="5.0\nInspection\nManagement", fontsize=12.5, pos="10,0!"];
+  P6 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="6.0\nIoT Asset Health\nMonitoring", fontsize=12.5, pos="5,0!"];
+  P7 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="7.0\nDigital Twin and\nEvent Replay", fontsize=12.5, pos="5,3!"];
+  P8 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="8.0\nLost and Found\nManagement", fontsize=12.5, pos="0,0!"];
+  P9 [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="9.0\nAnalytics, Prediction\nand Simulation", fontsize=12.5, pos="10,6!"];
+  D1 [shape=plaintext, pos="0,8.4!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D1</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Users and Sessions</TD></TR></TABLE>>];
+  D2 [shape=plaintext, pos="2.5,4.7!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D2</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Campus Hierarchy</TD></TR></TABLE>>];
+  D3 [shape=plaintext, pos="5,4.6!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D3</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Assets</TD></TR></TABLE>>];
+  D4 [shape=plaintext, pos="7.6,4.7!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D4</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Issues</TD></TR></TABLE>>];
+  D5 [shape=plaintext, pos="14.6,6.2!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D5</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Work Orders and SLA Policies</TD></TR></TABLE>>];
+  D6 [shape=plaintext, pos="14,-0.4!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D6</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Inspections</TD></TR></TABLE>>];
+  D7 [shape=plaintext, pos="5,-2.2!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D7</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">IoT Devices and Health Events</TD></TR></TABLE>>];
+  D8 [shape=plaintext, pos="8,7.6!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D8</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Twin Events and Asset State History</TD></TR></TABLE>>];
+  D9 [shape=plaintext, pos="0,-2.2!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>D9</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">Lost and Found Records</TD></TR></TABLE>>];
+  U -> P1 [label="login credentials,\nregistration details"];
+  P1 -> U [label="authentication result,\naccess tokens"];
+  AD -> P1 [label="user and role changes"];
+  P1 -> D1 [label="user records, sessions", dir=both];
+  P1 -> EM [label="verification codes"];
+  AD -> P2 [label="campus structure,\nasset data"];
+  P2 -> D2 [label="hierarchy records", dir=both];
+  P2 -> D3 [label="asset records", dir=both];
+  ST -> P3 [label="issue details\nand photos"];
+  P3 -> ST [label="issue status"];
+  P3 -> AI [label="issue text, photo"];
+  AI -> P3 [label="category, priority"];
+  D2 -> P3 [label="location data"];
+  D3 -> P3 [label="asset data"];
+  P3 -> D4 [label="issue records", dir=both];
+  FM -> P4 [label="assignment, verification,\nSLA policies"];
+  TE -> P4 [label="status updates, evidence,\nparts requests"];
+  P4 -> TE [label="assigned work orders"];
+  P4 -> D5 [label="work order records", dir=both];
+  D4 -> P4 [label="issue details"];
+  P4 -> D4 [label="issue status updates"];
+  FM -> P5 [label="inspection schedule"];
+  TE -> P5 [label="inspection results"];
+  P5 -> TE [label="inspection tasks"];
+  P5 -> D6 [label="inspection records", dir=both];
+  P5 -> D4 [label="issues from\ncritical failures"];
+  IOT -> P6 [label="sensor telemetry"];
+  P6 -> D7 [label="readings, health events", dir=both];
+  P6 -> P5 [label="inspection request"];
+  P3 -> P7 [label="asset state change"];
+  P4 -> P7 [label="asset state change"];
+  P5 -> P7 [label="asset state change"];
+  P6 -> P7 [label="asset state change"];
+  P7 -> D8 [label="twin events, state history", dir=both];
+  P7 -> D3 [label="current asset state"];
+  P7 -> U [label="digital twin view,\nevent replay"];
+  ST -> P8 [label="lost/found reports,\nclaims"];
+  P8 -> ST [label="matches,\nclaim status"];
+  TE -> P8 [label="match and claim decisions"];
+  P8 -> D9 [label="item, match, claim records", dir=both];
+  FM -> P9 [label="simulation parameters"];
+  P9 -> FM [label="reports, forecasts"];
+  D4 -> P9 [label="issue history"];
+  D5 -> P9 [label="work order history"];
+  D8 -> P9 [label="state history"];
+}

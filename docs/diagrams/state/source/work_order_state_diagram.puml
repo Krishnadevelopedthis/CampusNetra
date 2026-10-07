@@ -1,0 +1,53 @@
+@startuml work_order_state_diagram
+!include ../../style.iuml
+hide empty description
+left to right direction
+skinparam ranksep 55
+skinparam nodesep 55
+
+state "Open" as Open
+state "Assigned" as Assigned
+state "Accepted" as Accepted
+state "In Progress" as InProgress
+state "Awaiting Parts" as AwaitingParts
+state "On Hold" as OnHold
+state "Completed" as Completed
+state "Verified" as Verified
+state "Closed" as Closed
+state "Cancelled" as Cancelled
+
+[*] --> Open : created without technician
+[*] --> Assigned : created with technician
+
+
+Open --> Assigned : technician assigned
+Open --> Cancelled : cancelled
+
+Assigned --> Accepted : technician accepts
+Assigned --> Open : technician removed
+Assigned --> Cancelled : cancelled
+
+Accepted --> InProgress : technician starts work
+Accepted --> OnHold : put on hold
+Accepted --> Open : returned to pool
+
+InProgress --> Completed : work finished
+InProgress --> AwaitingParts : parts requested
+InProgress --> OnHold : put on hold
+
+AwaitingParts --> InProgress : parts received
+AwaitingParts --> OnHold : put on hold
+AwaitingParts --> Cancelled : cancelled
+
+OnHold --> InProgress : resumed
+OnHold --> Open : returned to pool
+OnHold --> Cancelled : cancelled
+
+Completed --> Verified : manager verifies
+Completed --> InProgress : rework required
+
+Verified --> Closed : manager closes
+
+Closed --> [*]
+Cancelled --> [*]
+@enduml

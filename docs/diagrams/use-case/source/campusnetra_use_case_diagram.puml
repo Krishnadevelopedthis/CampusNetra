@@ -1,0 +1,138 @@
+@startuml campusnetra_use_case_diagram
+!include ../../style.iuml
+left to right direction
+skinparam ranksep 60
+skinparam nodesep 25
+skinparam linetype polyline
+
+actor "Registered User" as RU
+actor "Student" as ST
+actor "Teacher" as TE
+actor "Technician" as TC
+actor "Facility Manager" as FM
+actor "Admin" as AD
+actor "IoT Device\n(ESP32)" as IOT
+actor "AI Model\nService" as AI
+actor "Email\nService" as EM
+
+ST --|> RU
+TE --|> RU
+TC --|> RU
+FM --|> RU
+AD --|> FM
+
+rectangle "Campus Netra" {
+
+  package "Account and Access" {
+    usecase "Register Account" as UC1
+    usecase "Verify Email Code" as UC2
+    usecase "Login" as UC3
+    usecase "Reset Password" as UC4
+    usecase "Manage Profile" as UC5
+  }
+
+  package "Issue Reporting" {
+    usecase "Report Issue" as UC6
+    usecase "Classify Issue" as UC7
+    usecase "Detect Duplicate Issue" as UC8
+    usecase "Track My Issues" as UC9
+    usecase "Confirm Existing Issue" as UC10
+  }
+
+  package "Lost and Found" {
+    usecase "Report Lost or Found Item" as UC11
+    usecase "Browse Items and Matches" as UC12
+    usecase "Submit Claim" as UC13
+    usecase "Review Matches and Claims" as UC14
+  }
+
+  package "Work Orders and Inspections" {
+    usecase "Assign Work Order\nto Technician" as UC15
+    usecase "View Assigned Work Orders" as UC16
+    usecase "Update Work Order Status" as UC17
+    usecase "Request Parts" as UC18
+    usecase "Verify and Close\nWork Order" as UC19
+    usecase "Schedule Inspection" as UC20
+    usecase "Conduct Inspection" as UC21
+    usecase "Raise Issue from\nCritical Failure" as UC22
+  }
+
+  package "Campus, Assets and Digital Twin" {
+    usecase "View Campus Map\nand Digital Twin" as UC23
+    usecase "View Asset Details" as UC24
+    usecase "Replay Past Campus State" as UC25
+    usecase "Manage Assets" as UC26
+    usecase "View Asset Health" as UC27
+    usecase "Receive Sensor Telemetry" as UC28
+    usecase "Detect Asset Fault" as UC29
+  }
+
+  package "Analytics and Planning" {
+    usecase "View Analytics" as UC30
+    usecase "Run Scenario Simulation" as UC31
+    usecase "View Predictive Maintenance" as UC32
+    usecase "Configure SLA Policies" as UC33
+  }
+
+  package "Administration" {
+    usecase "Manage Users and Roles" as UC34
+    usecase "Manage Campus Structure" as UC35
+    usecase "Register IoT Device" as UC36
+    usecase "View Audit Log" as UC37
+    usecase "Send Notification" as UC38
+  }
+}
+
+RU --> UC1
+RU --> UC3
+RU --> UC4
+RU --> UC5
+RU --> UC6
+RU --> UC9
+RU --> UC10
+RU --> UC11
+RU --> UC12
+RU --> UC13
+RU --> UC23
+
+TC --> UC16
+TC --> UC17
+TC --> UC21
+TC --> UC24
+TC --> UC14
+
+FM --> UC15
+FM --> UC17
+FM --> UC19
+FM --> UC20
+FM --> UC21
+FM --> UC25
+FM --> UC26
+FM --> UC27
+FM --> UC30
+FM --> UC31
+FM --> UC32
+FM --> UC33
+FM --> UC14
+
+AD --> UC34
+AD --> UC35
+AD --> UC36
+AD --> UC37
+
+IOT --> UC28
+
+UC1 ..> UC2 : <<include>>
+UC6 ..> UC7 : <<include>>
+UC6 ..> UC8 : <<include>>
+UC17 <.. UC18 : <<extend>>
+UC21 <.. UC22 : <<extend>>
+UC28 ..> UC29 : <<include>>
+UC20 <.. UC29 : <<extend>>
+UC15 ..> UC38 : <<include>>
+UC6 ..> UC38 : <<include>>
+
+AI -- UC7
+EM -- UC38
+EM -- UC2
+@enduml

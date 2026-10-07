@@ -1,0 +1,33 @@
+@startuml asset_state_diagram
+!include ../../style.iuml
+hide empty description
+skinparam ranksep 70
+skinparam nodesep 70
+
+state "Healthy" as Healthy
+state "Warning" as Warning
+state "Fault" as Fault
+state "Under Maintenance" as UnderMaintenance
+state "Inspection Required" as InspectionRequired
+state "Decommissioned" as Decommissioned
+
+[*] --> Healthy : asset registered
+
+Healthy --> Fault : issue reported on the asset /\ninspection critical check fails
+Healthy --> Warning : issue on hold /\ninspection answer "Needs attention"
+Healthy --> InspectionRequired : IoT anomaly confirmed\n(debounce passed)
+
+Fault --> UnderMaintenance : issue / work order\nin progress
+Warning --> UnderMaintenance : issue / work order\nin progress
+UnderMaintenance --> Warning : work put on hold
+
+UnderMaintenance --> Healthy : issue resolved and no other\nopen issue or work order
+Fault --> Healthy : sensor confirms normal operation\nand nothing else is open
+Warning --> Healthy : sensor confirms normal operation\nand nothing else is open
+
+InspectionRequired --> Healthy : readings recover /\ninspection finds no fault
+InspectionRequired --> Fault : inspection confirms a fault
+
+Healthy --> Decommissioned : staff sets state manually
+Fault --> Decommissioned : staff sets state manually
+@enduml

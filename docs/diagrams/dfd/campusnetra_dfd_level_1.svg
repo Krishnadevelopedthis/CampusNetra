@@ -1,0 +1,560 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1594pt" height="1002pt" viewBox="0.00 0.00 1594.07 1002.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(21.6 980.4)">
+<title>DFD1</title>
+<polygon fill="white" stroke="none" points="-21.6,21.6 -21.6,-980.4 1572.47,-980.4 1572.47,21.6 -21.6,21.6"></polygon>
+<!-- U -->
+<g id="node1" class="node">
+<title>U</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="192.57,-684 80.69,-684 80.69,-648 192.57,-648 192.57,-684"></polygon>
+<text text-anchor="middle" x="136.63" y="-662.1" font-family="Arial" font-size="13.00">User (any role)</text>
+</g>
+<!-- P1 -->
+<g id="node9" class="node">
+<title>P1</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="367.03" cy="-766.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="367.03" y="-778.05" font-family="Arial" font-size="12.50">1.0</text>
+<text text-anchor="middle" x="367.03" y="-763.05" font-family="Arial" font-size="12.50">Authentication and</text>
+<text text-anchor="middle" x="367.03" y="-748.05" font-family="Arial" font-size="12.50">User Management</text>
+</g>
+<!-- U&#45;&gt;P1 -->
+<g id="edge1" class="edge">
+<title>U-&gt;P1</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M178.89,-684.49C211.62,-698.81 257.69,-718.97 296.06,-735.75"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="294.64,-738.19 303.09,-738.83 296.89,-733.06 294.64,-738.19"></polygon>
+<text text-anchor="middle" x="196.9" y="-725.12" font-family="Arial" font-size="10.00" fill="#111111">login credentials,</text>
+<text text-anchor="middle" x="196.9" y="-713.12" font-family="Arial" font-size="10.00" fill="#111111">registration details</text>
+</g>
+<!-- ST -->
+<g id="node2" class="node">
+<title>ST</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="129.26,-417.6 0,-417.6 0,-381.6 129.26,-381.6 129.26,-417.6"></polygon>
+<text text-anchor="middle" x="64.63" y="-395.7" font-family="Arial" font-size="13.00">Student / Teacher</text>
+</g>
+<!-- P3 -->
+<g id="node11" class="node">
+<title>P3</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="367.03" cy="-550.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="367.03" y="-562.05" font-family="Arial" font-size="12.50">3.0</text>
+<text text-anchor="middle" x="367.03" y="-547.05" font-family="Arial" font-size="12.50">Issue</text>
+<text text-anchor="middle" x="367.03" y="-532.05" font-family="Arial" font-size="12.50">Management</text>
+</g>
+<!-- ST&#45;&gt;P3 -->
+<g id="edge9" class="edge">
+<title>ST-&gt;P3</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M101.41,-417.99C150.57,-442.57 238.59,-486.58 299.77,-517.17"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="298.32,-519.57 306.72,-520.65 300.82,-514.57 298.32,-519.57"></polygon>
+<text text-anchor="middle" x="173.07" y="-482.58" font-family="Arial" font-size="10.00" fill="#111111">issue details</text>
+<text text-anchor="middle" x="173.07" y="-470.58" font-family="Arial" font-size="10.00" fill="#111111">and photos</text>
+</g>
+<!-- P8 -->
+<g id="node16" class="node">
+<title>P8</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="367.03" cy="-334.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="367.03" y="-346.05" font-family="Arial" font-size="12.50">8.0</text>
+<text text-anchor="middle" x="367.03" y="-331.05" font-family="Arial" font-size="12.50">Lost and Found</text>
+<text text-anchor="middle" x="367.03" y="-316.05" font-family="Arial" font-size="12.50">Management</text>
+</g>
+<!-- ST&#45;&gt;P8 -->
+<g id="edge37" class="edge">
+<title>ST-&gt;P8</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M129.5,-385.7C173.85,-376.2 233.09,-363.5 281.32,-353.17"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="281.64,-355.96 288.87,-351.55 280.46,-350.49 281.64,-355.96"></polygon>
+<text text-anchor="middle" x="165.39" y="-360.43" font-family="Arial" font-size="10.00" fill="#111111">lost/found reports,</text>
+<text text-anchor="middle" x="165.39" y="-348.43" font-family="Arial" font-size="10.00" fill="#111111">claims</text>
+</g>
+<!-- TE -->
+<g id="node3" class="node">
+<title>TE</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="771.42,-36 682.64,-36 682.64,0 771.42,0 771.42,-36"></polygon>
+<text text-anchor="middle" x="727.03" y="-14.1" font-family="Arial" font-size="13.00">Technician</text>
+</g>
+<!-- P4 -->
+<g id="node12" class="node">
+<title>P4</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="1087.03" cy="-550.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="1087.03" y="-562.05" font-family="Arial" font-size="12.50">4.0</text>
+<text text-anchor="middle" x="1087.03" y="-547.05" font-family="Arial" font-size="12.50">Work Order and</text>
+<text text-anchor="middle" x="1087.03" y="-532.05" font-family="Arial" font-size="12.50">SLA Management</text>
+</g>
+<!-- TE&#45;&gt;P4 -->
+<g id="edge17" class="edge">
+<title>TE-&gt;P4</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M742.84,-36.34C774.84,-73.46 844.27,-154 844.27,-154 844.27,-154 993.22,-397.46 1057.77,-502.98"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1055.21,-504.15 1061.77,-509.52 1059.99,-501.23 1055.21,-504.15"></polygon>
+<text text-anchor="middle" x="853.78" y="-277.23" font-family="Arial" font-size="10.00" fill="#111111">status updates, evidence,</text>
+<text text-anchor="middle" x="853.78" y="-265.23" font-family="Arial" font-size="10.00" fill="#111111">parts requests</text>
+</g>
+<!-- P5 -->
+<g id="node13" class="node">
+<title>P5</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="1087.03" cy="-334.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="1087.03" y="-346.05" font-family="Arial" font-size="12.50">5.0</text>
+<text text-anchor="middle" x="1087.03" y="-331.05" font-family="Arial" font-size="12.50">Inspection</text>
+<text text-anchor="middle" x="1087.03" y="-316.05" font-family="Arial" font-size="12.50">Management</text>
+</g>
+<!-- TE&#45;&gt;P5 -->
+<g id="edge23" class="edge">
+<title>TE-&gt;P5</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M747.94,-36.4C804.1,-85.82 959.3,-222.4 1038.77,-292.33"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1036.65,-294.19 1044.5,-297.38 1040.35,-289.99 1036.65,-294.19"></polygon>
+<text text-anchor="middle" x="931.99" y="-155.37" font-family="Arial" font-size="10.00" fill="#111111">inspection results</text>
+</g>
+<!-- TE&#45;&gt;P8 -->
+<g id="edge39" class="edge">
+<title>TE-&gt;P8</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M706.12,-36.4C649.96,-85.82 494.76,-222.4 415.29,-292.33"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="413.71,-289.99 409.56,-297.38 417.41,-294.19 413.71,-289.99"></polygon>
+<text text-anchor="middle" x="531.39" y="-155.37" font-family="Arial" font-size="10.00" fill="#111111">match and claim decisions</text>
+</g>
+<!-- FM -->
+<g id="node4" class="node">
+<title>FM</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="1550.87,-525.6 1429.59,-525.6 1429.59,-489.6 1550.87,-489.6 1550.87,-525.6"></polygon>
+<text text-anchor="middle" x="1490.23" y="-503.7" font-family="Arial" font-size="13.00">Facility Manager</text>
+</g>
+<!-- FM&#45;&gt;P4 -->
+<g id="edge16" class="edge">
+<title>FM-&gt;P4</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1429.43,-514.11C1362.52,-521.28 1254.28,-532.88 1177.43,-541.11"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1177.53,-538.29 1169.87,-541.92 1178.12,-543.86 1177.53,-538.29"></polygon>
+<text text-anchor="middle" x="1249.79" y="-542.61" font-family="Arial" font-size="10.00" fill="#111111">assignment, verification,</text>
+<text text-anchor="middle" x="1249.79" y="-530.61" font-family="Arial" font-size="10.00" fill="#111111">SLA policies</text>
+</g>
+<!-- FM&#45;&gt;P5 -->
+<g id="edge22" class="edge">
+<title>FM-&gt;P5</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1447.08,-489.11C1378.21,-459.59 1242.7,-401.51 1158.98,-365.64"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1160.28,-363.15 1151.82,-362.57 1158.07,-368.29 1160.28,-363.15"></polygon>
+<text text-anchor="middle" x="1259.11" y="-430.37" font-family="Arial" font-size="10.00" fill="#111111">inspection schedule</text>
+</g>
+<!-- P9 -->
+<g id="node17" class="node">
+<title>P9</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="1087.03" cy="-766.8" rx="83.66" ry="41.4"></ellipse>
+<text text-anchor="middle" x="1087.03" y="-778.05" font-family="Arial" font-size="12.50">9.0</text>
+<text text-anchor="middle" x="1087.03" y="-763.05" font-family="Arial" font-size="12.50">Analytics, Prediction</text>
+<text text-anchor="middle" x="1087.03" y="-748.05" font-family="Arial" font-size="12.50">and Simulation</text>
+</g>
+<!-- FM&#45;&gt;P9 -->
+<g id="edge41" class="edge">
+<title>FM-&gt;P9</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1461.56,-526.03C1396.04,-568.15 1234.28,-672.14 1146.31,-728.69"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1144.91,-726.26 1139.69,-732.95 1147.93,-730.98 1144.91,-726.26"></polygon>
+<text text-anchor="middle" x="1254.75" y="-618.36" font-family="Arial" font-size="10.00" fill="#111111">simulation parameters</text>
+</g>
+<!-- AD -->
+<g id="node5" class="node">
+<title>AD</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="643.21,-957.6 580.45,-957.6 580.45,-921.6 643.21,-921.6 643.21,-957.6"></polygon>
+<text text-anchor="middle" x="611.83" y="-935.7" font-family="Arial" font-size="13.00">Admin</text>
+</g>
+<!-- AD&#45;&gt;P1 -->
+<g id="edge3" class="edge">
+<title>AD-&gt;P1</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M585.63,-921.11C547.03,-893.86 473.96,-842.28 422.96,-806.28"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="424.8,-804.15 416.65,-801.83 421.58,-808.73 424.8,-804.15"></polygon>
+<text text-anchor="middle" x="454.82" y="-866.7" font-family="Arial" font-size="10.00" fill="#111111">user and role changes</text>
+</g>
+<!-- P2 -->
+<g id="node10" class="node">
+<title>P2</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="727.03" cy="-766.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="727.03" y="-778.05" font-family="Arial" font-size="12.50">2.0</text>
+<text text-anchor="middle" x="727.03" y="-763.05" font-family="Arial" font-size="12.50">Campus and Asset</text>
+<text text-anchor="middle" x="727.03" y="-748.05" font-family="Arial" font-size="12.50">Management</text>
+</g>
+<!-- AD&#45;&gt;P2 -->
+<g id="edge6" class="edge">
+<title>AD-&gt;P2</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M624.16,-921.11C641.05,-895.77 671.97,-849.39 695.52,-814.07"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="697.69,-815.86 699.8,-807.65 693.03,-812.75 697.69,-815.86"></polygon>
+<text text-anchor="middle" x="620.1" y="-882.59" font-family="Arial" font-size="10.00" fill="#111111">campus structure,</text>
+<text text-anchor="middle" x="620.1" y="-870.59" font-family="Arial" font-size="10.00" fill="#111111">asset data</text>
+</g>
+<!-- IOT -->
+<g id="node6" class="node">
+<title>IOT</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="623.89,-358.95 483.09,-358.95 483.09,-322.95 623.89,-322.95 623.89,-358.95"></polygon>
+<text text-anchor="middle" x="553.49" y="-337.05" font-family="Arial" font-size="13.00">IoT Device (ESP32)</text>
+</g>
+<!-- P6 -->
+<g id="node14" class="node">
+<title>P6</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="775.63" cy="-349.2" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="775.63" y="-360.45" font-family="Arial" font-size="12.50">6.0</text>
+<text text-anchor="middle" x="775.63" y="-345.45" font-family="Arial" font-size="12.50">IoT Asset Health</text>
+<text text-anchor="middle" x="775.63" y="-330.45" font-family="Arial" font-size="12.50">Monitoring</text>
+</g>
+<!-- IOT&#45;&gt;P6 -->
+<g id="edge27" class="edge">
+<title>IOT-&gt;P6</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M624.08,-343.57C642.86,-344.27 663.43,-345.03 683.18,-345.77"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="683.04,-348.56 691.14,-346.06 683.25,-342.97 683.04,-348.56"></polygon>
+<text text-anchor="middle" x="653.63" y="-335.67" font-family="Arial" font-size="10.00" fill="#111111">sensor telemetry</text>
+</g>
+<!-- AI -->
+<g id="node7" class="node">
+<title>AI</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="141.12,-540 16.94,-540 16.94,-504 141.12,-504 141.12,-540"></polygon>
+<text text-anchor="middle" x="79.03" y="-518.1" font-family="Arial" font-size="13.00">AI Model Service</text>
+</g>
+<!-- AI&#45;&gt;P3 -->
+<g id="edge12" class="edge">
+<title>AI-&gt;P3</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M141.52,-528.25C180.82,-532.18 232.2,-537.32 275.99,-541.7"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="275.61,-544.47 283.85,-542.48 276.16,-538.9 275.61,-544.47"></polygon>
+<text text-anchor="middle" x="245.72" y="-525.97" font-family="Arial" font-size="10.00" fill="#111111">category, priority</text>
+</g>
+<!-- EM -->
+<g id="node8" class="node">
+<title>EM</title>
+<polygon fill="none" stroke="black" stroke-width="1.6" points="189.32,-928.8 83.94,-928.8 83.94,-892.8 189.32,-892.8 189.32,-928.8"></polygon>
+<text text-anchor="middle" x="136.63" y="-906.9" font-family="Arial" font-size="13.00">Email Service</text>
+</g>
+<!-- P1&#45;&gt;U -->
+<g id="edge2" class="edge">
+<title>P1-&gt;U</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M304.38,-739.39C267.65,-723.32 221.85,-703.28 187.39,-688.21"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="188.86,-685.79 180.41,-685.15 186.62,-690.92 188.86,-685.79"></polygon>
+<text text-anchor="middle" x="292.02" y="-704.8" font-family="Arial" font-size="10.00" fill="#111111">authentication result,</text>
+<text text-anchor="middle" x="292.02" y="-692.8" font-family="Arial" font-size="10.00" fill="#111111">access tokens</text>
+</g>
+<!-- P1&#45;&gt;EM -->
+<g id="edge5" class="edge">
+<title>P1-&gt;EM</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M315.04,-799.3C272.04,-826.17 212.03,-863.68 173.75,-887.6"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="172.64,-884.99 167.34,-891.61 175.6,-889.74 172.64,-884.99"></polygon>
+<text text-anchor="middle" x="205.76" y="-846.45" font-family="Arial" font-size="10.00" fill="#111111">verification codes</text>
+</g>
+<!-- D1 -->
+<g id="node18" class="node">
+<title>D1</title>
+<polygon fill="#ededed" stroke="none" points="290,-924.4 290,-954.8 321.34,-954.8 321.34,-924.4 290,-924.4"></polygon>
+<polyline fill="none" stroke="black" points="290,-924.4 321.34,-924.4"></polyline>
+<polyline fill="none" stroke="black" points="321.34,-954.8 290,-954.8"></polyline>
+<text text-anchor="start" x="298" y="-937" font-family="Arial" font-weight="bold" font-size="12.00">D1</text>
+<polyline fill="none" stroke="black" points="321.34,-924.4 444.06,-924.4"></polyline>
+<polyline fill="none" stroke="black" points="444.06,-954.8 321.34,-954.8"></polyline>
+<text text-anchor="start" x="329.34" y="-936" font-family="Arial" font-size="12.00">Users and Sessions</text>
+</g>
+<!-- P1&#45;&gt;D1 -->
+<g id="edge4" class="edge">
+<title>P1-&gt;D1</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M367.03,-818.08C367.03,-848.48 367.03,-885.87 367.03,-911.08"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="369.83,-818.29 367.03,-810.29 364.23,-818.29 369.83,-818.29"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="364.23,-910.77 367.03,-918.77 369.83,-910.77 364.23,-910.77"></polygon>
+<text text-anchor="middle" x="317.01" y="-867.58" font-family="Arial" font-size="10.00" fill="#111111">user records, sessions</text>
+</g>
+<!-- D2 -->
+<g id="node19" class="node">
+<title>D2</title>
+<polygon fill="#ededed" stroke="none" points="473.68,-658 473.68,-688.4 505.02,-688.4 505.02,-658 473.68,-658"></polygon>
+<polyline fill="none" stroke="black" points="473.68,-658 505.02,-658"></polyline>
+<polyline fill="none" stroke="black" points="505.02,-688.4 473.68,-688.4"></polyline>
+<text text-anchor="start" x="481.68" y="-670.6" font-family="Arial" font-weight="bold" font-size="12.00">D2</text>
+<polyline fill="none" stroke="black" points="505.02,-658 620.38,-658"></polyline>
+<polyline fill="none" stroke="black" points="620.38,-688.4 505.02,-688.4"></polyline>
+<text text-anchor="start" x="513.02" y="-669.6" font-family="Arial" font-size="12.00">Campus Hierarchy</text>
+</g>
+<!-- P2&#45;&gt;D2 -->
+<g id="edge7" class="edge">
+<title>P2-&gt;D2</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M661.23,-732.58C638.29,-720.66 613.09,-707.55 592.22,-696.7"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="659.72,-734.95 668.1,-736.16 662.3,-729.98 659.72,-734.95"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="593.72,-694.32 585.33,-693.11 591.13,-699.29 593.72,-694.32"></polygon>
+<text text-anchor="middle" x="588.1" y="-717.64" font-family="Arial" font-size="10.00" fill="#111111">hierarchy records</text>
+</g>
+<!-- D3 -->
+<g id="node20" class="node">
+<title>D3</title>
+<polygon fill="#ededed" stroke="none" points="685.35,-650.8 685.35,-681.2 716.69,-681.2 716.69,-650.8 685.35,-650.8"></polygon>
+<polyline fill="none" stroke="black" points="685.35,-650.8 716.69,-650.8"></polyline>
+<polyline fill="none" stroke="black" points="716.69,-681.2 685.35,-681.2"></polyline>
+<text text-anchor="start" x="693.35" y="-663.4" font-family="Arial" font-weight="bold" font-size="12.00">D3</text>
+<polyline fill="none" stroke="black" points="716.69,-650.8 768.71,-650.8"></polyline>
+<polyline fill="none" stroke="black" points="768.71,-681.2 716.69,-681.2"></polyline>
+<text text-anchor="start" x="724.69" y="-662.4" font-family="Arial" font-size="12.00">Assets</text>
+</g>
+<!-- P2&#45;&gt;D3 -->
+<g id="edge8" class="edge">
+<title>P2-&gt;D3</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M727.03,-715.43C727.03,-708.31 727.03,-701.22 727.03,-694.72"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="724.23,-715.26 727.03,-723.26 729.83,-715.26 724.23,-715.26"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="729.83,-694.74 727.03,-686.74 724.23,-694.74 729.83,-694.74"></polygon>
+<text text-anchor="middle" x="697.02" y="-708.07" font-family="Arial" font-size="10.00" fill="#111111">asset records</text>
+</g>
+<!-- P3&#45;&gt;ST -->
+<g id="edge10" class="edge">
+<title>P3-&gt;ST</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M308.01,-521.29C250.04,-492.31 162.85,-448.71 110.08,-422.33"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="111.5,-419.9 103.09,-418.83 108.99,-424.91 111.5,-419.9"></polygon>
+<text text-anchor="middle" x="235.45" y="-474.81" font-family="Arial" font-size="10.00" fill="#111111">issue status</text>
+</g>
+<!-- P3&#45;&gt;AI -->
+<g id="edge11" class="edge">
+<title>P3-&gt;AI</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M285.66,-542.66C243.22,-538.42 191.77,-533.27 150.83,-529.18"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="151.35,-526.42 143.12,-528.41 150.8,-531.99 151.35,-526.42"></polygon>
+<text text-anchor="middle" x="181.83" y="-538.92" font-family="Arial" font-size="10.00" fill="#111111">issue text, photo</text>
+</g>
+<!-- P7 -->
+<g id="node15" class="node">
+<title>P7</title>
+<ellipse fill="none" stroke="black" stroke-width="1.6" cx="727.03" cy="-550.8" rx="82.8" ry="41.4"></ellipse>
+<text text-anchor="middle" x="727.03" y="-562.05" font-family="Arial" font-size="12.50">7.0</text>
+<text text-anchor="middle" x="727.03" y="-547.05" font-family="Arial" font-size="12.50">Digital Twin and</text>
+<text text-anchor="middle" x="727.03" y="-532.05" font-family="Arial" font-size="12.50">Event Replay</text>
+</g>
+<!-- P3&#45;&gt;P7 -->
+<g id="edge30" class="edge">
+<title>P3-&gt;P7</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M450.07,-550.8C505.15,-550.8 577.49,-550.8 634.42,-550.8"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="634.12,-553.6 642.12,-550.8 634.12,-548 634.12,-553.6"></polygon>
+<text text-anchor="middle" x="500.27" y="-553.8" font-family="Arial" font-size="10.00" fill="#111111">asset state change</text>
+</g>
+<!-- D4 -->
+<g id="node21" class="node">
+<title>D4</title>
+<polygon fill="#ededed" stroke="none" points="873.22,-658 873.22,-688.4 904.56,-688.4 904.56,-658 873.22,-658"></polygon>
+<polyline fill="none" stroke="black" points="873.22,-658 904.56,-658"></polyline>
+<polyline fill="none" stroke="black" points="904.56,-688.4 873.22,-688.4"></polyline>
+<text text-anchor="start" x="881.22" y="-670.6" font-family="Arial" font-weight="bold" font-size="12.00">D4</text>
+<polyline fill="none" stroke="black" points="904.56,-658 955.24,-658"></polyline>
+<polyline fill="none" stroke="black" points="955.24,-688.4 904.56,-688.4"></polyline>
+<text text-anchor="start" x="912.56" y="-669.6" font-family="Arial" font-size="12.00">Issues</text>
+</g>
+<!-- P3&#45;&gt;D4 -->
+<g id="edge15" class="edge">
+<title>P3-&gt;D4</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M452.35,-569.89C564.74,-595.02 759.41,-638.57 856.17,-660.21"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="453.16,-567.2 444.74,-568.18 451.94,-572.66 453.16,-567.2"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="855.46,-662.92 863.88,-661.94 856.68,-657.46 855.46,-662.92"></polygon>
+<text text-anchor="middle" x="624.53" y="-618.05" font-family="Arial" font-size="10.00" fill="#111111">issue records</text>
+</g>
+<!-- P4&#45;&gt;TE -->
+<g id="edge18" class="edge">
+<title>P4-&gt;TE</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1062.64,-510.94C1001.08,-410.31 844.27,-154 844.27,-154 844.27,-154 782.74,-82.63 748.83,-43.29"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="751.27,-41.83 743.93,-37.6 747.03,-45.49 751.27,-41.83"></polygon>
+<text text-anchor="middle" x="962.84" y="-273.12" font-family="Arial" font-size="10.00" fill="#111111">assigned work orders</text>
+</g>
+<!-- P4&#45;&gt;P7 -->
+<g id="edge31" class="edge">
+<title>P4-&gt;P7</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1003.99,-550.8C948.91,-550.8 876.57,-550.8 819.64,-550.8"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="819.94,-548 811.94,-550.8 819.94,-553.6 819.94,-548"></polygon>
+<text text-anchor="middle" x="869.84" y="-553.8" font-family="Arial" font-size="10.00" fill="#111111">asset state change</text>
+</g>
+<!-- P4&#45;&gt;D4 -->
+<g id="edge21" class="edge">
+<title>P4-&gt;D4</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1038.9,-584.9C1010.3,-605.15 974.69,-630.37 948.86,-648.67"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="947.44,-646.24 942.54,-653.15 950.68,-650.81 947.44,-646.24"></polygon>
+<text text-anchor="middle" x="948.29" y="-607.78" font-family="Arial" font-size="10.00" fill="#111111">issue status updates</text>
+</g>
+<!-- D5 -->
+<g id="node22" class="node">
+<title>D5</title>
+<polygon fill="#ededed" stroke="none" points="1313.53,-766 1313.53,-796.4 1344.87,-796.4 1344.87,-766 1313.53,-766"></polygon>
+<polyline fill="none" stroke="black" points="1313.53,-766 1344.87,-766"></polyline>
+<polyline fill="none" stroke="black" points="1344.87,-796.4 1313.53,-796.4"></polyline>
+<text text-anchor="start" x="1321.53" y="-778.6" font-family="Arial" font-weight="bold" font-size="12.00">D5</text>
+<polyline fill="none" stroke="black" points="1344.87,-766 1522.93,-766"></polyline>
+<polyline fill="none" stroke="black" points="1522.93,-796.4 1344.87,-796.4"></polyline>
+<text text-anchor="start" x="1352.87" y="-777.6" font-family="Arial" font-size="12.00">Work Orders and SLA Policies</text>
+</g>
+<!-- P4&#45;&gt;D5 -->
+<g id="edge19" class="edge">
+<title>P4-&gt;D5</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1143.2,-589.88C1211.89,-637.66 1326.05,-717.07 1383.27,-756.88"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1145.08,-587.77 1136.91,-585.5 1141.88,-592.37 1145.08,-587.77"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1381.43,-759.01 1389.59,-761.28 1384.62,-754.41 1381.43,-759.01"></polygon>
+<text text-anchor="middle" x="1221.56" y="-676.38" font-family="Arial" font-size="10.00" fill="#111111">work order records</text>
+</g>
+<!-- P5&#45;&gt;TE -->
+<g id="edge24" class="edge">
+<title>P5-&gt;TE</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1045.73,-298.46C971.73,-233.33 818.35,-98.36 755.17,-42.76"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="757.03,-40.67 749.17,-37.48 753.33,-44.87 757.03,-40.67"></polygon>
+<text text-anchor="middle" x="936.02" y="-173.61" font-family="Arial" font-size="10.00" fill="#111111">inspection tasks</text>
+</g>
+<!-- P5&#45;&gt;P7 -->
+<g id="edge32" class="edge">
+<title>P5-&gt;P7</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1033.52,-366.9C968.12,-406.15 857.66,-472.42 788.73,-513.78"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="787.38,-511.32 781.96,-517.84 790.26,-516.12 787.38,-511.32"></polygon>
+<text text-anchor="middle" x="869.15" y="-443.34" font-family="Arial" font-size="10.00" fill="#111111">asset state change</text>
+</g>
+<!-- P5&#45;&gt;D4 -->
+<g id="edge26" class="edge">
+<title>P5-&gt;D4</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1066.36,-375.28C1030.74,-445.03 958.7,-586.11 928.29,-645.67"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="925.85,-644.3 924.7,-652.69 930.83,-646.84 925.85,-644.3"></polygon>
+<text text-anchor="middle" x="965.65" y="-525.48" font-family="Arial" font-size="10.00" fill="#111111">issues from</text>
+<text text-anchor="middle" x="965.65" y="-513.48" font-family="Arial" font-size="10.00" fill="#111111">critical failures</text>
+</g>
+<!-- D6 -->
+<g id="node23" class="node">
+<title>D6</title>
+<polygon fill="#ededed" stroke="none" points="1321.01,-290.8 1321.01,-321.2 1352.35,-321.2 1352.35,-290.8 1321.01,-290.8"></polygon>
+<polyline fill="none" stroke="black" points="1321.01,-290.8 1352.35,-290.8"></polyline>
+<polyline fill="none" stroke="black" points="1352.35,-321.2 1321.01,-321.2"></polyline>
+<text text-anchor="start" x="1329.01" y="-303.4" font-family="Arial" font-weight="bold" font-size="12.00">D6</text>
+<polyline fill="none" stroke="black" points="1352.35,-290.8 1429.05,-290.8"></polyline>
+<polyline fill="none" stroke="black" points="1429.05,-321.2 1352.35,-321.2"></polyline>
+<text text-anchor="start" x="1360.35" y="-302.4" font-family="Arial" font-size="12.00">Inspections</text>
+</g>
+<!-- P5&#45;&gt;D6 -->
+<g id="edge25" class="edge">
+<title>P5-&gt;D6</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1177.96,-325.71C1218.53,-321.65 1265.63,-316.94 1303.61,-313.14"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1177.74,-322.91 1170.06,-326.5 1178.3,-328.49 1177.74,-322.91"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1303.72,-315.94 1311.4,-312.36 1303.17,-310.37 1303.72,-315.94"></polygon>
+<text text-anchor="middle" x="1261.07" y="-310.42" font-family="Arial" font-size="10.00" fill="#111111">inspection records</text>
+</g>
+<!-- P6&#45;&gt;P5 -->
+<g id="edge29" class="edge">
+<title>P6-&gt;P5</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M858.26,-345.38C900.31,-343.43 951.56,-341.06 994.88,-339.06"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="994.76,-341.87 1002.62,-338.7 994.5,-336.28 994.76,-341.87"></polygon>
+<text text-anchor="middle" x="946.86" y="-333.22" font-family="Arial" font-size="10.00" fill="#111111">inspection request</text>
+</g>
+<!-- P6&#45;&gt;P7 -->
+<g id="edge33" class="edge">
+<title>P6-&gt;P7</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M765.68,-390.48C758.04,-422.18 747.45,-466.1 739.29,-499.96"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="736.6,-499.17 737.44,-507.61 742.04,-500.49 736.6,-499.17"></polygon>
+<text text-anchor="middle" x="710.51" y="-448.22" font-family="Arial" font-size="10.00" fill="#111111">asset state change</text>
+</g>
+<!-- D7 -->
+<g id="node24" class="node">
+<title>D7</title>
+<polygon fill="#ededed" stroke="none" points="620.99,-161.2 620.99,-191.6 652.33,-191.6 652.33,-161.2 620.99,-161.2"></polygon>
+<polyline fill="none" stroke="black" points="620.99,-161.2 652.33,-161.2"></polyline>
+<polyline fill="none" stroke="black" points="652.33,-191.6 620.99,-191.6"></polyline>
+<text text-anchor="start" x="628.99" y="-173.8" font-family="Arial" font-weight="bold" font-size="12.00">D7</text>
+<polyline fill="none" stroke="black" points="652.33,-161.2 833.07,-161.2"></polyline>
+<polyline fill="none" stroke="black" points="833.07,-191.6 652.33,-191.6"></polyline>
+<text text-anchor="start" x="660.33" y="-172.8" font-family="Arial" font-size="12.00">IoT Devices and Health Events</text>
+</g>
+<!-- P6&#45;&gt;D7 -->
+<g id="edge28" class="edge">
+<title>P6-&gt;D7</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M761.44,-298.75C752.78,-267.95 742.03,-229.74 734.88,-204.3"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="758.68,-299.26 763.54,-306.21 764.07,-297.75 758.68,-299.26"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="737.63,-203.76 732.77,-196.82 732.24,-205.27 737.63,-203.76"></polygon>
+<text text-anchor="middle" x="696.46" y="-254.52" font-family="Arial" font-size="10.00" fill="#111111">readings, health events</text>
+</g>
+<!-- P7&#45;&gt;U -->
+<g id="edge36" class="edge">
+<title>P7-&gt;U</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M649.54,-565.92C532.36,-588.79 312.1,-631.76 202.32,-653.18"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="201.95,-650.4 194.64,-654.68 203.02,-655.9 201.95,-650.4"></polygon>
+<text text-anchor="middle" x="389.8" y="-624.55" font-family="Arial" font-size="10.00" fill="#111111">digital twin view,</text>
+<text text-anchor="middle" x="389.8" y="-612.55" font-family="Arial" font-size="10.00" fill="#111111">event replay</text>
+</g>
+<!-- P7&#45;&gt;D3 -->
+<g id="edge35" class="edge">
+<title>P7-&gt;D3</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M727.03,-592.39C727.03,-607.43 727.03,-624.05 727.03,-637.69"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="724.23,-637.36 727.03,-645.36 729.83,-637.36 724.23,-637.36"></polygon>
+<text text-anchor="middle" x="685.9" y="-606.04" font-family="Arial" font-size="10.00" fill="#111111">current asset state</text>
+</g>
+<!-- D8 -->
+<g id="node25" class="node">
+<title>D8</title>
+<polygon fill="#ededed" stroke="none" points="822.32,-866.8 822.32,-897.2 853.66,-897.2 853.66,-866.8 822.32,-866.8"></polygon>
+<polyline fill="none" stroke="black" points="822.32,-866.8 853.66,-866.8"></polyline>
+<polyline fill="none" stroke="black" points="853.66,-897.2 822.32,-897.2"></polyline>
+<text text-anchor="start" x="830.32" y="-879.4" font-family="Arial" font-weight="bold" font-size="12.00">D8</text>
+<polyline fill="none" stroke="black" points="853.66,-866.8 1063.74,-866.8"></polyline>
+<polyline fill="none" stroke="black" points="1063.74,-897.2 853.66,-897.2"></polyline>
+<text text-anchor="start" x="861.66" y="-878.4" font-family="Arial" font-size="12.00">Twin Events and Asset State History</text>
+</g>
+<!-- P7&#45;&gt;D8 -->
+<g id="edge34" class="edge">
+<title>P7-&gt;D8</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M757.98,-598.25C803.93,-668.72 888.73,-798.75 925.39,-854.95"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="760.5,-596.99 753.78,-591.82 755.8,-600.05 760.5,-596.99"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="923.02,-856.44 929.73,-861.61 927.71,-853.38 923.02,-856.44"></polygon>
+<text text-anchor="middle" x="896.43" y="-729.6" font-family="Arial" font-size="10.00" fill="#111111">twin events, state history</text>
+</g>
+<!-- P8&#45;&gt;ST -->
+<g id="edge38" class="edge">
+<title>P8-&gt;ST</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M290.72,-351.15C244.23,-361.11 185.11,-373.78 138.98,-383.67"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="138.51,-380.91 131.27,-385.32 139.68,-386.38 138.51,-380.91"></polygon>
+<text text-anchor="middle" x="241.25" y="-382.41" font-family="Arial" font-size="10.00" fill="#111111">matches,</text>
+<text text-anchor="middle" x="241.25" y="-370.41" font-family="Arial" font-size="10.00" fill="#111111">claim status</text>
+</g>
+<!-- D9 -->
+<g id="node26" class="node">
+<title>D9</title>
+<polygon fill="#ededed" stroke="none" points="277.65,-161.2 277.65,-191.6 308.99,-191.6 308.99,-161.2 277.65,-161.2"></polygon>
+<polyline fill="none" stroke="black" points="277.65,-161.2 308.99,-161.2"></polyline>
+<polyline fill="none" stroke="black" points="308.99,-191.6 277.65,-191.6"></polyline>
+<text text-anchor="start" x="285.65" y="-173.8" font-family="Arial" font-weight="bold" font-size="12.00">D9</text>
+<polyline fill="none" stroke="black" points="308.99,-161.2 456.41,-161.2"></polyline>
+<polyline fill="none" stroke="black" points="456.41,-191.6 308.99,-191.6"></polyline>
+<text text-anchor="start" x="316.99" y="-172.8" font-family="Arial" font-size="12.00">Lost and Found Records</text>
+</g>
+<!-- P8&#45;&gt;D9 -->
+<g id="edge40" class="edge">
+<title>P8-&gt;D9</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M367.03,-283.62C367.03,-257.41 367.03,-226.51 367.03,-204.63"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="364.23,-283.52 367.03,-291.52 369.83,-283.52 364.23,-283.52"></polygon>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="369.83,-204.93 367.03,-196.93 364.23,-204.93 369.83,-204.93"></polygon>
+<text text-anchor="middle" x="308.68" y="-247.13" font-family="Arial" font-size="10.00" fill="#111111">item, match, claim records</text>
+</g>
+<!-- P9&#45;&gt;FM -->
+<g id="edge42" class="edge">
+<title>P9-&gt;FM</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1138.51,-733.71C1221.3,-680.49 1382.02,-577.17 1453.92,-530.94"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1455.22,-533.44 1460.43,-526.76 1452.19,-528.73 1455.22,-533.44"></polygon>
+<text text-anchor="middle" x="1257.59" y="-635.32" font-family="Arial" font-size="10.00" fill="#111111">reports, forecasts</text>
+</g>
+<!-- D2&#45;&gt;P3 -->
+<g id="edge13" class="edge">
+<title>D2-&gt;P3</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M518.9,-654.08C493.66,-636.91 455.81,-611.17 424.22,-589.69"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="425.9,-587.45 417.71,-585.26 422.75,-592.08 425.9,-587.45"></polygon>
+<text text-anchor="middle" x="499.92" y="-624.88" font-family="Arial" font-size="10.00" fill="#111111">location data</text>
+</g>
+<!-- D3&#45;&gt;P3 -->
+<g id="edge14" class="edge">
+<title>D3-&gt;P3</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M677.73,-650.22C617.99,-631.11 516.57,-598.65 445.92,-576.04"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="447.09,-573.48 438.62,-573.71 445.38,-578.81 447.09,-573.48"></polygon>
+<text text-anchor="middle" x="538.75" y="-604.13" font-family="Arial" font-size="10.00" fill="#111111">asset data</text>
+</g>
+<!-- D4&#45;&gt;P4 -->
+<g id="edge20" class="edge">
+<title>D4-&gt;P4</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M941.23,-654.08C965.29,-637.03 1001.27,-611.54 1031.47,-590.16"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1032.74,-592.69 1037.65,-585.78 1029.51,-588.12 1032.74,-592.69"></polygon>
+<text text-anchor="middle" x="958.83" y="-625.12" font-family="Arial" font-size="10.00" fill="#111111">issue details</text>
+</g>
+<!-- D4&#45;&gt;P9 -->
+<g id="edge43" class="edge">
+<title>D4-&gt;P9</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M949.62,-692.37C970.46,-703.66 997.48,-718.3 1022.04,-731.6"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1020.43,-733.91 1028.8,-735.26 1023.1,-728.99 1020.43,-733.91"></polygon>
+<text text-anchor="middle" x="958.04" y="-714.98" font-family="Arial" font-size="10.00" fill="#111111">issue history</text>
+</g>
+<!-- D5&#45;&gt;P9 -->
+<g id="edge44" class="edge">
+<title>D5-&gt;P9</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1305.64,-776.3C1264.75,-774.53 1219.05,-772.54 1180.04,-770.84"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1180.57,-768.06 1172.46,-770.51 1180.33,-773.66 1180.57,-768.06"></polygon>
+<text text-anchor="middle" x="1262.71" y="-764.57" font-family="Arial" font-size="10.00" fill="#111111">work order history</text>
+</g>
+<!-- D8&#45;&gt;P9 -->
+<g id="edge45" class="edge">
+<title>D8-&gt;P9</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M966.81,-862.98C985.41,-848.1 1011.95,-826.87 1035.36,-808.13"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1037.04,-810.38 1041.54,-803.19 1033.54,-806 1037.04,-810.38"></polygon>
+<text text-anchor="middle" x="974.13" y="-838.56" font-family="Arial" font-size="10.00" fill="#111111">state history</text>
+</g>
+</g>
+</svg>

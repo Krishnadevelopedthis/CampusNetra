@@ -1,0 +1,146 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  Campus Netra DFD Level 1 generator. Notation: Yourdon-DeMarco
+  (external entity = rectangle, process = circle/ellipse, data store = open-ended rectangle).
+  Edit EXTERNALS / PROCESSES / STORES / FLOWS and open in a browser (Graphviz WebAssembly from jsdelivr).
+  A double-headed arrow means the process both reads and writes that store.
+-->
+<style>
+  html, body { margin: 0; background: #fff; overflow: hidden; }
+  #wrap { display: inline-block; padding: 14px; background: #fff; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/lib/viz-standalone.js"></script>
+</head>
+<body>
+<div id="wrap"><div id="out"></div></div>
+<script>
+const EXTERNALS = {
+  U:   'User (any role)',
+  ST:  'Student / Teacher',
+  TE:  'Technician',
+  FM:  'Facility Manager',
+  AD:  'Admin',
+  IOT: 'IoT Device (ESP32)',
+  AI:  'AI Model Service',
+  EM:  'Email Service',
+};
+const PROCESSES = {
+  P1: ['1.0', 'Authentication and\\nUser Management'],
+  P2: ['2.0', 'Campus and Asset\\nManagement'],
+  P3: ['3.0', 'Issue\\nManagement'],
+  P4: ['4.0', 'Work Order and\\nSLA Management'],
+  P5: ['5.0', 'Inspection\\nManagement'],
+  P6: ['6.0', 'IoT Asset Health\\nMonitoring'],
+  P7: ['7.0', 'Digital Twin and\\nEvent Replay'],
+  P8: ['8.0', 'Lost and Found\\nManagement'],
+  P9: ['9.0', 'Analytics, Prediction\\nand Simulation'],
+};
+const STORES = {
+  D1: ['D1', 'Users and Sessions'],
+  D2: ['D2', 'Campus Hierarchy'],
+  D3: ['D3', 'Assets'],
+  D4: ['D4', 'Issues'],
+  D5: ['D5', 'Work Orders and SLA Policies'],
+  D6: ['D6', 'Inspections'],
+  D7: ['D7', 'IoT Devices and Health Events'],
+  D8: ['D8', 'Twin Events and Asset State History'],
+  D9: ['D9', 'Lost and Found Records'],
+};
+// [from, to, label, bidirectional]
+const FLOWS = [
+  ['U', 'P1', 'login credentials,\\nregistration details', 0],
+  ['P1', 'U', 'authentication result,\\naccess tokens', 0],
+  ['AD', 'P1', 'user and role changes', 0],
+  ['P1', 'D1', 'user records, sessions', 1],
+  ['P1', 'EM', 'verification codes', 0],
+
+  ['AD', 'P2', 'campus structure,\\nasset data', 0],
+  ['P2', 'D2', 'hierarchy records', 1],
+  ['P2', 'D3', 'asset records', 1],
+
+  ['ST', 'P3', 'issue details\\nand photos', 0],
+  ['P3', 'ST', 'issue status', 0],
+  ['P3', 'AI', 'issue text, photo', 0],
+  ['AI', 'P3', 'category, priority', 0],
+  ['D2', 'P3', 'location data', 0],
+  ['D3', 'P3', 'asset data', 0],
+  ['P3', 'D4', 'issue records', 1],
+
+  ['FM', 'P4', 'assignment, verification,\\nSLA policies', 0],
+  ['TE', 'P4', 'status updates, evidence,\\nparts requests', 0],
+  ['P4', 'TE', 'assigned work orders', 0],
+  ['P4', 'D5', 'work order records', 1],
+  ['D4', 'P4', 'issue details', 0],
+  ['P4', 'D4', 'issue status updates', 0],
+
+  ['FM', 'P5', 'inspection schedule', 0],
+  ['TE', 'P5', 'inspection results', 0],
+  ['P5', 'TE', 'inspection tasks', 0],
+  ['P5', 'D6', 'inspection records', 1],
+  ['P5', 'D4', 'issues from\\ncritical failures', 0],
+
+  ['IOT', 'P6', 'sensor telemetry', 0],
+  ['P6', 'D7', 'readings, health events', 1],
+  ['P6', 'P5', 'inspection request', 0],
+
+  ['P3', 'P7', 'asset state change', 0],
+  ['P4', 'P7', 'asset state change', 0],
+  ['P5', 'P7', 'asset state change', 0],
+  ['P6', 'P7', 'asset state change', 0],
+  ['P7', 'D8', 'twin events, state history', 1],
+  ['P7', 'D3', 'current asset state', 0],
+  ['P7', 'U', 'digital twin view,\\nevent replay', 0],
+
+  ['ST', 'P8', 'lost/found reports,\\nclaims', 0],
+  ['P8', 'ST', 'matches,\\nclaim status', 0],
+  ['TE', 'P8', 'match and claim decisions', 0],
+  ['P8', 'D9', 'item, match, claim records', 1],
+
+  ['FM', 'P9', 'simulation parameters', 0],
+  ['P9', 'FM', 'reports, forecasts', 0],
+  ['D4', 'P9', 'issue history', 0],
+  ['D5', 'P9', 'work order history', 0],
+  ['D8', 'P9', 'state history', 0],
+];
+
+
+const POS = {
+  U: [-3.2, 4.6], AD: [3.4, 8.4], EM: [-3.2, 8.0], AI: [-4.0, 2.6], ST: [-4.2, 0.9],
+  FM: [15.6, 2.4], TE: [5, -4.4], IOT: [2.7, 0.0],
+  P1: [0, 6], P2: [5, 6], P9: [10, 6],
+  P3: [0, 3], P7: [5, 3], P4: [10, 3],
+  P8: [0, 0], P6: [5, 0], P5: [10, 0],
+  D1: [0, 8.4], D2: [2.5, 4.7], D3: [5, 4.6], D4: [7.6, 4.7], D5: [14.6, 6.2],
+  D6: [14.0, -0.4], D7: [5, -2.2], D8: [8.0, 7.6], D9: [0, -2.2],
+};
+
+const q = (s) => s.replace(/"/g, '\\"');
+let dot = `digraph DFD1 {
+  graph [layout=neato, splines=polyline, overlap=false, sep="+14", pad=0.3, bgcolor="white"];
+  node  [fontname="Arial", fontsize=12];
+  edge  [fontname="Arial", fontsize=10, color="#222222", fontcolor="#111111", penwidth=1.1, arrowsize=0.8];
+`;
+for (const [k, label] of Object.entries(EXTERNALS)) dot += `  ${k} [shape=box, style=solid, penwidth=1.6, margin="0.18,0.1", label="${label}", fontsize=13, pos="${POS[k][0]},${POS[k][1]}!"];\n`;
+for (const [k, [num, label]] of Object.entries(PROCESSES)) dot += `  ${k} [shape=ellipse, penwidth=1.6, width=2.3, height=1.15, label="${num}\\n${label}", fontsize=12.5, pos="${POS[k][0]},${POS[k][1]}!"];\n`;
+for (const [k, [num, label]] of Object.entries(STORES)) {
+  dot += `  ${k} [shape=plaintext, pos="${POS[k][0]},${POS[k][1]}!", label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0"><TR>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7" BGCOLOR="#EDEDED"><B>${num}</B></TD>
+    <TD SIDES="TB" BORDER="1" CELLPADDING="7">${label}</TD></TR></TABLE>>];\n`;
+}
+for (const [a, b, label, bi] of FLOWS) {
+  dot += `  ${a} -> ${b} [label="${q(label)}"${bi ? ', dir=both' : ''}];\n`;
+}
+dot += '}';
+window.__dot = dot;
+Viz.instance().then((viz) => {
+  const svg = viz.renderSVGElement(dot, { engine: 'neato' });
+  document.getElementById('out').appendChild(svg);
+  window.__svg = svg.outerHTML;
+  window.__dims = [document.getElementById('wrap').offsetWidth, document.getElementById('wrap').offsetHeight];
+}).catch((e) => { document.body.innerText = 'ERR ' + e; });
+</script>
+</body>
+</html>

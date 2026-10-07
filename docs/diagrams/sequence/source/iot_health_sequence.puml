@@ -1,0 +1,63 @@
+@startuml iot_health_sequence
+!include ../../style.iuml
+autonumber "<b>0"
+participant "IoT Device\n(ESP32)" as D
+participant "MQTT Broker\n(HiveMQ Cloud)" as B
+participant "MQTT Client\n(Backend)" as MQ
+participant "IoT Health Service" as HS
+participant "Inspection Service\n(and Inspections API)" as IS
+participant "Twin Service" as TW
+participant "Notification\nService" as NT
+database "Database" as DB
+actor "Technician" as T
+
+D -> B : Publish telemetry\ncampusnetra/device/{id}/telemetry
+B -> MQ : Deliver message
+MQ -> MQ : Validate payload and topic
+MQ -> DB : Find registered device
+alt device not registered
+  MQ -> MQ : Log warning, discard message
+else device registered
+  MQ -> HS : process_device_telemetry(device, payload)
+  HS -> HS : Reject stale timestamps
+  HS -> DB : Update device last seen and last readings
+  alt device not assigned to a room
+    HS --> MQ : Stored only, no asset decision
+  else device assigned to a room
+    HS -> HS : Evaluate sensor readings\n(main current, fan rotation, light level)
+    alt no main power
+      HS -> HS : Not a fault, clear any unconfirmed anomaly
+    else reading normal
+      HS -> HS : Reset abnormal counter, recover open event
+    else reading abnormal
+      HS -> HS : Count consecutive abnormal readings
+      alt debounce period not yet reached
+        HS --> MQ : No event yet
+      else debounce period passed
+        HS -> DB : Save Health Event (status = Open)
+        HS -> TW : Set asset Inspection Required
+        TW -> DB : Save Asset State History and Twin Event
+        HS -> IS : schedule_inspection(room, asset, technician)
+        IS -> DB : Save Inspection (Scheduled)
+        HS -> DB : Link inspection, Health Event status = Inspecting
+        HS -> NT : Notify technician
+      end
+    end
+  end
+end
+
+== Resolution (separate step) ==
+T -> IS : Start and submit inspection
+alt technician confirms a real fault
+  IS -> DB : Raise Issue, save Work Order for the asset
+  IS -> TW : Set asset Fault
+  IS -> DB : Health Event status = Confirmed
+else no fault found
+  IS -> DB : Health Event status = No Issue Found
+  IS -> TW : Set asset Healthy
+else reading recovers shortly after the anomaly
+  HS -> IS : Auto-submit inspection as Pass
+  HS -> DB : Health Event status = Resolved
+  HS -> TW : Set asset Healthy
+end
+@enduml

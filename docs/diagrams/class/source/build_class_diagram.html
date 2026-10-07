@@ -1,0 +1,106 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!--
+  Campus Netra UML class diagram generator.
+  Editable source: change CLASSES / RELATIONS below and open this file in a browser
+  (needs internet once, to load the Graphviz WebAssembly build from jsdelivr).
+  window.__dot holds the generated Graphviz DOT text; window.__svg the final SVG.
+-->
+<style>
+  html, body { margin: 0; background: #fff; overflow: hidden; }
+  #wrap { display: inline-block; padding: 16px; background: #fff; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@viz-js/viz@3.11.0/lib/viz-standalone.js"></script>
+</head>
+<body>
+<div id="wrap"><div id="out"></div></div>
+<script>
+// ---- data: UML classes (only attributes needed to read the diagram; FK attributes only where a relation is drawn)
+const CLASSES = {
+  Department: ['+id : UUID', '+name : String', '+code : String'],
+  User: ['+id : UUID', '+email : String', '+full_name : String', '+role : UserRole', '+status : UserStatus', '+specialization : String[]', '+department_id : UUID  «FK»'],
+  Campus: ['+id : UUID', '+name : String', '+code : String'],
+  Building: ['+id : UUID', '+name : String', '+code : String', '+campus_id : UUID  «FK»'],
+  Floor: ['+id : UUID', '+name : String', '+level : Integer', '+building_id : UUID  «FK»'],
+  Room: ['+id : UUID', '+name : String', '+code : String', '+kind : RoomKind', '+floor_id : UUID  «FK»'],
+  TwinEvent: ['+id : Long', '+kind : TwinEventKind', '+payload : JSON', '+occurred_at : DateTime', '+campus_id : UUID  «FK»'],
+  AssetCategory: ['+id : UUID', '+name : String', '+is_electronic : Boolean'],
+  Asset: ['+id : UUID', '+tag : String', '+name : String', '+state : AssetState', '+purchase_date : Date', '+room_id : UUID  «FK»', '+category_id : UUID  «FK»'],
+  AssetStateHistory: ['+id : Long', '+from_state : AssetState', '+to_state : AssetState', '+changed_at : DateTime', '+asset_id : UUID  «FK»'],
+  Issue: ['+id : UUID', '+reference : String', '+title : String', '+priority : Priority', '+status : IssueStatus', '+sla_due_at : DateTime', '+reported_by : UUID  «FK»', '+room_id : UUID  «FK»', '+asset_id : UUID  «FK»'],
+  WorkOrder: ['+id : UUID', '+reference : String', '+status : WorkOrderStatus', '+priority : Priority', '+sla_due_at : DateTime', '+labour_cost : Decimal', '+parts_cost : Decimal', '+issue_id : UUID  «FK»', '+asset_id : UUID  «FK»', '+assigned_to : UUID  «FK»'],
+  WorkOrderEvent: ['+id : UUID', '+from_status : WorkOrderStatus', '+to_status : WorkOrderStatus', '+created_at : DateTime', '+work_order_id : UUID  «FK»'],
+  Inspection: ['+id : UUID', '+reference : String', '+status : InspectionStatus', '+scheduled_for : DateTime', '+room_id : UUID  «FK»', '+asset_id : UUID  «FK»', '+assigned_to : UUID  «FK»'],
+  IoTDevice: ['+id : UUID', '+device_id : String', '+is_online : Boolean', '+last_seen_at : DateTime', '+room_id : UUID  «FK»'],
+  AssetSensorMapping: ['+id : UUID', '+sensor_type : SensorType', '+debounce_seconds : Integer', '+asset_id : UUID  «FK»', '+device_id : UUID  «FK»'],
+  HealthEvent: ['+id : UUID', '+kind : HealthEventKind', '+severity : Severity', '+status : HealthEventStatus', '+detected_at : DateTime', '+asset_id : UUID  «FK»', '+device_id : UUID  «FK»', '+inspection_id : UUID  «FK»', '+work_order_id : UUID  «FK»'],
+  LFItem: ['+id : UUID', '+reference : String', '+kind : LFKind', '+status : LFStatus', '+title : String', '+occurred_at : DateTime', '+reported_by : UUID  «FK»'],
+  LFMatch: ['+id : UUID', '+score : Decimal', '+status : MatchStatus', '+lost_item_id : UUID  «FK»', '+found_item_id : UUID  «FK»'],
+  LFClaim: ['+id : UUID', '+status : ClaimStatus', '+item_id : UUID  «FK»', '+claimant_id : UUID  «FK»', '+match_id : UUID  «FK»'],
+};
+// [A, multiplicity at A, B, multiplicity at B, label, kind]  kind: assoc | comp (diamond at A) | aggr (hollow diamond at A)
+const RELATIONS = [
+  ['Department', '0..1', 'User', '*', 'member of', 'assoc'],
+  ['Campus', '1', 'Building', '*', 'contains', 'comp'],
+  ['Building', '1', 'Floor', '*', 'contains', 'comp'],
+  ['Floor', '1', 'Room', '*', 'contains', 'comp'],
+  ['Room', '0..1', 'Asset', '*', 'houses', 'aggr'],
+  ['AssetCategory', '1', 'Asset', '*', 'classifies', 'assoc'],
+  ['Asset', '1', 'AssetStateHistory', '*', 'state changes', 'assoc'],
+  ['Campus', '1', 'TwinEvent', '*', 'records', 'assoc'],
+  ['User', '1', 'Issue', '*', 'reports', 'assoc'],
+  ['Room', '0..1', 'Issue', '*', 'located in', 'assoc'],
+  ['Asset', '0..1', 'Issue', '*', 'subject of', 'assoc'],
+  ['Issue', '0..1', 'WorkOrder', '*', 'raises', 'assoc'],
+  ['User', '0..1', 'WorkOrder', '*', 'assigned to', 'assoc'],
+  ['Asset', '0..1', 'WorkOrder', '*', 'serviced by', 'assoc'],
+  ['WorkOrder', '1', 'WorkOrderEvent', '*', 'history', 'comp'],
+  ['Room', '0..1', 'Inspection', '*', 'inspected in', 'assoc'],
+  ['Asset', '0..1', 'Inspection', '*', 'checked in', 'assoc'],
+  ['User', '0..1', 'Inspection', '*', 'conducts', 'assoc'],
+  ['Room', '0..1', 'IoTDevice', '*', 'installed in', 'assoc'],
+  ['IoTDevice', '1', 'AssetSensorMapping', '*', 'has', 'comp'],
+  ['Asset', '1', 'AssetSensorMapping', '*', 'monitored by', 'assoc'],
+  ['IoTDevice', '1', 'HealthEvent', '*', 'reports', 'assoc'],
+  ['Asset', '1', 'HealthEvent', '*', 'flagged by', 'assoc'],
+  ['Inspection', '0..1', 'HealthEvent', '*', 'verifies', 'assoc'],
+  ['WorkOrder', '0..1', 'HealthEvent', '*', 'confirms', 'assoc'],
+  ['User', '1', 'LFItem', '*', 'reports', 'assoc'],
+  ['LFItem', '1', 'LFMatch', '*', 'lost item', 'assoc'],
+  ['LFItem', '1', 'LFMatch', '*', 'found item', 'assoc'],
+  ['LFItem', '1', 'LFClaim', '*', 'claimed via', 'assoc'],
+  ['User', '1', 'LFClaim', '*', 'claims', 'assoc'],
+  ['LFMatch', '0..1', 'LFClaim', '*', 'leads to', 'assoc'],
+];
+
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+let dot = `digraph Classes {
+  graph [rankdir=LR, splines=polyline, nodesep=0.45, ranksep=1.5, pad=0.3, bgcolor="white", newrank=true];
+  node  [shape=plaintext, fontname="Arial", fontsize=11];
+  edge  [fontname="Arial", fontsize=9.5, fontcolor="#222222", color="#222222", penwidth=1.1, arrowsize=0.85,
+         labeldistance=2.0, labelangle=0, labelfontsize=10, labelfontcolor="#222222"];
+`;
+for (const [name, attrs] of Object.entries(CLASSES)) {
+  const rows = attrs.map((a) => `<TR><TD ALIGN="LEFT" BORDER="0">${esc(a)}</TD></TR>`).join('');
+  dot += `  ${name} [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>${name}</B></TD></TR>
+    <HR/>${rows}</TABLE>>];\n`;
+}
+dot += '  { rank=same; Department; Campus; AssetCategory; }\n';
+for (const [a, ma, b, mb, label, kind] of RELATIONS) {
+  const tail = kind === 'comp' ? 'diamond' : kind === 'aggr' ? 'odiamond' : 'none';
+  dot += `  ${a} -> ${b} [dir=both, arrowtail=${tail}, arrowhead=none, taillabel="${ma}", headlabel="${mb}", xlabel="${label}"];\n`;
+}
+dot += '}';
+window.__dot = dot;
+Viz.instance().then((viz) => {
+  const svg = viz.renderSVGElement(dot);
+  document.getElementById('out').appendChild(svg);
+  window.__svg = svg.outerHTML;
+  window.__dims = [document.getElementById('wrap').offsetWidth, document.getElementById('wrap').offsetHeight];
+}).catch((e) => { document.body.innerText = 'ERR ' + e; });
+</script>
+</body>
+</html>

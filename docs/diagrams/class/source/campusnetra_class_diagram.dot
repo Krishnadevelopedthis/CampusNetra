@@ -1,0 +1,98 @@
+digraph Classes {
+  graph [rankdir=LR, splines=polyline, nodesep=0.45, ranksep=1.5, pad=0.3, bgcolor="white", newrank=true];
+  node  [shape=plaintext, fontname="Arial", fontsize=11];
+  edge  [fontname="Arial", fontsize=9.5, fontcolor="#222222", color="#222222", penwidth=1.1, arrowsize=0.85,
+         labeldistance=2.0, labelangle=0, labelfontsize=10, labelfontcolor="#222222"];
+  Department [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Department</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+code : String</TD></TR></TABLE>>];
+  User [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>User</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+email : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+full_name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+role : UserRole</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : UserStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+specialization : String[]</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+department_id : UUID  «FK»</TD></TR></TABLE>>];
+  Campus [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Campus</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+code : String</TD></TR></TABLE>>];
+  Building [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Building</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+code : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+campus_id : UUID  «FK»</TD></TR></TABLE>>];
+  Floor [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Floor</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+level : Integer</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+building_id : UUID  «FK»</TD></TR></TABLE>>];
+  Room [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Room</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+code : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+kind : RoomKind</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+floor_id : UUID  «FK»</TD></TR></TABLE>>];
+  TwinEvent [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>TwinEvent</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : Long</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+kind : TwinEventKind</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+payload : JSON</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+occurred_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+campus_id : UUID  «FK»</TD></TR></TABLE>>];
+  AssetCategory [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>AssetCategory</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+is_electronic : Boolean</TD></TR></TABLE>>];
+  Asset [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Asset</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+tag : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+name : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+state : AssetState</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+purchase_date : Date</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+room_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+category_id : UUID  «FK»</TD></TR></TABLE>>];
+  AssetStateHistory [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>AssetStateHistory</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : Long</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+from_state : AssetState</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+to_state : AssetState</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+changed_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+asset_id : UUID  «FK»</TD></TR></TABLE>>];
+  Issue [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Issue</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+reference : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+title : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+priority : Priority</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : IssueStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+sla_due_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+reported_by : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+room_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+asset_id : UUID  «FK»</TD></TR></TABLE>>];
+  WorkOrder [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>WorkOrder</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+reference : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : WorkOrderStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+priority : Priority</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+sla_due_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+labour_cost : Decimal</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+parts_cost : Decimal</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+issue_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+asset_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+assigned_to : UUID  «FK»</TD></TR></TABLE>>];
+  WorkOrderEvent [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>WorkOrderEvent</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+from_status : WorkOrderStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+to_status : WorkOrderStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+created_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+work_order_id : UUID  «FK»</TD></TR></TABLE>>];
+  Inspection [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>Inspection</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+reference : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : InspectionStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+scheduled_for : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+room_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+asset_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+assigned_to : UUID  «FK»</TD></TR></TABLE>>];
+  IoTDevice [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>IoTDevice</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+device_id : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+is_online : Boolean</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+last_seen_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+room_id : UUID  «FK»</TD></TR></TABLE>>];
+  AssetSensorMapping [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>AssetSensorMapping</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+sensor_type : SensorType</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+debounce_seconds : Integer</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+asset_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+device_id : UUID  «FK»</TD></TR></TABLE>>];
+  HealthEvent [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>HealthEvent</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+kind : HealthEventKind</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+severity : Severity</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : HealthEventStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+detected_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+asset_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+device_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+inspection_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+work_order_id : UUID  «FK»</TD></TR></TABLE>>];
+  LFItem [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>LFItem</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+reference : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+kind : LFKind</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : LFStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+title : String</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+occurred_at : DateTime</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+reported_by : UUID  «FK»</TD></TR></TABLE>>];
+  LFMatch [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>LFMatch</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+score : Decimal</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : MatchStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+lost_item_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+found_item_id : UUID  «FK»</TD></TR></TABLE>>];
+  LFClaim [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3" COLOR="#222222" BGCOLOR="#FFFFFF">
+    <TR><TD BGCOLOR="#EDEDED" BORDER="0" ALIGN="CENTER"><B>LFClaim</B></TD></TR>
+    <HR/><TR><TD ALIGN="LEFT" BORDER="0">+id : UUID</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+status : ClaimStatus</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+item_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+claimant_id : UUID  «FK»</TD></TR><TR><TD ALIGN="LEFT" BORDER="0">+match_id : UUID  «FK»</TD></TR></TABLE>>];
+  { rank=same; Department; Campus; AssetCategory; }
+  Department -> User [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="member of"];
+  Campus -> Building [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="*", xlabel="contains"];
+  Building -> Floor [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="*", xlabel="contains"];
+  Floor -> Room [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="*", xlabel="contains"];
+  Room -> Asset [dir=both, arrowtail=odiamond, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="houses"];
+  AssetCategory -> Asset [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="classifies"];
+  Asset -> AssetStateHistory [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="state changes"];
+  Campus -> TwinEvent [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="records"];
+  User -> Issue [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="reports"];
+  Room -> Issue [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="located in"];
+  Asset -> Issue [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="subject of"];
+  Issue -> WorkOrder [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="raises"];
+  User -> WorkOrder [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="assigned to"];
+  Asset -> WorkOrder [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="serviced by"];
+  WorkOrder -> WorkOrderEvent [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="*", xlabel="history"];
+  Room -> Inspection [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="inspected in"];
+  Asset -> Inspection [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="checked in"];
+  User -> Inspection [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="conducts"];
+  Room -> IoTDevice [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="installed in"];
+  IoTDevice -> AssetSensorMapping [dir=both, arrowtail=diamond, arrowhead=none, taillabel="1", headlabel="*", xlabel="has"];
+  Asset -> AssetSensorMapping [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="monitored by"];
+  IoTDevice -> HealthEvent [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="reports"];
+  Asset -> HealthEvent [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="flagged by"];
+  Inspection -> HealthEvent [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="verifies"];
+  WorkOrder -> HealthEvent [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="confirms"];
+  User -> LFItem [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="reports"];
+  LFItem -> LFMatch [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="lost item"];
+  LFItem -> LFMatch [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="found item"];
+  LFItem -> LFClaim [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="claimed via"];
+  User -> LFClaim [dir=both, arrowtail=none, arrowhead=none, taillabel="1", headlabel="*", xlabel="claims"];
+  LFMatch -> LFClaim [dir=both, arrowtail=none, arrowhead=none, taillabel="0..1", headlabel="*", xlabel="leads to"];
+}

@@ -1,0 +1,57 @@
+@startuml login_sequence
+!include ../../style.iuml
+autonumber "<b>0"
+actor "User" as U
+participant "Frontend\n(Login page)" as FE
+participant "Auth API\n(/auth)" as API
+participant "Auth Service" as SVC
+database "Database" as DB
+
+== Captcha ==
+U -> FE : Open sign-in page, select role tab
+FE -> API : GET /auth/captcha
+API --> FE : captcha image + signed token
+
+== Authentication ==
+U -> FE : Enter email, password, captcha answer
+FE -> API : POST /auth/login\n(email, password, role, captcha_token, captcha_answer)
+API -> API : Verify captcha token and answer
+alt captcha incorrect
+  API --> FE : 400 Incorrect captcha
+  FE --> U : Show error, load new captcha
+else captcha correct
+  API -> SVC : authenticate(email, password, role)
+  SVC -> DB : Find user by email
+  DB --> SVC : User record
+  alt user not found or account locked
+    SVC -> DB : Record failed Login Activity
+    SVC --> API : 401 / 423 (generic message)
+    API --> FE : Error response
+    FE --> U : "Incorrect email or password"
+  else user found
+    SVC -> SVC : Verify bcrypt password hash
+    alt password incorrect
+      SVC -> DB : Increase failed_login_count\n(lock account after 5 attempts)
+      SVC --> API : 401 Incorrect email or password
+      API --> FE : Error response
+      FE --> U : Show error
+    else password correct
+      SVC -> SVC : Check selected role matches account role\n(student / teacher / technician;\nadmin and facility manager sign in from any tab)
+      alt role mismatch or account not active
+        SVC --> API : 403 "Not registered as ..." / account status
+        API --> FE : Error response
+        FE --> U : Show error message
+      else allowed
+        SVC -> DB : Reset failed count, set last_login_at,\nrecord successful Login Activity
+        API -> SVC : start_session(user)\n(one active session per account)
+        SVC -> DB : Store new session id
+        API -> SVC : issue_tokens(user)
+        SVC -> DB : Persist refresh token
+        API --> FE : 200 user profile + access token + refresh token
+        FE -> FE : Store tokens, load role permissions
+        FE --> U : Redirect to role home page
+      end
+    end
+  end
+end
+@enduml

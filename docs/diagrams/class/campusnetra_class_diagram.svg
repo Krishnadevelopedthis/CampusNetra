@@ -1,0 +1,554 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="2067pt" height="1235pt" viewBox="0.00 0.00 2067.24 1234.80">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(21.6 1213.2)">
+<title>Classes</title>
+<polygon fill="white" stroke="none" points="-21.6,21.6 -21.6,-1213.2 2045.64,-1213.2 2045.64,21.6 -21.6,21.6"></polygon>
+<!-- Department -->
+<g id="node1" class="node">
+<title>Department</title>
+<polygon fill="#ffffff" stroke="none" points="30.63,-870.6 30.63,-949.4 110.47,-949.4 110.47,-870.6 30.63,-870.6"></polygon>
+<polygon fill="#ededed" stroke="none" points="31.63,-929.2 31.63,-948.4 109.47,-948.4 109.47,-929.2 31.63,-929.2"></polygon>
+<text text-anchor="start" x="39.99" y="-936.5" font-family="Arial" font-weight="bold" font-size="11.00">Department</text>
+<text text-anchor="start" x="34.63" y="-916.3" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="34.63" y="-897.1" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="34.63" y="-877.9" font-family="Arial" font-size="11.00">+code : String</text>
+<polygon fill="#222222" stroke="#222222" points="30.63,-929.2 30.63,-929.2 110.47,-929.2 110.47,-929.2 30.63,-929.2"></polygon>
+<polygon fill="none" stroke="#222222" points="30.63,-870.6 30.63,-949.4 110.47,-949.4 110.47,-870.6 30.63,-870.6"></polygon>
+</g>
+<!-- User -->
+<g id="node2" class="node">
+<title>User</title>
+<polygon fill="#ffffff" stroke="none" points="1019.59,-832.2 1019.59,-987.8 1172.79,-987.8 1172.79,-832.2 1019.59,-832.2"></polygon>
+<polygon fill="#ededed" stroke="none" points="1020.59,-967.6 1020.59,-986.8 1171.79,-986.8 1171.79,-967.6 1020.59,-967.6"></polygon>
+<text text-anchor="start" x="1083.96" y="-974.9" font-family="Arial" font-weight="bold" font-size="11.00">User</text>
+<text text-anchor="start" x="1023.59" y="-954.7" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1023.59" y="-935.5" font-family="Arial" font-size="11.00">+email : String</text>
+<text text-anchor="start" x="1023.59" y="-916.3" font-family="Arial" font-size="11.00">+full_name : String</text>
+<text text-anchor="start" x="1023.59" y="-897.1" font-family="Arial" font-size="11.00">+role : UserRole</text>
+<text text-anchor="start" x="1023.59" y="-877.9" font-family="Arial" font-size="11.00">+status : UserStatus</text>
+<text text-anchor="start" x="1023.59" y="-858.7" font-family="Arial" font-size="11.00">+specialization : String[]</text>
+<text text-anchor="start" x="1023.59" y="-839.5" font-family="Arial" font-size="11.00">+department_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1019.59,-967.6 1019.59,-967.6 1172.79,-967.6 1172.79,-967.6 1019.59,-967.6"></polygon>
+<polygon fill="none" stroke="#222222" points="1019.59,-832.2 1019.59,-987.8 1172.79,-987.8 1172.79,-832.2 1019.59,-832.2"></polygon>
+</g>
+<!-- Department&#45;&gt;User -->
+<g id="edge1" class="edge">
+<title>Department-&gt;User</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M118.19,-910C278.16,-910 806,-910 1011.9,-910"></path>
+<text text-anchor="middle" x="542.35" y="-901.45" font-family="Arial" font-size="9.50" fill="#222222">member of</text>
+<text text-anchor="middle" x="991.9" y="-907" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="138.19" y="-907" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Issue -->
+<g id="node11" class="node">
+<title>Issue</title>
+<polygon fill="#ffffff" stroke="none" points="1302.62,-663 1302.62,-857 1444.2,-857 1444.2,-663 1302.62,-663"></polygon>
+<polygon fill="#ededed" stroke="none" points="1303.62,-836.8 1303.62,-856 1443.2,-856 1443.2,-836.8 1303.62,-836.8"></polygon>
+<text text-anchor="start" x="1359.35" y="-844.1" font-family="Arial" font-weight="bold" font-size="11.00">Issue</text>
+<text text-anchor="start" x="1306.62" y="-823.9" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1306.62" y="-804.7" font-family="Arial" font-size="11.00">+reference : String</text>
+<text text-anchor="start" x="1306.62" y="-785.5" font-family="Arial" font-size="11.00">+title : String</text>
+<text text-anchor="start" x="1306.62" y="-766.3" font-family="Arial" font-size="11.00">+priority : Priority</text>
+<text text-anchor="start" x="1306.62" y="-747.1" font-family="Arial" font-size="11.00">+status : IssueStatus</text>
+<text text-anchor="start" x="1306.62" y="-727.9" font-family="Arial" font-size="11.00">+sla_due_at : DateTime</text>
+<text text-anchor="start" x="1306.62" y="-708.7" font-family="Arial" font-size="11.00">+reported_by : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1306.62" y="-689.5" font-family="Arial" font-size="11.00">+room_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1306.62" y="-670.3" font-family="Arial" font-size="11.00">+asset_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1302.62,-836.8 1302.62,-836.8 1444.2,-836.8 1444.2,-836.8 1302.62,-836.8"></polygon>
+<polygon fill="none" stroke="#222222" points="1302.62,-663 1302.62,-857 1444.2,-857 1444.2,-663 1302.62,-663"></polygon>
+</g>
+<!-- User&#45;&gt;Issue -->
+<g id="edge9" class="edge">
+<title>User-&gt;Issue</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1180.51,-864.59C1216.9,-844.76 1259.32,-821.64 1295.01,-802.18"></path>
+<text text-anchor="middle" x="1222.98" y="-824.84" font-family="Arial" font-size="9.50" fill="#222222">reports</text>
+<text text-anchor="middle" x="1277.45" y="-808.76" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1198.07" y="-852.02" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- WorkOrder -->
+<g id="node12" class="node">
+<title>WorkOrder</title>
+<polygon fill="#ffffff" stroke="none" points="1578.93,-611.4 1578.93,-824.6 1721.13,-824.6 1721.13,-611.4 1578.93,-611.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1579.93,-804.4 1579.93,-823.6 1720.13,-823.6 1720.13,-804.4 1579.93,-804.4"></polygon>
+<text text-anchor="start" x="1621.3" y="-811.7" font-family="Arial" font-weight="bold" font-size="11.00">WorkOrder</text>
+<text text-anchor="start" x="1582.93" y="-791.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1582.93" y="-772.3" font-family="Arial" font-size="11.00">+reference : String</text>
+<text text-anchor="start" x="1582.93" y="-753.1" font-family="Arial" font-size="11.00">+status : WorkOrderStatus</text>
+<text text-anchor="start" x="1582.93" y="-733.9" font-family="Arial" font-size="11.00">+priority : Priority</text>
+<text text-anchor="start" x="1582.93" y="-714.7" font-family="Arial" font-size="11.00">+sla_due_at : DateTime</text>
+<text text-anchor="start" x="1582.93" y="-695.5" font-family="Arial" font-size="11.00">+labour_cost : Decimal</text>
+<text text-anchor="start" x="1582.93" y="-676.3" font-family="Arial" font-size="11.00">+parts_cost : Decimal</text>
+<text text-anchor="start" x="1582.93" y="-657.1" font-family="Arial" font-size="11.00">+issue_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1582.93" y="-637.9" font-family="Arial" font-size="11.00">+asset_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1582.93" y="-618.7" font-family="Arial" font-size="11.00">+assigned_to : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1578.93,-804.4 1578.93,-804.4 1721.13,-804.4 1721.13,-804.4 1578.93,-804.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1578.93,-611.4 1578.93,-824.6 1721.13,-824.6 1721.13,-611.4 1578.93,-611.4"></polygon>
+</g>
+<!-- User&#45;&gt;WorkOrder -->
+<g id="edge13" class="edge">
+<title>User-&gt;WorkOrder</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1180.43,-902.39C1287,-892.64 1458.04,-877 1458.04,-877 1458.04,-877 1518.26,-826.87 1571.07,-782.9"></path>
+<text text-anchor="middle" x="1368.17" y="-874.45" font-family="Arial" font-size="9.50" fill="#222222">assigned to</text>
+<text text-anchor="middle" x="1555.7" y="-792.7" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1200.35" y="-897.57" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Inspection -->
+<g id="node14" class="node">
+<title>Inspection</title>
+<polygon fill="#ffffff" stroke="none" points="1302.32,-467.2 1302.32,-622.8 1444.51,-622.8 1444.51,-467.2 1302.32,-467.2"></polygon>
+<polygon fill="#ededed" stroke="none" points="1303.32,-602.6 1303.32,-621.8 1443.51,-621.8 1443.51,-602.6 1303.32,-602.6"></polygon>
+<text text-anchor="start" x="1345.91" y="-609.9" font-family="Arial" font-weight="bold" font-size="11.00">Inspection</text>
+<text text-anchor="start" x="1306.32" y="-589.7" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1306.32" y="-570.5" font-family="Arial" font-size="11.00">+reference : String</text>
+<text text-anchor="start" x="1306.32" y="-551.3" font-family="Arial" font-size="11.00">+status : InspectionStatus</text>
+<text text-anchor="start" x="1306.32" y="-532.1" font-family="Arial" font-size="11.00">+scheduled_for : DateTime</text>
+<text text-anchor="start" x="1306.32" y="-512.9" font-family="Arial" font-size="11.00">+room_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1306.32" y="-493.7" font-family="Arial" font-size="11.00">+asset_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1306.32" y="-474.5" font-family="Arial" font-size="11.00">+assigned_to : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1302.32,-602.6 1302.32,-602.6 1444.51,-602.6 1444.51,-602.6 1302.32,-602.6"></polygon>
+<polygon fill="none" stroke="#222222" points="1302.32,-467.2 1302.32,-622.8 1444.51,-622.8 1444.51,-467.2 1302.32,-467.2"></polygon>
+</g>
+<!-- User&#45;&gt;Inspection -->
+<g id="edge18" class="edge">
+<title>User-&gt;Inspection</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1155.72,-828.44C1212.06,-749.92 1288.79,-643 1288.79,-643 1288.79,-643 1294.52,-636.29 1302.97,-626.38"></path>
+<text text-anchor="middle" x="1209.61" y="-718.29" font-family="Arial" font-size="9.50" fill="#222222">conducts</text>
+<text text-anchor="middle" x="1289.99" y="-638.59" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1167.38" y="-809.19" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- LFItem -->
+<g id="node18" class="node">
+<title>LFItem</title>
+<polygon fill="#ffffff" stroke="none" points="1302.62,-963.2 1302.62,-1118.8 1444.2,-1118.8 1444.2,-963.2 1302.62,-963.2"></polygon>
+<polygon fill="#ededed" stroke="none" points="1303.62,-1098.6 1303.62,-1117.8 1443.2,-1117.8 1443.2,-1098.6 1303.62,-1098.6"></polygon>
+<text text-anchor="start" x="1355.39" y="-1105.9" font-family="Arial" font-weight="bold" font-size="11.00">LFItem</text>
+<text text-anchor="start" x="1306.62" y="-1085.7" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1306.62" y="-1066.5" font-family="Arial" font-size="11.00">+reference : String</text>
+<text text-anchor="start" x="1306.62" y="-1047.3" font-family="Arial" font-size="11.00">+kind : LFKind</text>
+<text text-anchor="start" x="1306.62" y="-1028.1" font-family="Arial" font-size="11.00">+status : LFStatus</text>
+<text text-anchor="start" x="1306.62" y="-1008.9" font-family="Arial" font-size="11.00">+title : String</text>
+<text text-anchor="start" x="1306.62" y="-989.7" font-family="Arial" font-size="11.00">+occurred_at : DateTime</text>
+<text text-anchor="start" x="1306.62" y="-970.5" font-family="Arial" font-size="11.00">+reported_by : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1302.62,-1098.6 1302.62,-1098.6 1444.2,-1098.6 1444.2,-1098.6 1302.62,-1098.6"></polygon>
+<polygon fill="none" stroke="#222222" points="1302.62,-963.2 1302.62,-1118.8 1444.2,-1118.8 1444.2,-963.2 1302.62,-963.2"></polygon>
+</g>
+<!-- User&#45;&gt;LFItem -->
+<g id="edge26" class="edge">
+<title>User-&gt;LFItem</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1180.51,-949.66C1216.9,-966.98 1259.32,-987.17 1295.01,-1004.16"></path>
+<text text-anchor="middle" x="1222.98" y="-968.36" font-family="Arial" font-size="9.50" fill="#222222">reports</text>
+<text text-anchor="middle" x="1276.95" y="-992.56" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1198.57" y="-955.26" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- LFClaim -->
+<g id="node20" class="node">
+<title>LFClaim</title>
+<polygon fill="#ffffff" stroke="none" points="1863.77,-1070.4 1863.77,-1187.6 2002.28,-1187.6 2002.28,-1070.4 1863.77,-1070.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1864.77,-1167.4 1864.77,-1186.6 2001.28,-1186.6 2001.28,-1167.4 1864.77,-1167.4"></polygon>
+<text text-anchor="start" x="1911.33" y="-1174.7" font-family="Arial" font-weight="bold" font-size="11.00">LFClaim</text>
+<text text-anchor="start" x="1867.77" y="-1154.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1867.77" y="-1135.3" font-family="Arial" font-size="11.00">+status : ClaimStatus</text>
+<text text-anchor="start" x="1867.77" y="-1116.1" font-family="Arial" font-size="11.00">+item_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1867.77" y="-1096.9" font-family="Arial" font-size="11.00">+claimant_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1867.77" y="-1077.7" font-family="Arial" font-size="11.00">+match_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1863.77,-1167.4 1863.77,-1167.4 2002.28,-1167.4 2002.28,-1167.4 1863.77,-1167.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1863.77,-1070.4 1863.77,-1187.6 2002.28,-1187.6 2002.28,-1070.4 1863.77,-1070.4"></polygon>
+</g>
+<!-- User&#45;&gt;LFClaim -->
+<g id="edge30" class="edge">
+<title>User-&gt;LFClaim</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1165.55,-991.7C1220.57,-1057.47 1288.79,-1139 1288.79,-1139 1288.79,-1139 1458.04,-1139 1458.04,-1139 1458.04,-1139 1721.89,-1133.43 1855.87,-1130.61"></path>
+<text text-anchor="middle" x="1462.89" y="-1130.06" font-family="Arial" font-size="9.50" fill="#222222">claims</text>
+<text text-anchor="middle" x="1835.88" y="-1128.03" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1178.38" y="-1004.04" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- Campus -->
+<g id="node3" class="node">
+<title>Campus</title>
+<polygon fill="#ffffff" stroke="none" points="30.63,-483.6 30.63,-562.4 110.47,-562.4 110.47,-483.6 30.63,-483.6"></polygon>
+<polygon fill="#ededed" stroke="none" points="31.63,-542.2 31.63,-561.4 109.47,-561.4 109.47,-542.2 31.63,-542.2"></polygon>
+<text text-anchor="start" x="48.85" y="-549.5" font-family="Arial" font-weight="bold" font-size="11.00">Campus</text>
+<text text-anchor="start" x="34.63" y="-529.3" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="34.63" y="-510.1" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="34.63" y="-490.9" font-family="Arial" font-size="11.00">+code : String</text>
+<polygon fill="#222222" stroke="#222222" points="30.63,-542.2 30.63,-542.2 110.47,-542.2 110.47,-542.2 30.63,-542.2"></polygon>
+<polygon fill="none" stroke="#222222" points="30.63,-483.6 30.63,-562.4 110.47,-562.4 110.47,-483.6 30.63,-483.6"></polygon>
+</g>
+<!-- Building -->
+<g id="node4" class="node">
+<title>Building</title>
+<polygon fill="#ffffff" stroke="none" points="257.1,-544 257.1,-642 393.17,-642 393.17,-544 257.1,-544"></polygon>
+<polygon fill="#ededed" stroke="none" points="258.1,-621.8 258.1,-641 392.17,-641 392.17,-621.8 258.1,-621.8"></polygon>
+<text text-anchor="start" x="303.14" y="-629.1" font-family="Arial" font-weight="bold" font-size="11.00">Building</text>
+<text text-anchor="start" x="261.1" y="-608.9" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="261.1" y="-589.7" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="261.1" y="-570.5" font-family="Arial" font-size="11.00">+code : String</text>
+<text text-anchor="start" x="261.1" y="-551.3" font-family="Arial" font-size="11.00">+campus_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="257.1,-621.8 257.1,-621.8 393.17,-621.8 393.17,-621.8 257.1,-621.8"></polygon>
+<polygon fill="none" stroke="#222222" points="257.1,-544 257.1,-642 393.17,-642 393.17,-544 257.1,-544"></polygon>
+</g>
+<!-- Campus&#45;&gt;Building -->
+<g id="edge2" class="edge">
+<title>Campus-&gt;Building</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M129.16,-538.96C164.74,-548.83 210.78,-561.59 249.19,-572.23"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="129.25,-538.99 123.43,-540.91 119.42,-536.27 125.25,-534.35 129.25,-538.99"></polygon>
+<text text-anchor="middle" x="171.48" y="-547.05" font-family="Arial" font-size="9.50" fill="#222222">contains</text>
+<text text-anchor="middle" x="229.91" y="-563.89" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="137.74" y="-538.34" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- TwinEvent -->
+<g id="node7" class="node">
+<title>TwinEvent</title>
+<polygon fill="#ffffff" stroke="none" points="257.1,-386.4 257.1,-503.6 393.17,-503.6 393.17,-386.4 257.1,-386.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="258.1,-483.4 258.1,-502.6 392.17,-502.6 392.17,-483.4 258.1,-483.4"></polygon>
+<text text-anchor="start" x="297.63" y="-490.7" font-family="Arial" font-weight="bold" font-size="11.00">TwinEvent</text>
+<text text-anchor="start" x="261.1" y="-470.5" font-family="Arial" font-size="11.00">+id : Long</text>
+<text text-anchor="start" x="261.1" y="-451.3" font-family="Arial" font-size="11.00">+kind : TwinEventKind</text>
+<text text-anchor="start" x="261.1" y="-432.1" font-family="Arial" font-size="11.00">+payload : JSON</text>
+<text text-anchor="start" x="261.1" y="-412.9" font-family="Arial" font-size="11.00">+occurred_at : DateTime</text>
+<text text-anchor="start" x="261.1" y="-393.7" font-family="Arial" font-size="11.00">+campus_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="257.1,-483.4 257.1,-483.4 393.17,-483.4 393.17,-483.4 257.1,-483.4"></polygon>
+<polygon fill="none" stroke="#222222" points="257.1,-386.4 257.1,-503.6 393.17,-503.6 393.17,-386.4 257.1,-386.4"></polygon>
+</g>
+<!-- Campus&#45;&gt;TwinEvent -->
+<g id="edge8" class="edge">
+<title>Campus-&gt;TwinEvent</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M118.47,-508.51C155.13,-497.19 206.81,-481.23 249.19,-468.14"></path>
+<text text-anchor="middle" x="167.99" y="-479.78" font-family="Arial" font-size="9.50" fill="#222222">records</text>
+<text text-anchor="middle" x="230.08" y="-471.05" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="137.58" y="-499.61" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- Floor -->
+<g id="node5" class="node">
+<title>Floor</title>
+<polygon fill="#ffffff" stroke="none" points="517.17,-520 517.17,-618 652.64,-618 652.64,-520 517.17,-520"></polygon>
+<polygon fill="#ededed" stroke="none" points="518.17,-597.8 518.17,-617 651.64,-617 651.64,-597.8 518.17,-597.8"></polygon>
+<text text-anchor="start" x="571.16" y="-605.1" font-family="Arial" font-weight="bold" font-size="11.00">Floor</text>
+<text text-anchor="start" x="521.17" y="-584.9" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="521.17" y="-565.7" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="521.17" y="-546.5" font-family="Arial" font-size="11.00">+level : Integer</text>
+<text text-anchor="start" x="521.17" y="-527.3" font-family="Arial" font-size="11.00">+building_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="517.17,-597.8 517.17,-597.8 652.64,-597.8 652.64,-597.8 517.17,-597.8"></polygon>
+<polygon fill="none" stroke="#222222" points="517.17,-520 517.17,-618 652.64,-618 652.64,-520 517.17,-520"></polygon>
+</g>
+<!-- Building&#45;&gt;Floor -->
+<g id="edge3" class="edge">
+<title>Building-&gt;Floor</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M412,-585.01C443.48,-582.07 478.84,-578.78 509.26,-575.95"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="412.18,-584.99 407.42,-588.85 402.03,-585.93 406.79,-582.08 412.18,-584.99"></polygon>
+<text text-anchor="middle" x="442.94" y="-571.93" font-family="Arial" font-size="9.50" fill="#222222">contains</text>
+<text text-anchor="middle" x="489.35" y="-574.8" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="420.95" y="-581.17" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- Room -->
+<g id="node6" class="node">
+<title>Room</title>
+<polygon fill="#ffffff" stroke="none" points="776.64,-486.4 776.64,-603.6 895.59,-603.6 895.59,-486.4 776.64,-486.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="777.64,-583.4 777.64,-602.6 894.59,-602.6 894.59,-583.4 777.64,-583.4"></polygon>
+<text text-anchor="start" x="820.53" y="-590.7" font-family="Arial" font-weight="bold" font-size="11.00">Room</text>
+<text text-anchor="start" x="780.64" y="-570.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="780.64" y="-551.3" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="780.64" y="-532.1" font-family="Arial" font-size="11.00">+code : String</text>
+<text text-anchor="start" x="780.64" y="-512.9" font-family="Arial" font-size="11.00">+kind : RoomKind</text>
+<text text-anchor="start" x="780.64" y="-493.7" font-family="Arial" font-size="11.00">+floor_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="776.64,-583.4 776.64,-583.4 895.59,-583.4 895.59,-583.4 776.64,-583.4"></polygon>
+<polygon fill="none" stroke="#222222" points="776.64,-486.4 776.64,-603.6 895.59,-603.6 895.59,-486.4 776.64,-486.4"></polygon>
+</g>
+<!-- Floor&#45;&gt;Room -->
+<g id="edge4" class="edge">
+<title>Floor-&gt;Room</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M671.42,-560.76C703.24,-557.7 738.84,-554.27 768.69,-551.4"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="671.48,-560.76 666.73,-564.63 661.33,-561.74 666.08,-557.86 671.48,-560.76"></polygon>
+<text text-anchor="middle" x="702.36" y="-547.53" font-family="Arial" font-size="9.50" fill="#222222">contains</text>
+<text text-anchor="middle" x="748.78" y="-550.31" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="680.25" y="-556.91" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- Asset -->
+<g id="node9" class="node">
+<title>Asset</title>
+<polygon fill="#ffffff" stroke="none" points="1026.32,-303.2 1026.32,-458.8 1166.06,-458.8 1166.06,-303.2 1026.32,-303.2"></polygon>
+<polygon fill="#ededed" stroke="none" points="1027.32,-438.6 1027.32,-457.8 1165.06,-457.8 1165.06,-438.6 1027.32,-438.6"></polygon>
+<text text-anchor="start" x="1081.21" y="-445.9" font-family="Arial" font-weight="bold" font-size="11.00">Asset</text>
+<text text-anchor="start" x="1030.32" y="-425.7" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1030.32" y="-406.5" font-family="Arial" font-size="11.00">+tag : String</text>
+<text text-anchor="start" x="1030.32" y="-387.3" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="1030.32" y="-368.1" font-family="Arial" font-size="11.00">+state : AssetState</text>
+<text text-anchor="start" x="1030.32" y="-348.9" font-family="Arial" font-size="11.00">+purchase_date : Date</text>
+<text text-anchor="start" x="1030.32" y="-329.7" font-family="Arial" font-size="11.00">+room_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1030.32" y="-310.5" font-family="Arial" font-size="11.00">+category_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1026.32,-438.6 1026.32,-438.6 1166.06,-438.6 1166.06,-438.6 1026.32,-438.6"></polygon>
+<polygon fill="none" stroke="#222222" points="1026.32,-303.2 1026.32,-458.8 1166.06,-458.8 1166.06,-303.2 1026.32,-303.2"></polygon>
+</g>
+<!-- Room&#45;&gt;Asset -->
+<g id="edge5" class="edge">
+<title>Room-&gt;Asset</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M912.8,-496.91C946.06,-475.77 985.06,-450.99 1018.44,-429.77"></path>
+<polygon fill="none" stroke="#222222" stroke-width="1.1" points="913.02,-496.76 910.54,-502.37 904.41,-502.23 906.89,-496.63 913.02,-496.76"></polygon>
+<text text-anchor="middle" x="950.3" y="-454.79" font-family="Arial" font-size="9.50" fill="#222222">houses</text>
+<text text-anchor="middle" x="1001.56" y="-437.5" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="920.46" y="-489.04" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Room&#45;&gt;Issue -->
+<g id="edge10" class="edge">
+<title>Room-&gt;Issue</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M903.56,-571.69C1002.82,-611.55 1189.39,-686.49 1294.79,-728.82"></path>
+<text text-anchor="middle" x="1078.84" y="-641.7" font-family="Arial" font-size="9.50" fill="#222222">located in</text>
+<text text-anchor="middle" x="1276.23" y="-718.37" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="922.12" y="-576.14" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Room&#45;&gt;Inspection -->
+<g id="edge16" class="edge">
+<title>Room-&gt;Inspection</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M903.56,-545C1002.68,-545 1188.87,-545 1294.34,-545"></path>
+<text text-anchor="middle" x="1073.6" y="-536.45" font-family="Arial" font-size="9.50" fill="#222222">inspected in</text>
+<text text-anchor="middle" x="1274.34" y="-542" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="923.56" y="-542" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- IoTDevice -->
+<g id="node15" class="node">
+<title>IoTDevice</title>
+<polygon fill="#ffffff" stroke="none" points="1029.36,-20.4 1029.36,-137.6 1163.02,-137.6 1163.02,-20.4 1029.36,-20.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1030.36,-117.4 1030.36,-136.6 1162.02,-136.6 1162.02,-117.4 1030.36,-117.4"></polygon>
+<text text-anchor="start" x="1070.21" y="-124.7" font-family="Arial" font-weight="bold" font-size="11.00">IoTDevice</text>
+<text text-anchor="start" x="1033.36" y="-104.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1033.36" y="-85.3" font-family="Arial" font-size="11.00">+device_id : String</text>
+<text text-anchor="start" x="1033.36" y="-66.1" font-family="Arial" font-size="11.00">+is_online : Boolean</text>
+<text text-anchor="start" x="1033.36" y="-46.9" font-family="Arial" font-size="11.00">+last_seen_at : DateTime</text>
+<text text-anchor="start" x="1033.36" y="-27.7" font-family="Arial" font-size="11.00">+room_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1029.36,-117.4 1029.36,-117.4 1163.02,-117.4 1163.02,-117.4 1029.36,-117.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1029.36,-20.4 1029.36,-137.6 1163.02,-137.6 1163.02,-20.4 1029.36,-20.4"></polygon>
+</g>
+<!-- Room&#45;&gt;IoTDevice -->
+<g id="edge19" class="edge">
+<title>Room-&gt;IoTDevice</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M871.65,-482.64C921.03,-393.48 1011.27,-230.53 1060.65,-141.37"></path>
+<text text-anchor="middle" x="943.71" y="-303.45" font-family="Arial" font-size="9.50" fill="#222222">installed in</text>
+<text text-anchor="middle" x="1050.96" y="-155.86" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="881.34" y="-462.14" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- AssetCategory -->
+<g id="node8" class="node">
+<title>AssetCategory</title>
+<polygon fill="#ffffff" stroke="none" points="8,-293.6 8,-372.4 133.1,-372.4 133.1,-293.6 8,-293.6"></polygon>
+<polygon fill="#ededed" stroke="none" points="9,-352.2 9,-371.4 132.1,-371.4 132.1,-352.2 9,-352.2"></polygon>
+<text text-anchor="start" x="31.73" y="-359.5" font-family="Arial" font-weight="bold" font-size="11.00">AssetCategory</text>
+<text text-anchor="start" x="12" y="-339.3" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="12" y="-320.1" font-family="Arial" font-size="11.00">+name : String</text>
+<text text-anchor="start" x="12" y="-300.9" font-family="Arial" font-size="11.00">+is_electronic : Boolean</text>
+<polygon fill="#222222" stroke="#222222" points="8,-352.2 8,-352.2 133.1,-352.2 133.1,-352.2 8,-352.2"></polygon>
+<polygon fill="none" stroke="#222222" points="8,-293.6 8,-372.4 133.1,-372.4 133.1,-293.6 8,-293.6"></polygon>
+</g>
+<!-- AssetCategory&#45;&gt;Asset -->
+<g id="edge6" class="edge">
+<title>AssetCategory-&gt;Asset</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M140.7,-336.24C324.85,-344.88 826.14,-368.38 1018.56,-377.41"></path>
+<text text-anchor="middle" x="560.36" y="-348.27" font-family="Arial" font-size="9.50" fill="#222222">classifies</text>
+<text text-anchor="middle" x="998.59" y="-373.47" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="160.68" y="-334.18" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- AssetStateHistory -->
+<g id="node10" class="node">
+<title>AssetStateHistory</title>
+<polygon fill="#ffffff" stroke="none" points="1309.03,-177.4 1309.03,-294.6 1437.8,-294.6 1437.8,-177.4 1309.03,-177.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1310.03,-274.4 1310.03,-293.6 1436.8,-293.6 1436.8,-274.4 1310.03,-274.4"></polygon>
+<text text-anchor="start" x="1326.04" y="-281.7" font-family="Arial" font-weight="bold" font-size="11.00">AssetStateHistory</text>
+<text text-anchor="start" x="1313.03" y="-261.5" font-family="Arial" font-size="11.00">+id : Long</text>
+<text text-anchor="start" x="1313.03" y="-242.3" font-family="Arial" font-size="11.00">+from_state : AssetState</text>
+<text text-anchor="start" x="1313.03" y="-223.1" font-family="Arial" font-size="11.00">+to_state : AssetState</text>
+<text text-anchor="start" x="1313.03" y="-203.9" font-family="Arial" font-size="11.00">+changed_at : DateTime</text>
+<text text-anchor="start" x="1313.03" y="-184.7" font-family="Arial" font-size="11.00">+asset_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1309.03,-274.4 1309.03,-274.4 1437.8,-274.4 1437.8,-274.4 1309.03,-274.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1309.03,-177.4 1309.03,-294.6 1437.8,-294.6 1437.8,-177.4 1309.03,-177.4"></polygon>
+</g>
+<!-- Asset&#45;&gt;AssetStateHistory -->
+<g id="edge7" class="edge">
+<title>Asset-&gt;AssetStateHistory</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1173.86,-340.61C1213.78,-319.58 1262.28,-294.02 1301.35,-273.44"></path>
+<text text-anchor="middle" x="1208.03" y="-298.47" font-family="Arial" font-size="9.50" fill="#222222">state changes</text>
+<text text-anchor="middle" x="1283.66" y="-279.76" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1191.55" y="-328.29" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- Asset&#45;&gt;Issue -->
+<g id="edge11" class="edge">
+<title>Asset-&gt;Issue</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1156.57,-462.77C1198.37,-520.33 1254.58,-597.74 1299.17,-659.13"></path>
+<text text-anchor="middle" x="1207.54" y="-552.4" font-family="Arial" font-size="9.50" fill="#222222">subject of</text>
+<text text-anchor="middle" x="1287.41" y="-639.95" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1168.32" y="-475.95" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Asset&#45;&gt;WorkOrder -->
+<g id="edge14" class="edge">
+<title>Asset-&gt;WorkOrder</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1173.72,-395C1279.64,-414.37 1458.04,-447 1458.04,-447 1458.04,-447 1518.47,-532.75 1571.35,-607.77"></path>
+<text text-anchor="middle" x="1388.59" y="-430.14" font-family="Arial" font-size="9.50" fill="#222222">serviced by</text>
+<text text-anchor="middle" x="1559.82" y="-588.43" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1193.39" y="-395.6" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Asset&#45;&gt;Inspection -->
+<g id="edge17" class="edge">
+<title>Asset-&gt;Inspection</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1173.86,-426.68C1211.55,-449.15 1256.89,-476.16 1294.73,-498.71"></path>
+<text text-anchor="middle" x="1211.58" y="-454.15" font-family="Arial" font-size="9.50" fill="#222222">checked in</text>
+<text text-anchor="middle" x="1277.55" y="-485.47" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1191.04" y="-433.92" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- AssetSensorMapping -->
+<g id="node16" class="node">
+<title>AssetSensorMapping</title>
+<polygon fill="#ffffff" stroke="none" points="1296.79,-20.4 1296.79,-137.6 1450.04,-137.6 1450.04,-20.4 1296.79,-20.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1297.79,-117.4 1297.79,-136.6 1449.04,-136.6 1449.04,-117.4 1297.79,-117.4"></polygon>
+<text text-anchor="start" x="1317.18" y="-124.7" font-family="Arial" font-weight="bold" font-size="11.00">AssetSensorMapping</text>
+<text text-anchor="start" x="1300.79" y="-104.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1300.79" y="-85.3" font-family="Arial" font-size="11.00">+sensor_type : SensorType</text>
+<text text-anchor="start" x="1300.79" y="-66.1" font-family="Arial" font-size="11.00">+debounce_seconds : Integer</text>
+<text text-anchor="start" x="1300.79" y="-46.9" font-family="Arial" font-size="11.00">+asset_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1300.79" y="-27.7" font-family="Arial" font-size="11.00">+device_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1296.79,-117.4 1296.79,-117.4 1450.04,-117.4 1450.04,-117.4 1296.79,-117.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1296.79,-20.4 1296.79,-137.6 1450.04,-137.6 1450.04,-20.4 1296.79,-20.4"></polygon>
+</g>
+<!-- Asset&#45;&gt;AssetSensorMapping -->
+<g id="edge21" class="edge">
+<title>Asset-&gt;AssetSensorMapping</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1166.9,-299.5C1221.69,-235.45 1288.79,-157 1288.79,-157 1288.79,-157 1295.59,-150.66 1305.31,-141.59"></path>
+<text text-anchor="middle" x="1207.73" y="-211.11" font-family="Arial" font-size="9.50" fill="#222222">monitored by</text>
+<text text-anchor="middle" x="1290.68" y="-152.23" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1179.9" y="-281.3" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- HealthEvent -->
+<g id="node17" class="node">
+<title>HealthEvent</title>
+<polygon fill="#ffffff" stroke="none" points="1856.74,-317 1856.74,-511 2009.31,-511 2009.31,-317 1856.74,-317"></polygon>
+<polygon fill="#ededed" stroke="none" points="1857.74,-490.8 1857.74,-510 2008.31,-510 2008.31,-490.8 1857.74,-490.8"></polygon>
+<text text-anchor="start" x="1901.24" y="-498.1" font-family="Arial" font-weight="bold" font-size="11.00">HealthEvent</text>
+<text text-anchor="start" x="1860.74" y="-477.9" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1860.74" y="-458.7" font-family="Arial" font-size="11.00">+kind : HealthEventKind</text>
+<text text-anchor="start" x="1860.74" y="-439.5" font-family="Arial" font-size="11.00">+severity : Severity</text>
+<text text-anchor="start" x="1860.74" y="-420.3" font-family="Arial" font-size="11.00">+status : HealthEventStatus</text>
+<text text-anchor="start" x="1860.74" y="-401.1" font-family="Arial" font-size="11.00">+detected_at : DateTime</text>
+<text text-anchor="start" x="1860.74" y="-381.9" font-family="Arial" font-size="11.00">+asset_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1860.74" y="-362.7" font-family="Arial" font-size="11.00">+device_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1860.74" y="-343.5" font-family="Arial" font-size="11.00">+inspection_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1860.74" y="-324.3" font-family="Arial" font-size="11.00">+work_order_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1856.74,-490.8 1856.74,-490.8 2009.31,-490.8 2009.31,-490.8 1856.74,-490.8"></polygon>
+<polygon fill="none" stroke="#222222" points="1856.74,-317 1856.74,-511 2009.31,-511 2009.31,-317 1856.74,-317"></polygon>
+</g>
+<!-- Asset&#45;&gt;HealthEvent -->
+<g id="edge23" class="edge">
+<title>Asset-&gt;HealthEvent</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1173.86,-384.03C1330.66,-390.23 1686.85,-404.31 1848.93,-410.72"></path>
+<text text-anchor="middle" x="1489.48" y="-388.82" font-family="Arial" font-size="9.50" fill="#222222">flagged by</text>
+<text text-anchor="middle" x="1828.95" y="-406.93" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1193.85" y="-381.82" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- Issue&#45;&gt;WorkOrder -->
+<g id="edge12" class="edge">
+<title>Issue-&gt;WorkOrder</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1452.01,-748.13C1489.28,-742.43 1533.84,-735.62 1571.15,-729.91"></path>
+<text text-anchor="middle" x="1498.91" y="-730.47" font-family="Arial" font-size="9.50" fill="#222222">raises</text>
+<text text-anchor="middle" x="1551.38" y="-729.93" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1471.78" y="-742.11" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- WorkOrderEvent -->
+<g id="node13" class="node">
+<title>WorkOrderEvent</title>
+<polygon fill="#ffffff" stroke="none" points="1850.02,-659.4 1850.02,-776.6 2016.04,-776.6 2016.04,-659.4 1850.02,-659.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1851.02,-756.4 1851.02,-775.6 2015.04,-775.6 2015.04,-756.4 1851.02,-756.4"></polygon>
+<text text-anchor="start" x="1889.32" y="-763.7" font-family="Arial" font-weight="bold" font-size="11.00">WorkOrderEvent</text>
+<text text-anchor="start" x="1854.02" y="-743.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1854.02" y="-724.3" font-family="Arial" font-size="11.00">+from_status : WorkOrderStatus</text>
+<text text-anchor="start" x="1854.02" y="-705.1" font-family="Arial" font-size="11.00">+to_status : WorkOrderStatus</text>
+<text text-anchor="start" x="1854.02" y="-685.9" font-family="Arial" font-size="11.00">+created_at : DateTime</text>
+<text text-anchor="start" x="1854.02" y="-666.7" font-family="Arial" font-size="11.00">+work_order_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1850.02,-756.4 1850.02,-756.4 2016.04,-756.4 2016.04,-756.4 1850.02,-756.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1850.02,-659.4 1850.02,-776.6 2016.04,-776.6 2016.04,-659.4 1850.02,-659.4"></polygon>
+</g>
+<!-- WorkOrder&#45;&gt;WorkOrderEvent -->
+<g id="edge15" class="edge">
+<title>WorkOrder-&gt;WorkOrderEvent</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1740.23,-718C1772.74,-718 1809.48,-718 1842.05,-718"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1740.12,-718 1735.02,-721.4 1729.92,-718 1735.02,-714.6 1740.12,-718"></polygon>
+<text text-anchor="middle" x="1777.15" y="-709.45" font-family="Arial" font-size="9.50" fill="#222222">history</text>
+<text text-anchor="middle" x="1822.05" y="-715" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1748.93" y="-715" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- WorkOrder&#45;&gt;HealthEvent -->
+<g id="edge25" class="edge">
+<title>WorkOrder-&gt;HealthEvent</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1728.93,-633.72C1766.2,-593.4 1810.87,-545.07 1848.81,-504.03"></path>
+<text text-anchor="middle" x="1770.92" y="-560.33" font-family="Arial" font-size="9.50" fill="#222222">confirms</text>
+<text text-anchor="middle" x="1835.24" y="-515.71" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1742.5" y="-616.04" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- Inspection&#45;&gt;HealthEvent -->
+<g id="edge24" class="edge">
+<title>Inspection-&gt;HealthEvent</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1452.24,-526.72C1556.76,-502.16 1741.72,-458.71 1848.89,-433.53"></path>
+<text text-anchor="middle" x="1635.52" y="-471.57" font-family="Arial" font-size="9.50" fill="#222222">verifies</text>
+<text text-anchor="middle" x="1829.42" y="-435.11" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1471.71" y="-519.14" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+<!-- IoTDevice&#45;&gt;AssetSensorMapping -->
+<g id="edge20" class="edge">
+<title>IoTDevice-&gt;AssetSensorMapping</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1182.28,-79C1216.31,-79 1255.38,-79 1289.22,-79"></path>
+<polygon fill="#222222" stroke="#222222" stroke-width="1.1" points="1182.14,-79 1177.04,-82.4 1171.94,-79 1177.04,-75.6 1182.14,-79"></polygon>
+<text text-anchor="middle" x="1228.09" y="-70.45" font-family="Arial" font-size="9.50" fill="#222222">has</text>
+<text text-anchor="middle" x="1269.22" y="-76" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1190.95" y="-76" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- IoTDevice&#45;&gt;HealthEvent -->
+<g id="edge22" class="edge">
+<title>IoTDevice-&gt;HealthEvent</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1170.99,-48.57C1224.97,-26.31 1288.79,0 1288.79,0 1288.79,0 1458.04,0 1458.04,0 1458.04,0 1712.99,-222.68 1848.92,-341.41"></path>
+<text text-anchor="middle" x="1526.98" y="-64.58" font-family="Arial" font-size="9.50" fill="#222222">reports</text>
+<text text-anchor="middle" x="1833.86" y="-325.26" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1189.48" y="-37.95" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- LFMatch -->
+<g id="node19" class="node">
+<title>LFMatch</title>
+<polygon fill="#ffffff" stroke="none" points="1574.04,-958.4 1574.04,-1075.6 1726.02,-1075.6 1726.02,-958.4 1574.04,-958.4"></polygon>
+<polygon fill="#ededed" stroke="none" points="1575.04,-1055.4 1575.04,-1074.6 1725.02,-1074.6 1725.02,-1055.4 1575.04,-1055.4"></polygon>
+<text text-anchor="start" x="1627.42" y="-1062.7" font-family="Arial" font-weight="bold" font-size="11.00">LFMatch</text>
+<text text-anchor="start" x="1578.04" y="-1042.5" font-family="Arial" font-size="11.00">+id : UUID</text>
+<text text-anchor="start" x="1578.04" y="-1023.3" font-family="Arial" font-size="11.00">+score : Decimal</text>
+<text text-anchor="start" x="1578.04" y="-1004.1" font-family="Arial" font-size="11.00">+status : MatchStatus</text>
+<text text-anchor="start" x="1578.04" y="-984.9" font-family="Arial" font-size="11.00">+lost_item_id : UUID &nbsp;«FK»</text>
+<text text-anchor="start" x="1578.04" y="-965.7" font-family="Arial" font-size="11.00">+found_item_id : UUID &nbsp;«FK»</text>
+<polygon fill="#222222" stroke="#222222" points="1574.04,-1055.4 1574.04,-1055.4 1726.02,-1055.4 1726.02,-1055.4 1574.04,-1055.4"></polygon>
+<polygon fill="none" stroke="#222222" points="1574.04,-958.4 1574.04,-1075.6 1726.02,-1075.6 1726.02,-958.4 1574.04,-958.4"></polygon>
+</g>
+<!-- LFItem&#45;&gt;LFMatch -->
+<g id="edge27" class="edge">
+<title>LFItem-&gt;LFMatch</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1452.01,-1023.29C1487.69,-1018.81 1530.06,-1015.04 1566.35,-1013.11"></path>
+<text text-anchor="middle" x="1526.86" y="-1009.65" font-family="Arial" font-size="9.50" fill="#222222">lost item</text>
+<text text-anchor="middle" x="1546.38" y="-1011.26" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1471.86" y="-1017.88" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- LFItem&#45;&gt;LFMatch -->
+<g id="edge28" class="edge">
+<title>LFItem-&gt;LFMatch</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1452.01,-1045.15C1487.69,-1043.39 1530.06,-1039.75 1566.35,-1035.34"></path>
+<text text-anchor="middle" x="1487" y="-1031.69" font-family="Arial" font-size="9.50" fill="#222222">found item</text>
+<text text-anchor="middle" x="1546.49" y="-1034.67" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1471.98" y="-1041.08" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- LFItem&#45;&gt;LFClaim -->
+<g id="edge29" class="edge">
+<title>LFItem-&gt;LFClaim</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1452.08,-1063.29C1505.2,-1078.54 1566.04,-1096 1566.04,-1096 1566.04,-1096 1748.99,-1112.5 1856.19,-1122.16"></path>
+<text text-anchor="middle" x="1628.32" y="-1095.21" font-family="Arial" font-size="9.50" fill="#222222">claimed via</text>
+<text text-anchor="middle" x="1836.28" y="-1117.37" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1471.3" y="-1065.81" font-family="Arial" font-size="10.00" fill="#222222">1</text>
+</g>
+<!-- LFMatch&#45;&gt;LFClaim -->
+<g id="edge31" class="edge">
+<title>LFMatch-&gt;LFClaim</title>
+<path fill="none" stroke="#222222" stroke-width="1.1" d="M1733.82,-1050C1772.51,-1065.42 1818.27,-1083.66 1856.07,-1098.72"></path>
+<text text-anchor="middle" x="1778.31" y="-1065.81" font-family="Arial" font-size="9.50" fill="#222222">leads to</text>
+<text text-anchor="middle" x="1837.49" y="-1088.32" font-family="Arial" font-size="10.00" fill="#222222">*</text>
+<text text-anchor="middle" x="1752.4" y="-1054.4" font-family="Arial" font-size="10.00" fill="#222222">0..1</text>
+</g>
+</g>
+</svg>

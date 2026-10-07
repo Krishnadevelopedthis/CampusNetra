@@ -1,0 +1,48 @@
+@startuml complaint_state_diagram
+!include ../../style.iuml
+hide empty description
+left to right direction
+skinparam ranksep 55
+skinparam nodesep 55
+
+state "Reported" as Reported
+state "Triaged" as Triaged
+state "Assigned" as Assigned
+state "In Progress" as InProgress
+state "On Hold" as OnHold
+state "Resolved" as Resolved
+state "Verified" as Verified
+state "Closed" as Closed
+state "Rejected" as Rejected
+state "Duplicate" as Duplicate
+
+[*] --> Reported : issue submitted
+
+Reported --> Triaged : manager reviews
+Reported --> Assigned : work order created\nand technician assigned
+Reported --> Duplicate : marked as duplicate
+Reported --> Rejected : manager rejects
+
+Triaged --> Assigned : work order created\nand technician assigned
+Triaged --> Duplicate : marked as duplicate
+Triaged --> Rejected : manager rejects
+
+Assigned --> InProgress : technician starts work
+Assigned --> OnHold : work put on hold
+Assigned --> Triaged : assignment withdrawn
+
+InProgress --> OnHold : work put on hold /\nawaiting parts
+InProgress --> Resolved : work order completed
+
+OnHold --> InProgress : work resumed
+OnHold --> Assigned : reassigned
+
+Resolved --> Verified : manager verifies the fix
+Resolved --> InProgress : fix failed, reopened
+
+Verified --> Closed : manager closes
+
+Closed --> [*]
+Rejected --> [*]
+Duplicate --> [*]
+@enduml

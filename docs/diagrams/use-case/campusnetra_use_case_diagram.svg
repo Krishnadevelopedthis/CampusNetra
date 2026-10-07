@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2260" height="1330" viewBox="0 0 2260 1330" font-family="Arial, Helvetica, sans-serif">
+<defs>
+<marker id="open" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M1 1 L11 6 L1 11" fill="none" stroke="#222" stroke-width="1.4"/></marker>
+<marker id="tri" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="12" markerHeight="12" orient="auto"><path d="M1 1 L13 7 L1 13 Z" fill="#fff" stroke="#222" stroke-width="1.4"/></marker>
+</defs>
+<rect width="2260" height="1330" fill="#fff"/>
+<rect x="300" y="262" width="1760" height="838" fill="#fff" stroke="#222" stroke-width="1.6"/>
+<text x="314.0" y="286.0" font-size="16" text-anchor="start" font-weight="bold" fill="#111">Campus Netra</text>
+<line x1="308.0" y1="262.0" x2="308.0" y2="991.0" stroke="#222" stroke-width="1.3"/>
+<line x1="308.0" y1="351.0" x2="330.0" y2="351.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="351.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="356.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Register Account</text>
+<line x1="308.0" y1="415.0" x2="330.0" y2="415.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="415.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="420.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Login</text>
+<line x1="308.0" y1="479.0" x2="330.0" y2="479.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="479.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="484.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Reset Password</text>
+<line x1="308.0" y1="543.0" x2="330.0" y2="543.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="543.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="548.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Manage Profile</text>
+<line x1="308.0" y1="607.0" x2="330.0" y2="607.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="607.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="612.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Report Issue</text>
+<line x1="308.0" y1="671.0" x2="330.0" y2="671.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="671.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="676.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Track My Issues</text>
+<line x1="308.0" y1="735.0" x2="330.0" y2="735.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="735.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="740.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Confirm Existing Issue</text>
+<line x1="308.0" y1="799.0" x2="330.0" y2="799.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="799.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="804.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Report Lost or Found Item</text>
+<line x1="308.0" y1="863.0" x2="330.0" y2="863.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="863.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="868.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Browse Items and Matches</text>
+<line x1="308.0" y1="927.0" x2="330.0" y2="927.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="927.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="932.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Submit Claim</text>
+<line x1="308.0" y1="991.0" x2="330.0" y2="991.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="445.0" cy="991.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="445.0" y="988.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Campus Map and Digital</text>
+<text x="445.0" y="1004.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Twin</text>
+<line x1="918.0" y1="262.0" x2="918.0" y2="607.0" stroke="#222" stroke-width="1.3"/>
+<line x1="918.0" y1="351.0" x2="940.0" y2="351.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1055.0" cy="351.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1055.0" y="356.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Assigned Work Orders</text>
+<line x1="918.0" y1="415.0" x2="940.0" y2="415.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1055.0" cy="415.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1055.0" y="420.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Update Work Order Status</text>
+<line x1="918.0" y1="479.0" x2="940.0" y2="479.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1055.0" cy="479.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1055.0" y="484.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Conduct Inspection</text>
+<line x1="918.0" y1="543.0" x2="940.0" y2="543.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1055.0" cy="543.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1055.0" y="548.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Asset Details</text>
+<line x1="918.0" y1="607.0" x2="940.0" y2="607.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1055.0" cy="607.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1055.0" y="604.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Review Lost and Found</text>
+<text x="1055.0" y="620.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Matches and Claims</text>
+<line x1="1458.0" y1="262.0" x2="1458.0" y2="927.0" stroke="#222" stroke-width="1.3"/>
+<line x1="1458.0" y1="351.0" x2="1480.0" y2="351.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="351.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="348.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Assign Work Order to</text>
+<text x="1595.0" y="364.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Technician</text>
+<line x1="1458.0" y1="415.0" x2="1480.0" y2="415.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="415.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="420.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Verify and Close Work Order</text>
+<line x1="1458.0" y1="479.0" x2="1480.0" y2="479.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="479.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="484.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Schedule Inspection</text>
+<line x1="1458.0" y1="543.0" x2="1480.0" y2="543.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="543.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="548.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Asset Health</text>
+<line x1="1458.0" y1="607.0" x2="1480.0" y2="607.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="607.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="612.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Replay Past Campus State</text>
+<line x1="1458.0" y1="671.0" x2="1480.0" y2="671.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="671.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="676.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Manage Assets</text>
+<line x1="1458.0" y1="735.0" x2="1480.0" y2="735.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="735.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="740.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Analytics</text>
+<line x1="1458.0" y1="799.0" x2="1480.0" y2="799.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="799.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="804.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Run Scenario Simulation</text>
+<line x1="1458.0" y1="863.0" x2="1480.0" y2="863.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="863.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="868.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Predictive Maintenance</text>
+<line x1="1458.0" y1="927.0" x2="1480.0" y2="927.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1595.0" cy="927.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1595.0" y="932.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Configure SLA Policies</text>
+<line x1="1738.0" y1="262.0" x2="1738.0" y2="543.0" stroke="#222" stroke-width="1.3"/>
+<line x1="1738.0" y1="351.0" x2="1760.0" y2="351.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1875.0" cy="351.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="356.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Manage Users and Roles</text>
+<line x1="1738.0" y1="415.0" x2="1760.0" y2="415.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1875.0" cy="415.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="420.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Manage Campus Structure</text>
+<line x1="1738.0" y1="479.0" x2="1760.0" y2="479.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1875.0" cy="479.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="484.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Register IoT Device</text>
+<line x1="1738.0" y1="543.0" x2="1760.0" y2="543.0" stroke="#222" stroke-width="1.3"/>
+<ellipse cx="1875.0" cy="543.0" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="548.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">View Audit Log</text>
+<line x1="1720.0" y1="614.8" x2="2020.0" y2="614.8" stroke="#222" stroke-width="1" stroke-dasharray="7 5"/>
+<text x="1724.0" y="632.8" font-size="11.5" text-anchor="start" font-weight="bold" fill="#444">IoT telemetry</text>
+<ellipse cx="1875.0" cy="683.8" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="688.8" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Receive Sensor Telemetry</text>
+<ellipse cx="1875.0" cy="760.6" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="765.6" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Detect Asset Fault</text>
+<ellipse cx="1875.0" cy="837.4" rx="115.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1875.0" y="834.4" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Schedule Inspection</text>
+<text x="1875.0" y="850.4" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Automatically</text>
+<ellipse cx="705.0" cy="351.0" rx="95.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="705.0" y="356.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Verify Email Code</text>
+<line x1="554.0" y1="351.0" x2="612.0" y2="351.0" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="585.0" y="344.0" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#222">«include»</text>
+<ellipse cx="705.0" cy="578.2" rx="95.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="705.0" y="583.2" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Classify Issue</text>
+<line x1="554.0" y1="602.7" x2="612.0" y2="578.2" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="585.0" y="585.6" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#222">«include»</text>
+<ellipse cx="705.0" cy="635.8" rx="95.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="705.0" y="640.8" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Detect Duplicate Issue</text>
+<line x1="554.0" y1="611.3" x2="612.0" y2="635.8" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="585.0" y="638.4" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#222">«include»</text>
+<ellipse cx="1315.0" cy="415.0" rx="95.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1315.0" y="420.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Request Parts</text>
+<line x1="1218.0" y1="415.0" x2="1172.0" y2="415.0" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="1195.0" y="408.0" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#222">«extend»</text>
+<ellipse cx="1315.0" cy="479.0" rx="95.0" ry="25.0" fill="#fff" stroke="#222" stroke-width="1.3"/>
+<text x="1315.0" y="476.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Raise Issue from</text>
+<text x="1315.0" y="492.0" font-size="12.5" text-anchor="middle" font-weight="normal" fill="#111">Critical Failure</text>
+<line x1="1218.0" y1="479.0" x2="1172.0" y2="479.0" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="1195.0" y="472.0" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#222">«extend»</text>
+<line x1="1875.0" y1="708.8" x2="1875.0" y2="735.6" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="1889.0" y="726.2" font-size="11.5" text-anchor="start" font-weight="normal" fill="#111">«include»</text>
+<line x1="1875.0" y1="812.4" x2="1875.0" y2="785.6" stroke="#222" stroke-width="1.3" stroke-dasharray="7 5" marker-end="url(#open)"/>
+<text x="1889.0" y="803.0" font-size="11.5" text-anchor="start" font-weight="normal" fill="#111">«extend»</text>
+<circle cx="308" cy="129" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="308.0" y1="138.0" x2="308.0" y2="164.0" stroke="#222" stroke-width="1.5"/>
+<line x1="291.0" y1="147.0" x2="325.0" y2="147.0" stroke="#222" stroke-width="1.5"/>
+<line x1="308.0" y1="164.0" x2="294.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<line x1="308.0" y1="164.0" x2="322.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<text x="308.0" y="202.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Registered User</text>
+<circle cx="918" cy="129" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="918.0" y1="138.0" x2="918.0" y2="164.0" stroke="#222" stroke-width="1.5"/>
+<line x1="901.0" y1="147.0" x2="935.0" y2="147.0" stroke="#222" stroke-width="1.5"/>
+<line x1="918.0" y1="164.0" x2="904.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<line x1="918.0" y1="164.0" x2="932.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<text x="918.0" y="202.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Technician</text>
+<circle cx="1458" cy="129" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="1458.0" y1="138.0" x2="1458.0" y2="164.0" stroke="#222" stroke-width="1.5"/>
+<line x1="1441.0" y1="147.0" x2="1475.0" y2="147.0" stroke="#222" stroke-width="1.5"/>
+<line x1="1458.0" y1="164.0" x2="1444.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<line x1="1458.0" y1="164.0" x2="1472.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<text x="1458.0" y="202.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Facility Manager</text>
+<circle cx="1738" cy="129" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="1738.0" y1="138.0" x2="1738.0" y2="164.0" stroke="#222" stroke-width="1.5"/>
+<line x1="1721.0" y1="147.0" x2="1755.0" y2="147.0" stroke="#222" stroke-width="1.5"/>
+<line x1="1738.0" y1="164.0" x2="1724.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<line x1="1738.0" y1="164.0" x2="1752.0" y2="184.0" stroke="#222" stroke-width="1.5"/>
+<text x="1738.0" y="202.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Admin</text>
+<circle cx="90" cy="49" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="90.0" y1="58.0" x2="90.0" y2="84.0" stroke="#222" stroke-width="1.5"/>
+<line x1="73.0" y1="67.0" x2="107.0" y2="67.0" stroke="#222" stroke-width="1.5"/>
+<line x1="90.0" y1="84.0" x2="76.0" y2="104.0" stroke="#222" stroke-width="1.5"/>
+<line x1="90.0" y1="84.0" x2="104.0" y2="104.0" stroke="#222" stroke-width="1.5"/>
+<text x="90.0" y="122.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Student</text>
+<circle cx="90" cy="159" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="90.0" y1="168.0" x2="90.0" y2="194.0" stroke="#222" stroke-width="1.5"/>
+<line x1="73.0" y1="177.0" x2="107.0" y2="177.0" stroke="#222" stroke-width="1.5"/>
+<line x1="90.0" y1="194.0" x2="76.0" y2="214.0" stroke="#222" stroke-width="1.5"/>
+<line x1="90.0" y1="194.0" x2="104.0" y2="214.0" stroke="#222" stroke-width="1.5"/>
+<text x="90.0" y="232.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Teacher</text>
+<line x1="308.0" y1="214.0" x2="308.0" y2="262.0" stroke="#222" stroke-width="1.3"/>
+<line x1="918.0" y1="214.0" x2="918.0" y2="262.0" stroke="#222" stroke-width="1.3"/>
+<line x1="1458.0" y1="214.0" x2="1458.0" y2="262.0" stroke="#222" stroke-width="1.3"/>
+<line x1="1738.0" y1="214.0" x2="1738.0" y2="262.0" stroke="#222" stroke-width="1.3"/>
+<line x1="892.0" y1="144.0" x2="336.0" y2="144.0" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<line x1="1432.0" y1="144.0" x2="946.0" y2="144.0" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<line x1="1712.0" y1="144.0" x2="1486.0" y2="144.0" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<line x1="112.0" y1="68.0" x2="280.0" y2="134.0" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<line x1="112.0" y1="178.0" x2="280.0" y2="150.0" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<circle cx="872" cy="1127" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="872.0" y1="1136.0" x2="872.0" y2="1162.0" stroke="#222" stroke-width="1.5"/>
+<line x1="855.0" y1="1145.0" x2="889.0" y2="1145.0" stroke="#222" stroke-width="1.5"/>
+<line x1="872.0" y1="1162.0" x2="858.0" y2="1182.0" stroke="#222" stroke-width="1.5"/>
+<line x1="872.0" y1="1162.0" x2="886.0" y2="1182.0" stroke="#222" stroke-width="1.5"/>
+<text x="872.0" y="1200.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Email</text>
+<text x="872.0" y="1216.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Service</text>
+<text x="872.0" y="1232.0" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#444">«external»</text>
+<line x1="872.0" y1="1116.0" x2="872.0" y2="351.0" stroke="#222" stroke-width="1.3"/>
+<line x1="872.0" y1="351.0" x2="800.0" y2="351.0" stroke="#222" stroke-width="1.3"/>
+<circle cx="782" cy="1205" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="782.0" y1="1214.0" x2="782.0" y2="1240.0" stroke="#222" stroke-width="1.5"/>
+<line x1="765.0" y1="1223.0" x2="799.0" y2="1223.0" stroke="#222" stroke-width="1.5"/>
+<line x1="782.0" y1="1240.0" x2="768.0" y2="1260.0" stroke="#222" stroke-width="1.5"/>
+<line x1="782.0" y1="1240.0" x2="796.0" y2="1260.0" stroke="#222" stroke-width="1.5"/>
+<text x="782.0" y="1278.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">AI Model</text>
+<text x="782.0" y="1294.0" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">Service</text>
+<text x="782.0" y="1310.0" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#444">«external»</text>
+<line x1="822.0" y1="1194.0" x2="822.0" y2="578.2" stroke="#222" stroke-width="1.3"/>
+<line x1="822.0" y1="578.2" x2="800.0" y2="578.2" stroke="#222" stroke-width="1.3"/>
+<circle cx="2160" cy="654.8" r="9" fill="#fff" stroke="#222" stroke-width="1.5"/>
+<line x1="2160.0" y1="663.8" x2="2160.0" y2="689.8" stroke="#222" stroke-width="1.5"/>
+<line x1="2143.0" y1="672.8" x2="2177.0" y2="672.8" stroke="#222" stroke-width="1.5"/>
+<line x1="2160.0" y1="689.8" x2="2146.0" y2="709.8" stroke="#222" stroke-width="1.5"/>
+<line x1="2160.0" y1="689.8" x2="2174.0" y2="709.8" stroke="#222" stroke-width="1.5"/>
+<text x="2160.0" y="727.8" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">IoT Device</text>
+<text x="2160.0" y="743.8" font-size="13.5" text-anchor="middle" font-weight="bold" fill="#111">(ESP32)</text>
+<text x="2160.0" y="759.8" font-size="11.5" text-anchor="middle" font-weight="normal" fill="#444">«external»</text>
+<line x1="1990.0" y1="683.8" x2="2146.0" y2="683.8" stroke="#222" stroke-width="1.3"/>
+</svg>
