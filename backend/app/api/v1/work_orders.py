@@ -59,6 +59,18 @@ def _minutes_remaining(due: Optional[datetime], as_of: Optional[datetime] = None
     return int((due - reference).total_seconds() // 60)
 
 
+_WO_SLA_FINISHED = {WorkOrderStatus.COMPLETED, WorkOrderStatus.VERIFIED, WorkOrderStatus.CLOSED}
+
+
+def _wo_sla_minutes(wo) -> Optional[int]:
+    """Open: live countdown. Finished: frozen when the work was completed.
+    Cancelled: no deadline applies, so no figure (it must not turn "overdue")."""
+    if wo.status == WorkOrderStatus.CANCELLED:
+        return None
+    stopped_at = wo.completed_at if wo.status in _WO_SLA_FINISHED else None
+    return _minutes_remaining(wo.sla_due_at, stopped_at)
+
+
 async def _get_or_404(db, wo_id: uuid.UUID, user) -> WorkOrder:
     wo = await db.scalar(select(WorkOrder).where(WorkOrder.id == wo_id))
     if wo is None or wo.organization_id != user.organization_id:
@@ -103,7 +115,7 @@ def _to_item(wo: WorkOrder, m: dict) -> WorkOrderListItem:
         asset_id=asset.id if asset else None, asset_name=asset.name if asset else None,
         scheduled_for=wo.scheduled_for, sla_due_at=wo.sla_due_at,
         sla_breached=wo.sla_breached,
-        sla_minutes_remaining=_minutes_remaining(wo.sla_due_at, wo.completed_at),
+        sla_minutes_remaining=_wo_sla_minutes(wo),
         is_predictive=wo.is_predictive,
         total_cost=float(wo.labour_cost or 0) + float(wo.parts_cost or 0),
         created_at=wo.created_at, updated_at=wo.updated_at,

@@ -19,7 +19,7 @@ import {
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
 import AdminDeleteButton from '@/components/AdminDeleteButton'
-import { ago, dt, slaLabel, titleCase } from '@/lib/format'
+import { ago, dt, slaLabel, slaOutcome, titleCase } from '@/lib/format'
 import { useAuthedImage } from '@/hooks/useAuthedImage'
 
 const PIPELINE = ['reported', 'triaged', 'assigned', 'in_progress', 'resolved', 'closed']
@@ -229,7 +229,12 @@ export default function IssueDetail() {
     )
   }
 
+  // A finished issue's clock has stopped: report how it ended instead of
+  // a countdown, and never style it as currently overdue.
+  const slaFinished = ['resolved', 'verified', 'closed'].includes(issue.status)
+  const slaResult = slaFinished ? slaOutcome(issue.sla_minutes_remaining, issue.sla_breached) : null
   const overdue =
+    !slaFinished &&
     issue.sla_minutes_remaining != null &&
     issue.sla_minutes_remaining < 0
 
@@ -698,9 +703,9 @@ export default function IssueDetail() {
                       )}
 
                       <span className="block text-body-sm">
-                        {slaLabel(
-                          issue.sla_minutes_remaining,
-                        )}
+                        {slaResult
+                          ? slaResult.text
+                          : slaLabel(issue.sla_minutes_remaining)}
                       </span>
                     </span>
                   ) : null

@@ -47,6 +47,25 @@ def _minutes_remaining(due: Optional[datetime], as_of: Optional[datetime] = None
     return int((due - reference).total_seconds() // 60)
 
 
+_SLA_FINISHED = {IssueStatus.RESOLVED, IssueStatus.VERIFIED, IssueStatus.CLOSED}
+# Turned away without being worked, so there is no deadline to meet or miss.
+_SLA_NOT_APPLICABLE = {IssueStatus.REJECTED, IssueStatus.DUPLICATE}
+
+
+def issue_sla_minutes(issue: Issue) -> Optional[int]:
+    """Minutes left on an issue's SLA, or None when no SLA clock applies.
+
+    The clock runs only while the issue is open. Once it is finished the figure
+    freezes at the moment the work was done, and a rejected or duplicate issue
+    never had a clock to run. Counting any of these against the live clock
+    makes them drift into "overdue" for as long as the record exists.
+    """
+    if issue.status in _SLA_NOT_APPLICABLE:
+        return None
+    stopped_at = (issue.resolved_at or issue.closed_at) if issue.status in _SLA_FINISHED else None
+    return _minutes_remaining(issue.sla_due_at, stopped_at)
+
+
 async def _lookup_maps(db: AsyncSession, issues: Sequence[Issue]) -> dict:
     """Batch-load related labels for issue list/detail responses.
 
@@ -171,7 +190,7 @@ def _to_list_item(issue: Issue, m: dict) -> IssueListItem:
         upvote_count=issue.upvote_count,
         sla_due_at=issue.sla_due_at,
         sla_breached=issue.sla_breached,
-        sla_minutes_remaining=_minutes_remaining(issue.sla_due_at, issue.resolved_at),
+        sla_minutes_remaining=issue_sla_minutes(issue),
         attachment_count=m["attachment_counts"].get(issue.id, 0),
         created_at=issue.created_at, updated_at=issue.updated_at,
     )

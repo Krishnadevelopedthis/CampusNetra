@@ -10,11 +10,12 @@ import {
 import { useRefresh } from '@/hooks/useRefresh'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
-import { ago, slaLabel } from '@/lib/format'
+import { ago, slaLabel, slaOutcome } from '@/lib/format'
 
 const STATUSES = ['reported', 'triaged', 'assigned', 'in_progress', 'on_hold',
                   'resolved', 'verified', 'closed', 'rejected', 'duplicate']
 const PRIORITIES = ['critical', 'high', 'medium', 'low']
+const FINISHED = new Set(['resolved', 'verified', 'closed'])
 
 export default function IssueList() {
   const { user } = useAuth()
@@ -166,6 +167,14 @@ export default function IssueList() {
                       <td className="whitespace-nowrap">
                         {i.sla_minutes_remaining == null ? (
                           <span className="text-ink-faint">—</span>
+                        ) : FINISHED.has(i.status) ? (
+                          // Done: the countdown is over, so say how it ended.
+                          <span className={`text-body-sm font-medium ${
+                            slaOutcome(i.sla_minutes_remaining, i.sla_breached).missed
+                              ? 'text-danger-text' : 'text-success-text'
+                          }`}>
+                            {slaOutcome(i.sla_minutes_remaining, i.sla_breached).text}
+                          </span>
                         ) : (
                           <span className={`text-body-sm font-medium ${
                             i.sla_breached || i.sla_minutes_remaining < 0
