@@ -19,6 +19,7 @@ def test_query_targets_one_device_and_buckets_the_window():
     assert 'r.device_id == "ESP32-001"' in q
     assert "range(start: -86400s)" in q
     assert "aggregateWindow(every: 600s" in q
+    assert 'timeSrc: "_start"' in q            # bucket stamped when it began, not ended
     assert "toFloat()" in q and "pivot(" in q
 
 

@@ -185,6 +185,17 @@ async def department_members(
     )).all()
 
 
+async def admins_of(db: AsyncSession, organization_id: uuid.UUID) -> Sequence[uuid.UUID]:
+    """Administrators (including super admins), who own the Health page."""
+    return (await db.scalars(
+        select(User.id).where(
+            User.organization_id == organization_id,
+            User.role.in_([UserRole.ADMIN, UserRole.SUPER_ADMIN]),
+            User.status == "active",
+        )
+    )).all()
+
+
 async def managers_of(db: AsyncSession, organization_id: uuid.UUID) -> Sequence[uuid.UUID]:
     return (await db.scalars(
         select(User.id).where(

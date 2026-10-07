@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
 import { CheckCircle2, Cpu, Gauge, HeartPulse, LineChart, Power, PowerOff, Radio, Thermometer, Unplug } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { DeviceHistoryModal } from '@/components/admin/DeviceHistoryModal'
 import { IoTDevicesPanel } from '@/components/admin/IoTDevicesPanel'
@@ -148,13 +148,14 @@ function RoomDeviceSummary({ device }) {
   )
 }
 
-function RoomCard({ room, onSelectAsset }) {
+function RoomCard({ room, onSelectAsset, where }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   return (
     <div className="rounded-lg border border-border-subtle bg-surface p-3 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-body-sm font-medium text-ink truncate">{room.code} · {room.name}</p>
+          {where && <p className="text-body-xs text-ink-faint truncate">{where}</p>}
         </div>
         <StateDot status={room.status} />
       </div>
@@ -196,7 +197,7 @@ function FloorSection({ floor, onSelectAsset }) {
       <p className="text-label-sm uppercase tracking-wide text-ink-faint border-t border-border-subtle pt-3">
         Floor {floor.level} · {floor.name}
       </p>
-      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid items-start sm:grid-cols-2 xl:grid-cols-3 gap-3">
         {floor.rooms.map((r) => (
           <RoomCard key={r.id} room={r} onSelectAsset={onSelectAsset} />
         ))}
@@ -360,8 +361,30 @@ export default function AdminHealth() {
     refetchInterval: 10_000,
   })
 
-  const campusesOut = tree.data?.campuses || []
-  const anyRooms = campusesOut.some((c) => c.buildings.some((b) => b.floors.some((f) => f.rooms.length)))
+  const allCampuses = tree.data?.campuses || []
+
+  // Rooms with an ESP32 assigned are pulled out and shown first; the building
+  // list below then holds only the rooms without one, so nothing appears twice.
+  const { monitored, campusesOut } = useMemo(() => {
+    const monitored = []
+    const campusesOut = allCampuses.map((c) => ({
+      ...c,
+      buildings: c.buildings.map((b) => ({
+        ...b,
+        floors: b.floors.map((f) => {
+          const rest = []
+          for (const r of f.rooms) {
+            if (r.device) monitored.push({ room: r, where: `${b.name} · ${f.name}` })
+            else rest.push(r)
+          }
+          return { ...f, rooms: rest }
+        }),
+      })),
+    }))
+    return { monitored, campusesOut }
+  }, [allCampuses])
+  const anyRooms = monitored.length > 0
+    || campusesOut.some((c) => c.buildings.some((b) => b.floors.some((f) => f.rooms.length)))
 
   return (
     <div className="space-y-4">
@@ -444,6 +467,20 @@ export default function AdminHealth() {
         )}
         {!tree.isLoading && anyRooms && (
           <div className="space-y-6">
+            {monitored.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="flex items-center gap-2 text-headline-sm text-ink">
+                  <Radio size={16} className="text-secondary" aria-hidden="true" />
+                  Monitored rooms
+                  <span className="text-body-sm font-normal text-ink-faint">· ESP32 assigned ({monitored.length})</span>
+                </h3>
+                <div className="grid items-start gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {monitored.map(({ room, where }) => (
+                    <RoomCard key={room.id} room={room} where={where} onSelectAsset={setSelectedAsset} />
+                  ))}
+                </div>
+              </section>
+            )}
             {campusesOut.map((c) => (
               <div key={c.id} className="space-y-3">
                 <h2 className="text-headline-sm text-ink">{c.name}</h2>

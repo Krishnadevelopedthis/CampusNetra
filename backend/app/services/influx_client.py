@@ -170,7 +170,10 @@ def build_history_query(device_id: str, window_s: int, bucket_s: int) -> str:
         f'  |> filter(fn: (r) => r._measurement == "{measurement}" and r.device_id == "{device_id}")',
         f'  |> filter(fn: (r) => {fields})',
         '  |> toFloat()',
-        f'  |> aggregateWindow(every: {bucket_s}s, fn: mean, createEmpty: false)',
+        # timeSrc _start stamps each bucket with when it BEGAN. The default is the
+        # window's end, which shifts every point late by one bucket (an hour on
+        # the 7-day view) and would misplace it against the fault markers.
+        f'  |> aggregateWindow(every: {bucket_s}s, fn: mean, timeSrc: "_start", createEmpty: false)',
         '  |> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")',
         '  |> sort(columns: ["_time"])',
     ]

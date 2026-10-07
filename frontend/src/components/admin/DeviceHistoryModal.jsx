@@ -52,6 +52,36 @@ const UNAVAILABLE = {
 
 const KIND = (k) => String(k || '').replaceAll('_', ' ')
 
+/** Evenly spaced, round-numbered ticks in local time (10 min, 1 h, 4 h or midnight),
+ *  so the axis always reads cleanly however the readings happen to fall. */
+function makeTicks(since, until, rangeKey) {
+  if (!since || !until) return undefined
+  const step = { '1h': 10 * 60e3, '6h': 3600e3, '24h': 4 * 3600e3, '7d': 86400e3 }[rangeKey]
+  const d = new Date(since)
+  if (rangeKey === '7d') d.setHours(0, 0, 0, 0)
+  else if (rangeKey === '24h') d.setHours(Math.floor(d.getHours() / 4) * 4, 0, 0, 0)
+  else if (rangeKey === '6h') d.setMinutes(0, 0, 0)
+  else d.setMinutes(Math.floor(d.getMinutes() / 10) * 10, 0, 0)
+  const ticks = []
+  for (let t = d.getTime(); t <= until; t += step) if (t >= since) ticks.push(t)
+  return ticks
+}
+
+/** Faults that happen close together would stack into an unreadable smear of
+ *  lines and labels; draw one marker per burst. The list below names every one. */
+function clusterEvents(events, spanMs) {
+  const sorted = [...events].sort((a, b) => a.at - b.at)
+  const gap = spanMs * 0.012
+  const out = []
+  for (const e of sorted) {
+    const last = out[out.length - 1]
+    if (last && e.at - last.end <= gap) { last.count += 1; last.end = e.at } else out.push({ at: e.at, end: e.at, count: 1, reference: e.reference })
+  }
+  return out
+}
+
+const bucketName = (sec) => (sec >= 3600 ? '1-hour' : `${Math.round(sec / 60)}-minute`)
+
 /** Insert a break wherever readings stop for a while (device offline) so the
  *  line stops there instead of drawing a straight, made-up segment across it. */
 function withGaps(points, bucketSeconds) {
@@ -63,6 +93,25 @@ function withGaps(points, bucketSeconds) {
     out.push(p)
   })
   return out
+}
+
+const SERIES = ['current_a', 'temperature_c', 'humidity_pct', 'fan_pct', 'light']
+
+/** A reading with nothing on either side (a short spell of data between silences)
+ *  draws no line at all, so it would vanish. Flag those so they can be drawn as dots. */
+function markSolo(points) {
+  return points.map((p, i) => {
+    const out = { ...p }
+    for (const k of SERIES) {
+      out[`solo_${k}`] = p[k] != null && points[i - 1]?.[k] == null && points[i + 1]?.[k] == null
+    }
+    return out
+  })
+}
+
+const soloDot = (key, color) => function SoloDot({ cx, cy, payload }) {
+  if (!payload?.[`solo_${key}`] || cx == null || cy == null) return <g />
+  return <circle cx={cx} cy={cy} r={3.5} fill={color} stroke="rgb(var(--c-surface))" strokeWidth={1.5} />
 }
 
 const avg = (pts, key) => {
@@ -108,7 +157,7 @@ function Panel({ title, legend, children }) {
 }
 
 export function DeviceHistoryModal({ device, roomLabel, onClose }) {
-  const [range, setRange] = useState('24h')
+  const [range, setRange] = useState('6h')
 
   const history = useQuery({
     queryKey: ['device-history', device?.id, range],
@@ -127,7 +176,7 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
 
   const data = history.data
   const raw = data?.points || []
-  const points = useMemo(() => withGaps(raw, data?.bucket_seconds), [raw, data?.bucket_seconds])
+  const points = useMemo(() => markSolo(withGaps(raw, data?.bucket_seconds)), [raw, data?.bucket_seconds])
   const events = data?.events || []
   const domain = data ? [data.since, data.until] : ['dataMin', 'dataMax']
   const longRange = range === '7d'
@@ -135,19 +184,26 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
   const labelFormat = (t) => dt(new Date(t), 'EEE d MMM, HH:mm')
 
   const fanAvg = avg(raw, 'fan_pct')
+  const ticks = useMemo(() => makeTicks(data?.since, data?.until, range), [data?.since, data?.until, range])
+  const clusters = useMemo(
+    () => (data ? clusterEvents(events, data.until - data.since) : []),
+    [events, data],
+  )
 
   const xAxis = (visible) => (
     <XAxis
-      dataKey="t" type="number" scale="time" domain={domain} hide={!visible}
-      tickFormatter={tickFormat} tickMargin={6} minTickGap={36} axisLine={false} tickLine={false}
+      dataKey="t" type="number" scale="time" domain={domain} hide={!visible} ticks={ticks}
+      tickFormatter={tickFormat} tickMargin={8} interval={0} axisLine={false} tickLine={false}
     />
   )
   // A chart with named y-axes needs the marker tied to one of them.
-  const markers = (yAxisId, labelled = false) => events.map((e) => (
+  const markers = (yAxisId, labelled = false) => clusters.map((c) => (
     <ReferenceLine
-      key={e.id} x={e.at} yAxisId={yAxisId} stroke={FAULT} strokeDasharray="4 3" strokeWidth={1.5}
-      ifOverflow="hidden"
-      label={labelled ? { value: e.reference, position: 'insideTopLeft', fill: FAULT, fontSize: 11, fontWeight: 600 } : undefined}
+      key={c.at} x={c.at} yAxisId={yAxisId} stroke={FAULT} strokeDasharray="4 3" strokeWidth={1.5}
+      strokeOpacity={0.8} ifOverflow="hidden"
+      label={labelled && clusters.length <= 3
+        ? { value: c.count > 1 ? `${c.count} faults` : c.reference, position: 'insideTopLeft', fill: FAULT, fontSize: 11, fontWeight: 600 }
+        : undefined}
     />
   ))
   const tooltip = (formatter) => (
@@ -224,7 +280,7 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
               <YAxis width={44} domain={[0, 'auto']} tickFormatter={(v) => `${v}A`} axisLine={false} tickLine={false} />
               {tooltip((v) => fmt(v, 3, ' A'))}
               <Area type="monotone" dataKey="current_a" stroke={COLOR.current_a} strokeWidth={2}
-                    fill="url(#hist-current)" dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+                    fill="url(#hist-current)" dot={soloDot('current_a', COLOR.current_a)} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
               {markers(undefined, true)}
             </AreaChart>
           </ChartContainer>
@@ -239,24 +295,25 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
             <LineChart {...common} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} />
               {xAxis(false)}
-              <YAxis yAxisId="t" width={44} domain={['auto', 'auto']} tickFormatter={(v) => `${Math.round(v)}°`}
+              <YAxis yAxisId="t" width={44} allowDecimals={false}
+                     domain={[(min) => Math.floor(min - 1), (max) => Math.ceil(max + 1)]} tickFormatter={(v) => `${v}°`}
                      axisLine={false} tickLine={false} />
               <YAxis yAxisId="h" orientation="right" width={44} domain={[0, 100]}
                      tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
               {tooltip((v, key) => (key === 'temperature_c' ? fmt(v, 1, '°C') : fmt(v, 0, '%')))}
               <Line yAxisId="t" type="monotone" dataKey="temperature_c" stroke={COLOR.temperature_c} strokeWidth={2}
-                    dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+                    dot={soloDot('temperature_c', COLOR.temperature_c)} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
               <Line yAxisId="h" type="monotone" dataKey="humidity_pct" stroke={COLOR.humidity_pct} strokeWidth={2}
-                    dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+                    dot={soloDot('humidity_pct', COLOR.humidity_pct)} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
               {markers('t')}
             </LineChart>
           </ChartContainer>
         </Panel>
 
-        <Panel title="Fan and light" legend={[['fan_pct', 'Fan turning (%)'], ['light', 'Light level']]}>
+        <Panel title="Fan and light" legend={[['fan_pct', 'Fan turning (%)'], ['light', 'Light (raw sensor value)']]}>
           <ChartContainer className="h-[190px]" config={{
             fan_pct: { label: 'Fan turning', color: COLOR.fan_pct },
-            light: { label: 'Light level', color: COLOR.light },
+            light: { label: 'Light (raw)', color: COLOR.light },
           }}>
             <ComposedChart {...common} margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
               <CartesianGrid vertical={false} />
@@ -266,23 +323,28 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
               <YAxis yAxisId="l" orientation="right" width={44} domain={[0, 'auto']} axisLine={false} tickLine={false} />
               {tooltip((v, key) => (key === 'fan_pct' ? fmt(v, 0, '%') : fmt(v, 0)))}
               <Area yAxisId="f" type="stepAfter" dataKey="fan_pct" stroke={COLOR.fan_pct} strokeWidth={1.75}
-                    fill={COLOR.fan_pct} fillOpacity={0.16} dot={false} activeDot={{ r: 4 }}
+                    fill={COLOR.fan_pct} fillOpacity={0.16} dot={soloDot('fan_pct', COLOR.fan_pct)} activeDot={{ r: 4 }}
                     connectNulls={false} isAnimationActive={false} />
               <Line yAxisId="l" type="monotone" dataKey="light" stroke={COLOR.light} strokeWidth={2}
-                    dot={false} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+                    dot={soloDot('light', COLOR.light)} activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
               {markers('f')}
             </ComposedChart>
           </ChartContainer>
         </Panel>
 
+        <p className="px-1 text-body-xs text-ink-faint">
+          Each point is the average of the readings received in a {bucketName(data.bucket_seconds)} window.
+          A break in a line means the device sent nothing then. Times are in your local time.
+        </p>
+
         {events.length > 0 && (
           <section className="rounded-lg border border-border-subtle bg-surface p-3">
             <h4 className="mb-2 flex items-center gap-1.5 text-body-sm font-medium text-ink">
               <AlertTriangle size={14} style={{ color: FAULT }} aria-hidden="true" />
-              Faults in this period
-              <span className="font-normal text-ink-faint">· marked by the red dashed lines</span>
+              Faults in this period ({events.length})
+              <span className="font-normal text-ink-faint">· red dashed lines on the charts</span>
             </h4>
-            <ul className="divide-y divide-border-subtle">
+            <ul className="max-h-52 divide-y divide-border-subtle overflow-y-auto">
               {[...events].reverse().map((e) => (
                 <li key={e.id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 py-1.5 text-body-sm">
                   <span className="font-mono text-mono-data text-secondary">{e.reference}</span>

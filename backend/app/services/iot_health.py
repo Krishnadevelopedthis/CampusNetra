@@ -27,7 +27,7 @@ from app.core.enums import (
 )
 from app.models.identity import User
 from app.models.iot import AssetSensorMapping, HealthEvent, IoTDevice
-from app.models.spatial import Asset
+from app.models.spatial import Asset, Room
 from app.models.work import Inspection, InspectionTemplate, InspectionTemplateItem, WorkOrder
 from app.services import inspections as inspections_svc
 from app.services import notifications as notify_svc
@@ -209,7 +209,7 @@ async def _confirm_anomaly(
     db: AsyncSession, mapping: AssetSensorMapping, asset: Asset,
     organization_id: uuid.UUID, department_id: Optional[uuid.UUID],
     kind: HealthEventKind, value: Decimal, expected_min, expected_max,
-) -> HealthEvent:
+) -> Optional[HealthEvent]:
     """Debounce satisfied -- open (or reuse) the HealthEvent and schedule the
     automatic inspection. Never touches WorkOrder directly: that only
     happens once a technician confirms via the normal inspection submit
@@ -226,6 +226,25 @@ async def _confirm_anomaly(
         # latest reading, don't spam a second inspection for the same fault.
         existing.detected_value = value
         return existing
+
+    # A fault that cleared on its own moments ago and is back is almost always
+    # the same flapping sensor, not a new problem: raising another event would
+    # schedule another inspection and notify everyone again.
+    if settings.IOT_EVENT_COOLDOWN_MINUTES > 0:
+        cutoff = _now() - timedelta(minutes=settings.IOT_EVENT_COOLDOWN_MINUTES)
+        flapped = await db.scalar(
+            select(HealthEvent.id).where(
+                HealthEvent.asset_id == asset.id,
+                HealthEvent.kind == kind,
+                HealthEvent.work_order_id.is_(None),
+                HealthEvent.status.in_([HealthEventStatus.RESOLVED, HealthEventStatus.NO_ISSUE_FOUND]),
+                HealthEvent.resolved_at >= cutoff,
+            ).limit(1)
+        )
+        if flapped is not None:
+            log.info("Suppressed repeat %s on asset %s: it cleared within the last %d min",
+                     kind.value, asset.id, settings.IOT_EVENT_COOLDOWN_MINUTES)
+            return None
 
     event = HealthEvent(
         reference=await next_public_id(db, HealthEvent, "HE"),
@@ -266,12 +285,28 @@ async def _confirm_anomaly(
             event.inspection_id = inspection.id
             event.status = HealthEventStatus.INSPECTING
 
+        room = await db.get(Room, asset.room_id)
+        where = f" in {room.name}" if room else ""
+        what = kind.value.replace("_", " ")
+
         if not tech:
-            managers = await notify_svc.managers_of(db, organization_id)
+            # Admins are told too (managers_of leaves out super admins), once.
+            recipients = {*await notify_svc.managers_of(db, organization_id),
+                          *await notify_svc.admins_of(db, organization_id)}
             await notify_svc.notify(
-                db, list(managers),
+                db, list(recipients),
                 title=f"IoT health event needs a technician: {asset.name}",
-                body=f"{event.reference} — no technician available to auto-assign.",
+                body=f"{event.reference} — {what}{where}. No technician available to auto-assign.",
+                link="/admin/health", kind="health_event",
+                entity_type="health_event", entity_id=event.id,
+            )
+        else:
+            # The technician hears about the inspection; administrators hear
+            # that a sensor caught a fault, so they can follow it on the Health page.
+            await notify_svc.notify(
+                db, list(await notify_svc.admins_of(db, organization_id)),
+                title=f"IoT fault detected: {asset.name}",
+                body=f"{event.reference} — {what}{where}. Inspection assigned to {tech.full_name}.",
                 link="/admin/health", kind="health_event",
                 entity_type="health_event", entity_id=event.id,
             )

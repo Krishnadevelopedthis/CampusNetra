@@ -229,6 +229,13 @@ class Settings(BaseSettings):
     # by itself imply a fan/light fault).
     IOT_DEVICE_OFFLINE_MINUTES: int = 3
 
+    # After a sensor fault clears by itself (a recovery, or an inspection that
+    # found nothing), the same fault on the same asset is not raised again for
+    # this long. Without it a flapping sensor opens an event, an inspection and
+    # a round of notifications every few minutes. A fault that was repaired
+    # through a work order is never held back. 0 turns the cooldown off.
+    IOT_EVENT_COOLDOWN_MINUTES: int = 15
+
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, v):
