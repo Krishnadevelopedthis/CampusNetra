@@ -14,6 +14,7 @@ import {
 import { FloorPlan, TwinLegend } from '@/features/twin/FloorPlan'
 import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import RoomAssetList from '@/features/twin/RoomAssetList'
+import { RoomIssues } from '@/features/twin/RoomIssues'
 import { useRefresh } from '@/hooks/useRefresh'
 import { api, connectTwin } from '@/lib/api'
 import { ago, titleCase } from '@/lib/format'
@@ -537,6 +538,7 @@ function Inspector({ asset, room, onClose, onSelectAsset }) {
         <Row label="Open issues">{room.open_issue_count}</Row>
       </div>
 
+      <RoomIssues roomId={room.id} count={room.open_issue_count} />
       {room.assets?.length > 0 && (
         <RoomAssetList key={room.id} assets={room.assets} onSelect={onSelectAsset} />
       )}

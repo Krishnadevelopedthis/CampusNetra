@@ -21,6 +21,7 @@ import {
 } from '@/components/ui'
 import { AssetModal, PlaceModal, RoomModal } from '@/features/twin/AssetRoomModals'
 import RoomAssetList from '@/features/twin/RoomAssetList'
+import { RoomIssueBanner, RoomIssues } from '@/features/twin/RoomIssues'
 // Lazy: maplibre-gl is a large dependency that only matters once a campus
 // actually has real-world coordinates set (hasOutdoorMap below) — most
 // visits to this page shouldn't pay for it just to render the three.js
@@ -154,6 +155,12 @@ export default function CampusMap() {
     enabled: !!selectedFloorId && (view === 'floor' || view === 'room'),
   })
   const planRoom = plan.data?.rooms?.find((r) => r.id === selectedRoomId) || null
+  // Open issues in the room that no asset marker can show (raised by an
+  // inspection failure, or against the room itself).
+  const roomLevelIssues = planRoom
+    ? (planRoom.open_issue_count || 0)
+      - (planRoom.assets || []).reduce((n, a) => n + (a.open_issue_count || 0), 0)
+    : 0
 
   const navigate = (v, ids = {}) => {
     setView(v)
@@ -483,6 +490,8 @@ export default function CampusMap() {
               </>
             )}
 
+            {view === 'room' && <RoomIssueBanner roomLevel={roomLevelIssues} />}
+
             <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-body-sm text-ink-faint bg-surface/80 backdrop-blur px-3 py-1 rounded-full pointer-events-none">
               {view === 'campus' && hasOutdoorMap
                 ? 'Drag to orbit · scroll to zoom · click a building'
@@ -716,6 +725,7 @@ function Inspector({ asset, room, onClose, onSelectAsset }) {
         <Row label="Area">{room.area_sqft ? `${room.area_sqft} sq ft` : '—'}</Row>
         <Row label="Open issues">{room.open_issue_count}</Row>
       </div>
+      <RoomIssues roomId={room.id} count={room.open_issue_count} />
       {room.assets?.length > 0 && (
         <RoomAssetList key={room.id} assets={room.assets} onSelect={onSelectAsset} />
       )}
