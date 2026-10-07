@@ -555,22 +555,28 @@ export default function IssueDetail() {
                 <Row
                   label="Asset"
                   value={
-                    <Link
-                      to="/twin"
-                      className="text-secondary hover:underline"
-                    >
-                      <span className="font-mono text-mono-data">
-                        {
-                          issue.location
-                            .asset_tag
-                        }
+                    // The Digital Twin is staff-only: a reporter who followed this
+                    // link would land on a 403 page, so they get plain text instead.
+                    (staff ? (
+                      <Link
+                        to="/twin"
+                        className="text-secondary hover:underline"
+                      >
+                        <span className="font-mono text-mono-data">
+                          {issue.location.asset_tag}
+                        </span>
+                        {' — '}
+                        {issue.location.asset_name}
+                      </Link>
+                    ) : (
+                      <span>
+                        <span className="font-mono text-mono-data">
+                          {issue.location.asset_tag}
+                        </span>
+                        {' — '}
+                        {issue.location.asset_name}
                       </span>
-                      {' — '}
-                      {
-                        issue.location
-                          .asset_name
-                      }
-                    </Link>
+                    ))
                   }
                 />
               )}
