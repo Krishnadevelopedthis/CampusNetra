@@ -57,7 +57,13 @@ export default function AdminAI() {
   const tasks = perf.data?.tasks || []
   const totalCalls = tasks.reduce((s, t) => s + t.invocations, 0)
   const reviewed = tasks.reduce((s, t) => s + t.human_reviewed, 0)
-  const accuracyTask = tasks.find((t) => t.accuracy != null)
+  // One figure across every scored task, weighted by how many decisions each
+  // had reviewed. (It used to show whichever task came first, so two reviews
+  // of one task could read as "100%" for the whole system.)
+  const scored = tasks.filter((t) => t.accuracy_measurable && t.human_reviewed > 0)
+  const scoredReviews = scored.reduce((s, t) => s + t.human_reviewed, 0)
+  const scoredCorrect = scored.reduce((s, t) => s + (t.human_correct ?? 0), 0)
+  const LOW_SAMPLE = 20
 
   return (
     <div className="space-y-5">
@@ -68,7 +74,10 @@ export default function AdminAI() {
         <Metric label="Awaiting review" value={queue.data?.counts?.uncertain ?? 0}
                 accent={(queue.data?.counts?.uncertain ?? 0) > 0 ? '#f59e0b' : '#10b981'} />
         <Metric label="Accuracy"
-                value={accuracyTask ? `${Math.round(accuracyTask.accuracy * 100)}%` : '—'}
+                value={scoredReviews ? `${Math.round((scoredCorrect / scoredReviews) * 100)}%` : '—'}
+                delta={scoredReviews
+                  ? `${scoredReviews} reviewed${scoredReviews < LOW_SAMPLE ? ' · small sample' : ''}`
+                  : 'no reviews yet'}
                 accent="#10b981" />
       </MetricRow>
 

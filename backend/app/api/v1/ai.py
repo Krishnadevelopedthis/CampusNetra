@@ -430,6 +430,7 @@ async def ai_performance(user: RequireManager, db: DB, days: int = Query(30, ge=
             "avg_latency_ms": round(float(avg_latency)) if avg_latency else None,
             "fallback_rate": round((fallbacks or 0) / count, 3) if count else 0,
             "human_reviewed": reviewed,
+            "human_correct": correct,
             "accuracy": round(correct / reviewed, 3) if reviewed else None,
             # False for free-form tasks like the assistant: there is no single
             # right answer to score, so the UI shows "n/a" rather than
