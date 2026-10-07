@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import clsx from 'clsx'
-import { CheckCircle2, Cpu, Gauge, HeartPulse, Power, PowerOff, Radio, Thermometer, Unplug } from 'lucide-react'
+import { CheckCircle2, Cpu, Gauge, HeartPulse, LineChart, Power, PowerOff, Radio, Thermometer, Unplug } from 'lucide-react'
 import { useState } from 'react'
 
+import { DeviceHistoryModal } from '@/components/admin/DeviceHistoryModal'
 import { IoTDevicesPanel } from '@/components/admin/IoTDevicesPanel'
 import { EmptyState, ErrorState, Field, Modal, Select, SkeletonRows, Widget } from '@/components/ui'
 import { api } from '@/lib/api'
@@ -148,6 +149,7 @@ function RoomDeviceSummary({ device }) {
 }
 
 function RoomCard({ room, onSelectAsset }) {
+  const [historyOpen, setHistoryOpen] = useState(false)
   return (
     <div className="rounded-lg border border-border-subtle bg-surface p-3 space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -157,6 +159,21 @@ function RoomCard({ room, onSelectAsset }) {
         <StateDot status={room.status} />
       </div>
       <RoomDeviceSummary device={room.device} />
+      {room.device && (
+        <button
+          type="button" onClick={() => setHistoryOpen(true)}
+          className="btn-secondary btn-sm w-full justify-center"
+          title="Current, temperature, humidity, fan and light over time"
+        >
+          <LineChart size={14} /> View history
+        </button>
+      )}
+      {historyOpen && (
+        <DeviceHistoryModal
+          device={room.device} roomLabel={`${room.code} · ${room.name}`}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
       {!room.has_electronic_assets ? (
         <p className="text-body-xs text-ink-faint">No electronic assets in this room.</p>
       ) : room.status === 'no_sensors' ? (

@@ -10,6 +10,7 @@ this feature existed.
 """
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -26,6 +27,7 @@ from app.models.iot import AssetSensorMapping, HealthEvent, IoTDevice
 from app.models.spatial import Asset, AssetCategory, Building, Campus, Floor, Room
 from app.models.work import Inspection, WorkOrder
 from app.schemas.iot import HealthEventOut, SensorMappingOut
+from app.services import influx_client
 from app.services import iot_health as svc
 
 
@@ -338,3 +340,67 @@ async def asset_health(asset_id: uuid.UUID, user: RequireAdmin, db: DB):
             for e in events
         ],
     }
+
+
+# ---------------------------------------------------------------------------
+# Device history (InfluxDB)
+# ---------------------------------------------------------------------------
+
+# The chart refreshes every ~30 s per open window; a short cache keeps several
+# admins (or a refresh loop) from each running a time-series query.
+_HISTORY_TTL_SECONDS = 20
+_history_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+
+@router.get("/devices/{device_id}/history", response_model=dict)
+async def device_history(
+    device_id: uuid.UUID, user: RequireAdmin, db: DB,
+    range: str = Query("24h", pattern="^(1h|6h|24h|7d)$"),
+):
+    """Bucketed telemetry history for one device, read from InfluxDB, plus the
+    health events raised in the same window (for markers on the chart).
+
+    Never fails because Influx is down: `available` is false and `reason` says
+    why, so the Health page can say so and carry on.
+    """
+    device = await db.scalar(select(IoTDevice).where(IoTDevice.id == device_id))
+    if device is None or device.organization_id != user.organization_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Device not found")
+
+    window_s, _ = influx_client.HISTORY_RANGES[range]
+    since = datetime.now(timezone.utc) - timedelta(seconds=window_s)
+
+    events = (await db.scalars(
+        select(HealthEvent)
+        .where(HealthEvent.device_id == device.id, HealthEvent.detected_at >= since)
+        .order_by(HealthEvent.detected_at)
+    )).all()
+    event_rows = [
+        {
+            "id": str(e.id), "reference": e.reference, "kind": e.kind.value,
+            "severity": e.severity.value, "status": e.status.value,
+            "at": int(e.detected_at.timestamp() * 1000),
+            "detected_value": float(e.detected_value) if e.detected_value is not None else None,
+        }
+        for e in events
+    ]
+
+    base = {
+        "device_id": device.device_id, "range": range, "since": int(since.timestamp() * 1000),
+        "until": int(datetime.now(timezone.utc).timestamp() * 1000), "events": event_rows,
+    }
+
+    key = (device.device_id, range)
+    cached = _history_cache.get(key)
+    if cached and time.monotonic() - cached[0] < _HISTORY_TTL_SECONDS:
+        return {**base, **cached[1]}
+
+    try:
+        result = await influx_client.query_history(device.device_id, range)
+        payload = {"available": True, "reason": None, **result}
+        _history_cache[key] = (time.monotonic(), payload)
+        if len(_history_cache) > 200:
+            _history_cache.clear()
+    except influx_client.HistoryUnavailable as exc:
+        payload = {"available": False, "reason": exc.reason, "bucket_seconds": None, "points": []}
+    return {**base, **payload}
