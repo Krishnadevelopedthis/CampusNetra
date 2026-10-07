@@ -73,6 +73,20 @@ _W = {"image": 0.30, "description": 0.25, "location": 0.20, "category": 0.15, "t
 SUGGEST_THRESHOLD = 0.60
 NOTIFY_THRESHOLD = 0.80
 
+# Perceptual hashes of two unrelated photos differ in about half their bits, so
+# raw closeness (1 - differing/total) averages 0.50 for strangers (sd ~0.06),
+# not 0. Counting that as 50% "image similarity" handed every pair with photos
+# ~15 points for free. Similarity below this floor is indistinguishable from
+# chance and scores zero; above it the rest of the range is stretched to 0..1.
+IMAGE_NOISE_FLOOR = 0.60
+
+# Same category, same room and a close time prove nothing by themselves: every
+# lost umbrella and every found umbrella in a lecture hall shares them. Without
+# some content evidence (matching words, brand, marks, or a genuinely similar
+# photo) a pair is capped below the suggestion threshold.
+MIN_CONTENT_EVIDENCE = 0.15
+NO_EVIDENCE_CAP = 0.45
+
 
 def _text_signature(item: dict) -> str:
     return " ".join(filter(None, [
@@ -163,13 +177,22 @@ def category_score(lost: dict, found: dict) -> float:
     return 0.5   # one side uncategorised
 
 
+def image_score(lost: dict, found: dict) -> Optional[float]:
+    """Photo similarity with chance-level agreement removed; None if a photo is missing."""
+    raw = hamming_similarity(lost.get("image_phash"), found.get("image_phash"))
+    if raw is None:
+        return None
+    return round(max(0.0, (raw - IMAGE_NOISE_FLOOR) / (1.0 - IMAGE_NOISE_FLOOR)), 3)
+
+
 def score_pair(lost: dict, found: dict) -> tuple[float, MatchFactors]:
-    image = hamming_similarity(lost.get("image_phash"), found.get("image_phash"))
+    image = image_score(lost, found)
+    description = description_score(lost, found)
     factors = MatchFactors(
         # No photo on one side: fall back to the description signal rather than
         # penalising the pair for missing data.
-        image=image if image is not None else description_score(lost, found) * 0.8,
-        description=description_score(lost, found),
+        image=image if image is not None else description * 0.8,
+        description=description,
         location=location_score(lost, found),
         category=category_score(lost, found),
         time=time_score(lost, found),
@@ -182,6 +205,11 @@ def score_pair(lost: dict, found: dict) -> tuple[float, MatchFactors]:
         score = 0.0
     if factors.category == 0.0:
         score *= 0.35
+
+    # Place, time and category alone are not evidence the objects are the same.
+    content_evidence = max(description, image or 0.0)
+    if content_evidence < MIN_CONTENT_EVIDENCE:
+        score = min(score, NO_EVIDENCE_CAP)
 
     return round(min(score, 1.0), 3), factors
 
