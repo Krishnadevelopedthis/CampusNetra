@@ -112,7 +112,17 @@ export default function AdminOverview() {
     // which has no such route, and silently made every check here look
     // broken (API degraded, database unreachable, AI on heuristic
     // fallback) regardless of the backend's actual state.
-    queryFn: () => fetch(`${API_ORIGIN}/health`).then((r) => r.json()),
+    // Each attempt is bounded, and a non-JSON reply (the host's "waking up"
+    // page while a free-tier backend cold-starts) counts as a failed attempt.
+    // Failed attempts are retried with a growing pause, long enough to cover a
+    // cold start; the card shows a spinner meanwhile, and only reports "not
+    // responding" once every attempt has failed.
+    queryFn: async () => {
+      const r = await fetch(`${API_ORIGIN}/health`, { signal: AbortSignal.timeout(10_000) })
+      return r.json()
+    },
+    retry: 4,
+    retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 8_000),
     refetchInterval: 30_000,
   })
   const dashboard = useQuery({ queryKey: ['dashboard'], queryFn: () => api.get('/dashboard') })
@@ -124,6 +134,9 @@ export default function AdminOverview() {
 
   const totalUsers = (roles.data || []).reduce((s, r) => s + r.user_count, 0)
   const h = health.data
+  // A failed check says nothing about the backend's own verdict, so it is shown
+  // as "unknown" rather than claiming the API is degraded or the database down.
+  const checkFailed = health.isError && !h
 
   return (
     <div className="space-y-5">
@@ -140,15 +153,15 @@ export default function AdminOverview() {
         <Widget title={<span className="flex items-center gap-2"><Server size={17} /> System Health</span>}>
           {health.isLoading ? <Spinner /> : (
             <dl className="space-y-3">
-              <HealthRow label="API" ok={h?.status === 'ok'}
-                         value={h?.status === 'ok' ? 'Operational' : 'Degraded'} />
-              <HealthRow label="Database" ok={h?.database === 'up'}
-                         value={h?.database === 'up' ? 'Connected' : 'Unreachable'} icon={Database} />
-              <HealthRow label="AI services" ok
-                         value={h?.ai === 'live' ? 'Live model' : 'Heuristic fallback'} icon={Sparkles} />
+              <HealthRow label="API" ok={h?.status === 'ok'} unknown={checkFailed}
+                         value={checkFailed ? 'Not responding' : h?.status === 'ok' ? 'Operational' : 'Degraded'} />
+              <HealthRow label="Database" ok={h?.database === 'up'} unknown={checkFailed}
+                         value={checkFailed ? 'Unknown' : h?.database === 'up' ? 'Connected' : 'Unreachable'} icon={Database} />
+              <HealthRow label="AI services" ok unknown={checkFailed}
+                         value={checkFailed ? 'Unknown' : h?.ai === 'live' ? 'Live model' : 'Heuristic fallback'} icon={Sparkles} />
               <div className="flex justify-between pt-3 border-t border-border-subtle">
                 <dt className="text-body-md text-ink-muted">Environment</dt>
-                <dd className="font-mono text-mono-data">{h?.environment} · v{h?.version}</dd>
+                <dd className="font-mono text-mono-data">{h ? `${h.environment} · v${h.version}` : '—'}</dd>
               </div>
             </dl>
           )}
@@ -239,14 +252,17 @@ export default function AdminOverview() {
   )
 }
 
-function HealthRow({ label, value, ok, icon: Icon }) {
+function HealthRow({ label, value, ok, unknown, icon: Icon }) {
+  const tone = unknown ? 'neutral' : ok ? 'ok' : 'bad'
+  const pill = { ok: 'bg-success-bg text-success-text', bad: 'bg-danger-bg text-danger-text', neutral: 'bg-neutral-bg text-neutral-text' }[tone]
+  const dot = { ok: 'bg-success', bad: 'bg-danger', neutral: 'bg-ink-faint' }[tone]
   return (
     <div className="flex items-center justify-between">
       <dt className="flex items-center gap-2 text-body-md text-ink-muted">
         {Icon ? <Icon size={15} /> : <Activity size={15} />} {label}
       </dt>
-      <dd className={`pill ${ok ? 'bg-success-bg text-success-text' : 'bg-danger-bg text-danger-text'}`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-success' : 'bg-danger'}`} />
+      <dd className={`pill ${pill}`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
         {value}
       </dd>
     </div>

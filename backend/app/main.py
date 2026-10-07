@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.router import api_router
+from app.core import healthcheck
 from app.core.config import settings
 from app.core.database import SessionLocal, engine
 from app.services import influx_client
@@ -270,13 +271,17 @@ if settings.STORAGE_BACKEND == "local":
 
 @app.get("/health", tags=["System"])
 async def health():
-    """Liveness + dependency probe used by the frontend's offline banner."""
-    db_ok = True
+    """Liveness + dependency probe (admin overview, uptime monitors).
+
+    Always answers promptly: each dependency probe is bounded and shared (see
+    app/core/healthcheck.py), so a slow database or InfluxDB shows up as
+    "down"/"error" in the body instead of making this request hang.
+    """
+    db_ok = await healthcheck.database_up()
     try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception:
-        db_ok = False
+        influx_status = await asyncio.wait_for(influx_client.get_status(), timeout=3.0)
+    except asyncio.TimeoutError:
+        influx_status = "error: timed out"
 
     return {
         "status": "ok" if db_ok else "degraded",
@@ -293,7 +298,7 @@ async def health():
         # IoT wiring be confirmed from the outside after setting env vars,
         # without needing host log/dashboard access.
         "mqtt": mqtt_client.get_status(),
-        "influx": await influx_client.get_status(),
+        "influx": influx_status,
         "environment": settings.ENVIRONMENT,
         "version": app.version,
     }
