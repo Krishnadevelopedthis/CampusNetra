@@ -12,6 +12,11 @@ import {
 import { ImageUpload } from '@/components/ImageUpload'
 import { api } from '@/lib/api'
 
+// Assets shown before "See more"; the list can be 40+ long in a big room.
+const COLLAPSED_COUNT = 4
+const ONE_ASSET_MESSAGE =
+  'Only one asset can be reported at a time. Submit this report, then create a new report for the other asset.'
+
 /** Category icon name (from the DB) → lucide component. */
 const ICONS = {
   projector: Video, snowflake: Fan, lightbulb: Lightbulb, armchair: Armchair,
@@ -31,6 +36,7 @@ export default function ReportIssue() {
   const [assetId, setAssetId] = useState('')
   // null = not reporting an unlisted item; a string = its name, possibly blank.
   const [otherAsset, setOtherAsset] = useState(null)
+  const [showAll, setShowAll] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [locationNote, setLocationNote] = useState('')
@@ -89,6 +95,35 @@ export default function ReportIssue() {
   )
 
   const assetFilter = useAssetFilter(selectedRoom?.assets || [])
+  useEffect(() => { setShowAll(false) }, [roomId])
+
+  // Exactly one thing can be reported per report: a listed asset OR "Something else".
+  const hasChoice = !!assetId || otherAsset !== null
+  const toggleAsset = (a) => {
+    if (assetId === a.id) { setAssetId(''); return }
+    if (hasChoice) { toast.info(ONE_ASSET_MESSAGE); return }
+    setAssetId(a.id)
+    setShowAll(false)   // picking one folds the list away; "See more" brings it back
+  }
+  const toggleOther = () => {
+    if (otherAsset !== null) { setOtherAsset(null); return }
+    if (hasChoice) { toast.info(ONE_ASSET_MESSAGE); return }
+    setOtherAsset('')
+    setShowAll(false)
+  }
+  // Folded: only the chosen asset is listed. Open: the filtered list. Default: the first few.
+  const folded = !showAll && hasChoice
+  const roomAssets = selectedRoom?.assets || []
+  const visibleAssets = showAll
+    ? assetFilter.shown
+    : folded
+      ? roomAssets.filter((a) => a.id === assetId)
+      : assetFilter.shown.slice(0, COLLAPSED_COUNT)
+  const hiddenCount = showAll
+    ? 0
+    : folded
+      ? roomAssets.length - (assetId ? 1 : 0)
+      : Math.max(assetFilter.shown.length - COLLAPSED_COUNT, 0)
 
   // Live AI classification preview, debounced while the reporter types.
   useEffect(() => {
@@ -274,14 +309,18 @@ export default function ReportIssue() {
             ) : (
               <>
               <AssetFilterBar filter={assetFilter} />
+              <p className="text-body-xs text-ink-faint pb-2">
+                One asset per report. To report another, submit this one and start a new report.
+              </p>
               <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
-                {assetFilter.shown.map((a) => {
+                {visibleAssets.map((a) => {
                   const Icon = ICONS[a.category_icon] || Wrench
                   const selected = assetId === a.id
                   return (
                     <button
                       key={a.id} type="button"
-                      onClick={() => { setAssetId(selected ? '' : a.id); setOtherAsset(null) }}
+                      onClick={() => toggleAsset(a)}
+                      aria-pressed={selected}
                       className={`relative flex flex-col items-center gap-2 p-3 rounded border transition-colors ${
                         selected
                           ? 'border-secondary bg-info-bg ring-1 ring-secondary'
@@ -305,9 +344,11 @@ export default function ReportIssue() {
                     front of the broken thing is the one who found the gap.
                     Naming it here keeps the report attached to the room, and
                     gives whoever maintains the register something to act on. */}
+                {(otherAsset !== null || !folded) && (
                 <button
                   type="button"
-                  onClick={() => { setAssetId(''); setOtherAsset((v) => (v === null ? '' : null)) }}
+                  onClick={toggleOther}
+                  aria-pressed={otherAsset !== null}
                   className={`relative flex flex-col items-center justify-center gap-2 p-3
                               rounded-xl border border-dashed transition-colors ${
                     otherAsset !== null
@@ -323,7 +364,18 @@ export default function ReportIssue() {
                     Not in this list
                   </span>
                 </button>
+                )}
               </div>
+              {(hiddenCount > 0 || showAll) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll((v) => !v)}
+                  className="mt-3 w-full h-10 rounded-lg border border-border-subtle bg-surface text-body-sm
+                             font-medium text-secondary hover:bg-surface-sunken transition-colors"
+                >
+                  {showAll ? 'Show less' : `See more (${hiddenCount} more)`}
+                </button>
+              )}
               {assetFilter.shown.length === 0 && (
                 <p className="text-body-sm text-ink-faint pt-2">No assets match.</p>
               )}
