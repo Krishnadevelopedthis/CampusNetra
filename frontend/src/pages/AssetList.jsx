@@ -47,13 +47,13 @@ export default function AssetList() {
     keepPreviousData: true,
   })
 
-  // Counts for the tiles come from the unfiltered set, so they stay stable
-  // while you narrow the table below.
+  // Counts for the tiles come from the server over every asset, so they stay
+  // stable while you narrow the table below (and are right beyond page one).
   const totals = useQuery({
     queryKey: ['asset-totals'],
-    queryFn: () => api.get('/campus/assets', { params: { page_size: 100 } }),
+    queryFn: () => api.get('/campus/assets/summary'),
   })
-  const summary = totals.data?.items || []
+  const counts = totals.data
 
   const clear = () => {
     setQ(''); setState(''); setBuildingId(''); setCategoryId('')
@@ -74,14 +74,14 @@ export default function AssetList() {
       />
 
       <MetricRow>
-        <Metric label="Total assets" value={totals.data?.total ?? '—'} accent="rgb(var(--c-brand))" icon={Boxes} />
+        <Metric label="Total assets" value={counts?.total ?? '—'} accent="rgb(var(--c-brand))" icon={Boxes} />
         <Metric label="Need attention" icon={AlertTriangle}
-                value={summary.filter((a) => a.state !== 'healthy').length}
-                accent={summary.some((a) => a.state !== 'healthy') ? '#f59e0b' : '#10b981'} />
-        <Metric label="In fault" value={summary.filter((a) => a.state === 'fault').length}
+                value={counts?.needs_attention ?? '—'}
+                accent={counts?.needs_attention > 0 ? '#f59e0b' : '#10b981'} />
+        <Metric label="In fault" value={counts?.in_fault ?? '—'}
                 accent="#ef4444" />
         <Metric label="Out of warranty" icon={ShieldOff}
-                value={summary.filter((a) => a.warranty_expired).length} accent="#64748b" />
+                value={counts?.out_of_warranty ?? '—'} accent="#64748b" />
       </MetricRow>
 
       <Widget bodyClass="p-0">

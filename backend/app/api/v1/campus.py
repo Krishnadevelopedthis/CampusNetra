@@ -1187,6 +1187,32 @@ async def asset_categories(user: CurrentUser, db: DB):
     ]
 
 
+@router.get("/assets/summary", response_model=dict)
+async def asset_summary(user: CurrentUser, db: DB):
+    """Registry-wide counts for the Asset Registry tiles.
+
+    Computed in the database over every asset in the organization. The tiles
+    used to be derived from the first page of the list, so with thousands of
+    assets a faulty one outside that page was never counted.
+    """
+    today = date.today()
+    row = (await db.execute(
+        select(
+            func.count(),
+            func.count().filter(Asset.state != AssetState.HEALTHY),
+            func.count().filter(Asset.state == AssetState.FAULT),
+            func.count().filter(Asset.warranty_expiry < today),
+        )
+        .select_from(Asset)
+        .join(AssetCategory, AssetCategory.id == Asset.category_id)
+        .where(AssetCategory.organization_id == user.organization_id)
+    )).one()
+    return {
+        "total": row[0], "needs_attention": row[1],
+        "in_fault": row[2], "out_of_warranty": row[3],
+    }
+
+
 @router.get("/assets", response_model=Page[dict])
 async def list_assets(
     user: CurrentUser, db: DB, paging: Paging,
