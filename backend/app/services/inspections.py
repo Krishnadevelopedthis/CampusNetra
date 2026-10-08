@@ -14,6 +14,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.enums import (
     AssetState, ChecklistResult, InspectionStatus, Priority, TwinEventKind, UserRole,
 )
@@ -420,13 +421,19 @@ async def submit_inspection(
     return inspection, raised
 
 
+def overdue_cutoff(now: datetime) -> datetime:
+    """Scheduled before this moment means overdue: the slot plus a grace period."""
+    return now - timedelta(minutes=settings.INSPECTION_OVERDUE_GRACE_MINUTES)
+
+
 async def mark_overdue(db: AsyncSession, organization_id: uuid.UUID) -> int:
-    """Flip past-due scheduled inspections to overdue. Called on list reads."""
+    """Flip scheduled inspections that have missed their slot (plus a grace
+    period) to overdue. Called on list reads."""
     rows = (await db.scalars(
         select(Inspection).where(
             Inspection.organization_id == organization_id,
             Inspection.status == InspectionStatus.SCHEDULED,
-            Inspection.scheduled_for < _now(),
+            Inspection.scheduled_for < overdue_cutoff(_now()),
         )
     )).all()
     for i in rows:

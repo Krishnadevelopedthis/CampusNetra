@@ -320,7 +320,10 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
               {xAxis(true)}
               <YAxis yAxisId="f" width={44} domain={[0, 108]} ticks={[0, 50, 100]}
                      tickFormatter={(v) => `${v}%`} axisLine={false} tickLine={false} />
-              <YAxis yAxisId="l" orientation="right" width={44} domain={[0, 'auto']} axisLine={false} tickLine={false} />
+              {/* Zoomed to the data: the raw sensor value moves by tens on a 0-4095 scale, which a
+                  zero-based axis would flatten into a straight line. */}
+              <YAxis yAxisId="l" orientation="right" width={44} allowDecimals={false}
+                     domain={['dataMin - 25', 'dataMax + 25']} axisLine={false} tickLine={false} />
               {tooltip((v, key) => (key === 'fan_pct' ? fmt(v, 0, '%') : fmt(v, 0)))}
               <Area yAxisId="f" type="stepAfter" dataKey="fan_pct" stroke={COLOR.fan_pct} strokeWidth={1.75}
                     fill={COLOR.fan_pct} fillOpacity={0.16} dot={soloDot('fan_pct', COLOR.fan_pct)} activeDot={{ r: 4 }}
