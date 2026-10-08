@@ -236,11 +236,6 @@ class Settings(BaseSettings):
     # through a work order is never held back. 0 turns the cooldown off.
     IOT_EVENT_COOLDOWN_MINUTES: int = 15
 
-    # An inspection is called overdue only this long after its scheduled time.
-    # Inspections raised by an IoT fault are scheduled for "now", so with no
-    # allowance they turned overdue the moment anyone opened the Inspections page.
-    INSPECTION_OVERDUE_GRACE_MINUTES: int = 60
-
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
     @classmethod
     def _split_origins(cls, v):

@@ -14,7 +14,6 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.core.enums import (
     AssetState, ChecklistResult, InspectionStatus, Priority, TwinEventKind, UserRole,
 )
@@ -421,21 +420,61 @@ async def submit_inspection(
     return inspection, raised
 
 
-def overdue_cutoff(now: datetime) -> datetime:
-    """Scheduled before this moment means overdue: the slot plus a grace period."""
-    return now - timedelta(minutes=settings.INSPECTION_OVERDUE_GRACE_MINUTES)
+# Used only when the organisation has no SLA policy for the priority.
+FALLBACK_RESPONSE_MINUTES = 60
+
+
+async def _response_minutes(db: AsyncSession, organization_id: uuid.UUID, severity: str) -> int:
+    """How long a technician has to respond to an IoT fault, from the SLA
+    policies an administrator maintains (a critical sensor event uses the
+    Critical policy, anything else the High one -- the priority its complaint
+    would carry)."""
+    from app.core.enums import Priority
+    from app.services.work_orders import resolve_sla
+
+    priority = Priority.CRITICAL if severity == "critical" else Priority.HIGH
+    policy, _ = await resolve_sla(db, organization_id, priority, None)
+    return policy.response_mins if policy else FALLBACK_RESPONSE_MINUTES
 
 
 async def mark_overdue(db: AsyncSession, organization_id: uuid.UUID) -> int:
-    """Flip scheduled inspections that have missed their slot (plus a grace
-    period) to overdue. Called on list reads."""
-    rows = (await db.scalars(
+    """Flip scheduled inspections that have missed their slot to overdue.
+    Called on list reads.
+
+    An inspection a person scheduled is overdue as soon as its time passes. One
+    raised by an IoT fault is scheduled for "now", so it gets the SLA response
+    time for its priority before it counts as overdue; otherwise it turned
+    overdue the moment anyone opened the Inspections page.
+    """
+    from app.models.iot import HealthEvent
+
+    now = _now()
+    due = (await db.scalars(
         select(Inspection).where(
             Inspection.organization_id == organization_id,
             Inspection.status == InspectionStatus.SCHEDULED,
-            Inspection.scheduled_for < overdue_cutoff(_now()),
+            Inspection.scheduled_for < now,
         )
     )).all()
+    if not due:
+        return 0
+
+    severity_by_inspection = dict((await db.execute(
+        select(HealthEvent.inspection_id, HealthEvent.severity)
+        .where(HealthEvent.inspection_id.in_([i.id for i in due]))
+    )).all())
+
+    rows = []
+    allowance: dict[str, int] = {}
+    for i in due:
+        sev = severity_by_inspection.get(i.id)
+        if sev is not None:
+            key = getattr(sev, "value", str(sev))
+            if key not in allowance:
+                allowance[key] = await _response_minutes(db, organization_id, key)
+            if i.scheduled_for + timedelta(minutes=allowance[key]) >= now:
+                continue                      # still inside its response window
+        rows.append(i)
     for i in rows:
         i.status = InspectionStatus.OVERDUE
     return len(rows)
