@@ -77,6 +77,12 @@ function clusterEvents(events, spanMs) {
     const last = out[out.length - 1]
     if (last && e.at - last.end <= gap) { last.count += 1; last.end = e.at } else out.push({ at: e.at, end: e.at, count: 1, reference: e.reference })
   }
+  // Only name a marker when it sits clear of the last named one, or the labels collide.
+  let lastLabelled = -Infinity
+  for (const c of out) {
+    c.label = c.at - lastLabelled >= spanMs * 0.12
+    if (c.label) lastLabelled = c.at
+  }
   return out
 }
 
@@ -201,7 +207,7 @@ export function DeviceHistoryModal({ device, roomLabel, onClose }) {
     <ReferenceLine
       key={c.at} x={c.at} yAxisId={yAxisId} stroke={FAULT} strokeDasharray="4 3" strokeWidth={1.5}
       strokeOpacity={0.8} ifOverflow="hidden"
-      label={labelled && clusters.length <= 3
+      label={labelled && c.label
         ? { value: c.count > 1 ? `${c.count} faults` : c.reference, position: 'insideTopLeft', fill: FAULT, fontSize: 11, fontWeight: 600 }
         : undefined}
     />
