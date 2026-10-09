@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell, ChevronDown, HelpCircle, LogOut, Search, Settings, User as UserIcon, X,
+  Bell, ChevronDown, Clock, HelpCircle, LogOut, Search, Settings, User as UserIcon, X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -310,6 +310,7 @@ function UserMenu() {
           </div>
           <MenuItem icon={UserIcon} to="/profile" onClick={() => setOpen(false)}>My Profile</MenuItem>
           <MenuItem icon={Settings} to="/settings" onClick={() => setOpen(false)}>Account Settings</MenuItem>
+          <MenuItem icon={Clock} to="/history" onClick={() => setOpen(false)}>History</MenuItem>
           <MenuItem icon={HelpCircle} to="/help" onClick={() => setOpen(false)}>Help & Support</MenuItem>
           <div className="border-t border-border-subtle mt-1 pt-1">
             <button
@@ -438,7 +439,7 @@ export default function AppLayout() {
 
         {/* Below lg the tab bar covers the bottom of the screen; the padding keeps
             the last of the page clear of it (and of a phone's home bar). */}
-        <main className="app-main page-reveal min-w-0 flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
+        <main className="app-main page-reveal min-w-0 flex-1 px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom))] pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
           <Outlet />
         </main>
 

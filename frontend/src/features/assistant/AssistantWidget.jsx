@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar } from '@/components/ui'
 import { api } from '@/lib/api'
 import { useAuth } from '@/lib/auth'
+import { useAssistantStore } from './assistantStore'
 
 const SUGGESTIONS = [
   'What are my open complaints?',
@@ -95,7 +96,8 @@ function AiFace({ size, rounded = 'rounded-lg', className }) {
  */
 export function AssistantWidget() {
   const { user } = useAuth()
-  const [open, setOpen] = useState(false)
+  const open = useAssistantStore((s) => s.open)
+  const setOpen = useAssistantStore((s) => s.setOpen)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -131,13 +133,17 @@ export function AssistantWidget() {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  // Focus the input as soon as the panel finishes opening, and lock
-  // background scroll on mobile where the panel is a full-height sheet
-  // (same reasoning as Modal: a chat sheet you can't dismiss by scrolling
-  // the page behind it shouldn't let that page scroll either).
+  // Focus the input as soon as the panel finishes opening -- on a mouse/
+  // trackpad device only. On a phone, focusing pops the on-screen keyboard
+  // over half the chat before the person has decided to type; there the
+  // keyboard opens when they tap the box. Also lock background scroll on
+  // mobile where the panel is a full-height sheet (same reasoning as Modal:
+  // a chat sheet you can't dismiss by scrolling the page behind it shouldn't
+  // let that page scroll either).
   useEffect(() => {
     if (!open) return undefined
-    const t = setTimeout(() => inputRef.current?.focus(), 50)
+    const finePointer = window.matchMedia?.('(pointer: fine)').matches
+    const t = finePointer ? setTimeout(() => inputRef.current?.focus(), 50) : undefined
     const prevOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
@@ -187,8 +193,8 @@ export function AssistantWidget() {
           // Smaller on narrow screens, same as every other size step in
           // this file (bottom/right position already did this; the button
           // itself stayed one fixed size regardless of viewport).
-          // Below lg the bottom tab bar (4rem + the home-bar inset) sits underneath.
-          'bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 h-11 w-11 sm:right-6 sm:h-14 sm:w-14 lg:bottom-6',
+          // Below lg the bottom tab bar (floating, 4.5rem tall + the home-bar inset) sits underneath.
+          'bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-3 h-11 w-11 sm:right-6 sm:h-14 sm:w-14 lg:bottom-6',
           'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}

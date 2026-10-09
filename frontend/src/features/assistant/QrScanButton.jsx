@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { Modal, Spinner, toast } from '@/components/ui'
 import { PUBLIC_SITE_URL } from '@/lib/native'
+import { useAssistantStore } from './assistantStore'
 
 const READER_ID = 'cn-qr-reader'
 
@@ -21,6 +22,8 @@ const READER_ID = 'cn-qr-reader'
  */
 export function QrScanButton() {
   const [open, setOpen] = useState(false)
+  // Hidden while the assistant chat is open: it would float over the chat.
+  const assistantOpen = useAssistantStore((s) => s.open)
   const [status, setStatus] = useState('starting') // 'starting' | 'ready' | 'error'
   const [errorMessage, setErrorMessage] = useState('')
   const navigate = useNavigate()
@@ -103,6 +106,7 @@ export function QrScanButton() {
 
   return (
     <>
+      {!assistantOpen && (
       <button
         onClick={() => setOpen(true)}
         aria-label="Scan asset QR code"
@@ -111,13 +115,14 @@ export function QrScanButton() {
           'fixed z-40 grid place-items-center rounded-full shadow-level3',
           'bg-secondary text-white hover:brightness-110',
           // Stacked just above the assistant button, which itself clears the tab bar below lg.
-          'bottom-[calc(8.25rem+env(safe-area-inset-bottom))] right-3 h-10 w-10 sm:bottom-[calc(9rem+env(safe-area-inset-bottom))] sm:right-6 sm:h-12 sm:w-12 lg:bottom-[6rem]',
+          'bottom-[calc(8.75rem+env(safe-area-inset-bottom))] right-3 h-10 w-10 sm:bottom-[calc(9.5rem+env(safe-area-inset-bottom))] sm:right-6 sm:h-12 sm:w-12 lg:bottom-[6rem]',
           'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}
       >
         <QrCode size={20} />
       </button>
+      )}
 
       <Modal open={open} onClose={() => setOpen(false)} title="Scan asset QR code" size="sm">
         <p className="text-body-sm text-ink-faint mb-3 flex items-center gap-1.5">
