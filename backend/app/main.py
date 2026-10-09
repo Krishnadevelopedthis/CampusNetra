@@ -101,7 +101,11 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    # The Android app (Capacitor) serves its bundled pages from https://localhost
+    # (capacitor://localhost on iOS), so it is a different origin from the website.
+    # Safe to allow: auth is a bearer token the app holds, not a cookie a third
+    # party could ride on.
+    allow_origins=[*settings.BACKEND_CORS_ORIGINS, "https://localhost", "capacitor://localhost"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

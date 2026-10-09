@@ -47,3 +47,4 @@ backend/_*.py
 # Local hand-off artefacts (patches / git bundles) -- never part of the repo
 *.patch
 *.bundle
+dist-app/

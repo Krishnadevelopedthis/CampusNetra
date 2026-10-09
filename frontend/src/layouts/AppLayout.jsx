@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell, ChevronDown, HelpCircle, LogOut, Menu, Search, Settings, User as UserIcon, X,
+  Bell, ChevronDown, HelpCircle, LogOut, Search, Settings, User as UserIcon, X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -16,6 +16,7 @@ import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
 import { searchProfileIndex } from '@/lib/profileSearchIndex'
 import { usePermissions } from '@/lib/permissions'
+import { MobileTabBar } from './MobileTabBar'
 import { navFor, navLeaves } from './nav'
 import { Sidebar } from './Sidebar'
 
@@ -373,6 +374,8 @@ export default function AppLayout() {
   useEffect(() => setMobileOpen(false), [location.pathname])
 
   const toggleCollapsed = useCallback(() => setCollapsed((c) => !c), [])
+  const openMore = useCallback(() => setMobileOpen(true), [])
+  const closeMore = useCallback(() => setMobileOpen(false), [])
 
   return (
     <div className="app-shell min-h-screen flex bg-surface-base">
@@ -392,24 +395,17 @@ export default function AppLayout() {
         </aside>
       </div>
 
-      {/* Mobile drawer (Level 3 overlay) */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-primary-950/40 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative h-full w-[280px] max-w-[85vw] bg-surface shadow-level3 animate-slide-up">
-            <Sidebar
-              items={items} activePath={activePath} pathname={location.pathname} role={user?.role}
-              mobile onClose={() => setMobileOpen(false)}
-            />
-          </aside>
-        </div>
-      )}
+      {/* Phones and tablets: bottom tab bar, with the full menu in a "More" sheet */}
+      <MobileTabBar
+        items={items} role={user?.role} activePath={activePath} pathname={location.pathname}
+        moreOpen={mobileOpen} onMoreOpen={openMore} onMoreClose={closeMore}
+      />
 
       <div className="flex-1 flex flex-col min-w-0">
         {/* Floating navbar card, matching the sidebar. The wrapper's
             fading backdrop keeps scrolled content from showing through the
             gap above it. */}
-        <div className="sticky top-0 z-30 px-3 pt-3 no-print lg:bg-gradient-to-b lg:from-surface-base lg:via-surface-base/85 lg:to-transparent">
+        <div className="sticky top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] no-print lg:bg-gradient-to-b lg:from-surface-base lg:via-surface-base/85 lg:to-transparent">
         <header
           className={clsx(
             'flex min-h-16 items-center gap-3 rounded-2xl border px-4 backdrop-blur-xl backdrop-saturate-150 [&_.btn-ghost]:backdrop-blur-none',
@@ -422,9 +418,6 @@ export default function AppLayout() {
           <Link to="/dashboard" aria-label="Campus Netra home" className="shrink-0 lg:hidden">
             <LogoMark size={30} />
           </Link>
-          <button onClick={() => setMobileOpen(true)} className="btn-ghost h-9 w-9 p-0 rounded-lg lg:hidden" aria-label="Open menu">
-            <Menu size={20} />
-          </button>
 
           <HeaderSearch mobileOpen={mobileSearchOpen} onMobileClose={() => setMobileSearchOpen(false)} />
 
@@ -443,12 +436,15 @@ export default function AppLayout() {
         </header>
         </div>
 
-        <main className="app-main page-reveal min-w-0 flex-1 px-4 pb-6 pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
+        {/* Below lg the tab bar covers the bottom of the screen; the padding keeps
+            the last of the page clear of it (and of a phone's home bar). */}
+        <main className="app-main page-reveal min-w-0 flex-1 px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-margin lg:pb-margin lg:pt-margin">
           <Outlet />
         </main>
 
         {/* Floating footer card, matching the navbar and sidebar */}
-        <div className="px-3 pb-3 no-print">
+        {/* Phones get these links in the More sheet instead. */}
+        <div className="hidden px-3 pb-3 no-print lg:block">
           <footer className="app-footer flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-2xl border border-border-subtle bg-surface/95 py-3 pl-5 pr-16 text-body-sm text-ink-faint shadow-level2 sm:pr-24">
             <span>© {new Date().getFullYear()} Campus Netra. Powered by Precision Intelligence.</span>
             <nav className="flex items-center gap-4">

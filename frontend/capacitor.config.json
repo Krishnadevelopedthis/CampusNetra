@@ -1,0 +1,8 @@
+{
+  "appId": "com.campusnetra.app",
+  "appName": "Campus Netra",
+  "webDir": "dist-app",
+  "android": {
+    "allowMixedContent": false
+  }
+}

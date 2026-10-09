@@ -5,6 +5,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { SessionTimeoutModal } from '@/components/SessionTimeoutModal'
 import { ConfirmDialogHost, RingLoader, Toaster } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
+import { isNativeApp } from '@/lib/native'
 import { usePermissions } from '@/lib/permissions'
 import { broadcastSessionEnded, dismissWarning, recordActivity, startSessionTimeoutMonitor } from '@/lib/sessionTimeout'
 
@@ -332,7 +333,9 @@ export default function App() {
 
             <Route
               path="/"
-              element={<LandingPage />}
+              // The app opens on the workspace, not the marketing page; signed-out
+              // users are sent on to /login by the dashboard's own guard.
+              element={isNativeApp() ? <Navigate to="/dashboard" replace /> : <LandingPage />}
             />
 
             {/* =====================================================

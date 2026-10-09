@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { Modal, Spinner, toast } from '@/components/ui'
+import { PUBLIC_SITE_URL } from '@/lib/native'
 
 const READER_ID = 'cn-qr-reader'
 
@@ -40,7 +41,11 @@ export function QrScanButton() {
         let path = null
         try {
           const url = new URL(decodedText)
-          if (url.origin === window.location.origin) path = url.pathname + url.search
+          // Printed codes name the public website; inside the Android app the
+          // page origin is https://localhost, so both count as ours.
+          if (url.origin === window.location.origin || url.origin === PUBLIC_SITE_URL) {
+            path = url.pathname + url.search
+          }
         } catch {
           // Not a URL at all — not one of ours, fall through to the error toast below.
         }
@@ -105,7 +110,8 @@ export function QrScanButton() {
         className={clsx(
           'fixed z-40 grid place-items-center rounded-full shadow-level3',
           'bg-secondary text-white hover:brightness-110',
-          'bottom-[4.5rem] right-3 h-10 w-10 sm:bottom-[6rem] sm:right-6 sm:h-12 sm:w-12',
+          // Stacked just above the assistant button, which itself clears the tab bar below lg.
+          'bottom-[calc(8.25rem+env(safe-area-inset-bottom))] right-3 h-10 w-10 sm:bottom-[calc(9rem+env(safe-area-inset-bottom))] sm:right-6 sm:h-12 sm:w-12 lg:bottom-[6rem]',
           'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}

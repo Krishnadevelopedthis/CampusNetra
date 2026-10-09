@@ -5,13 +5,15 @@ import { Download, QrCode, Search } from 'lucide-react'
 
 import { Button, EmptyState, ErrorState, Field, Input, Select, SkeletonRows, Widget } from '@/components/ui'
 import { api } from '@/lib/api'
+import { shareableOrigin } from '@/lib/native'
 
 // Scanning this deep link is the entire payload — encoding the asset's
 // location directly in the QR image would go stale the moment the asset
 // is moved to a different room, whereas /scan/asset/:id always resolves
 // against the asset's *current* room/floor/building/campus at scan time.
 function scanUrl(assetId) {
-  return `${window.location.origin}/scan/asset/${assetId}`
+  // The real website even when generated inside the app (whose origin is localhost).
+  return `${shareableOrigin()}/scan/asset/${assetId}`
 }
 
 function AssetSearchList({ q, where, onSelect, selectedId }) {

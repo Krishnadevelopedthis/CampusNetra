@@ -187,7 +187,8 @@ export function AssistantWidget() {
           // Smaller on narrow screens, same as every other size step in
           // this file (bottom/right position already did this; the button
           // itself stayed one fixed size regardless of viewport).
-          'bottom-4 right-3 h-11 w-11 sm:bottom-6 sm:right-6 sm:h-14 sm:w-14',
+          // Below lg the bottom tab bar (4rem + the home-bar inset) sits underneath.
+          'bottom-[calc(5rem+env(safe-area-inset-bottom))] right-3 h-11 w-11 sm:right-6 sm:h-14 sm:w-14 lg:bottom-6',
           'transition-transform hover:scale-105 active:scale-95',
           'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary',
         )}
