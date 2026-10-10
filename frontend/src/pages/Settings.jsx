@@ -62,6 +62,8 @@ const DEFAULTS = {
 
 function merge(saved) {
   return {
+    // Keep keys this page does not edit (e.g. the tour's "seen" flag).
+    ...(saved || {}),
     appearance: { ...DEFAULTS.appearance, ...(saved?.appearance || {}) },
     notify: { ...DEFAULTS.notify, ...(saved?.notify || {}) },
     display: { ...DEFAULTS.display, ...(saved?.display || {}) },

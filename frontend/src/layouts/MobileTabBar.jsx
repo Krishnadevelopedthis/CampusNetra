@@ -83,7 +83,7 @@ function IconPill({ icon: Icon, active }) {
 
 function Tab({ to, icon, label, active }) {
   return (
-    <NavLink to={to} aria-label={label} aria-current={active ? 'page' : undefined} className={tabClass(active)}>
+    <NavLink to={to} data-tour={`nav:${to}`} aria-label={label} aria-current={active ? 'page' : undefined} className={tabClass(active)}>
       <IconPill icon={icon} active={active} />
       <span className="max-w-full truncate px-0.5">{label}</span>
     </NavLink>
@@ -100,6 +100,7 @@ function CenterTab({ to, icon: Icon, label, active }) {
     >
       {/* Raised above the bar; the ring in the page colour cuts a notch into the bar's edge. */}
       <span
+        data-tour={`nav:${to}`}
         className={clsx(
           'absolute -top-7 grid h-[3.75rem] w-[3.75rem] place-items-center rounded-full text-white',
           'bg-gradient-to-br from-secondary to-secondary-700 ring-[5px] ring-surface-base',
@@ -157,7 +158,7 @@ export function MobileTabBar({ items, role, activePath, pathname, moreOpen, onMo
           {center && <CenterTab to={center.to} icon={center.icon} label={center.short} active={activePath === center.to} />}
           {right.map(tab)}
           {more && (
-            <button type="button" onClick={onMoreOpen} aria-haspopup="dialog" aria-expanded={moreOpen}
+            <button type="button" data-tour="nav:more" onClick={onMoreOpen} aria-haspopup="dialog" aria-expanded={moreOpen}
                     className={tabClass(moreActive || moreOpen)}>
               <IconPill icon={LayoutGrid} active={moreActive || moreOpen} />
               <span>More</span>

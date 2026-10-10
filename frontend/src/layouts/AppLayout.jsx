@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import clsx from 'clsx'
 import {
-  Bell, ChevronDown, Clock, HelpCircle, LogOut, Search, Settings, User as UserIcon, X,
+  Bell, ChevronDown, Clock, Compass, HelpCircle, LogOut, Search, Settings, User as UserIcon, X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
@@ -11,6 +11,8 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { Avatar, toast } from '@/components/ui'
 import { AssistantWidget } from '@/features/assistant/AssistantWidget'
 import { QrScanButton } from '@/features/assistant/QrScanButton'
+import { ProductTour } from '@/features/tour/ProductTour'
+import { hasSeenTour, useTour } from '@/features/tour/tourStore'
 import { api, connectNotifications, endSessionAndRedirect } from '@/lib/api'
 import { ROLE_LABEL, useAuth } from '@/lib/auth'
 import { ago } from '@/lib/format'
@@ -74,7 +76,7 @@ function HeaderSearch({ mobileOpen, onMobileClose }) {
           : 'hidden sm:block sm:flex-1 sm:max-w-md',
       )}
     >
-      <div className="relative">
+      <div className="relative" data-tour="search">
         <Search
           size={15} strokeWidth={2.25}
           className="absolute z-10 left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
@@ -227,6 +229,7 @@ function NotificationBell() {
       <button
         onClick={() => { setOpen((o) => !o); if (!open) load() }}
         className="btn-ghost h-9 w-9 p-0 rounded-lg relative"
+        data-tour="notifications"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
       >
         <Bell size={18} className={clsx(pinged && 'animate-[pulse-ring_0.6s_ease-out_2]')} />
@@ -283,6 +286,7 @@ function NotificationBell() {
 
 function UserMenu() {
   const { user, logout } = useAuth()
+  const startTour = useTour((s) => s.start)
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
   const navigate = useNavigate()
@@ -292,6 +296,8 @@ function UserMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
+        data-tour="profile-menu"
+        aria-label="Profile menu"
         className="flex h-11 items-center gap-2.5 rounded-xl border border-border-subtle bg-surface-sunken/40 py-1.5 pl-1.5 pr-2 transition-colors hover:bg-surface-sunken sm:pl-3"
       >
         <div className="hidden min-w-0 flex-col gap-0.5 text-right leading-none sm:flex">
@@ -312,6 +318,13 @@ function UserMenu() {
           <MenuItem icon={Settings} to="/settings" onClick={() => setOpen(false)}>Account Settings</MenuItem>
           <MenuItem icon={Clock} to="/history" onClick={() => setOpen(false)}>History</MenuItem>
           <MenuItem icon={HelpCircle} to="/help" onClick={() => setOpen(false)}>Help & Support</MenuItem>
+          <button
+            type="button"
+            onClick={() => { setOpen(false); startTour() }}
+            className="w-full flex items-center gap-3 px-4 py-2.5 text-body-md text-ink hover:bg-surface-sunken transition-colors"
+          >
+            <Compass size={16} /> Take the tour
+          </button>
           <div className="border-t border-border-subtle mt-1 pt-1">
             <button
               onClick={async () => { await logout(); navigate('/login') }}
@@ -339,6 +352,15 @@ function MenuItem({ icon: Icon, to, children, onClick }) {
 
 export default function AppLayout() {
   const { user } = useAuth()
+
+  // First visit after signing in: start the tour once the shell has drawn
+  // (the tour needs the sidebar or tab bar on screen to point at).
+  const startTour = useTour((s) => s.start)
+  useEffect(() => {
+    if (!user || hasSeenTour(user)) return undefined
+    const id = window.setTimeout(startTour, 1200)
+    return () => window.clearTimeout(id)
+  }, [user, startTour])
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem('cn-sidebar-collapsed') === 'true' } catch { return false }
   })
@@ -427,10 +449,11 @@ export default function AppLayout() {
               onClick={() => setMobileSearchOpen(true)}
               className={clsx('btn-ghost h-9 w-9 p-0 rounded-lg sm:hidden', mobileSearchOpen && 'hidden')}
               aria-label="Search"
+              data-tour="search"
             >
               <Search size={18} />
             </button>
-            <ThemeToggle className="lg:hidden" />
+            <span data-tour="theme" className="inline-flex lg:hidden"><ThemeToggle /></span>
             <NotificationBell />
             <UserMenu />
           </div>
@@ -459,6 +482,7 @@ export default function AppLayout() {
 
       <AssistantWidget />
       <QrScanButton />
+      <ProductTour />
     </div>
   )
 }

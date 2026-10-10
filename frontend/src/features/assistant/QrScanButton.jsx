@@ -109,6 +109,7 @@ export function QrScanButton() {
       {!assistantOpen && (
       <button
         onClick={() => setOpen(true)}
+        data-tour="qr"
         aria-label="Scan asset QR code"
         title="Scan asset QR code"
         className={clsx(

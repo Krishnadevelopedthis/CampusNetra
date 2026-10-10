@@ -186,6 +186,7 @@ export function AssistantWidget() {
           wins if both are ever open at once. */}
       <button
         onClick={() => setOpen((o) => !o)}
+        data-tour="assistant"
         aria-label={open ? 'Close Campus Assistant' : 'Open Campus Assistant chat'}
         aria-expanded={open}
         className={clsx(

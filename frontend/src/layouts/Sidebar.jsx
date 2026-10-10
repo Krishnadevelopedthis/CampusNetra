@@ -33,6 +33,7 @@ function NavItem({ to, icon: Icon, label, active, collapsed, onNavigate }) {
     <>
       <NavLink
         to={to}
+        data-tour={`nav:${to}`}
         onClick={onNavigate}
         onMouseEnter={show}
         onMouseLeave={() => setTip(null)}
@@ -87,6 +88,7 @@ function NavGroup({ item, activePath, collapsed, onNavigate }) {
     <div>
       <button
         type="button"
+        data-tour={`nav:${item.to}`}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         className={clsx(
@@ -179,7 +181,7 @@ function ThemeSwitch({ collapsed }) {
   )
 
   return (
-    <div className={clsx('flex items-center justify-center py-1 transition-[gap] duration-500', collapsed ? 'gap-0' : 'gap-2.5')}>
+    <div data-tour="theme" className={clsx('flex items-center justify-center py-1 transition-[gap] duration-500', collapsed ? 'gap-0' : 'gap-2.5')}>
       <Sun size={15} className={clsx(hint, dark ? 'text-ink-faint' : 'text-secondary')} />
       <button
         role="switch"
