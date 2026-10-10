@@ -2,6 +2,10 @@
   "appId": "com.campusnetra.app",
   "appName": "Campus Netra",
   "webDir": "dist-app",
+  "server": {
+    "url": "https://campusnetra.dpdns.org/login",
+    "errorPath": "offline.html"
+  },
   "android": {
     "allowMixedContent": false
   }
