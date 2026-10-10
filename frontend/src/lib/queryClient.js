@@ -1,3 +1,4 @@
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
 import { QueryClient } from '@tanstack/react-query'
 
 /**
@@ -15,6 +16,38 @@ export const queryClient = new QueryClient({
     },
   },
 })
+
+/*
+ * The last data each screen showed is kept on the device, so the dashboard,
+ * lists and notifications appear the moment the app opens and are refreshed
+ * in the background, instead of waiting on the server every time. Cleared on
+ * sign-out (lib/auth.js) so one account never sees another's data.
+ */
+export const PERSIST_KEY = 'cn.query-cache'
+export const PERSIST_MAX_AGE = 24 * 60 * 60 * 1000
+
+// Not worth keeping: one-time or fast-changing data, and large chart series.
+const NOT_PERSISTED = new Set(['captcha', 'device-history', 'qr-asset-detail', 'health-asset'])
+
+export const persister = createSyncStoragePersister({
+  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  key: PERSIST_KEY,
+  throttleTime: 2000,
+})
+
+export const persistOptions = {
+  persister,
+  maxAge: PERSIST_MAX_AGE,
+  dehydrateOptions: {
+    shouldDehydrateQuery: (q) => q.state.status === 'success' && !NOT_PERSISTED.has(String(q.queryKey?.[0])),
+  },
+}
+
+/** Forget everything saved on this device (sign-out, rejected session). */
+export function clearPersistedQueries() {
+  queryClient.clear()
+  try { window.localStorage.removeItem(PERSIST_KEY) } catch { /* storage blocked */ }
+}
 
 // React Query's cache is per-tab by design -- an invalidateQueries() call in
 // one open tab has no way to reach another tab's own QueryClient instance.

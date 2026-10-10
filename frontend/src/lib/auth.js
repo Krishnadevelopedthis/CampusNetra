@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { api, readAuth, writeAuth } from './api'
 import { useColorTheme } from './colorTheme'
 import { setDisplayPrefs } from './displayPrefs'
-import { queryClient } from './queryClient'
+import { clearPersistedQueries } from './queryClient'
 
 /**
  * Session timeout
@@ -93,6 +93,19 @@ export const useAuth = create((set, get) => ({
       return
     }
 
+    // Open the app at once with the account saved at sign-in, and confirm it
+    // with the server in the background. Waiting for /auth/me first meant a
+    // blank loader for as long as the backend took to answer -- a minute or
+    // more when the free-tier host had gone to sleep. The server still decides:
+    // a rejected session signs out below, and every API call is checked anyway.
+    if (stored.user) {
+      if (stored.user.preferences?.appearance) {
+        useColorTheme.getState().loadFromUserPreferences(stored.user.preferences)
+      }
+      setDisplayPrefs(stored.user.preferences)
+      set({ user: stored.user, initialised: true })
+    }
+
     try {
       const user = await api.get('/auth/me')
 
@@ -131,6 +144,7 @@ export const useAuth = create((set, get) => ({
        */
       if (err?.status === 401 || err?.status === 403) {
         writeAuth(null)
+        clearPersistedQueries()
 
         set({
           user: null,
@@ -307,7 +321,8 @@ export const useAuth = create((set, get) => ({
     // the next person to sign in on this tab would otherwise see the
     // previous account's data flash in (or persist, inside staleTime)
     // until each query happened to refetch on its own.
-    queryClient.clear()
+    // ...and the copy saved on the device for fast start-up.
+    clearPersistedQueries()
 
     writeAuth(null)
 

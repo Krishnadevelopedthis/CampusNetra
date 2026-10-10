@@ -27,6 +27,8 @@ const BASE =
 export const API_ORIGIN = BASE.replace(/\/api\/v1\/?$/, '')
 
 const STORAGE_KEY = 'cn.auth'
+// Same key as lib/queryClient.js PERSIST_KEY (not imported, to keep this module free of React Query).
+const PERSISTED_QUERY_CACHE_KEY = 'cn.query-cache'
 
 /**
  * Maximum time a normal API request is allowed to remain pending.
@@ -220,6 +222,8 @@ let refreshInFlight = null
 /** Clear the stored session and go to /login, saying why when we know. */
 export function endSessionAndRedirect(code) {
   writeAuth(null)
+  // The data saved on this device for fast start-up belongs to that session.
+  try { localStorage.removeItem(PERSISTED_QUERY_CACHE_KEY) } catch { /* storage blocked */ }
 
   const reason =
     code === 'session_replaced' ? 'other_device' : code === 'session_ended' ? 'ended' : null

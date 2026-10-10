@@ -1,10 +1,10 @@
-import { QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
-import { queryClient } from './lib/queryClient'
+import { persistOptions, queryClient } from './lib/queryClient'
 import { initTheme } from './lib/theme'
 import './styles/index.css'
 
@@ -55,10 +55,10 @@ window.setTimeout(() => sessionStorage.removeItem(STALE_CHUNK_KEY), 5000)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <BrowserRouter>
         <App />
       </BrowserRouter>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </React.StrictMode>,
 )
