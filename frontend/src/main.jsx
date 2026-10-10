@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
 import App from './App'
+import { startAppUpdates } from './lib/appUpdater'
 import { persistOptions, queryClient } from './lib/queryClient'
 import { initTheme } from './lib/theme'
 import './styles/index.css'
@@ -62,3 +63,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </PersistQueryClientProvider>
   </React.StrictMode>,
 )
+
+// Android app only: check for a newer build in the background (see lib/appUpdater.js).
+startAppUpdates()

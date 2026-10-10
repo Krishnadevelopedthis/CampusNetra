@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && vite build --ssr src/entry-prerender.jsx --outDir dist-ssr && node scripts/prerender.mjs",
+    "build": "vite build && vite build --ssr src/entry-prerender.jsx --outDir dist-ssr && node scripts/prerender.mjs && node scripts/app-bundle.mjs",
     "preview": "vite preview",
     "lint": "eslint src --ext js,jsx",
     "build:app": "vite build --outDir dist-app && cap sync android"
@@ -13,6 +13,7 @@
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/core": "^8.5.3",
+    "@capgo/capacitor-updater": "^8.52.1",
     "@tanstack/query-sync-storage-persister": "^5.104.1",
     "@tanstack/react-query": "^5.62.7",
     "@tanstack/react-query-persist-client": "^5.104.1",
@@ -42,6 +43,7 @@
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "fflate": "^0.8.3",
     "globals": "^17.11.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
