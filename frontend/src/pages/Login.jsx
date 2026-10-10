@@ -8,10 +8,42 @@ import { RoleTabs } from '@/features/auth/RoleTabs'
 import { useCaptcha } from '@/features/auth/useCaptcha'
 import { Button, Field, Input, toast } from '@/components/ui'
 import { ROLE_HOME, useAuth } from '@/lib/auth'
+import { isNativeApp } from '@/lib/native'
+
+/*
+ * "Remember me" remembers the email address on this device, so it is filled in
+ * next time. It does not keep anyone signed in: the password and captcha are
+ * still asked every time, and the usual 10-minute idle sign-out still applies.
+ * Ticked by default in the Android app, which is a personal device.
+ */
+const REMEMBER_PREF_KEY = 'cn.remember'
+const REMEMBER_EMAIL_KEY = 'cn.remember-email'
+
+function readRememberPref() {
+  try {
+    const v = localStorage.getItem(REMEMBER_PREF_KEY)
+    if (v === '1') return true
+    if (v === '0') return false
+  } catch { /* storage blocked */ }
+  return isNativeApp()
+}
+
+function readRememberedEmail() {
+  try { return localStorage.getItem(REMEMBER_EMAIL_KEY) || '' } catch { return '' }
+}
+
+function saveRememberChoice(remember, email) {
+  try {
+    localStorage.setItem(REMEMBER_PREF_KEY, remember ? '1' : '0')
+    if (remember) localStorage.setItem(REMEMBER_EMAIL_KEY, email)
+    else localStorage.removeItem(REMEMBER_EMAIL_KEY)
+  } catch { /* storage blocked: nothing to remember */ }
+}
 
 export default function Login() {
   const [role, setRole] = useState('student')
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(readRememberedEmail)
+  const [remember, setRemember] = useState(readRememberPref)
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [errors, setErrors] = useState({})
@@ -50,6 +82,7 @@ export default function Login() {
       // technician signs in only from their own tab. Admin and facility
       // manager accounts have no tab and sign in from any of them.
       const user = await login(email.trim(), password, role, captcha)
+      saveRememberChoice(remember, email.trim())
       // A genuinely first-ever sign-in (an admin-provisioned account whose
       // owner never went through the register->verify-email auto-login
       // flow) shouldn't be told "welcome back" — there's no "back" yet.
@@ -155,8 +188,14 @@ export default function Login() {
         <CaptchaField captcha={captcha} error={errors.captcha} />
 
         <div className="flex items-center justify-between">
-          <label className="flex items-center gap-2 text-body-md text-ink-muted cursor-pointer">
-            <input type="checkbox" className="rounded border-border accent-secondary" />
+          <label
+            className="flex items-center gap-2 text-body-md text-ink-muted cursor-pointer"
+            title="Fill in my email next time on this device. Leave it off on a shared computer."
+          >
+            <input
+              type="checkbox" className="rounded border-border accent-secondary"
+              checked={remember} onChange={(e) => setRemember(e.target.checked)}
+            />
             Remember me
           </label>
           <Link to="/forgot-password" className="text-body-md text-secondary hover:underline">
