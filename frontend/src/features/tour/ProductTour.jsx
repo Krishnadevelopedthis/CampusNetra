@@ -31,11 +31,16 @@ function findVisible(target) {
 
 function holeFor(el, shape) {
   const r = el.getBoundingClientRect()
-  if (shape === 'circle') {
+  // Round highlights: a circle for anything roughly square (tabs, icon
+  // buttons); a long item such as a sidebar row gets a pill, because a circle
+  // around it would cover half the screen.
+  const squarish = r.width / Math.max(r.height, 1) <= 1.8
+  if (shape === 'circle' || squarish) {
     const size = Math.max(r.width, r.height) + PAD * 2
     return { x: r.left + r.width / 2 - size / 2, y: r.top + r.height / 2 - size / 2, w: size, h: size, radius: size / 2 }
   }
-  return { x: r.left - PAD, y: r.top - PAD, w: r.width + PAD * 2, h: r.height + PAD * 2, radius: 14 }
+  const h = r.height + PAD * 2
+  return { x: r.left - PAD, y: r.top - PAD, w: r.width + PAD * 2, h, radius: h / 2 }
 }
 
 export function ProductTour() {

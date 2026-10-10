@@ -277,12 +277,12 @@ export function AssistantWidget() {
                   ) : (
                     <Avatar name={user?.full_name} size={28} />
                   )}
-                  <div className={clsx('max-w-[85%] rounded-xl px-3.5 py-2.5',
+                  <div className={clsx('max-w-[85%] px-3.5 py-2.5',
                     m.role === 'user'
-                      ? 'bg-secondary text-on-secondary'
+                      ? 'rounded-2xl rounded-tr-md bg-secondary text-on-secondary shadow-level2'
                       : m.error
-                        ? 'bg-danger-bg border border-danger-border text-danger-text'
-                        : 'ai-surface text-ink')}>
+                        ? 'rounded-2xl rounded-tl-md bg-danger-bg border border-danger-border text-danger-text'
+                        : 'ai-answer rounded-2xl rounded-tl-md')}>
                     <p className={clsx('whitespace-pre-wrap break-words', m.role === 'assistant' ? 'text-body-lg' : 'text-body-md')}>
                       {m.content}
                     </p>
@@ -304,7 +304,7 @@ export function AssistantWidget() {
               {busy && (
                 <div className="flex gap-2.5">
                   <AiFace size={28} />
-                  <div className="ai-surface px-3.5 py-3 flex gap-1.5">
+                  <div className="ai-answer rounded-2xl rounded-tl-md px-3.5 py-3 flex gap-1.5">
                     {[0, 150, 300].map((d) => (
                       <span key={d} className="w-1.5 h-1.5 rounded-full bg-secondary animate-bounce"
                             style={{ animationDelay: `${d}ms` }} />
@@ -315,41 +315,49 @@ export function AssistantWidget() {
               <div ref={endRef} />
             </div>
 
+            {/* On a phone the box sits 2-4 cm above the bottom edge (more on taller
+                screens, plus the home-bar inset) so it is easy to reach and clear
+                of the gesture bar; on a desktop the panel is a card and needs none. */}
             <form
               onSubmit={(e) => { e.preventDefault(); send() }}
-              className="p-3 sm:p-4 border-t border-border-subtle shrink-0"
+              className="px-3 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+clamp(4.75rem,10vh,9rem))] sm:p-4 border-t border-border-subtle shrink-0"
             >
-              <div className="relative">
+              <div className="relative flex items-center gap-2">
                 {showEmoji && (
                   <EmojiPicker
                     onPick={(e) => insertEmoji(e)}
                     onClose={() => setShowEmoji(false)}
                   />
                 )}
-                <input
-                  ref={inputRef}
-                  value={input} onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask anything about your campus…"
-                  className="input pr-16" disabled={busy}
-                />
                 <button
                   type="button" disabled={busy}
                   onClick={() => setShowEmoji((v) => !v)}
                   className={clsx(
-                    'absolute right-9 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center transition-colors disabled:opacity-40',
-                    showEmoji ? 'text-secondary bg-secondary/10' : 'text-ink-faint hover:text-ink',
+                    'grid h-11 w-11 shrink-0 place-items-center rounded-full border transition-all duration-200 disabled:opacity-40',
+                    'active:scale-95 motion-reduce:transform-none',
+                    showEmoji
+                      ? 'border-secondary/40 bg-secondary/15 text-secondary shadow-[0_0_0_3px_rgb(var(--c-secondary)/0.15)]'
+                      : 'border-border-subtle bg-surface-sunken text-ink-muted hover:border-secondary/40 hover:bg-secondary/10 hover:text-secondary',
                   )}
                   aria-label="Add emoji" aria-expanded={showEmoji}
                 >
-                  <Smile size={16} />
+                  <Smile size={20} strokeWidth={2} />
                 </button>
-                <button
-                  type="submit" disabled={!input.trim() || busy}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7 rounded grid place-items-center bg-secondary text-on-secondary disabled:opacity-40"
-                  aria-label="Send"
-                >
-                  <Send size={14} />
-                </button>
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    ref={inputRef}
+                    value={input} onChange={(e) => setInput(e.target.value)}
+                    placeholder="Ask anything about your campus…"
+                    className="input h-11 rounded-full pl-4 pr-12" disabled={busy}
+                  />
+                  <button
+                    type="submit" disabled={!input.trim() || busy}
+                    className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full bg-secondary text-on-secondary shadow-level2 transition-transform active:scale-95 disabled:opacity-40 disabled:shadow-none"
+                    aria-label="Send"
+                  >
+                    <Send size={14} />
+                  </button>
+                </div>
               </div>
             </form>
           </aside>
