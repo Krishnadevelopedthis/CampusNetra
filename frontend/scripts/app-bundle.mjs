@@ -2,7 +2,7 @@
 //
 // Runs after `vite build` + prerender (see the "build" script). Writes:
 //   dist/app-updates/<version>.zip   the app's files, with the SPA shell as index.html
-//   dist/app-update.json             { version, url } -- read by src/lib/appUpdater.js
+//   dist/app-update.json             { version, url, checksum } -- read by src/lib/appUpdater.js
 //
 // The app downloads the zip in the background and switches to it on its next start.
 import { createHash } from 'node:crypto'
@@ -40,9 +40,11 @@ const sha = (process.env.VERCEL_GIT_COMMIT_SHA || '').slice(0, 7)
 const version = [sha, hash.digest('hex').slice(0, 10)].filter(Boolean).join('-')
 
 const zip = zipSync(files, { level: 6 })
+// The updater refuses a download without the zip's SHA-256 and checks it after.
+const checksum = createHash('sha256').update(zip).digest('hex')
 mkdirSync(join(dist, 'app-updates'), { recursive: true })
 writeFileSync(join(dist, 'app-updates', `${version}.zip`), zip)
 writeFileSync(join(dist, 'app-update.json'),
-  JSON.stringify({ version, url: `${SITE}/app-updates/${version}.zip` }, null, 2))
+  JSON.stringify({ version, url: `${SITE}/app-updates/${version}.zip`, checksum }, null, 2))
 
 console.log(`app-bundle: ${Object.keys(files).length} files, ${(zip.length / 1048576).toFixed(1)} MB, version ${version}`)

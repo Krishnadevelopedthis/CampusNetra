@@ -10,6 +10,7 @@ import {
   Mail,
   Palette,
   ShieldAlert,
+  Smartphone,
   Sparkles,
   Table2,
   Trash2,
@@ -23,6 +24,7 @@ import { ColorThemeSwitcher } from '@/components/ColorThemeSwitcher'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button, Field, Input, Modal, PasswordInput, PasswordStrengthMeter, Select, Widget, toast } from '@/components/ui'
 import { api, readAuth, writeAuth } from '@/lib/api'
+import { currentAppVersion } from '@/lib/appUpdater'
 import { useAuth } from '@/lib/auth'
 import { useColorTheme } from '@/lib/colorTheme'
 import { scorePassword } from '@/lib/format'
@@ -262,6 +264,8 @@ export default function Settings() {
               label="Reduce motion"
             />
           </Row>
+
+          <AppVersionRow />
         </div>
       </Widget>
 
@@ -538,6 +542,22 @@ function SecuritySection({ user, logout, navigate }) {
 }
 
 /* ---------------- Small pieces ---------------- */
+
+// Android app only: which build is running, so an over-the-air update can be
+// confirmed at a glance. "Built in" is the copy that came with the APK.
+function AppVersionRow() {
+  const [version, setVersion] = useState(null)
+  useEffect(() => { currentAppVersion().then(setVersion) }, [])
+  if (!version) return null
+  return (
+    <>
+      <hr className="border-border-subtle" />
+      <Row icon={Smartphone} title="App version" desc="Updates download by themselves and apply the next time the app is reopened.">
+        <span className="font-mono text-body-sm text-ink-muted">{version === 'builtin' ? 'Built in' : version}</span>
+      </Row>
+    </>
+  )
+}
 
 function Row({ icon: Icon, title, desc, children, compact }) {
   return (
