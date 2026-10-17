@@ -1,35 +1,6 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
-import {
-  Navbar,
-  Hero,
-  TrustSection,
-  ProblemSolution,
-  FeatureBento,
-  RoleTabs,
-  HowItWorks,
-  DigitalTwinShowcase,
-  AISection,
-  Testimonials,
-  FeatureMarquee,
-  PlatformArchitecture,
-  Benefits,
-  SecuritySection,
-  FAQSection,
-  CTA,
-  Footer,
-} from '@/components/landing'
+import { LandingHero } from '@/components/landing/LandingHero'
+import { LandingNav } from '@/components/landing/LandingNav'
 import { SITE_URL, usePageSEO } from '@/hooks/usePageSEO'
-
-// The only landing section that needs recharts (a demo chart, not real
-// data) -- and recharts pulls in a genuinely heavy dependency tree (d3
-// internals). A live Lighthouse run against production measured 4.76s of
-// main-thread blocking time and a 1.1MB main bundle on THIS landing page,
-// for an anonymous visitor who was never going to see a real chart
-// anywhere else either. Splitting just this one, below-the-fold section
-// out keeps recharts out of the bundle every visitor pays for up front.
-const AnalyticsShowcase = lazy(() =>
-  import('@/components/landing/AnalyticsShowcase').then((m) => ({ default: m.AnalyticsShowcase })))
 
 const HOME_JSON_LD = {
   '@context': 'https://schema.org',
@@ -81,87 +52,14 @@ export default function LandingPage() {
     jsonLd: HOME_JSON_LD,
   })
 
-  const location = useLocation()
-  useEffect(() => {
-    if (!location.hash) return
-    // Arriving here via Footer's cross-page anchor links (from e.g. /pricing
-    // clicking "Issue Management") lands with a hash but nothing scrolled
-    // to yet -- a plain document.querySelector at mount time can also lose
-    // the race against this page's own lazy-loaded sections still
-    // rendering, so this retries for up to ~1s instead of trying once and
-    // silently giving up if the target section isn't in the DOM yet.
-    let attempts = 0
-    const tryScroll = () => {
-      const el = document.querySelector(location.hash)
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' })
-      } else if (attempts < 20) {
-        attempts += 1
-        setTimeout(tryScroll, 50)
-      }
-    }
-    tryScroll()
-  }, [location.hash])
-
+  // One full-screen hero; the longer feature tour lives on /features.
   return (
-    <div className="min-h-screen bg-surface-base text-ink flex flex-col">
-      {/* 1. Sticky Navigation */}
-      <Navbar />
-
-      <main className="flex-1">
-        {/* 2. Hero Section */}
-        <Hero />
-
-        {/* 3. Trust & Social Proof */}
-        <TrustSection />
-
-        {/* 4. Problem -> Solution */}
-        <ProblemSolution />
-
-        {/* 5. Platform Bento Grid */}
-        <FeatureBento />
-
-        {/* 6. Interactive Role Tabs */}
-        <RoleTabs />
-
-        {/* 7. How It Works (6-step process) */}
-        <HowItWorks />
-
-        {/* 8. Digital Twin Showcase */}
-        <DigitalTwinShowcase />
-
-        {/* 9. AI Intelligence Section */}
-        <AISection />
-
-        {/* 10. Analytics & SLA Showcase */}
-        <Suspense fallback={<div className="min-h-[400px]" />}>
-          <AnalyticsShowcase />
-        </Suspense>
-
-        {/* 11. Testimonials & Feedback */}
-        <Testimonials />
-
-        {/* 12. Feature Marquee */}
-        <FeatureMarquee />
-
-        {/* 13. Platform Architecture / Command Center */}
-        <PlatformArchitecture />
-
-        {/* 14. Core Benefits */}
-        <Benefits />
-
-        {/* 15. Security & Governance */}
-        <SecuritySection />
-
-        {/* 16. FAQ Accordion */}
-        <FAQSection />
-
-        {/* 17. Final Call to Action */}
-        <CTA />
+    <div className="lp">
+      <a className="lp-skip" href="#main">Skip to content</a>
+      <LandingNav />
+      <main id="main">
+        <LandingHero />
       </main>
-
-      {/* 18. Footer */}
-      <Footer />
     </div>
   )
 }

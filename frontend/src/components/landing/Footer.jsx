@@ -1,38 +1,38 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Logo } from '@/components/Logo'
 import { Sparkles, ArrowRight } from 'lucide-react'
 import clsx from 'clsx'
 
 const FOOTER_LINKS = {
   Platform: [
-    { label: 'Issue Management', href: '#platform' },
-    { label: 'Work Orders', href: '#platform' },
-    { label: 'Digital Twin', href: '#twin' },
-    { label: 'Predictive AI', href: '#ai' },
-    { label: 'Lost & Found', href: '#platform' },
+    { label: 'Issue Management', href: '/features' },
+    { label: 'Work Orders', href: '/features' },
+    { label: 'Digital Twin', href: '/features' },
+    { label: 'Predictive AI', href: '/features' },
+    { label: 'Lost & Found', href: '/features' },
   ],
   Solutions: [
-    { label: 'Universities', href: '/solutions/universities', isRoute: true },
-    { label: 'Colleges', href: '/solutions/colleges', isRoute: true },
-    { label: 'Research Facilities', href: '/solutions/research', isRoute: true },
-    { label: 'Facility Managers', href: '/solutions/managers', isRoute: true },
+    { label: 'Universities', href: '/solutions/universities' },
+    { label: 'Colleges', href: '/solutions/colleges' },
+    { label: 'Research Facilities', href: '/solutions/research' },
+    { label: 'Facility Managers', href: '/solutions/managers' },
   ],
   Company: [
-    { label: 'About', href: '/about', isRoute: true },
-    { label: 'How It Works', href: '#how-it-works' },
-    { label: 'Privacy Policy', href: '/privacy', isRoute: true },
-    { label: 'Terms of Service', href: '/terms', isRoute: true },
+    { label: 'About', href: '/about' },
+    { label: 'How It Works', href: '/features' },
+    { label: 'Privacy Policy', href: '/privacy' },
+    { label: 'Terms of Service', href: '/terms' },
   ],
   Account: [
-    { label: 'Log In', href: '/login', isRoute: true },
-    { label: 'Register', href: '/register', isRoute: true },
-    { label: 'Report Lost Item', href: '/lost-found/report', isRoute: true },
+    { label: 'Log In', href: '/login' },
+    { label: 'Register', href: '/register' },
+    { label: 'Report Lost Item', href: '/lost-found/report' },
   ],
   Resources: [
-    { label: 'Features', href: '/features', isRoute: true },
-    { label: 'Pricing', href: '/pricing', isRoute: true },
-    { label: 'Security', href: '/security', isRoute: true },
-    { label: 'Support', href: '/support', isRoute: true },
+    { label: 'Features', href: '/features' },
+    { label: 'Pricing', href: '/pricing' },
+    { label: 'Security', href: '/security' },
+    { label: 'Support', href: '/support' },
   ],
 }
 // Documentation, API Reference and Community are deliberately left out --
@@ -46,27 +46,6 @@ const FOOTER_LINKS = {
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
-  const location = useLocation()
-  const navigate = useNavigate()
-
-  // This footer is shared by every page (StaticPage renders it too, not
-  // just the homepage) -- these anchors only ever point at sections that
-  // exist on the homepage. Clicking "Issue Management" while already
-  // reading the Pricing page used to just silently do nothing: preventDefault
-  // fired, but document.querySelector(href) found nothing on this page to
-  // scroll to. Off the homepage, this now navigates to "/" + the hash
-  // instead; LandingPage's own mount effect (see LandingPage.jsx) picks up
-  // that hash and scrolls to it once the section actually exists in the DOM.
-  const handleAnchor = (e, href) => {
-    e.preventDefault()
-    if (location.pathname !== '/') {
-      navigate(`/${href}`)
-      return
-    }
-    const el = document.querySelector(href)
-    if (el) el.scrollIntoView({ behavior: 'smooth' })
-  }
-
   return (
     <footer className="bg-surface-base border-t border-glass-border py-16 relative overflow-hidden">
       {/* Radial spotlight accents */}
@@ -105,28 +84,15 @@ export function Footer() {
               <ul className="space-y-2.5">
                 {links.map((link) => (
                   <li key={link.label}>
-                    {link.isRoute ? (
-                      <Link
-                        to={link.href}
-                        className={clsx(
-                          'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
-                        )}
-                      >
-                        {link.label}
-                        <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
-                      </Link>
-                    ) : (
-                      <a
-                        href={link.href}
-                        onClick={(e) => handleAnchor(e, link.href)}
-                        className={clsx(
-                          'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
-                        )}
-                      >
-                        {link.label}
-                        <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
-                      </a>
-                    )}
+                    <Link
+                      to={link.href}
+                      className={clsx(
+                        'text-body-sm text-ink-muted hover:text-secondary transition-colors duration-200 flex items-center gap-1.5 group',
+                      )}
+                    >
+                      {link.label}
+                      <ArrowRight size={12} className="text-ink-faint group-hover:text-secondary group-hover:translate-x-1 transition-all duration-200" />
+                    </Link>
                   </li>
                 ))}
               </ul>
