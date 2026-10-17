@@ -3,23 +3,33 @@ import { Link } from 'react-router-dom'
 
 import { Chevron, Close, Menu, audiences } from './landingIcons'
 
+// Section links scroll within the page; the rest are their own pages.
 const links = [
-  { label: 'Features', to: '/features' },
+  { label: 'Features', href: '#features' },
+  { label: 'How It Works', href: '#how' },
+  { label: 'Digital Twin', href: '#twin' },
   { label: 'Solutions', menu: audiences },
-  { label: 'Security', to: '/security' },
   { label: 'Pricing', to: '/pricing' },
-  { label: 'Support', to: '/support' },
 ]
 
-export function LandingNav() {
+export function LandingNav({ onAnchor }) {
   const [open, setOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const menuRef = useRef(null)
 
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
+
+  // Transparent over the hero, a blurred bar once the page scrolls.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   // The Solutions menu closes on Escape or a click anywhere else.
   useEffect(() => {
@@ -38,8 +48,17 @@ export function LandingNav() {
     }
   }, [menuOpen, open])
 
+  const go = (e, href) => {
+    setOpen(false)
+    onAnchor(e, href)
+  }
+
+  const item = (link, className, close) => (link.to
+    ? <Link className={className} to={link.to} onClick={close}>{link.label}</Link>
+    : <a className={className} href={link.href} onClick={(e) => go(e, link.href)}>{link.label}</a>)
+
   return (
-    <header className="lp-nav">
+    <header className={`lp-nav ${scrolled ? 'is-scrolled' : ''}`}>
       <Link className="lp-nav__brand" to="/" aria-label="CampusNetra home">
         <img className="lp-nav__logo" src="/logo-dark.svg" alt="" width="36" height="36" />
         <span>CampusNetra</span>
@@ -63,17 +82,15 @@ export function LandingNav() {
                   </button>
                   {menuOpen && (
                     <ul className="lp-nav__menu">
-                      {link.menu.map((item) => (
-                        <li key={item.to}>
-                          <Link to={item.to} onClick={() => setMenuOpen(false)}>{item.name}</Link>
+                      {link.menu.map((m) => (
+                        <li key={m.to}>
+                          <Link to={m.to} onClick={() => setMenuOpen(false)}>{m.name}</Link>
                         </li>
                       ))}
                     </ul>
                   )}
                 </>
-              ) : (
-                <Link className="lp-nav__link" to={link.to}>{link.label}</Link>
-              )}
+              ) : item(link, 'lp-nav__link')}
             </li>
           ))}
         </ul>
@@ -96,15 +113,13 @@ export function LandingNav() {
       {open && (
         <div className="lp-nav__sheet">
           <ul>
-            {links.filter((l) => l.to).map((link) => (
-              <li key={link.label}>
-                <Link to={link.to} onClick={() => setOpen(false)}>{link.label}</Link>
-              </li>
+            {links.filter((l) => !l.menu).map((link) => (
+              <li key={link.label}>{item(link, undefined, () => setOpen(false))}</li>
             ))}
             <li className="lp-nav__sheet-label">Solutions</li>
-            {audiences.map((item) => (
-              <li key={item.to}>
-                <Link to={item.to} onClick={() => setOpen(false)}>{item.name}</Link>
+            {audiences.map((m) => (
+              <li key={m.to}>
+                <Link to={m.to} onClick={() => setOpen(false)}>{m.name}</Link>
               </li>
             ))}
             <li><Link to="/login" onClick={() => setOpen(false)}>Sign in</Link></li>

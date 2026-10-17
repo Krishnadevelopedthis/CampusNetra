@@ -1,5 +1,12 @@
+import { useCallback, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
+
 import { LandingHero } from '@/components/landing/LandingHero'
 import { LandingNav } from '@/components/landing/LandingNav'
+import {
+  AISection, CTASection, FAQSection, FeaturesSection, HowItWorksSection,
+  LandingFooter, RolesSection, SecuritySection, TwinSection,
+} from '@/components/landing/LandingSections'
 import { SITE_URL, usePageSEO } from '@/hooks/usePageSEO'
 
 const HOME_JSON_LD = {
@@ -52,14 +59,63 @@ export default function LandingPage() {
     jsonLd: HOME_JSON_LD,
   })
 
-  // One full-screen hero; the longer feature tour lives on /features.
+  const rootRef = useRef(null)
+  const location = useLocation()
+
+  const scrollTo = useCallback((hash, smooth = true) => {
+    const el = hash && document.querySelector(hash)
+    if (!el) return false
+    el.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
+    return true
+  }, [])
+
+  // In-page links scroll smoothly and keep the hash in the address bar.
+  const onAnchor = useCallback((e, hash) => {
+    e.preventDefault()
+    if (scrollTo(hash)) window.history.replaceState(null, '', hash)
+  }, [scrollTo])
+
+  // Arriving with a hash (e.g. /#features from another page) lands on it.
+  useEffect(() => {
+    if (location.hash) scrollTo(location.hash, false)
+  }, [location.hash, scrollTo])
+
+  // Sections rise into view as they scroll in. Content stays visible without
+  // JavaScript: the hidden starting state only applies once .lp-js is set.
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return undefined
+    const items = root.querySelectorAll('.lp-reveal')
+    if (!('IntersectionObserver' in window)) return undefined
+    root.classList.add('lp-js')
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-in')
+          io.unobserve(entry.target)
+        }
+      }
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.12 })
+    items.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+
   return (
-    <div className="lp">
+    <div className="lp" ref={rootRef}>
       <a className="lp-skip" href="#main">Skip to content</a>
-      <LandingNav />
+      <LandingNav onAnchor={onAnchor} />
       <main id="main">
         <LandingHero />
+        <FeaturesSection />
+        <HowItWorksSection />
+        <TwinSection />
+        <AISection />
+        <RolesSection />
+        <SecuritySection />
+        <FAQSection />
+        <CTASection />
       </main>
+      <LandingFooter onAnchor={onAnchor} />
     </div>
   )
 }

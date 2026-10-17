@@ -120,12 +120,6 @@ export function LandingHero() {
               </li>
             ))}
           </ul>
-          <p className="lp-hero__legal">
-            <span>© {new Date().getFullYear()} CampusNetra</span>
-            <Link to="/about">About</Link>
-            <Link to="/privacy">Privacy</Link>
-            <Link to="/terms">Terms</Link>
-          </p>
         </div>
       </div>
     </section>
